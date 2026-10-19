@@ -15,6 +15,7 @@ const datos = vi.hoisted(() => ({
   calificarAtencion: vi.fn(async () => ({ ok: true })),
   misReferidos: vi.fn(async () => 0),
   marcarCitaEnCalendario: vi.fn(async () => ({ ok: true })),
+  misMedidas: vi.fn(async () => null),
   misSolicitudesLentes: vi.fn(async () => ({ disponible: true, lista: [] })),
   solicitarLentes: vi.fn(async () => ({ ok: true })),
   descargarMisDatosPaciente: vi.fn(async () => ({ ok: true })),
@@ -22,7 +23,7 @@ const datos = vi.hoisted(() => ({
   reportarPagoTransferencia: vi.fn(async () => ({ ok: true })),
 }))
 vi.mock("../utilidades/facturaElectronicaApi", () => ({ misCompras: datos.misCompras, urlDeDescargaPaciente: vi.fn() }))
-vi.mock("../utilidades/portalDatos", () => ({ misOrdenes: datos.misOrdenes, miControl: datos.miControl, misCitasDetalle: datos.misCitasDetalle, confirmarAsistencia: datos.confirmarAsistencia, calificarAtencion: datos.calificarAtencion, misReferidos: datos.misReferidos, marcarCitaEnCalendario: datos.marcarCitaEnCalendario, misSolicitudesLentes: datos.misSolicitudesLentes, solicitarLentes: datos.solicitarLentes, descargarMisDatosPaciente: datos.descargarMisDatosPaciente, misDatosTransferencia: datos.misDatosTransferencia, reportarPagoTransferencia: datos.reportarPagoTransferencia }))
+vi.mock("../utilidades/portalDatos", () => ({ misOrdenes: datos.misOrdenes, miControl: datos.miControl, misCitasDetalle: datos.misCitasDetalle, confirmarAsistencia: datos.confirmarAsistencia, calificarAtencion: datos.calificarAtencion, misReferidos: datos.misReferidos, marcarCitaEnCalendario: datos.marcarCitaEnCalendario, misMedidas: datos.misMedidas, misSolicitudesLentes: datos.misSolicitudesLentes, solicitarLentes: datos.solicitarLentes, descargarMisDatosPaciente: datos.descargarMisDatosPaciente, misDatosTransferencia: datos.misDatosTransferencia, reportarPagoTransferencia: datos.reportarPagoTransferencia }))
 
 const descarga = vi.hoisted(() => ({ descargarHojaReceta: vi.fn(async () => true) }))
 vi.mock("../utilidades/descargarHojaReceta", () => ({ descargarHojaReceta: descarga.descargarHojaReceta }))
@@ -459,6 +460,28 @@ describe("Mi receta", () => {
     expect(screen.getByText("Distancia pupilar")).toBeInTheDocument()
     expect(screen.getByText("62")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /Solicitar distancia pupilar/ })).not.toBeInTheDocument()
+  })
+  it("cuando la óptica le envía las medidas, el paciente las ve; si lo cita para tomarlas, ve cuándo lo esperan; con la solicitud abierta lo dice", async () => {
+    datos.misMedidas.mockResolvedValue({ abiertaDesde: null, ultima: { resultado: "enviadas", cerrada: "2026-10-19T15:00:00Z", dp: "62", altura: "18", citaFecha: null, citaHora: "" } })
+    const { unmount } = render(<PortalPaciente {...base} parametrizacion={{ mostrarMedidasPaciente: false }} />)
+    await resumen()
+    irA("Mi receta")
+    const enviadas = await screen.findByRole("region", { name: "Tu óptica te envió tus medidas" })
+    expect(enviadas).toHaveTextContent("62 mm")
+    expect(enviadas).toHaveTextContent("18 mm")
+    unmount()
+    datos.misMedidas.mockResolvedValue({ abiertaDesde: null, ultima: { resultado: "cita", cerrada: "2026-10-19T15:00:00Z", dp: "", altura: "", citaFecha: "2099-03-10", citaHora: "03:00 PM" } })
+    const segundo = render(<PortalPaciente {...base} parametrizacion={{ mostrarMedidasPaciente: false }} />)
+    await resumen()
+    irA("Mi receta")
+    expect(await screen.findByRole("region", { name: "Te esperamos para tomarlas" })).toHaveTextContent("03:00 PM")
+    segundo.unmount()
+    datos.misMedidas.mockResolvedValue({ abiertaDesde: "2026-10-19T15:00:00Z", ultima: null })
+    render(<PortalPaciente {...base} parametrizacion={{ mostrarMedidasPaciente: false }} />)
+    await resumen()
+    irA("Mi receta")
+    expect(await screen.findByText("Solicitud enviada")).toBeInTheDocument()
+    datos.misMedidas.mockResolvedValue(null)
   })
   it("el ojo derecho va a la derecha y el izquierdo a la izquierda (perspectiva del paciente)", async () => {
     render(<PortalPaciente {...base} />)

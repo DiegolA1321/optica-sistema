@@ -736,13 +736,11 @@ function App() {
     setSolicitudesEliminacion((prev) => prev.filter((s) => s.id !== solicitudId))
   }
 
-  // medidas_solicitadas_en (migración 0080): a diferencia de la eliminación,
-  // no necesita un RPC propio para "marcar atendida" — la RLS de staff ya
-  // permite escribir `pacientes` directo (0034_permisos_asistente_en_rls),
-  // así que es un update normal como cualquier otro campo del perfil.
-  const marcarMedidasAtendidas = async (pacienteId) => {
+  // Responder la solicitud de medidas de montaje (migración 0132): `cerrar_solicitud_medidas` guarda qué se le contestó al paciente
+  // ('enviadas' con sus valores, o 'cita' con la fecha y la hora), quita la marca medidas_solicitadas_en y lo deja en la actividad.
+  const marcarMedidasAtendidas = async (pacienteId, { resultado, dp = null, altura = null, citaFecha = null, citaHora = null }) => {
     if (!supabase) return { error: new Error('Sin conexión a Supabase') }
-    const { error } = await supabase.from('pacientes').update({ medidas_solicitadas_en: null }).eq('id', pacienteId)
+    const { error } = await supabase.rpc('cerrar_solicitud_medidas', { p_paciente_id: pacienteId, p_resultado: resultado, p_dp: dp, p_altura: altura, p_cita_fecha: citaFecha, p_cita_hora: citaHora })
     if (!error) setPacientes((prev) => prev.map((p) => (p.id === pacienteId ? { ...p, medidasSolicitadasEn: null } : p)))
     return { error }
   }

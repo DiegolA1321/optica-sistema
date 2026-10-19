@@ -70,7 +70,9 @@ import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPend
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido, generarClaveTemporal } from "../utilidades/validaciones"
 import { minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
-import { linkWhatsApp } from "../utilidades/whatsapp"
+import { linkWhatsApp, abrirWhatsApp } from "../utilidades/whatsapp"
+import { medidasDelPaciente, mensajeMedidas } from "../utilidades/medidasMontaje"
+import AvisoMedidasPedidas from "../componentes/AvisoMedidasPedidas"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import GraduacionPerfil from "../componentes/graduacion/GraduacionPerfil"
 import GraduacionDeCabecera from "../componentes/graduacion/GraduacionDeCabecera"
@@ -467,6 +469,9 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
 
   // Agendar cita desde el perfil del paciente
   const [agendarPara, setAgendarPara] = useState(null)
+  // Solicitud de medidas del portal: si se agenda la toma de medidas desde su aviso, al guardarse la cita la solicitud se cierra con esa fecha y hora.
+  const [medidasAlAgendar, setMedidasAlAgendar] = useState(null)
+  const [cerrandoMedidas, setCerrandoMedidas] = useState(false)
   const [agendarFecha, setAgendarFecha] = useState("")
   const [agendarHora, setAgendarHora] = useState("")
   const [agendarMotivo, setAgendarMotivo] = useState("")
@@ -676,7 +681,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       // espera en vez de descartar la acción.
       if (!paciente && cargaInicial) return
       if (paciente) {
-        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial(pestanaDePerfil(leerParam("tab"), puedeVerFichas)) }
+        if (accionInicial.accion === "historial") { setPacienteHistorial(paciente); setTabHistorial(pestanaDePerfil(accionInicial.tab || leerParam("tab"), puedeVerFichas)) }
         else if (accionInicial.accion === "editar") abrirEdicion(paciente)
         else if (accionInicial.accion === "eliminar" && puedeEliminar) setPacienteAEliminar(paciente)
         else if (accionInicial.accion === "agendar") abrirAgendar(paciente)
@@ -855,6 +860,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
   // ── Agendar cita desde el perfil del paciente ──
   // `fechaSugerida` (opcional): la del control recomendado; se abre en el día hábil más cercano, y la hora la elige quien agenda.
   const abrirAgendar = (paciente, fechaSugerida = "", asignadoSugerido = "") => {
+    setMedidasAlAgendar(null)
     setAgendarPara(paciente)
     setAgendarAsignado(asignadoSugerido)
     setAgendarFecha(fechaSugerida ? diaHabilMasCercano(fechaSugerida, disponibilidad, citas) || "" : "")
@@ -866,6 +872,16 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     setAgendarDuracion(disponibilidad?.duracionCita || 40)
     setErrorHorarioAgendar("")
     setConfirmandoCita(false)
+  }
+
+  // Responder la solicitud de medidas del portal (migración 0132): `mensaje` es el aviso de éxito (null si ya hay otro, como al agendar).
+  const responderMedidas = async (paciente, datos, mensaje) => {
+    setCerrandoMedidas(true)
+    const { error } = (await marcarMedidasAtendidas?.(paciente.id, datos)) ?? { error: new Error("sin función") }
+    setCerrandoMedidas(false)
+    if (error) { mostrarError("No pudimos cerrar la solicitud de medidas. Intenta de nuevo."); return false }
+    if (mensaje) mostrarNotif(mensaje)
+    return true
   }
 
   const validarYPedirConfirmacionCita = (e) => {
@@ -902,6 +918,10 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       return
     }
     setCitas?.([...citas, nuevaCita])
+    if (medidasAlAgendar === paciente.id) {
+      setMedidasAlAgendar(null)
+      await responderMedidas(paciente, { resultado: "cita", citaFecha: nuevaCita.fecha, citaHora: nuevaCita.hora }, null)
+    }
     registrarLog(usuario, "citas", atenderInmediato ? "Atendió a un paciente de inmediato" : "Agendó una cita", `${nuevaCita.paciente} · ${fechaLegible(nuevaCita.fecha)}`)
     setConfirmandoCita(false)
     setAgendarPara(null)
@@ -1827,24 +1847,20 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
             )
           })()}
 
-          {pacienteHistorial.medidasSolicitadasEn && (
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-blue-200/60 bg-blue-50 px-4 py-3 sm:px-8">
-              <div className="flex items-start gap-2.5">
-                <Eye size={18} className="mt-0.5 shrink-0 text-blue-600" />
-                <div>
-                  <p className="text-sm font-semibold text-blue-800">Este paciente pidió su distancia pupilar y sus medidas de montaje desde el portal.</p>
-                  <p className="text-xs text-blue-600">Entrégaselas por el canal que prefieras y marca esta solicitud como atendida.</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => marcarMedidasAtendidas?.(pacienteHistorial.id)}
-                className="shrink-0 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
-              >
-                Marcar atendida
-              </button>
-            </div>
-          )}
+          {pacienteHistorial.medidasSolicitadasEn && (() => {
+            const medidasPedidas = medidasDelPaciente({ consultas: consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre), ordenes: ordenesLab.filter((o) => o.pacienteId === pacienteHistorial.id) })
+            return (
+              <AvisoMedidasPedidas
+                solicitadaEn={pacienteHistorial.medidasSolicitadasEn}
+                medidas={medidasPedidas}
+                puedeEscribirWhatsApp={!!pacienteHistorial.telefono && pacienteHistorial.telefono !== "Sin Teléfono"}
+                ocupado={cerrandoMedidas}
+                onWhatsApp={() => abrirWhatsApp(pacienteHistorial.telefono, mensajeMedidas({ paciente: pacienteHistorial, opticaNombre: nombreOptica, dp: medidasPedidas.dp, altura: medidasPedidas.altura }))}
+                onMarcarEnviadas={() => responderMedidas(pacienteHistorial, { resultado: "enviadas", dp: medidasPedidas.dp || null, altura: medidasPedidas.altura || null }, "Marcaste las medidas como enviadas.")}
+                onAgendar={puedeAgendar ? () => { abrirAgendar(pacienteHistorial); setAgendarMotivo(motivosConsulta.find((m) => /medida/i.test(m)) || ""); setMedidasAlAgendar(pacienteHistorial.id) } : undefined}
+              />
+            )
+          })()}
 
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="px-4 pb-6 pt-3 sm:px-8 sm:pb-8 sm:pt-4">

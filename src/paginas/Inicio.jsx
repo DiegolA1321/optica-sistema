@@ -664,7 +664,7 @@ export default function Inicio({
       id: "medidas-solicitadas", cantidad: pidenMedidas.length,
       texto: uno(pidenMedidas.length, "paciente pidió sus medidas de montaje desde su portal", "pacientes pidieron sus medidas de montaje desde su portal"),
       nombres: nombresResumidos(pidenMedidas.map((p) => p.nombre)),
-      casos: pidenMedidas.map((p) => ({ id: p.id, nombre: p.nombre, detalle: "Pidió su distancia pupilar y medidas de montaje", accion: { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(p.id) } })),
+      casos: pidenMedidas.map((p) => ({ id: p.id, nombre: p.nombre, detalle: "Pidió su distancia pupilar y medidas de montaje", accion: { etiqueta: "Responder", navega: true, onClick: () => onVerPerfilPaciente?.(p.id, "graduacion") } })),
     })
     if (incSinConsulta && sinAtender > 0) poner("pacientes", {
       id: "sin-consulta", cantidad: sinAtender,

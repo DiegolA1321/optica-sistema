@@ -2,6 +2,7 @@
 // funciones del portal. Si una función todavía no existe o algo falla, simplemente no hay ese dato que mostrar: el resto del portal sigue igual.
 import { supabase } from "../lib/supabaseClient"
 import { mapOrdenPaciente } from "./portalPaciente"
+import { mapSolicitudMedidas } from "./medidasMontaje"
 
 // Con ?_muestra=detalle (solo en desarrollo) el detalle de las citas es de ejemplo, para revisar la pantalla antes de aplicar la migración 0125.
 export const modoMuestraPortal = () => {
@@ -53,6 +54,13 @@ export async function misReferidos(pacienteId, token) {
   if (!supabase) return 0
   const { data, error } = await supabase.rpc("mis_referidos_paciente", { p_paciente_id: pacienteId, p_token: token })
   return error || typeof data !== "number" ? 0 : data
+}
+
+// Respuesta de la óptica a «Solicitar medidas» (migración 0132): si hay una solicitud abierta y la última respuesta (medidas enviadas o cita para tomarlas). Sin la función, null.
+export async function misMedidas(pacienteId, token) {
+  if (!supabase) return null
+  const { data, error } = await supabase.rpc("mi_solicitud_medidas_paciente", { p_paciente_id: pacienteId, p_token: token })
+  return error ? null : mapSolicitudMedidas(data)
 }
 
 // «Solicitar lentes nuevos» (migración 0129). Sin la función, simplemente no se ofrece.

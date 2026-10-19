@@ -480,8 +480,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     }
     // Solicitud de medidas completas desde el portal (migración 0080): el paciente pide ver esfera/cilindro/eje.
     if (puede(usuario, "pacientes", "ver")) {
-      const conMedidasPendientes = pacientes.filter((p) => p.medidasSolicitadasEn)
-      if (conMedidasPendientes.length) arr.push({ icon: Eye, color: "#2563eb", bg: "#eff6ff", texto: `${conMedidasPendientes.length} solicitud${conMedidasPendientes.length > 1 ? "es" : ""} de medidas de montaje`, sub: "Un paciente pidió su distancia pupilar y altura", destino: "pacientes" })
+      // Un aviso por paciente: al abrirlo lleva a su perfil, pestaña Graduación, donde está el aviso con las acciones.
+      for (const p of pacientes.filter((x) => x.medidasSolicitadasEn).slice(0, 5)) {
+        arr.push({ icon: Eye, color: "#2563eb", bg: "#eff6ff", texto: `${p.nombre} pidió sus medidas de montaje`, sub: "Pulsa para responderle",
+          alAbrir: () => { setAccionPacienteInicio({ pacienteId: p.id, accion: "historial", tab: "graduacion" }); navegar("pacientes") } })
+      }
     }
     // Un paciente cambió su teléfono o su correo desde el portal: el aviso queda hasta que se ve.
     if (puede(usuario, "pacientes", "ver")) {
@@ -768,7 +771,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
             onVerSaldos={() => { setAccionVentasInicio({ tab: "cobros" }); navegar("ventas") }}
             onVerStockBajo={() => { setVerStockBajoAlEntrar(true); navegar("inventario") }}
-            onVerPerfilPaciente={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
+            onVerPerfilPaciente={(pacienteId, tab) => { setAccionPacienteInicio({ pacienteId, accion: "historial", ...(tab ? { tab } : {}) }); navegar("pacientes") }}
             onAgendarRapido={() => { setControlParaAgendar(null); setAtajoInicio("citas") }}
             onAgendarControl={(paciente, fecha, asignadoA) => { setControlParaAgendar({ pacienteId: paciente.id, fecha, asignadoA }); setAtajoInicio("citas") }}
             onReagendarCancelada={(cita) => { setControlParaAgendar({ pacienteId: cita.pacienteId, fecha: cita.fecha, asignadoA: cita.asignadoA || "", motivo: cita.motivo || "" }); setAtajoInicio("citas") }}

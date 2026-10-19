@@ -210,6 +210,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       setEnviandoMedidas(false)
     }
     setMedidasSolicitadas(true)
+    datos.recargarMedidas()
   }
 
   // «Descargar mis datos» desde el menú de la cuenta (derecho de acceso del paciente).
@@ -439,7 +440,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} detalle={datos.detalle} direccion={contacto.direccion} onConfirmar={confirmarAsistencia} onAbrir={setAbierto} recetaActualId={recetaActualId} primeraRecetaId={primeraRecetaId} consultas={misConsultas} compras={datos.compras} />}
             {seccion === "receta" && (
               <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} todasLasRecetas={recetas} onAbrirReceta={verReceta} descargar={descargarReceta} mostrarMedidas={mostrarMedidas} control={control}
-                medidasSolicitadas={medidasSolicitadas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />
+                medidasSolicitadas={medidasSolicitadas} respuestaMedidas={datos.medidas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />
             )}
             {seccion === "compras" && <MisCompras usuario={usuario} transferencia={datos.transferencia} solicitudes={datos.solicitudes} onSolicitarLentes={datos.solicitar} recetaVigente={ultimaReceta} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} puntos={puntos} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} onAbrir={setAbierto} />}
             {seccion === "datos" && <MisDatosPortal usuario={usuario} nombreOptica={nombreOptica} citas={misCitas} consultas={misConsultas} visitas={historial.length} compras={datos.compras.length} puntos={puntos} alActualizarUsuario={alActualizarUsuario} onCambiarClave={abrirClave} onCerrarSesion={onCerrarSesion} />}
