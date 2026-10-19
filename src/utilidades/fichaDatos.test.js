@@ -21,10 +21,10 @@ describe("transposición", () => {
 })
 
 describe("validaciones", () => {
-  it("esfera −30..+30, pasos de 0,25", () => {
+  it("esfera −30..+30, pasos de 0.25", () => {
     expect(validarOjo({ esfera: "31" }).esfera).toBeTruthy()
     expect(validarOjo({ esfera: "-30.25" }).esfera).toBeTruthy()
-    expect(validarOjo({ esfera: "-1.30" }).esfera).toMatch(/0,25/)
+    expect(validarOjo({ esfera: "-1.30" }).esfera).toMatch(/0.25/)
     expect(validarOjo({ esfera: "-1,25" }).esfera).toBeUndefined()
   })
   it("cilindro positivo es error y se puede transponer", () => {

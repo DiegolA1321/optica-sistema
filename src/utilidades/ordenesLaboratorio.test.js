@@ -70,7 +70,7 @@ describe("ordenesLaboratorio", () => {
   it("la copia del laboratorio lleva la receta completa y no lleva precios", () => {
     const h = armarHtmlOrdenLaboratorio({ opticaNombre: "Visión", opticaDatos: { telefono: "0999" }, paciente: { nombre: "Ana" }, orden: orden() })
     expect(h).toContain("OL-0007")
-    expect(h).toContain("-1.00")
+    expect(h).toContain("−1.00")
     expect(h).toContain("+1.50")
     expect(h).toContain("Antirreflejo")
     expect(h).toContain("52-18-140")
@@ -84,9 +84,9 @@ describe("ordenesLaboratorio", () => {
     const sin = armarHtmlOrdenPaciente({ opticaNombre: "Visión", opticaDatos: { telefono: "0999" }, paciente: { nombre: "Ana" }, orden: orden() })
     expect(sin).toContain("OL-0007")
     expect(sin).toContain("Presenta este comprobante")
-    expect(sin).not.toContain("-1.00")
+    expect(sin).not.toContain("−1.00")
     const con = armarHtmlOrdenPaciente({ opticaNombre: "Visión", paciente: { nombre: "Ana" }, orden: orden(), incluirGraduacion: true })
-    expect(con).toContain("-1.00")
+    expect(con).toContain("−1.00")
   })
 })
 

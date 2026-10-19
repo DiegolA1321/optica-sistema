@@ -40,10 +40,10 @@ test('el administrador ve las citas por reagendar desde el "Ver todo" del bloque
   await expect(page.locator('main').getByText('Para reagendar').first()).toBeVisible({ timeout: 15_000 })
 })
 
-test('agudeza visual: el estado se llama "Sin agudeza visual con lentes registrada" y se explica al pasar el cursor', async ({ page }) => {
+test('agudeza visual: el estado se llama "Sin agudeza visual con corrección registrada" y se explica al pasar el cursor', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-  const tarjeta = page.getByRole('button', { name: /Sin agudeza visual con lentes registrada/ }).first()
+  const tarjeta = page.getByRole('button', { name: /Sin agudeza visual con corrección registrada/ }).first()
   await expect(tarjeta).toBeVisible({ timeout: 20_000 })
   await expect(tarjeta).toHaveAttribute('title', /agudeza visual con lentes/)
   await expect(page.getByText('AV sin evaluar')).toHaveCount(0)

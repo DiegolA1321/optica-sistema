@@ -159,7 +159,7 @@ const claseBadgeEstadoClinico = (estado) =>
 const CORRECCION = {
   "Bien corregido": { label: "Bien corregido", icon: CheckCircle, clase: "bg-emerald-50 text-emerald-700 border-emerald-200/60" },
   "Requiere ajuste": { label: "Requiere ajuste", icon: AlertCircle, clase: "bg-red-50 text-red-700 border-red-200/60" },
-  "Sin evaluar": { label: "Sin agudeza visual con lentes registrada", icon: Minus, clase: "bg-slate-100 text-slate-600 border-slate-200/60" },
+  "Sin evaluar": { label: "Sin agudeza visual con corrección registrada", icon: Minus, clase: "bg-slate-100 text-slate-600 border-slate-200/60" },
   "Sin evaluación": { label: "Sin consulta", icon: HelpCircle, clase: "bg-amber-50 text-amber-700 border-amber-200/60" },
 }
 
@@ -1108,7 +1108,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     { key: "Todos", icon: Users, valor: pacientes.length, label: "Total pacientes", filled: true, fg: "#fff", bg: GRAD, ring: "#2563EB" },
     { key: "Bien corregido", icon: CORRECCION["Bien corregido"].icon, valor: conteoCorreccion["Bien corregido"], label: "Bien corregidos", fg: CORRECCION_COLOR["Bien corregido"].fg, bg: CORRECCION_COLOR["Bien corregido"].bg, ring: CORRECCION_COLOR["Bien corregido"].fg },
     { key: "Requiere ajuste", icon: CORRECCION["Requiere ajuste"].icon, valor: conteoCorreccion["Requiere ajuste"], label: "Requieren ajuste", fg: CORRECCION_COLOR["Requiere ajuste"].fg, bg: CORRECCION_COLOR["Requiere ajuste"].bg, ring: CORRECCION_COLOR["Requiere ajuste"].fg },
-    { key: "Sin evaluar", icon: CORRECCION["Sin evaluar"].icon, valor: conteoCorreccion["Sin evaluar"], label: "Sin agudeza visual con lentes registrada", fg: CORRECCION_COLOR["Sin evaluar"].fg, bg: CORRECCION_COLOR["Sin evaluar"].bg, ring: CORRECCION_COLOR["Sin evaluar"].fg },
+    { key: "Sin evaluar", icon: CORRECCION["Sin evaluar"].icon, valor: conteoCorreccion["Sin evaluar"], label: "Sin agudeza visual con corrección registrada", fg: CORRECCION_COLOR["Sin evaluar"].fg, bg: CORRECCION_COLOR["Sin evaluar"].bg, ring: CORRECCION_COLOR["Sin evaluar"].fg },
     { key: "Sin evaluación", icon: CORRECCION["Sin evaluación"].icon, valor: conteoCorreccion["Sin evaluación"], label: "Sin consulta", fg: CORRECCION_COLOR["Sin evaluación"].fg, bg: CORRECCION_COLOR["Sin evaluación"].bg, ring: CORRECCION_COLOR["Sin evaluación"].fg },
   ]
 

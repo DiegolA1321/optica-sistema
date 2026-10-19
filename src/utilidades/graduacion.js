@@ -3,6 +3,7 @@
 // exactamente lo que el paciente lee en su portal (regla 2 y 18). Las recetas son las consultas del paciente ({ id, fecha, od, oi, medidas, ... }).
 import { nombreMes } from "./formatoFecha"
 import { equivalenteEsferico } from "./tendenciaGraduacion"
+import { dioptriaTexto } from "./refraccion"
 import { cambioEntre, lineaDeCambio } from "./cambioGraduacion"
 import { agudezaConLentes } from "./agudeza"
 
@@ -110,7 +111,8 @@ export function lecturaDeOjo(receta, lado) {
     adicion,
     explicaCerca: explicarCerca(adicion, receta?.lenteRecomendado),
     agudeza: av,
-    conLentes: Boolean(ojo.avRx || ojo.avCc) || !ojo.avSc,
+    // El mismo nombre en todo el sistema: Con la receta nueva, Con su corrección actual o Sin corrección (la que haya, en ese orden).
+    agudezaNombre: ojo.avRx ? "Con la receta nueva" : ojo.avCc ? "Con su corrección actual" : "Sin corrección",
     explicaAgudeza: explicarAgudeza(av),
   }
 }
@@ -184,7 +186,7 @@ export function compararRecetas(a, b) {
 // Las medidas de una receta para mostrarlas en una lista: adición (por ojo si difiere), distancia pupilar (total, de cada ojo y de cerca), altura (solo las fichas anteriores la guardaban) y prisma.
 // Cada una es [título, texto] y el texto es "" si no hay dato; `conMontaje` apaga la DP y la altura (el portal las muestra solo si la óptica lo permite).
 export function medidasLegibles(m = {}, { conMontaje = true } = {}) {
-  const adOd = m.adicionOd || m.adicion || "", adOi = m.adicionOi || m.adicion || ""
+  const adOd = dioptriaTexto(m.adicionOd || m.adicion), adOi = dioptriaTexto(m.adicionOi || m.adicion)
   const adicion = adOd || adOi ? (adOd === adOi ? adOd : `OD ${adOd || "—"} · OI ${adOi || "—"}`) : ""
   const porOjo = m.dpOd || m.dpOi ? `OD ${m.dpOd || "—"} · OI ${m.dpOi || "—"}` : ""
   const dp = [m.dp && `${m.dp} mm`, porOjo, m.dpCerca && `de cerca ${m.dpCerca} mm`].filter(Boolean).join(" · ")

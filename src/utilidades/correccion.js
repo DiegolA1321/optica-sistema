@@ -1,10 +1,10 @@
 // Nombres que se muestran para el estado de corrección. Los valores guardados
 // no cambian ("Sin evaluar" / "Sin evaluación"); solo se renombran para que se
 // distingan a simple vista.
-//  - "Sin agudeza visual con lentes registrada": el paciente tuvo consulta, pero el optómetra no marcó la
+//  - "Sin agudeza visual con corrección registrada": el paciente tuvo consulta, pero el optómetra no marcó la
 //    "AV con lentes" en ningún ojo.
 //  - "Sin consulta": el paciente nunca tuvo una consulta registrada.
-const ETIQUETAS = { "Sin evaluar": "Sin agudeza visual con lentes registrada", "Sin evaluación": "Sin consulta" }
+const ETIQUETAS = { "Sin evaluar": "Sin agudeza visual con corrección registrada", "Sin evaluación": "Sin consulta" }
 export const etiquetaCorreccion = (estado) => ETIQUETAS[estado] || estado || ETIQUETAS["Sin evaluación"]
 
 export const AYUDA_CORRECCION = {

@@ -67,14 +67,14 @@ export function PanelCorreccion({ consulta, etiqueta, estado, tendencia, histori
     <dl className="divide-y divide-slate-100 px-4 py-1">
       <Fila etiqueta="Estado">{etiqueta}</Fila>
       <Fila etiqueta="Medido el">{fechaLegible(consulta.fecha)}</Fila>
-      <Fila etiqueta={consulta.od?.avRx && consulta.oi?.avRx ? "Agudeza visual con la receta nueva" : "Agudeza visual con lentes"}>OD {agudezaConLentes(consulta.od) || "no anotada"} · OI {agudezaConLentes(consulta.oi) || "no anotada"}</Fila>
-      <Fila etiqueta="Agudeza visual sin lentes">OD {consulta.od?.avSc || "no anotada"} · OI {consulta.oi?.avSc || "no anotada"}</Fila>
+      <Fila etiqueta={consulta.od?.avRx && consulta.oi?.avRx ? "Con la receta nueva" : "Con su corrección actual"}>OD {agudezaConLentes(consulta.od) || "no anotada"} · OI {agudezaConLentes(consulta.oi) || "no anotada"}</Fila>
+      <Fila etiqueta="Sin corrección">OD {consulta.od?.avSc || "no anotada"} · OI {consulta.oi?.avSc || "no anotada"}</Fila>
       <Fila etiqueta="Cómo se calcula">{reglaDe(estado, consulta)}</Fila>
       {tendencia && <Fila etiqueta="Graduación vs. la consulta anterior">{tendencia.txt}</Fila>}
     </dl>
     {historial.length > 1 && (
       <section aria-label="Agudeza visual con el tiempo" className="mx-4 mb-3 mt-1">
-        <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Agudeza visual con lentes, consulta por consulta</h4>
+        <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Agudeza visual con corrección, consulta por consulta</h4>
         <div data-lista="agudeza-en-el-tiempo" className="overflow-hidden rounded-xl border border-slate-200/70 text-sm">
           <div aria-hidden="true" className="grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem_8rem] gap-x-3 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500"><span>Fecha</span><span className="text-right">OD</span><span className="text-right">OI</span><span>Estado</span></div>
           <ul className="divide-y divide-slate-100">

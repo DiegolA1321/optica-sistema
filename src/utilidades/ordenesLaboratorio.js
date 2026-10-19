@@ -1,4 +1,5 @@
 import { ahoraEcuador } from "./horaEcuador"
+import { dioptriaTexto } from "./refraccion"
 // Órdenes de laboratorio (R36-R37, migración 0087): lógica pura. Cuando una venta
 // incluye lentes se genera una orden por par; pasa por enviada → lista →
 // entregada (o cancelada si se anula la venta). "Atrasada" no es un estado
@@ -146,7 +147,7 @@ const escapar = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;
 const v = (t) => (t && String(t).trim() ? escapar(t) : "—")
 // Medida en milímetros (DP y altura): "62" → "62 mm"; si ya trae la unidad, se deja igual.
 const mm = (t) => (t && String(t).trim() ? (/mms*$/i.test(String(t).trim()) ? escapar(t) : `${escapar(String(t).trim())} mm`) : "—")
-const ojoFila = (nombre, r = {}) => `<tr><th>${nombre}</th><td>${v(r.esfera)}</td><td>${v(r.cilindro)}</td><td>${v(r.eje)}</td><td>${v(r.adicion)}</td></tr>`
+const ojoFila = (nombre, r = {}) => `<tr><th>${nombre}</th><td>${v(dioptriaTexto(r.esfera))}</td><td>${v(dioptriaTexto(r.cilindro))}</td><td>${v(r.eje)}</td><td>${v(dioptriaTexto(r.adicion))}</td></tr>`
 
 const ESTILO = `body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0E2B33;margin:28px;font-size:13px}
 h1{font-size:19px;margin:0}h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin:16px 0 6px}
@@ -182,7 +183,7 @@ ${observacionesParaLaboratorio(orden) ? `<h2>Observaciones</h2><p>${escapar(obse
 // Copia para el paciente: comprobante para retirar. Sin graduación salvo que se pida (privacidad).
 export function armarHtmlOrdenPaciente({ opticaNombre = "Óptica", opticaDatos = {}, paciente = {}, orden, incluirGraduacion = false }) {
   const trat = tratamientos(orden)
-  const ojo = (n, r = {}) => (r.esfera || r.cilindro || r.eje ? `${n}: ${v(r.esfera)} | ${v(r.cilindro)} | ${v(r.eje)}°${r.adicion ? ` | ADD ${escapar(r.adicion)}` : ""}` : "")
+  const ojo = (n, r = {}) => (r.esfera || r.cilindro || r.eje ? `${n}: ${v(dioptriaTexto(r.esfera))} | ${v(dioptriaTexto(r.cilindro))} | ${v(r.eje)}°${r.adicion ? ` | ADD ${escapar(dioptriaTexto(r.adicion))}` : ""}` : "")
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden ${numeroOrden(orden.numero)} — Paciente</title><style>${ESTILO}</style></head><body>
 <div class="fila"><div><h1>${escapar(opticaNombre)}</h1>${contactoOptica(opticaDatos) ? `<p class="contacto">${contactoOptica(opticaDatos)}</p>` : ""}<p><b>Comprobante de orden de lentes</b> · copia para el paciente</p></div><div class="num">${numeroOrden(orden.numero)}</div></div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}</p>

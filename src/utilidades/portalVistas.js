@@ -4,6 +4,7 @@ import { ahoraEcuador } from "./horaEcuador"
 import { fechaAISO, minutosDesdeMedianoche, estadoAtencionHoy, horarioEfectivo, horaA12 } from "./disponibilidad"
 import { formatoFecha } from "./formatoFecha"
 import { puntosMedidos } from "./tendenciaGraduacion"
+import { dioptriaTexto } from "./refraccion"
 
 // Los puntos de la gráfica (de la receta más antigua a la más reciente): los MISMOS de la tendencia del perfil del paciente (`puntosMedidos`, equivalente esférico).
 export const serieDeGraduacion = (consultasRecientePrimero = []) => puntosMedidos([...consultasRecientePrimero].reverse())
@@ -99,13 +100,7 @@ export function estadoDeLaOpticaHoy(disponibilidad, ahora = ahoraEcuador()) {
 }
 
 // Un valor de la receta como lo lee el paciente (diseño aprobado): signo menos de verdad (−), dos decimales y «+» en los positivos: −2.25, +1.75, 0.00. Vacío si no hay dato.
-export function valorD(v) {
-  const n = parseFloat(String(v ?? "").replace(",", "."))
-  if (!Number.isFinite(n)) return ""
-  const r = Math.round(n * 100) / 100
-  if (r === 0) return "0.00"
-  return (r > 0 ? "+" : "−") + Math.abs(r).toFixed(2)
-}
+export const valorD = dioptriaTexto
 
 // ── Filtros de «Tus visitas anteriores» ──
 // periodo: «ano» (el último año, hasta hoy), «todas» o «fechas» (desde/hasta, inclusive; un límite vacío no limita). estado: «» o el nombre del estado de la cita. texto: busca en el

@@ -1,5 +1,5 @@
 // Reglas de la refracción de la ficha clínica: transposición del cilindro y validación de esfera, cilindro, eje y adición. Un solo lugar: la ficha, la vista previa y la receta usan estas funciones.
-//   · Esfera de −30 a +30, cilindro siempre negativo (o cero), eje de 1 a 180, adición de +0.50 a +4.00; todo en pasos de 0,25.
+//   · Esfera de −30 a +30, cilindro siempre negativo (o cero), eje de 1 a 180, adición de +0.50 a +4.00; todo en pasos de 0.25.
 
 export const ESFERA_MIN = -30
 export const ESFERA_MAX = 30
@@ -14,7 +14,7 @@ export const aNumero = (v) => {
   return Number.isFinite(n) ? n : null
 }
 
-// Pasos de 0,25 (con tolerancia de redondeo).
+// Pasos de 0.25 (con tolerancia de redondeo).
 export const esPaso025 = (n) => Math.abs(n * 4 - Math.round(n * 4)) < 1e-9
 
 // Escritura de una dioptría: «+1.25», «-0.50», «0.00».
@@ -41,29 +41,39 @@ export function validarOjo({ esfera = "", cilindro = "", eje = "" } = {}) {
   const x = aNumero(eje)
   if (String(esfera).trim() && e === null) errs.esfera = "Número no válido"
   else if (e !== null && (e < ESFERA_MIN || e > ESFERA_MAX)) errs.esfera = "La esfera va de −30 a +30"
-  else if (e !== null && !esPaso025(e)) errs.esfera = "Va de 0,25 en 0,25"
+  else if (e !== null && !esPaso025(e)) errs.esfera = "Va de 0.25 en 0.25"
   if (String(cilindro).trim() && c === null) errs.cilindro = "Número no válido"
   else if (c !== null && c > 0) { errs.cilindro = "El cilindro va en negativo"; errs.transponible = true }
   else if (c !== null && c < ESFERA_MIN) errs.cilindro = "El cilindro va hasta −30"
-  else if (c !== null && !esPaso025(c)) errs.cilindro = "Va de 0,25 en 0,25"
+  else if (c !== null && !esPaso025(c)) errs.cilindro = "Va de 0.25 en 0.25"
   if (String(eje).trim() && x === null) errs.eje = "Número no válido"
   else if (x !== null && (!Number.isInteger(x) || x < 1 || x > 180)) errs.eje = "El eje va de 1° a 180°"
   else if (x === null && c !== null && c !== 0) errs.eje = "Indica el eje del cilindro"
   return errs
 }
 
-// Adición: vacía es válida (no todos la llevan); si se escribe, de +0.50 a +4.00 en pasos de 0,25.
+// Adición: vacía es válida (no todos la llevan); si se escribe, de +0.50 a +4.00 en pasos de 0.25.
 export function validarAdicion(valor) {
   if (!String(valor ?? "").trim()) return ""
   const n = aNumero(valor)
   if (n === null) return "Número no válido"
   if (n < ADICION_MIN || n > ADICION_MAX) return "La adición va de +0.50 a +4.00"
-  if (!esPaso025(n)) return "Va de 0,25 en 0,25"
+  if (!esPaso025(n)) return "Va de 0.25 en 0.25"
   return ""
+}
+
+// Una dioptría como se LEE en pantalla, en la receta impresa, en el perfil y en el portal: signo siempre visible (+ en los positivos, − de verdad en los negativos), punto decimal y dos decimales: «+1.75», «−0.50», «0.00».
+// Vacío si no es un número. Es el único formato de lectura de esfera, cilindro y adición.
+export function dioptriaTexto(v) {
+  const n = aNumero(v)
+  if (n === null) return ""
+  const r = Math.round(n * 100) / 100
+  if (r === 0) return "0.00"
+  return (r > 0 ? "+" : "−") + Math.abs(r).toFixed(2)
 }
 
 // El texto de un ojo para la receta y las listas: «−1.75 −0.75 × 10°». Sin esfera ni cilindro, vacío.
 export const textoOjoCompleto = (o) => {
   if (!o || (!String(o.esfera ?? "").trim() && !String(o.cilindro ?? "").trim())) return ""
-  return [o.esfera || "0.00", o.cilindro, o.eje ? `× ${o.eje}°` : ""].filter(Boolean).join(" ")
+  return [dioptriaTexto(o.esfera) || "0.00", dioptriaTexto(o.cilindro), o.eje ? `× ${o.eje}°` : ""].filter(Boolean).join(" ")
 }

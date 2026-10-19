@@ -191,10 +191,10 @@ describe("ConsultaMedica — los cinco pasos", () => {
     // La vista previa del paso 5 muestra lo mismo que quedó escrito, no los valores de antes.
     irAPaso(5, "Diagnóstico y receta")
     const resumen = document.querySelector("[data-receta-resumen]")
-    expect(resumen).toHaveTextContent("-1.00")
-    expect(resumen).toHaveTextContent("-0.50")
+    expect(resumen).toHaveTextContent("−1.00")
+    expect(resumen).toHaveTextContent("−0.50")
     expect(resumen).toHaveTextContent("180°")
-    expect(resumen).not.toHaveTextContent("-1.50")
+    expect(resumen).not.toHaveTextContent("−1.50")
   })
 
   it("la esfera fuera de −30 a +30 y el eje fuera de 1–180 se señalan al escribir", () => {
@@ -204,7 +204,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
     fireEvent.change(document.getElementById("odEsfera"), { target: { value: "-31" } })
     expect(screen.getByText(/La esfera va de −30 a \+30/)).toBeInTheDocument()
     fireEvent.change(document.getElementById("odEsfera"), { target: { value: "-1.30" } })
-    expect(screen.getAllByRole("alert").some((a) => /0,25 en 0,25/.test(a.textContent))).toBe(true)
+    expect(screen.getAllByRole("alert").some((a) => /0.25 en 0.25/.test(a.textContent))).toBe(true)
     fireEvent.change(document.getElementById("odCilindro"), { target: { value: "-1" } })
     fireEvent.change(document.getElementById("odEje"), { target: { value: "181" } })
     expect(screen.getByText(/El eje va de 1° a 180°/)).toBeInTheDocument()
@@ -297,7 +297,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
     const panel = screen.getByRole("complementary", { name: "Contexto del paciente" })
     expect(panel).toHaveTextContent("Paciente De Prueba")
     expect(panel).toHaveTextContent(/Penicilina/)
-    expect(panel).toHaveTextContent("-1.25 -0.50 × 90°")
+    expect(panel).toHaveTextContent("−1.25 −0.50 × 90°")
     // los antecedentes ya registrados se precargan (resumidos) en vez de pedirse de nuevo
     expect(screen.getByText(/Ya registrados el/)).toBeInTheDocument()
     fireEvent.click(within(panel).getByRole("button", { name: /Examen de Control/ }))

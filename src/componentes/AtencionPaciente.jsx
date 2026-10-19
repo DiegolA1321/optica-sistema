@@ -12,6 +12,7 @@ import { useModalAccesible } from "../utilidades/useModalAccesible"
 import PermisosMensajes from "./PermisosMensajes"
 import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
 import { textoAgudeza } from "../utilidades/agudeza"
+import { dioptriaTexto } from "../utilidades/refraccion"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -189,7 +190,7 @@ export function ModalDatosPaciente({ paciente, onEditar, permisos = null, onCerr
 }
 
 // ─── Atención de un día, en solo lectura, con su receta imprimible ───
-const textoMedida = (o) => (o?.esfera || o?.cilindro || o?.eje ? `${o?.esfera || "—"} ${o?.cilindro || ""} x${o?.eje || "—"}°` : "No registrada")
+const textoMedida = (o) => (o?.esfera || o?.cilindro || o?.eje ? `${dioptriaTexto(o?.esfera) || "—"} ${dioptriaTexto(o?.cilindro)} x${o?.eje || "—"}°` : "No registrada")
 
 function Seccion({ titulo, children }) {
   return (
@@ -221,11 +222,11 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
   const ojo = (nombre, color, o) => (
     <tr className="border-t border-slate-100">
       <td className="px-2 py-1.5 font-bold" style={{ color }}>{nombre}</td>
-      <td className="px-2 py-1.5">{o?.esfera || "—"}</td><td className="px-2 py-1.5">{o?.cilindro || "—"}</td><td className="px-2 py-1.5">{o?.eje ? o.eje + "°" : "—"}</td>
+      <td className="px-2 py-1.5">{dioptriaTexto(o?.esfera) || "—"}</td><td className="px-2 py-1.5">{dioptriaTexto(o?.cilindro) || "—"}</td><td className="px-2 py-1.5">{o?.eje ? o.eje + "°" : "—"}</td>
     </tr>
   )
   const conReceta = Boolean(consulta.od?.avRx || consulta.oi?.avRx)
-  const adOd = m.adicionOd || m.adicion || "", adOi = m.adicionOi || m.adicion || ""
+  const adOd = dioptriaTexto(m.adicionOd || m.adicion), adOi = dioptriaTexto(m.adicionOi || m.adicion)
   const medidas = [
     (adOd || adOi) && ["Adición", adOd === adOi ? adOd : `OD ${adOd || "—"} · OI ${adOi || "—"}`],
     (m.dp || m.dpOd || m.dpOi) && ["Distancia pupilar", [m.dp && `${m.dp} mm`, (m.dpOd || m.dpOi) && `OD ${m.dpOd || "—"} · OI ${m.dpOi || "—"}`, m.dpCerca && `de cerca ${m.dpCerca} mm`].filter(Boolean).join(" · ")],
@@ -265,7 +266,7 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
       <Seccion titulo="Agudeza visual">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[22rem] border-collapse font-mono text-sm">
-            <thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-2 py-1" /><th className="px-2 py-1">Sin corrección</th><th className="px-2 py-1">{conReceta ? "Con su corrección actual" : "Con lentes"}</th>{conReceta && <th className="px-2 py-1">Con la receta nueva</th>}</tr></thead>
+            <thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-2 py-1" /><th className="px-2 py-1">Sin corrección</th><th className="px-2 py-1">Con su corrección actual</th>{conReceta && <th className="px-2 py-1">Con la receta nueva</th>}</tr></thead>
             <tbody>
               {[["OD", "#1d4ed8", consulta.od, null], ["OI", "#0891b2", consulta.oi, null], ...(fi?.agudeza?.ambos && Object.values(fi.agudeza.ambos).some(Boolean) ? [["Ambos", "#475569", null, fi.agudeza.ambos]] : [])].map(([n, c, o, a]) => (
                 <tr key={n} className="border-t border-slate-100">

@@ -2,7 +2,7 @@
 
 import { AlertCircle, History, Glasses, FileText } from "lucide-react"
 import { fechaLegible } from "../../utilidades/formatoFecha"
-import { textoOjoCompleto } from "../../utilidades/refraccion"
+import { dioptriaTexto } from "../../utilidades/refraccion"
 import { textoAgudeza } from "../../utilidades/agudeza"
 import { Etiqueta } from "./piezas"
 
@@ -14,7 +14,8 @@ const Seccion = ({ titulo, children }) => (
 export function RecetaResumen({ receta, onVerHoja }) {
   const filas = [["OD", receta.od, receta.ojoNoEvaluado?.od], ["OI", receta.oi, receta.ojoNoEvaluado?.oi]]
   const m = receta.medidas || {}
-  const adicion = m.adicionOd || m.adicionOi ? (m.adicionOd === m.adicionOi ? m.adicionOd : `OD ${m.adicionOd || "—"} · OI ${m.adicionOi || "—"}`) : ""
+  const adOd = dioptriaTexto(m.adicionOd), adOi = dioptriaTexto(m.adicionOi)
+  const adicion = adOd || adOi ? (adOd === adOi ? adOd : `OD ${adOd || "—"} · OI ${adOi || "—"}`) : ""
   const dp = [m.dp && `${m.dp} mm`, (m.dpOd || m.dpOi) && `OD ${m.dpOd || "—"} · OI ${m.dpOi || "—"}`].filter(Boolean).join(" · ")
   const prisma = [m.prismaOdCant && `OD ${m.prismaOdCant}Δ ${(m.prismaOdBase || "").toLowerCase()}`, m.prismaOiCant && `OI ${m.prismaOiCant}Δ ${(m.prismaOiBase || "").toLowerCase()}`].filter(Boolean).join(" · ")
   return (
@@ -24,7 +25,7 @@ export function RecetaResumen({ receta, onVerHoja }) {
         <tbody>
           {filas.map(([sigla, o, noEval]) => noEval
             ? <tr key={sigla} className="border-t border-slate-100"><th className="p-1 text-left">{sigla}</th><td colSpan={4} className="p-1 text-slate-500">Ojo no evaluado: {noEval}</td></tr>
-            : <tr key={sigla} className="border-t border-slate-100 text-center font-mono tabular-nums"><th className="p-1 text-left font-sans font-bold">{sigla}</th><td className="p-1">{o.esfera || "—"}</td><td className="p-1">{o.cilindro || "—"}</td><td className="p-1">{o.eje ? `${o.eje}°` : "—"}</td><td className="p-1">{textoAgudeza(o.avRx, o.avRxF) || "—"}</td></tr>)}
+            : <tr key={sigla} className="border-t border-slate-100 text-center font-mono tabular-nums"><th className="p-1 text-left font-sans font-bold">{sigla}</th><td className="p-1">{dioptriaTexto(o.esfera) || "—"}</td><td className="p-1">{dioptriaTexto(o.cilindro) || "—"}</td><td className="p-1">{o.eje ? `${o.eje}°` : "—"}</td><td className="p-1">{textoAgudeza(o.avRx, o.avRxF) || "—"}</td></tr>)}
         </tbody>
       </table>
       <dl className="mt-2 space-y-0.5 text-slate-700">

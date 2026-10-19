@@ -23,13 +23,13 @@ describe("La graduación, un solo componente con dos versiones", () => {
     render(<GraduacionVigente receta={receta()} version="personal" />)
     const od = screen.getByRole("region", { name: "Ojo derecho" })
     expect(od).toHaveTextContent("OD · Ojo derecho")
-    for (const v of ["−1.75", "Esfera", "Cilindro", "−0.50", "Eje", "90°", "AV sin lentes", "20/60", "AV con lentes", "20/20"]) expect(od).toHaveTextContent(v)
+    for (const v of ["−1.75", "Esfera", "Cilindro", "−0.50", "Eje", "90°", "Sin corrección", "20/60", "Con su corrección actual", "20/20"]) expect(od).toHaveTextContent(v)
     expect(screen.getByRole("region", { name: "Ojo izquierdo" })).toHaveTextContent("OI · Ojo izquierdo")
     expect(document.body.textContent).toContain("Adición+1.00")
     expect(document.body.textContent).toContain("Distancia pupilar (DP)62")
     expect(document.body.textContent).toContain("Altura de montaje18")
-    // en el espacio libre del ojo, la explicación en palabras simples, en letra pequeña
-    expect(od).toHaveTextContent("Tienes miopía leve: ves bien de cerca y un poco borroso de lejos.")
+    // la vista técnica NO lleva las frases para el paciente (solo con «Explicar al paciente»)
+    expect(od).not.toHaveTextContent("Tienes miopía")
   })
 
   it("en la versión del personal, sin esfera va «Sin registrar» (pequeño y gris) y con receta anterior dice cuánto cambió y desde cuándo", () => {
@@ -200,7 +200,7 @@ describe("La hoja de la receta (la misma para el optómetra y el paciente)", () 
   it("lleva el membrete, los datos del paciente, la tabla de graduación, el lente, las indicaciones, el profesional con su firma y la fecha", () => {
     render(<HojaReceta optica={{ nombre: "Óptica Solna Vision", direccion: "Av. Principal 123", telefono: "0991234567" }} paciente={{ nombre: "Marta Zambrano", cedula: "0934070830", edad: 72 }} receta={receta()} />)
     const hoja = document.querySelector("[data-hoja-receta]")
-    for (const t of ["Óptica Solna Vision", "Av. Principal 123 · 0991234567", "Receta óptica", numeroDeReceta(receta()), "Marta Zambrano", "0934070830", "72 años", "Esfera", "Cilindro", "Eje", "AV con lentes", "-1.75", "Adición", "Distancia pupilar", "Lente recomendado", "Progresivo con filtro azul", "Indicaciones y cuidados", "Usa tus lentes todo el día.", "Dra. Paula Andrade", "Reg. Prof. REG-9", "20 de abril de 2026"]) {
+    for (const t of ["Óptica Solna Vision", "Av. Principal 123 · 0991234567", "Receta óptica", numeroDeReceta(receta()), "Marta Zambrano", "0934070830", "72 años", "Esfera", "Cilindro", "Eje", "Con su corrección actual", "−1.75", "Adición", "Distancia pupilar", "Lente recomendado", "Progresivo con filtro azul", "Indicaciones y cuidados", "Usa tus lentes todo el día.", "Dra. Paula Andrade", "Reg. Prof. REG-9", "20 de abril de 2026"]) {
       expect(hoja.textContent).toContain(t)
     }
   })

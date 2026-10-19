@@ -1,6 +1,7 @@
 "use client"
 
 import { dinero } from "../utilidades/formatoMoneda"
+import { dioptriaTexto } from "../utilidades/refraccion"
 import { useMemo, useState } from "react"
 import { Receipt, Search, AlertTriangle, Plus, ArrowLeft, Wrench, Printer, Stethoscope, UserX, ChevronDown, Glasses, BadgePercent } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
@@ -525,7 +526,7 @@ export default function ComprobanteVentaModal({
                 {verMedidas && (
                   <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-100 bg-white p-2 font-mono text-xs">
                     {[["OD", diagnostico.od], ["OI", diagnostico.oi]].map(([ojo, o]) => (
-                      <p key={ojo}><span className="font-bold text-blue-700">{ojo}:</span> {o?.esfera || o?.cilindro || o?.eje ? `${o?.esfera || "—"} | ${o?.cilindro || "—"} | ${o?.eje || "—"}°` : "No registrada"}</p>
+                      <p key={ojo}><span className="font-bold text-blue-700">{ojo}:</span> {o?.esfera || o?.cilindro || o?.eje ? `${dioptriaTexto(o?.esfera) || "—"} | ${dioptriaTexto(o?.cilindro) || "—"} | ${o?.eje || "—"}°` : "No registrada"}</p>
                     ))}
                   </div>
                 )}

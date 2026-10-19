@@ -504,7 +504,7 @@ describe("Mi receta", () => {
     expect(selector).toHaveTextContent("Receta del 1 de octubre de 2026 · vigente")
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("−1.50")
     expect(screen.getByRole("region", { name: "Cómo cambió desde tu examen anterior" })).toHaveTextContent("Mar 2026")
-    expect(screen.getByRole("region", { name: "Cómo cambió desde tu examen anterior" })).toHaveTextContent("Media dioptría más de corrección")
+    expect(screen.getByRole("region", { name: "Cómo cambió desde tu examen anterior" })).toHaveTextContent("0.50 más de miopía")
     expect(screen.queryByRole("region", { name: "Tus recetas" })).not.toBeInTheDocument()
     // elige la del 1 de marzo de 2026
     fireEvent.click(selector)

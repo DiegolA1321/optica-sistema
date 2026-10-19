@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { dioptriaTexto } from "../../utilidades/refraccion"
 import { ArrowRight, FlaskConical, MessageCircle, Pencil, Plus, Printer, Undo2 } from "lucide-react"
 import { GRAD_MARCA } from "@/lib/tema"
 import { supabase } from "../../lib/supabaseClient"
@@ -14,7 +15,7 @@ import { numeroComprobante } from "../../utilidades/comprobantes"
 import { ETIQUETA_ESTADO, TIPOS_LENTE, numeroOrden, diasDeAtraso, estadoVisible, tratamientos } from "../../utilidades/ordenesLaboratorio"
 import { ESTADO_ANTERIOR, textoEstadoOrden } from "../../utilidades/ventasModulo"
 
-const medida = (o) => ["esfera", "cilindro", "eje", "adicion"].map((k) => o?.[k] || "—")
+const medida = (o) => ["esfera", "cilindro", "eje", "adicion"].map((k) => (k === "eje" ? o?.[k] : dioptriaTexto(o?.[k])) || "—")
 
 // El detalle de una orden de laboratorio: la orden, la venta de la que sale, el pedido (lente, montura, receta) y su historial de estados.
 // Las acciones están aquí; la fila de la lista solo lleva la siguiente del proceso.

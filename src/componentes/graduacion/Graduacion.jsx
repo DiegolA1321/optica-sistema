@@ -54,7 +54,7 @@ export function GraduacionVigente({ receta, anterior = null, version = "paciente
           const filas = [
             ["Astigmatismo", l.hayAstigmatismo ? `${valorD(l.cilindro)}${l.eje ? ` · ${l.eje}°` : ""}` : "—", l.explicaCilindro],
             ...(l.adicion ? [["Para leer de cerca", valorD(l.adicion), l.explicaCerca]] : []),
-            ...(l.agudeza ? [[l.conLentes ? "Cómo ves con tus lentes" : "Cómo ves sin lentes", l.agudeza, l.explicaAgudeza]] : []),
+            ...(l.agudeza ? [[l.agudezaNombre, l.agudeza, l.explicaAgudeza]] : []),
           ]
           return (
             <section key={lado} aria-label={nombre} data-lado={lado} className={"@container min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[34px] sm:py-7 " + (onOjo ? "pt-abrible relative transition-colors hover:border-pt-azul hover:bg-pt-fondo/60 " : "") + (lado === "od" ? "@[56rem]:order-2" : "@[56rem]:order-1")}>
@@ -103,7 +103,7 @@ function VigentePersonal({ receta, anterior, onOjo }) {
       <div className="grid gap-4 @[44rem]:grid-cols-2">
         {LADOS.map(([lado, nombre, sigla]) => {
           const o = receta[lado] || {}
-          const datos = [["Cilindro", valorD(o.cilindro)], ["Eje", o.eje ? `${o.eje}°` : ""], ["AV sin lentes", textoAgudeza(o.avSc, o.avScF)], [o.avRx ? "AV con la receta" : "AV con lentes", textoAgudeza(agudezaConLentes(o), o.avRx ? o.avRxF : o.avCcF)]]
+          const datos = [["Cilindro", valorD(o.cilindro)], ["Eje", o.eje ? `${o.eje}°` : ""], ["Sin corrección", textoAgudeza(o.avSc, o.avScF)], ["Con su corrección actual", textoAgudeza(o.avCc, o.avCcF)], ...(o.avRx ? [["Con la receta nueva", textoAgudeza(o.avRx, o.avRxF)]] : [])]
           const l = lecturaDeOjo(receta, lado)
           const cambioOjo = cambios?.find((c) => c.lado === lado)
           const delta = !cambioOjo?.texto ? "" : cambioOjo.texto === "Sin cambios" ? `Sin cambios desde ${desde}` : `${cambioOjo.texto} desde ${desde}`
@@ -124,7 +124,7 @@ function VigentePersonal({ receta, anterior, onOjo }) {
                   <p className="text-sm font-bold uppercase tracking-wide" style={{ color: COLOR_LADO[lado] }}>{sigla} · {nombre}</p>
                   {valorD(o.esfera) ? <p className="text-5xl font-bold leading-tight tabular-nums text-slate-900">{valorD(o.esfera)}</p> : <p className="py-3 text-sm text-slate-400">Sin registrar</p>}
                   <p className="text-sm text-slate-500">Esfera{delta && <span className="font-semibold text-slate-600"> · {delta}</span>}</p>
-                  {valorD(o.esfera) && <p className="mt-1.5 text-xs leading-snug text-slate-500"><Partes partes={l.explicaEsfera} /></p>}
+                  {/* La vista técnica no lleva las frases para el paciente: solo aparecen con «Explicar al paciente». */}
                 </div>
               </div>
               <dl className="mt-4 grid gap-x-6 gap-y-2 border-t border-slate-100 pt-4 text-base @[34rem]:grid-cols-2">
@@ -294,7 +294,7 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
           <h1 className={portal ? "font-heading text-2xl font-bold tracking-tight text-pt-marino sm:text-[28px] sm:leading-tight" : "text-lg font-bold text-slate-900"}>{titulo}</h1>
           {subtitulo && <p className={"mt-1 " + (portal ? "text-base text-pt-texto" : "text-sm text-slate-500")}>{subtitulo(receta)}</p>}
         </div>
-        <div className={"flex flex-wrap items-center gap-3 @[56rem]:justify-end " + (portal ? "@[40rem]:flex-nowrap" : "")}>
+        <div className={"flex items-center gap-3 @[56rem]:justify-end " + (portal ? "flex-wrap @[40rem]:flex-nowrap" : "flex-nowrap gap-2 [&>button]:whitespace-nowrap")}>
           <SelectorReceta recetas={recetas} valorId={receta.id} onElegir={setId} version={portal ? "paciente" : "personal"} />
           {recetas.length > 1 && <button type="button" onClick={() => setComparando(true)} aria-label="Comparar dos recetas" className={boton + " shrink-0"}><GitCompare size={portal ? 20 : 15} aria-hidden="true" /> {portal ? <><span className="@[48rem]:hidden">Comparar</span><span className="hidden @[48rem]:inline">Comparar dos recetas</span></> : "Comparar dos recetas"}</button>}
           {explicable && <button type="button" onClick={() => setSimple((x) => !x)} aria-pressed={simple} className={boton}><MessageSquareText size={15} aria-hidden="true" /> {simple ? "Volver a la vista técnica" : "Explicar al paciente"}</button>}
@@ -411,7 +411,7 @@ export function VentanaComparar({ recetas, version = "paciente", idA: inicialA, 
   const campo = "min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900 outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
   const filasDe = (lado) => cmp.filas.filter((f) => f.lado === lado)
   const adicion = cmp?.filas.find((f) => f.lado === null)
-  const etiqueta = (f) => (paciente ? ({ Esfera: "Esfera", Cilindro: "Astigmatismo", Eje: "Eje", "Agudeza visual": "Cómo ves con tus lentes", "Adición": "Para leer de cerca" })[f.etiqueta] : f.etiqueta)
+  const etiqueta = (f) => (paciente ? ({ Esfera: "Esfera", Cilindro: "Astigmatismo", Eje: "Eje", "Agudeza visual": "Agudeza visual", "Adición": "Para leer de cerca" })[f.etiqueta] : f.etiqueta)
   return (
     <Cascaron pantallaCompletaEnCelular titulo="Comparar dos recetas" subtitulo={paciente ? "Elige dos y mira qué cambió." : "Elige dos recetas del paciente."} Icono={GitCompare} ancho="max-w-3xl" onCerrar={onCerrar} capa="z-[60]"
       pie={<><span /><button type="button" onClick={onCerrar} className={paciente ? "inline-flex min-h-12 items-center rounded-xl border-[1.5px] border-slate-300/80 bg-white px-5 text-base font-semibold text-pt-marino hover:bg-slate-50 cursor-pointer" : "rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"}>Cerrar</button></>}>
