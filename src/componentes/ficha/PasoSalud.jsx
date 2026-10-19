@@ -54,7 +54,7 @@ export default function PasoSalud({ f, set, setVarios }) {
             <label htmlFor="pioHora" className="mb-1 block text-xs font-semibold text-slate-500">Hora de la medición</label>
             <input id="pioHora" type="time" value={f.pioHora} onChange={(e) => set("pioHora", e.target.value)} className="w-28 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500" />
           </div>
-          <Lista id="pioMetodo" etiqueta="Método" valor={f.pioMetodo} onCambiar={(v) => set("pioMetodo", v)} opciones={METODOS_PIO} ancho="w-56" />
+          <Lista id="pioMetodo" etiqueta="Método" valor={f.pioMetodo} onCambiar={(v) => set("pioMetodo", v)} opciones={METODOS_PIO} ancho="w-64" />
         </div>
       </Tarjeta>
       <Tarjeta titulo="Test de color" icono={Palette}>
