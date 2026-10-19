@@ -80,7 +80,7 @@ test('ficha de cinco pasos: se llena, se termina y todo queda como se pidió', a
   await expect(page.getByText('Ya registrados el')).toBeVisible() // antecedentes precargados
   const panel = page.getByRole('complementary', { name: 'Contexto del paciente' })
   await expect(panel).toContainText('Penicilina')
-  await expect(panel).toContainText('-1.25 -0.50 × 90°')
+  await expect(panel).toContainText('−1.25 −0.50 × 90°')
   await page.getByRole('button', { name: 'Borrosidad de cerca' }).click()
   await page.getByRole('button', { name: 'Dolor de cabeza' }).click()
   await page.getByLabel(/Lo que cuenta el paciente/).fill('Le cuesta leer el celular sin alejarlo; termina el día con dolor de cabeza.')
@@ -89,7 +89,7 @@ test('ficha de cinco pasos: se llena, se termina y todo queda como se pidió', a
   await expect(page.getByRole('button', { name: 'Ninguno' }).first()).toBeVisible()
   await page.getByRole('button', { name: 'Queratocono' }).click()
   await page.getByLabel('Cuáles').fill('Losartán 50 mg')
-  await page.getByRole('button', { name: 'Hipertensión' }).click()
+  await expect(page.getByRole('button', { name: 'Hipertensión' })).toHaveAttribute('aria-pressed', 'true') // precargado: la opción ya viene marcada
   await page.getByLabel('Desde cuándo').fill('3 años')
   await foto(page, 'paso-1-anamnesis')
   // Las últimas visitas se abren en solo lectura

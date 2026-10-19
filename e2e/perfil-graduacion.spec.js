@@ -45,7 +45,7 @@ for (const rol of ['ADMIN', 'OPTOMETRA', 'RECEPCION', 'VENTAS']) {
     await expect(page.getByRole('button', { name: /Elegir otra receta/ })).toContainText('Receta del 20 de abril de 2026 · vigente')
     const od = page.getByRole('region', { name: 'Ojo derecho' })
     await expect(od).toContainText('OD · Ojo derecho')
-    for (const t of ['Esfera', 'Cilindro', 'Eje', 'AV sin lentes', 'AV con lentes']) await expect(od).toContainText(t)
+    for (const t of ['Esfera', 'Cilindro', 'Eje', 'Sin corrección', 'Con su corrección actual']) await expect(od).toContainText(t)
     await expect(page.getByLabel('Medidas de la receta')).toContainText('Distancia pupilar (DP)')
     // sin «Cambio» ni «Tendencia»: los cubren «Comparar dos recetas» y la historia de cada ojo
     await expect(page.getByRole('region', { name: 'Cambio desde la consulta anterior' })).toHaveCount(0)
