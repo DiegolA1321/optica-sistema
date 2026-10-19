@@ -69,6 +69,26 @@ export async function solicitarLentes(pacienteId, token, interes, comentario) {
   return { ok: false, error: error.code === "P0001" ? error.message : "No pudimos enviar tu solicitud. Intenta de nuevo en un momento." }
 }
 
+// Derecho de acceso (ley de protección de datos): el servidor arma el archivo con los datos personales y clínicos del paciente, sin campos internos, y se baja como JSON.
+// Lo usan el menú de la cuenta (laptop) y «Mis datos» (celular, que no tiene ese menú). Devuelve { ok, error }.
+export async function descargarMisDatosPaciente({ usuario, citas = [], consultas = [], hoy }) {
+  let datos
+  if (supabase) {
+    const { data, error } = await supabase.rpc("exportar_mis_datos_paciente", { p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null, p_token: usuario?.token })
+    if (error || !data) return { ok: false, error: "No pudimos preparar tus datos. Intenta de nuevo en un momento." }
+    datos = data
+  } else {
+    datos = { perfil: { nombre: usuario?.nombre, cedula: usuario?.cedula }, citas, consultas, exportado_en: hoy }
+  }
+  const url = URL.createObjectURL(new Blob([JSON.stringify(datos, null, 2)], { type: "application/json" }))
+  const enlace = document.createElement("a")
+  enlace.href = url
+  enlace.download = "mis-datos-" + hoy + ".json"
+  enlace.click()
+  URL.revokeObjectURL(url)
+  return { ok: true }
+}
+
 // Marca en la base que el paciente agregó la cita a su calendario (migración 0127): así vale en todos sus aparatos. Devuelve { ok }.
 export async function marcarCitaEnCalendario(pacienteId, token, citaId) {
   if (!supabase) return { ok: false }

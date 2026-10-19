@@ -5,6 +5,7 @@ import { ShieldAlert, AlertCircle, CheckCircle2, LogOut, Phone, IdCard, Bell, Sh
 import { supabase } from "../../lib/supabaseClient"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { hoyISO } from "../../utilidades/disponibilidad"
+import { descargarMisDatosPaciente } from "../../utilidades/portalDatos"
 import { esTelefonoValido, esEmailValido } from "../../utilidades/validaciones"
 import { cambiarMisPermisos, leerMisPermisos } from "../../utilidades/permisosMensajes"
 import { Cascaron } from "../AtencionPaciente"
@@ -26,21 +27,9 @@ export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas
     if (descargando) return
     setErrorPrivacidad("")
     setDescargando(true)
-    let datos = null
-    if (supabase) {
-      const { data, error } = await supabase.rpc("exportar_mis_datos_paciente", { p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null, p_token: usuario?.token })
-      if (error || !data) { setDescargando(false); setErrorPrivacidad("No pudimos preparar tus datos. Intenta de nuevo en un momento."); return }
-      datos = data
-    } else {
-      datos = { perfil: { nombre: usuario?.nombre, cedula: usuario?.cedula }, citas, consultas, exportado_en: hoyISO() }
-    }
-    const url = URL.createObjectURL(new Blob([JSON.stringify(datos, null, 2)], { type: "application/json" }))
-    const enlace = document.createElement("a")
-    enlace.href = url
-    enlace.download = "mis-datos-" + hoyISO() + ".json"
-    enlace.click()
-    URL.revokeObjectURL(url)
+    const r = await descargarMisDatosPaciente({ usuario, citas, consultas, hoy: hoyISO() })
     setDescargando(false)
+    if (!r.ok) setErrorPrivacidad(r.error)
   }
 
   const confirmarSolicitudEliminar = async () => {
@@ -107,7 +96,8 @@ export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas
           )}
           <ul className="divide-y divide-pt-borde">
             <Accion titulo="Contraseña" texto="Protege el acceso a tu cuenta" boton="Cambiar" onClick={onCambiarClave} etiqueta="Cambiar contraseña" />
-            <Accion titulo="Una copia de tus datos" texto="Tus datos, citas e historial en un archivo" boton={descargando ? "Preparando…" : "Descargar"} onClick={descargarMisDatos} deshabilitado={descargando} etiqueta="Descargar una copia de mis datos" />
+            {/* En laptop esta opción está en el menú de la cuenta (arriba a la derecha); el celular no tiene ese menú. */}
+            <Accion clase="lg:hidden" titulo="Una copia de tus datos" texto="Tus datos, citas e historial en un archivo" boton={descargando ? "Preparando…" : "Descargar"} onClick={descargarMisDatos} deshabilitado={descargando} etiqueta="Descargar una copia de mis datos" />
             <Accion peligro titulo="Eliminar mi cuenta" texto="Le pedimos a la óptica que borre tu cuenta y tus datos" boton="Solicitar" onClick={() => { setMotivoEliminar(""); setSolicitudEliminarEnviada(false); setErrorPrivacidad(""); setModalEliminarAbierto(true) }} etiqueta="Pedir que eliminen mi cuenta" />
           </ul>
           {onCerrarSesion && <button type="button" onClick={() => onCerrarSesion()} className={BOTON_SECUNDARIO + " mt-4 w-full lg:hidden"}><LogOut size={20} aria-hidden="true" /> Cerrar sesión</button>}
@@ -174,9 +164,9 @@ function Seccion({ id, titulo, Icono, children }) {
   )
 }
 // Una acción de «Seguridad y privacidad»: lo que hace y su botón (el de eliminar, en rojo).
-function Accion({ titulo, texto, boton, onClick, deshabilitado = false, peligro = false, etiqueta }) {
+function Accion({ titulo, texto, boton, onClick, deshabilitado = false, peligro = false, etiqueta, clase = "" }) {
   return (
-    <li className="flex flex-col items-start gap-2.5 py-4 first:pt-0">
+    <li className={"flex flex-col items-start gap-2.5 py-4 first:pt-0 " + clase}>
       <div className="min-w-0">
         <p className={"text-base font-semibold " + (peligro ? "text-red-700" : "text-pt-marino")}>{titulo}</p>
         <p className="text-base leading-snug text-pt-texto">{texto}</p>

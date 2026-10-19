@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Bell, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, LogOut, UserRound } from "lucide-react"
+import { Bell, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, LogOut, UserRound, Download } from "lucide-react"
 
 const iniciales = (nombre = "") => nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "P"
 
@@ -44,7 +44,7 @@ export function Campanita({ avisos, onIr }) {
 }
 
 // La cuenta del paciente: su nombre y un menú con «Mis datos» y «Cerrar sesión» (igual que el menú de usuario del sistema del personal).
-export function MenuCuenta({ nombre, onMisDatos, onCerrarSesion }) {
+export function MenuCuenta({ nombre, onMisDatos, onDescargarDatos, onCerrarSesion }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useCerrarFuera(abierto, () => setAbierto(false))
   const item = "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-base font-semibold transition-colors cursor-pointer"
@@ -58,6 +58,7 @@ export function MenuCuenta({ nombre, onMisDatos, onCerrarSesion }) {
       {abierto && (
         <div role="menu" aria-label="Mi cuenta" className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-pt-borde bg-white p-2 shadow-2xl">
           <button type="button" role="menuitem" onClick={() => { setAbierto(false); onMisDatos() }} className={item + " text-slate-800 hover:bg-pt-fondo"}><UserRound size={20} aria-hidden="true" /> Mis datos</button>
+          {onDescargarDatos && <button type="button" role="menuitem" onClick={() => { setAbierto(false); onDescargarDatos() }} className={item + " text-slate-800 hover:bg-pt-fondo"}><Download size={20} aria-hidden="true" /> Descargar mis datos</button>}
           {onCerrarSesion && <button type="button" role="menuitem" onClick={() => onCerrarSesion()} className={item + " text-red-700 hover:bg-red-50"}><LogOut size={20} aria-hidden="true" /> Cerrar sesión</button>}
         </div>
       )}
@@ -66,7 +67,7 @@ export function MenuCuenta({ nombre, onMisDatos, onCerrarSesion }) {
 }
 
 // La cabecera de laptop, en todas las pantallas del portal: el botón para ocultar el menú, el saludo con la fecha, la campanita y la cuenta.
-export default function CabeceraPortal({ menuOculto, onAlternarMenu, saludo, fecha, avisos, onIr, nombre, onCerrarSesion }) {
+export default function CabeceraPortal({ menuOculto, onAlternarMenu, saludo, fecha, avisos, onIr, nombre, onDescargarDatos, onCerrarSesion }) {
   return (
     <header className="relative z-30 flex shrink-0 items-center justify-between gap-4 border-b border-pt-borde bg-white px-8 py-3">
       <div className="flex min-w-0 items-center gap-4">
@@ -80,7 +81,7 @@ export default function CabeceraPortal({ menuOculto, onAlternarMenu, saludo, fec
       </div>
       <div className="flex shrink-0 items-center gap-3">
         <Campanita avisos={avisos} onIr={onIr} />
-        <MenuCuenta nombre={nombre} onMisDatos={() => onIr("datos")} onCerrarSesion={onCerrarSesion} />
+        <MenuCuenta nombre={nombre} onMisDatos={() => onIr("datos")} onDescargarDatos={onDescargarDatos} onCerrarSesion={onCerrarSesion} />
       </div>
     </header>
   )

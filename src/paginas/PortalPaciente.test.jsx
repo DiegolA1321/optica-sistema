@@ -15,9 +15,10 @@ const datos = vi.hoisted(() => ({
   marcarCitaEnCalendario: vi.fn(async () => ({ ok: true })),
   misSolicitudesLentes: vi.fn(async () => ({ disponible: true, lista: [] })),
   solicitarLentes: vi.fn(async () => ({ ok: true })),
+  descargarMisDatosPaciente: vi.fn(async () => ({ ok: true })),
 }))
 vi.mock("../utilidades/facturaElectronicaApi", () => ({ misCompras: datos.misCompras, urlDeDescargaPaciente: vi.fn() }))
-vi.mock("../utilidades/portalDatos", () => ({ misOrdenes: datos.misOrdenes, miControl: datos.miControl, misCitasDetalle: datos.misCitasDetalle, confirmarAsistencia: datos.confirmarAsistencia, calificarAtencion: datos.calificarAtencion, misReferidos: datos.misReferidos, marcarCitaEnCalendario: datos.marcarCitaEnCalendario, misSolicitudesLentes: datos.misSolicitudesLentes, solicitarLentes: datos.solicitarLentes }))
+vi.mock("../utilidades/portalDatos", () => ({ misOrdenes: datos.misOrdenes, miControl: datos.miControl, misCitasDetalle: datos.misCitasDetalle, confirmarAsistencia: datos.confirmarAsistencia, calificarAtencion: datos.calificarAtencion, misReferidos: datos.misReferidos, marcarCitaEnCalendario: datos.marcarCitaEnCalendario, misSolicitudesLentes: datos.misSolicitudesLentes, solicitarLentes: datos.solicitarLentes, descargarMisDatosPaciente: datos.descargarMisDatosPaciente }))
 
 const descarga = vi.hoisted(() => ({ descargarHojaReceta: vi.fn(async () => true) }))
 vi.mock("../utilidades/descargarHojaReceta", () => ({ descargarHojaReceta: descarga.descargarHojaReceta }))
@@ -815,5 +816,19 @@ describe("«Qué llevar a tu cita» en el boleto de la próxima cita", () => {
     render(<PortalPaciente {...base} citas={[cita({ estado: "Atendida", fecha: "2020-01-01" })]} />)
     await resumen()
     expect(screen.queryByRole("list", { name: "Qué llevar a tu cita" })).not.toBeInTheDocument()
+  })
+})
+
+describe("Descargar mis datos está en el menú de la cuenta", () => {
+  it("el menú de la cuenta (laptop) ofrece Mis datos, Descargar mis datos y Cerrar sesión, y descargar baja el archivo con la sesión del paciente", async () => {
+    ponerAncho(1366)
+    render(<PortalPaciente {...base} />)
+    await resumen()
+    fireEvent.click(screen.getByRole("button", { name: /Mi cuenta/ }))
+    const menu = screen.getByRole("menu", { name: "Mi cuenta" })
+    expect(within(menu).getAllByRole("menuitem").map((m) => m.textContent.trim())).toEqual(["Mis datos", "Descargar mis datos", "Cerrar sesión"])
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Descargar mis datos" }))
+    await waitFor(() => expect(datos.descargarMisDatosPaciente).toHaveBeenCalledWith(expect.objectContaining({ usuario: expect.objectContaining({ id: "p1", token: "tok" }) })))
+    expect(await screen.findByText("Descargamos tus datos en un archivo.")).toBeInTheDocument()
   })
 })

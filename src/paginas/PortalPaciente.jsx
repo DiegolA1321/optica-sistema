@@ -1,6 +1,8 @@
 "use client"
 
 import { ahoraEcuador } from "../utilidades/horaEcuador"
+import { descargarMisDatosPaciente } from "../utilidades/portalDatos"
+import { fechaAISO } from "../utilidades/disponibilidad"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { Eye, Home, CalendarDays, Glasses, ReceiptText, UserRound, CheckCircle2, AlertCircle, Stethoscope, CalendarClock, KeyRound, Lock, X } from "lucide-react"
@@ -209,6 +211,16 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setMedidasSolicitadas(true)
   }
 
+  // «Descargar mis datos» desde el menú de la cuenta (derecho de acceso del paciente).
+  const descargandoDatos = useRef(false)
+  const descargarDatos = async () => {
+    if (descargandoDatos.current) return
+    descargandoDatos.current = true
+    const r = await descargarMisDatosPaciente({ usuario, citas: misCitas, consultas: misConsultas, hoy: fechaAISO(ahoraEcuador()) })
+    descargandoDatos.current = false
+    avisar(r.ok ? "Descargamos tus datos en un archivo." : r.error)
+  }
+
   const misCitas = useMemo(() => {
     if (!usuario?.id && !usuario?.cedula) return citas
     return citas.filter((c) => c.pacienteId === usuario.id || c.cedula === usuario.cedula || c.paciente === usuario.nombre)
@@ -390,7 +402,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
 
             {/* ─── CONTENIDO ─── */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {laptop && <CabeceraPortal menuOculto={menuOculto} onAlternarMenu={alternarMenu} saludo={`${saludo}, ${primerNombre}`} fecha={hoyFecha} avisos={avisos} onIr={navegar} nombre={usuario?.nombre || primerNombre} onCerrarSesion={onCerrarSesion} />}
+        {laptop && <CabeceraPortal menuOculto={menuOculto} onAlternarMenu={alternarMenu} saludo={`${saludo}, ${primerNombre}`} fecha={hoyFecha} avisos={avisos} onIr={navegar} nombre={usuario?.nombre || primerNombre} onDescargarDatos={descargarDatos} onCerrarSesion={onCerrarSesion} />}
         {/* Celular y tablet: una barra arriba con la marca, el saludo y los avisos */}
         {!laptop && (
           <header className="relative z-30 flex shrink-0 items-center gap-3 border-b border-pt-borde bg-white px-4 py-3">
