@@ -73,7 +73,10 @@ test('cabecera, alertas arriba de las pestañas, Citas y Resumen', async ({ page
   await expect(masPendientes).toBeVisible()
   await expect(masPendientes).toHaveAttribute('aria-expanded', 'false')
   await masPendientes.click()
-  await expect(page.getByRole('region', { name: 'Otras citas pendientes' }).getByRole('button', { name: 'Ingresar' })).toBeVisible()
+  // Regla del 19 oct.: la cita agendada es futura, así que NO ofrece «Ingresar» (solo hoy o una pendiente de un día anterior).
+  const otras = page.getByRole('region', { name: 'Otras citas pendientes' })
+  await expect(otras).toBeVisible()
+  await expect(otras.getByRole('button', { name: 'Ingresar' })).toHaveCount(0)
   await foto(page, 'reorganizado-2-mas-pendientes')
 
   // "Cuenta Portal" abre las opciones de la cuenta

@@ -64,6 +64,8 @@ try {
   for (const t of ORDEN) if (tablas.includes(t)) await borrar(t)
   // Del paciente fijo se conserva SU comprobante (el de menor número: el CV-0006 con su abono y su factura electrónica). Lo demás que una prueba le haya dejado (por ejemplo una venta de $30 de
   // «pago por transferencia» cuya prueba se cortó antes de limpiar) se quita aquí, con todo lo que cuelga de esas facturas, para que las pruebas del portal siempre partan del mismo saldo.
+  // Los avisos y solicitudes que el portal le deja (cambio de contacto, medidas pedidas) se acumulaban entre corridas y hacían fallar las pruebas que los cuentan.
+  if (fijo) for (const t of ["avisos_contacto_paciente", "solicitudes_medidas"]) if (tablas.includes(t)) { const r = await c.query(`delete from public.${t} where paciente_id = $1`, [fijo]); if (r.rowCount) borrados[t] = r.rowCount }
   if (fijo) {
     const sobrantes = (await q("select id from public.facturas_venta where paciente_id = $1 and numero <> (select min(numero) from public.facturas_venta where paciente_id = $1)", [fijo])).map((r) => r.id)
     if (sobrantes.length) {

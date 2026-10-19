@@ -84,7 +84,8 @@ test.afterAll(async () => {
     await c.query("delete from consultas_base where paciente_id = $1 and (fecha >= '2026-10-01' or fecha = '2026-04-20')", [ids.paciente])
     await c.query("delete from citas_base where paciente_id = $1", [ids.paciente])
     await c.query('update pacientes_base set fecha_nacimiento = $2 where id = $1', [ids.paciente, original.nacimiento])
-    await c.query("update pacientes_base set ultima_consulta = 'Pendiente' where id = $1", [ids.paciente]).catch(() => {})
+    // El resumen clínico del paciente (lo que la ficha escribió al terminar) vuelve a «sin consulta»: sin esto, Inicio y Pacientes dejan de contar igual sus «sin consulta».
+    await c.query("update pacientes set evolucion = 'Sin evaluación', estado_correccion = 'Sin evaluación', ultima_consulta = 'Pendiente', estado_clinico = 'Activo' where id = $1", [ids.paciente])
     await c.query("update opticas set settings = $2::jsonb where id = $1", [ids.optica, JSON.stringify(original.settings || {})])
   })
   if (clienteAdmin) await clienteAdmin.from('opticas').update({ logo_url: original.logo }).eq('id', ids.optica)
