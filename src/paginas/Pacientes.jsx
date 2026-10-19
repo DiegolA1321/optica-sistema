@@ -2625,15 +2625,15 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
   const otras = pendientes.slice(1)
   // El historial, como una tabla: Fecha | Motivo y profesional | Diagnóstico | Receta emitida (OD y OI) | Compra relacionada | Estado | flecha. Toda la fila abre el detalle de la cita.
   // En pantalla angosta las columnas se apilan, cada dato con su rótulo.
-  const COLUMNAS = "@[48rem]:grid-cols-[8.5rem_minmax(0,1.25fr)_minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_7.5rem_1.25rem]"
-  const celda = (rotulo, valor) => (valor ? <p className="min-w-0 text-sm leading-snug text-slate-700"><span className="font-semibold text-slate-500 @[48rem]:hidden">{rotulo}: </span>{valor}</p> : <p className="min-w-0 text-sm text-slate-400"><span className="font-semibold @[48rem]:hidden">{rotulo}: </span>—</p>)
+  const COLUMNAS = "@[40rem]:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.5fr)_minmax(0,1fr)_5.75rem_1rem]"
+  const celda = (rotulo, valor) => (valor ? <p className="min-w-0 text-sm leading-snug text-slate-700"><span className="font-semibold text-slate-500 @[40rem]:hidden">{rotulo}: </span>{valor}</p> : <p className="min-w-0 text-sm text-slate-400"><span className="font-semibold @[40rem]:hidden">{rotulo}: </span>—</p>)
   const filaHistorial = (c) => {
     const k = consultaDe(c)
     const lineas = c.estado === "Atendida" ? resultadoDeCita({ cita: c, consulta: k, facturas }) : []
     const dato = (clave) => lineas.find((l) => l.clave === clave)?.texto
     const quien = k?.profesionalNombre || (c.atendidoPor || c.asignadoA ? etiquetaMiembro(equipo, c.atendidoPor || c.asignadoA) : "")
     return (
-      <li key={c.id} data-fila className={"pt-abrible relative grid items-start gap-x-4 gap-y-1 px-2 py-3 transition-colors hover:bg-slate-50 @[48rem]:items-center " + COLUMNAS}>
+      <li key={c.id} data-fila className={"pt-abrible relative grid items-start gap-x-3 gap-y-1 px-2 py-3 transition-colors hover:bg-slate-50 @[40rem]:items-center " + COLUMNAS}>
         <button type="button" onClick={() => setCitaAbierta(c)} aria-haspopup="dialog" aria-label={"Ver el detalle de la cita del " + (fechaLegible(c.fecha) || "")} className="pt-abrir absolute inset-0 cursor-pointer" />
         <div><p className="text-sm font-semibold text-slate-800">{fechaLegible(c.fecha) || "Sin fecha"}</p><p className="text-xs text-slate-500">{c.hora}</p></div>
         <div className="min-w-0"><p className="text-sm leading-snug text-slate-700">{c.motivo || "Consulta general"}</p>{quien && <p className="text-xs text-slate-500">{quien}</p>}</div>
@@ -2641,7 +2641,7 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
         {celda("Receta emitida", dato("receta"))}
         {celda("Compra", dato("compra"))}
         <div data-col="estado"><BadgeEstadoCita estado={c.estado} /></div>
-        <ChevronRight size={18} className="hidden text-slate-400 @[48rem]:block" aria-hidden="true" />
+        <ChevronRight size={18} className="hidden text-slate-400 @[40rem]:block" aria-hidden="true" />
       </li>
     )
   }
@@ -2764,7 +2764,7 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
           <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center text-sm text-slate-500">{hayFiltro ? "Ninguna cita coincide con esa búsqueda." : "Todavía no hay citas pasadas."}</p>
         ) : (
           <div className="rounded-2xl border border-slate-200/60 bg-white px-2">
-            <div aria-hidden="true" className={"hidden gap-x-4 border-b border-slate-100 px-2 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500 @[48rem]:grid " + COLUMNAS}><span>Fecha</span><span>Motivo y profesional</span><span>Diagnóstico</span><span>Receta emitida</span><span>Compra relacionada</span><span>Estado</span><span /></div>
+            <div aria-hidden="true" className={"hidden gap-x-3 border-b border-slate-100 px-2 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500 @[40rem]:grid " + COLUMNAS}><span>Fecha</span><span>Motivo y profesional</span><span>Diagnóstico</span><span>Receta emitida</span><span>Compra relacionada</span><span>Estado</span><span /></div>
             <ul data-lista="citas-personal" className="divide-y divide-slate-100">{historial.map(filaHistorial)}</ul>
           </div>
         )}
