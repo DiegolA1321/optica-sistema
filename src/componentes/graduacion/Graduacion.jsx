@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Glasses, ChevronDown, ChevronRight, ArrowRight, Printer, GitCompare, Download, Info, Check, MessageSquareText } from "lucide-react"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { valorD } from "../../utilidades/portalVistas"
-import { agudezaConLentes } from "../../utilidades/agudeza"
+import { agudezaConLentes, textoAgudeza } from "../../utilidades/agudeza"
 import { medidasLegibles, lecturaDeOjo, numero, cambioPorOjo, aniosDeRecetas, filtrarRecetasPorAnio, lineaDeEsferas, compararRecetas, textoDelta } from "../../utilidades/graduacion"
 import { AYUDA_RECETA } from "../../utilidades/portalPaciente"
 import { Cascaron } from "../AtencionPaciente"
@@ -18,7 +18,7 @@ const LADOS = [["od", "Ojo derecho", "OD"], ["oi", "Ojo izquierdo", "OI"]]
 const COLOR_LADO = { od: "#1d4ed8", oi: "#0891b2" }
 
 // Un ojo sin ninguna medida en esta receta: se dice en una sola línea, no con una cuadrícula de «No registrado».
-export const ojoSinDatos = (o = {}) => !["esfera", "cilindro", "eje", "avSc", "avCc"].some((k) => String(o?.[k] ?? "").trim() !== "")
+export const ojoSinDatos = (o = {}) => !["esfera", "cilindro", "eje", "avSc", "avCc", "avRx"].some((k) => String(o?.[k] ?? "").trim() !== "")
 const NOMBRE_SIN_DATOS = { od: "ojo derecho", oi: "ojo izquierdo" }
 // Un ojo que el optómetra marcó «Ojo no evaluado» dice su motivo en todas las vistas; si no, simplemente no hay datos de ese ojo.
 const sinDatosDelOjo = (lado, receta) => (receta?.ojoNoEvaluado?.[lado] ? `Ojo no evaluado: ${receta.ojoNoEvaluado[lado]}` : `Sin datos del ${NOMBRE_SIN_DATOS[lado]} en esta receta`)
@@ -103,7 +103,7 @@ function VigentePersonal({ receta, anterior, onOjo }) {
       <div className="grid gap-4 @[44rem]:grid-cols-2">
         {LADOS.map(([lado, nombre, sigla]) => {
           const o = receta[lado] || {}
-          const datos = [["Cilindro", valorD(o.cilindro)], ["Eje", o.eje ? `${o.eje}°` : ""], ["AV sin lentes", o.avSc], ["AV con lentes", o.avCc]]
+          const datos = [["Cilindro", valorD(o.cilindro)], ["Eje", o.eje ? `${o.eje}°` : ""], ["AV sin lentes", textoAgudeza(o.avSc, o.avScF)], [o.avRx ? "AV con la receta" : "AV con lentes", textoAgudeza(agudezaConLentes(o), o.avRx ? o.avRxF : o.avCcF)]]
           const l = lecturaDeOjo(receta, lado)
           const v = cambios?.find((c) => c.lado === lado)?.variacion
           const delta = v == null ? "" : Math.abs(v) < 0.25 ? `Sin cambios desde ${desde}` : `${textoDelta(v)} desde ${desde}`
@@ -381,7 +381,7 @@ export function VentanaHistoriaOjo({ recetas, lado, version = "paciente", actual
                           <span data-col="monto" className="font-bold tabular-nums text-slate-900 @[30rem]:text-right"><span className="font-normal text-slate-600 @[30rem]:hidden">Esfera </span>{valorD(o.esfera) || "—"}</span>
                           <span className="tabular-nums text-slate-700 @[30rem]:text-right"><span className="text-slate-600 @[30rem]:hidden">{paciente ? "Astig. " : "Cil. "}</span>{valorD(o.cilindro) || "—"}</span>
                           <span className="tabular-nums text-slate-700 @[30rem]:text-right"><span className="text-slate-600 @[30rem]:hidden">Eje </span>{o.eje ? `${o.eje}°` : "—"}</span>
-                          <span className="tabular-nums text-slate-700 @[30rem]:text-right"><span className="text-slate-600 @[30rem]:hidden">AV </span>{o.avCc || o.avSc || "—"}</span>
+                          <span className="tabular-nums text-slate-700 @[30rem]:text-right"><span className="text-slate-600 @[30rem]:hidden">AV </span>{textoAgudeza(agudezaConLentes(o) || o.avSc, o.avRx ? o.avRxF : o.avCcF) || "—"}</span>
                         </span>
                       </button>
                     </li>

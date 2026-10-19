@@ -136,7 +136,7 @@ test('atender a un paciente sin cita desde su perfil con "Llegó en un horario d
 
   // Entra directo a la ficha clínica, con la cita recién creada
   await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 20_000 })
-  await expect(page.getByText('Paso 1 de 3')).toBeVisible()
+  await expect(page.getByText('Paso 1 de 5')).toBeVisible()
   await foto(page, 'reorganizado-7-ficha')
 })
 
@@ -178,5 +178,5 @@ test('"Atender ahora" del menú de la lista abre el mismo modal y entra a la fic
   await form.getByLabel('Duración estimada (min)').fill('5')
   await form.getByRole('button', { name: 'Atender ahora' }).click()
   await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 20_000 })
-  await expect(page.getByText('Paso 1 de 3')).toBeVisible()
+  await expect(page.getByText('Paso 1 de 5')).toBeVisible()
 })

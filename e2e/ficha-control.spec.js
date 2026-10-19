@@ -3,7 +3,7 @@
 // Con E2E_CAPTURAS=1 guarda capturas a 1366x768 en docs/perfil-capturas/.
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-import { iniciarSesion, crearCitaDeHoyParaPaula } from './ayudas.js'
+import { iniciarSesion, crearCitaDeHoyParaPaula, llenarFichaObligatoria } from './ayudas.js'
 
 const foto = async (page, nombre) => {
   if (!process.env.E2E_CAPTURAS) return
@@ -28,9 +28,8 @@ test('ficha clínica: el control exige elegir agendar ahora o después', async (
   // Un paciente sin antecedentes ve primero su resumen
   const antecedentes = page.getByRole('button', { name: 'Entendido, completar antecedentes' })
   if (await antecedentes.waitFor({ timeout: 8_000 }).then(() => true, () => false)) await antecedentes.click()
-  await expect(page.getByText('Paso 1 de 3')).toBeVisible({ timeout: 20_000 })
-  await page.getByRole('button', { name: /^Siguiente$/i }).click()
-  await page.getByRole('button', { name: /^Siguiente$/i }).click()
+  await expect(page.getByText('Paso 1 de 5')).toBeVisible({ timeout: 20_000 })
+  await llenarFichaObligatoria(page)
   await page.getByRole('button', { name: /^Miop[ií]a$/ }).first().click()
 
   const ahora = page.getByRole('radio', { name: /Agendar ahora/ })

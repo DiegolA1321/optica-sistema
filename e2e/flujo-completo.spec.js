@@ -2,7 +2,7 @@
 // prefijo "E2E " (los nombres de paciente, "E Dos E ") y no depende de la hora del día ni de citas sembradas: la cita se
 // agenda en el primer día con cupo y Paula la atiende hoy.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, PREFIJO, nombrePrueba, cedulaValida, telefonoPrueba, agendarCitaParaPaula, crearCitaDeHoyParaPaula, elegirFecha } from './ayudas.js'
+import { llenarFichaObligatoria, iniciarSesion, PREFIJO, nombrePrueba, cedulaValida, telefonoPrueba, agendarCitaParaPaula, crearCitaDeHoyParaPaula, elegirFecha } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 test.describe.configure({ mode: 'serial' })
@@ -70,10 +70,9 @@ test('2 · Paula atiende al paciente: ficha, diagnóstico y control', async ({ p
   await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 20_000 })
   // La cita actual o próxima trae "Ingresar": entra directo a su ficha.
   await page.getByRole('button', { name: 'Ingresar' }).first().click()
-  await expect(page.getByText('Paso 1 de 3')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('Paso 1 de 5')).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: 'Entendido, completar antecedentes' }).click()
-  await page.getByRole('button', { name: /^Siguiente$/ }).click() // Refracción (opcional)
-  await page.getByRole('button', { name: /^Siguiente$/ }).click() // Diagnóstico y receta
+  await llenarFichaObligatoria(page) // agudeza sin corrección y refracción de los dos ojos; queda en Diagnóstico y receta
   // La lista de diagnósticos rápidos es de cada óptica (la de pruebas conserva «Miopia» sin tilde): vale cualquiera de las dos.
   await page.getByRole('button', { name: /^Miop[ií]a$/ }).first().click()
   await page.getByLabel(/Añadir recomendación de lente/).check()

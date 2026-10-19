@@ -1,6 +1,6 @@
 // Los datos de la ficha clínica de cinco pasos: el formulario, cómo se arma la receta y lo que se guarda, el estado de cada paso y las validaciones. Todo en funciones puras: la pantalla solo dibuja.
 // La receta que se ve en la vista previa, la que se imprime y los valores que se guardan salen TODOS de `recetaDesdeForm` y `datosClinicosDesdeForm`, nunca de copias aparte (regla 2).
-import { aNumero, validarOjo, validarAdicion, textoOjoCompleto } from "./refraccion"
+import { aNumero, validarOjo, validarAdicion, textoOjoCompleto, formatoDioptria } from "./refraccion"
 import { estadoCorreccionDe, textoAgudeza } from "./agudeza"
 
 export const PASOS = [
@@ -54,6 +54,8 @@ export const crearForm = (hoy = "") => ({
 })
 
 const t = (v) => String(v ?? "").trim()
+// Una dioptría escrita como «1.5» o «-1,25» sale en la receta como «+1.50» y «-1.25»; lo que no es un número se deja tal cual (la validación lo señala).
+const dioptria = (v) => { const n = aNumero(v); return n === null ? t(v) : formatoDioptria(n) }
 const unir = (partes, sep = ", ") => partes.map(t).filter(Boolean).join(sep)
 // Chips + detalle → el texto que se guarda en la columna de siempre (antecedentes, alergias, antecedentes familiares).
 export const componerTexto = (chips, detalle) => unir([...(chips || []), detalle])
@@ -65,14 +67,14 @@ export function ojoDeForm(f, lado) {
   const P = lado === "od" ? "Od" : "Oi"
   if (f[`${p}NoEval`]) return { esfera: "", cilindro: "", eje: "", avSc: "", avScF: "", avCc: "", avCcF: "", avRx: "", avRxF: "" }
   return {
-    esfera: t(f[`${p}Esfera`]), cilindro: t(f[`${p}Cilindro`]), eje: t(f[`${p}Eje`]),
+    esfera: dioptria(f[`${p}Esfera`]), cilindro: dioptria(f[`${p}Cilindro`]), eje: t(f[`${p}Eje`]),
     avSc: f[`av${P}Sc`] || "", avScF: t(f[`av${P}ScF`]), avCc: f[`av${P}Cc`] || "", avCcF: t(f[`av${P}CcF`]), avRx: f[`av${P}Rx`] || "", avRxF: t(f[`av${P}RxF`]),
   }
 }
 
 export function medidasDeForm(f) {
-  const adOd = t(f.adicionOd)
-  const adOi = f.adicionIgual ? adOd : t(f.adicionOi)
+  const adOd = dioptria(f.adicionOd)
+  const adOi = f.adicionIgual ? adOd : dioptria(f.adicionOi)
   const dpOd = t(f.dpOd), dpOi = t(f.dpOi)
   const suma = aNumero(dpOd) !== null && aNumero(dpOi) !== null ? String(aNumero(dpOd) + aNumero(dpOi)) : ""
   return {

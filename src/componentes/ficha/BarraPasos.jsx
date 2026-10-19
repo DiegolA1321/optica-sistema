@@ -15,7 +15,7 @@ export default function BarraPasos({ paso, estados, onIr }) {
         const estado = estados[p.id]
         return (
           <button key={p.id} type="button" onClick={() => onIr(p.id)} aria-current={activo ? "step" : undefined} aria-label={`Paso ${p.n}: ${p.label}, ${estado}`}
-            className={"flex min-w-0 flex-1 items-center gap-1.5 rounded-xl px-2 py-1.5 text-left transition-colors cursor-pointer " + (activo ? "text-white" : "hover:bg-slate-50")} style={activo ? { background: GRAD } : undefined}>
+            className={"flex flex-auto items-center justify-center gap-1.5 rounded-xl px-1.5 py-1.5 text-left transition-colors cursor-pointer " + (activo ? "text-white" : "hover:bg-slate-50")} style={activo ? { background: GRAD } : undefined}>
             <span className={"grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold " + (activo ? "bg-white/25 text-white" : estado === "Completo" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600")}>
               {!activo && estado === "Completo" ? <Check size={13} aria-hidden="true" /> : p.n}
             </span>

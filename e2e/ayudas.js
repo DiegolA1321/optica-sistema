@@ -301,3 +301,17 @@ export async function restaurarDiasDeHorario(fechas, entorno = 'E2E') {
   const { error } = await cliente.from('disponibilidad').update({ excepciones }).eq('optica_id', perfil.optica_id)
   if (error) throw new Error(`No se pudo restaurar el horario: ${error.message}`)
 }
+
+// ── La ficha clínica de cinco pasos ──
+// Va a un paso por la barra de pasos (se puede ir a cualquiera).
+export const irAPasoFicha = (page, n, nombre) => page.getByRole('button', { name: new RegExp(`^Paso ${n}: ${nombre}`) }).click()
+// Llena lo obligatorio que la ficha pide para terminar la atención (el motivo ya viene de la cita): la agudeza sin corrección de cada ojo y la refracción final de los dos ojos.
+// Deja al optómetra en el paso 5 (Diagnóstico y receta).
+export async function llenarFichaObligatoria(page) {
+  await irAPasoFicha(page, 2, 'Agudeza visual')
+  await page.locator('#avOdSc').selectOption('20/50')
+  await page.locator('#avOiSc').selectOption('20/40')
+  await irAPasoFicha(page, 3, 'Refracción')
+  for (const [id, valor] of [['odEsfera', '-1.75'], ['odCilindro', '-0.75'], ['odEje', '10'], ['oiEsfera', '-1.50'], ['oiCilindro', '-0.50'], ['oiEje', '90']]) await page.locator('#' + id).fill(valor)
+  await irAPasoFicha(page, 5, 'Diagnóstico y receta')
+}

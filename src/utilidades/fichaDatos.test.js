@@ -126,3 +126,14 @@ describe("antecedentes", () => {
     expect(anamnesisDeConsulta(null)).toBeNull()
   })
 })
+
+describe("escritura de las dioptrías en la receta", () => {
+  it("«1.5» sale «+1.50» y «-1,25» sale «-1.25», en la vista previa y en lo guardado", () => {
+    const f = { ...crearForm("2026-10-19"), odEsfera: "1.5", odCilindro: "-0,5", odEje: "90", oiEsfera: "0", adicionOd: "1.5" }
+    const r = recetaDesdeForm(f)
+    expect(r.od).toMatchObject({ esfera: "+1.50", cilindro: "-0.50", eje: "90" })
+    expect(r.oi.esfera).toBe("0.00")
+    expect(r.medidas.adicionOd).toBe("+1.50")
+    expect(datosClinicosDesdeForm(f).od).toEqual(r.od)
+  })
+})
