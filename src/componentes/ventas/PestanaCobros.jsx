@@ -17,13 +17,14 @@ import { textoPagos, SIN_INDICAR } from "../../utilidades/pagos"
 import { nombreMetodo } from "../../utilidades/reportesDatos"
 import { numeroOrden } from "../../utilidades/ordenesLaboratorio"
 import { saldoFactura } from "../../utilidades/abonos"
+import PagosPorVerificar from "./PagosPorVerificar"
 
 const ICONO_METODO = { efectivo: Banknote, tarjeta: CreditCard, transferencia: Landmark, [SIN_INDICAR]: Wallet }
 const DIA_DE_HOY = { filtro: "hoy", ref: "", desde: "", hasta: "" }
 
 // Pestaña "Cobros y saldos": a la izquierda, lo cobrado en un día por método de pago (para cuadrar la caja) con su lista y su Excel;
 // a la derecha, lo que se debe por paciente, con quienes ya tienen sus lentes listos primero. Los dos usan la misma lista de pagos que Reportes.
-export default function PestanaCobros({ facturas, abonos, abonosAnulados = [], pacientes, ventas = [], ordenes = [], puedeEditar, onCobrar, onVerComprobante, onVerPaciente, onExportar }) {
+export default function PestanaCobros({ pagosPorVerificar = [], onPagoConfirmado, onPagoRechazado, facturas, abonos, abonosAnulados = [], pacientes, ventas = [], ordenes = [], puedeEditar, onCobrar, onVerComprobante, onVerPaciente, onExportar }) {
   const hoy = hoyISO()
   const [dia, setDia] = useState(DIA_DE_HOY)
   const diaISO = dia.ref || hoy
@@ -37,6 +38,7 @@ export default function PestanaCobros({ facturas, abonos, abonosAnulados = [], p
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+      <PagosPorVerificar pagos={pagosPorVerificar} puedeEditar={puedeEditar} onConfirmado={onPagoConfirmado} onRechazado={onPagoRechazado} />
       <section aria-label="Cobrado" className="min-w-0 rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         <div className="space-y-3 border-b border-slate-100 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">

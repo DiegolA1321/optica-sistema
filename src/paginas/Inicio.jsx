@@ -2,6 +2,7 @@
 
 import { etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { dinero } from "../utilidades/formatoMoneda"
+import { numeroComprobante } from "../utilidades/comprobantes"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { fechaHoraLegible, fechaCorta, fechaLegible, formatoFecha, nombreMes as nombreMesDe } from "../utilidades/formatoFecha"
@@ -92,6 +93,7 @@ export default function Inicio({
   vista = null,
   avisosContacto = [],
   onAtenderAvisoContacto,
+  pagosPorVerificar = [],
   pases = [],
   facturasVenta = [],
   abonos = [],
@@ -688,6 +690,14 @@ export default function Inicio({
       })
     }
     // Quien lleva más de 30 días esperando su venta pasa aquí para contactarlo o cerrarlo con "No compró"; nunca se cierra solo.
+    // Pagos por transferencia que los pacientes reportan desde su portal: esperan que Ventas revise el comprobante (el mismo número que en Ventas · Cobros y saldos).
+    if (incSaldos && pagosPorVerificar.length > 0) poner("ventas", {
+      id: "pagos-por-verificar", cantidad: pagosPorVerificar.length,
+      texto: uno(pagosPorVerificar.length, "pago por transferencia por verificar", "pagos por transferencia por verificar"),
+      nombres: nombresResumidos(pagosPorVerificar.map((p) => p.pacienteNombre || nombreDe(p.pacienteId))),
+      enlace: { texto: `Abrir en Ventas · Pagos por verificar (${pagosPorVerificar.length})`, onClick: () => onVerSaldos?.() },
+      casos: pagosPorVerificar.map((p) => ({ id: p.id, nombre: p.pacienteNombre || nombreDe(p.pacienteId), detalle: `${dinero(p.monto)} · compra ${numeroComprobante(p.facturaNumero)}`, accion: { etiqueta: "Revisar", navega: true, onClick: () => onVerSaldos?.() } })),
+    })
     // Lo que un paciente pide desde su portal («Solicitar lentes nuevos») cuenta mientras nadie lo toma; a los 30 días lo cuenta la línea de abajo (no se cuenta dos veces).
     const solicitudesPortal = incSaldos ? solicitudesNuevasDelPortal(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
     if (solicitudesPortal.length > 0) poner("ventas", {

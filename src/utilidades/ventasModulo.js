@@ -103,8 +103,8 @@ export function mensajeSeguimientoVenta({ paciente, opticaNombre, conProforma })
 export const solicitudesNuevasDelPortal = (listos = [], hoy) => listos.filter((i) => esSolicitudNueva(i.pase) && !esperaDemasiado(i, hoy))
 
 // Cuántos avisos tiene Ventas: es el número del menú y el del botón "Requieren atención" de la cabecera (los dos cuentan lo mismo que el Inicio):
-// órdenes listas sin avisar, órdenes atrasadas, ventas con saldo, solicitudes nuevas del portal y pacientes que esperan más de 30 días su venta.
-export function contarAvisosVentas({ pases = [], ordenes = [], pacientes = [], facturas = [], abonos = [], ventas = [], hoy } = {}) {
+// órdenes listas sin avisar, órdenes atrasadas, ventas con saldo, solicitudes nuevas del portal, pagos por transferencia por verificar y pacientes que esperan más de 30 días su venta.
+export function contarAvisosVentas({ pases = [], ordenes = [], pacientes = [], facturas = [], abonos = [], ventas = [], pagosPorVerificar = 0, hoy } = {}) {
   const listos = pases.filter((p) => p.estado === "listo").map((pase) => ({ pase }))
-  return ordenesListasSinAvisar(ordenes).length + ordenesAtrasadas(ordenes, hoy).length + resumenSaldos(saldosPorPaciente({ pacientes, facturas, abonos, ventas })).ventas + solicitudesNuevasDelPortal(listos, hoy).length + pacientesParaSeguimiento(listos, hoy).length
+  return ordenesListasSinAvisar(ordenes).length + ordenesAtrasadas(ordenes, hoy).length + resumenSaldos(saldosPorPaciente({ pacientes, facturas, abonos, ventas })).ventas + solicitudesNuevasDelPortal(listos, hoy).length + pacientesParaSeguimiento(listos, hoy).length + pagosPorVerificar
 }

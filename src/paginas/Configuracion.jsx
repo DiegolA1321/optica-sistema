@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { Settings, Receipt, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2 } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
+import DatosBancarios from "../componentes/DatosBancarios"
 import AccesoSoporte from "../componentes/soporte/AccesoSoporte"
 import ModulosNoUsados from "../componentes/soporte/ModulosNoUsados"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
@@ -628,6 +629,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
         <CostosPorMotivo motivos={motivosConsulta} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
         <StockMinimo parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
         <DatosProforma parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
+        <DatosBancarios usuario={usuario} onExito={mostrarExito} onError={mostrarError} />
       </div>
       </div>
       )}

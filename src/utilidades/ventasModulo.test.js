@@ -122,3 +122,11 @@ describe("solicitudes de lentes del portal en Ventas y en «Requiere tu atenció
     expect(etiquetaInteres("lentes_de_contacto")).toBe("Lentes de contacto")
   })
 })
+
+describe("pagos por transferencia por verificar en los avisos de Ventas", () => {
+  it("cada pago por verificar suma uno, el mismo número que ve el Inicio", () => {
+    expect(contarAvisosVentas({ pagosPorVerificar: 2 })).toBe(2)
+    expect(contarAvisosVentas({ pagosPorVerificar: 0 })).toBe(0)
+    expect(contarAvisosVentas({ pases: [{ id: "n", origen: "portal", estado: "listo", pasadaEn: new Date().toISOString() }], pagosPorVerificar: 3, hoy: new Date() })).toBe(4)
+  })
+})
