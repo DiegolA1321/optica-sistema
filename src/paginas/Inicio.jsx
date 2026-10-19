@@ -45,6 +45,7 @@ import ParaEmpezar from "../componentes/ParaEmpezar"
 import VentanaActividad from "../componentes/VentanaActividad"
 import { puede } from "../utilidades/permisosUi"
 import { textoDiagnostico, textoEspera, diasEnEspera, esDelPortal, etiquetaInteres } from "../utilidades/pasesVenta"
+import { textoAvisoContacto } from "../utilidades/avisosContacto"
 import { DIAS_PARA_SEGUIMIENTO, pacientesParaSeguimiento, solicitudesNuevasDelPortal } from "../utilidades/ventasModulo"
 import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
 import { NOMBRE_MODULO, detalleActividad, moduloDeRegistro } from "../utilidades/logs"
@@ -89,6 +90,8 @@ export default function Inicio({
   onVerSaldos,
   onVerStockBajo,
   vista = null,
+  avisosContacto = [],
+  onAtenderAvisoContacto,
   pases = [],
   facturasVenta = [],
   abonos = [],
@@ -645,6 +648,13 @@ export default function Inicio({
         detalle: `Control vencido hace ${dias} ${dias === 1 ? "día" : "días"}`,
         accion: puedeV("crm", "crear") ? { etiqueta: "Ver en CRM", navega: true, onClick: abrirCrm({ filtro: "control_vencido" }) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
       })),
+    })
+    // Un paciente cambió su teléfono o su correo desde su portal: «Marta Zambrano actualizó su teléfono». Se queda hasta que se marca como visto.
+    if (puedeV("pacientes", "ver") && avisosContacto.length > 0) poner("pacientes", {
+      id: "contacto-actualizado", cantidad: avisosContacto.length,
+      texto: uno(avisosContacto.length, "paciente actualizó su contacto desde su portal", "pacientes actualizaron su contacto desde su portal"),
+      nombres: nombresResumidos(avisosContacto.map((a) => nombreDe(a.pacienteId))),
+      casos: avisosContacto.map((a) => ({ id: a.id, nombre: nombreDe(a.pacienteId), detalle: textoAvisoContacto(nombreDe(a.pacienteId), a.campos).replace(/^.*? actualizó /, "Actualizó "), accion: { etiqueta: "Visto", onClick: () => onAtenderAvisoContacto?.(a.id) } })),
     })
     // Un paciente pidió sus medidas (distancia pupilar y montaje) desde su portal: el aviso se quita al marcarla atendida en su perfil.
     const pidenMedidas = pacientes.filter((p) => p.medidasSolicitadasEn)

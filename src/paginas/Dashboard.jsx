@@ -29,7 +29,9 @@ import {
   MessageSquare,
   Loader2,
   ShoppingBag,
+  Phone,
 } from "lucide-react"
+import { useAvisosContacto, textoAvisoContacto } from "../utilidades/avisosContacto"
 
 // Módulos del sistema — Inicio se queda como import normal porque es lo
 // primero que ve un admin/asistente al entrar (sin parpadeo de carga en el
@@ -121,6 +123,8 @@ const moduloDeSoporte = (id) => MODULO_DE_SECCION[id] || "otro"
 export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, reemplazarExcepcionLocal, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], abonosAnulados = [], parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
+  // Cuando un paciente cambia su teléfono o su correo desde su portal (migración 0130).
+  const { avisos: avisosContacto, atender: atenderAvisoContacto } = useAvisosContacto(usuario?.opticaId, puede(usuario, "pacientes", "ver"))
 
   // Un asistente solo ve lo que el administrador le habilitó (default: todo
   // menos lo marcado soloAdmin). El administrador ve siempre todo. Un
@@ -476,8 +480,15 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       const conMedidasPendientes = pacientes.filter((p) => p.medidasSolicitadasEn)
       if (conMedidasPendientes.length) arr.push({ icon: Eye, color: "#2563eb", bg: "#eff6ff", texto: `${conMedidasPendientes.length} solicitud${conMedidasPendientes.length > 1 ? "es" : ""} de medidas de montaje`, sub: "Un paciente pidió su distancia pupilar y altura", destino: "pacientes" })
     }
+    // Un paciente cambió su teléfono o su correo desde el portal: el aviso queda hasta que se ve.
+    if (puede(usuario, "pacientes", "ver")) {
+      for (const a of avisosContacto.slice(0, 5)) {
+        arr.push({ icon: Phone, color: "#2563eb", bg: "#eff6ff", texto: textoAvisoContacto(pacientes.find((p) => p.id === a.pacienteId)?.nombre, a.campos), sub: "Pulsa para ver su ficha",
+          alAbrir: () => { atenderAvisoContacto(a.id); setAccionPacienteInicio({ pacienteId: a.pacienteId, accion: "historial" }); navegar("pacientes") } })
+      }
+    }
     return arr
-  }, [usuario, pacientes, mensajesResumen, puedeVerSoporte]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [usuario, pacientes, mensajesResumen, puedeVerSoporte, avisosContacto]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const hora = ahoraEcuador().getHours()
   const saludo = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches"
@@ -701,6 +712,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "inicio":
         return (
           <Inicio
+            avisosContacto={avisosContacto}
+            onAtenderAvisoContacto={atenderAvisoContacto}
             soloAvisosDe={extra.soloAvisosDe}
             solicitudesEliminacion={solicitudesEliminacion}
             disponibilidad={disponibilidad}

@@ -257,6 +257,8 @@ function mapFacturaVenta(f) {
     numero: f.numero ?? null, facturaElectronica: f.factura_electronica || "",
     // Quién la registró, cómo se pagó al contado (lista de pagos por método) y, si se anuló, quién, cuándo y por qué.
     registradoPor: f.registrado_por || null, pagos: Array.isArray(f.pagos) ? f.pagos.map((p) => ({ metodo: p.metodo, monto: Number(p.monto) })) : null,
+    // 0130: el teléfono y el correo del paciente el día en que se emitió el comprobante (no cambian aunque después los cambie el paciente).
+    pacienteTelefono: f.paciente_telefono || null, pacienteCorreo: f.paciente_correo || null,
     anuladaPor: f.anulada_por || null, anuladaEn: f.anulada_at || null, anuladaMotivo: f.anulada_motivo || "",
     // facturas_venta_lineas llega embebida por el select de abajo (join por
     // factura_id) — sin esto, `lineas` solo existía para una factura recién
