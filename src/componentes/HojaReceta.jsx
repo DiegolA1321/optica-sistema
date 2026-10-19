@@ -4,9 +4,12 @@
 import { INK, GOLD } from "@/lib/tema"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
+import { textoAgudeza } from "../utilidades/agudeza"
 
 const GRIS = "#64748b"
 const dato = (valor) => (valor === "" || valor == null ? "—" : valor)
+// La agudeza de la última columna: con la receta nueva si se anotó; si no (fichas anteriores), con sus lentes.
+const avFinal = (o = {}) => (o.avRx ? textoAgudeza(o.avRx, o.avRxF) : textoAgudeza(o.avCc, o.avCcF))
 
 // El número de la receta sale de la fecha y el identificador de la consulta, igual en la consulta, en el perfil y en el portal.
 export const numeroDeReceta = (receta = {}) => "RX-" + String(receta.fecha || "").replace(/-/g, "") + "-" + String(receta.id || "").replace(/[^a-z0-9]/gi, "").slice(0, 4).toUpperCase()
@@ -27,10 +30,18 @@ export default function HojaReceta({ optica = {}, paciente = {}, receta = {}, mo
       <td style={{ ...celda, textAlign: "left", fontWeight: 700 }}>{sigla} <span style={{ fontWeight: 400, color: GRIS, fontSize: 12 }}>· {nombre}</span></td>
       {receta.ojoNoEvaluado?.[sigla.toLowerCase()] ? <td colSpan={5} style={{ ...celda, textAlign: "left", color: GRIS }}>Ojo no evaluado: {receta.ojoNoEvaluado[sigla.toLowerCase()]}</td> : <>
       <td style={celda}>{dato(o.esfera)}</td><td style={celda}>{dato(o.cilindro)}</td><td style={celda}>{o.eje ? `${o.eje}°` : "—"}</td>
-      <td style={celda}>{dato(o.avSc)}</td><td style={celda}>{dato(o.avCc)}</td></>}
+      <td style={celda}>{dato(textoAgudeza(o.avSc, o.avScF))}</td><td style={celda}>{dato(avFinal(o))}</td></>}
     </tr>
   )
-  const medidas = [m.adicion && ["Adición", m.adicion], mostrarMedidas && m.dp && ["Distancia pupilar", m.dp], mostrarMedidas && m.alt && ["Altura de montaje", m.alt]].filter(Boolean)
+  const conReceta = Boolean(receta.od?.avRx || receta.oi?.avRx)
+  // Adición y prisma van siempre; la distancia pupilar (total, de cada ojo y de cerca) y la altura, solo si se permite mostrar las medidas.
+  const adOd = m.adicionOd || m.adicion || "", adOi = m.adicionOi || m.adicion || ""
+  const adicion = adOd || adOi ? (adOd === adOi ? adOd : `OD ${adOd || "—"} · OI ${adOi || "—"}`) : ""
+  const dpPorOjo = m.dpOd || m.dpOi ? `OD ${m.dpOd || "—"} · OI ${m.dpOi || "—"}` : ""
+  const dpTexto = [m.dp && (dpPorOjo ? `${m.dp} mm (${dpPorOjo})` : m.dp), !m.dp && dpPorOjo].filter(Boolean).join("")
+  const prismaOjo = (sigla, cant, base) => (cant ? `${sigla} ${cant}Δ base ${String(base || "").toLowerCase() || "—"}` : "")
+  const prisma = [prismaOjo("OD", m.prismaOdCant, m.prismaOdBase), prismaOjo("OI", m.prismaOiCant, m.prismaOiBase)].filter(Boolean).join(" · ")
+  const medidas = [adicion && ["Adición", adicion], mostrarMedidas && dpTexto && ["Distancia pupilar", dpTexto], mostrarMedidas && m.dpCerca && ["DP de cerca", m.dpCerca + " mm"], mostrarMedidas && m.alt && ["Altura de montaje", m.alt], prisma && ["Prisma", prisma]].filter(Boolean)
   const diagnostico = textoDiagnostico(receta)
   return (
     <div data-hoja-receta style={{ fontFamily: "system-ui, sans-serif", color: INK, padding: "32px 40px", maxWidth: 780, margin: "0 auto", background: "#fff" }}>
@@ -56,7 +67,7 @@ export default function HojaReceta({ optica = {}, paciente = {}, receta = {}, mo
       </div>
 
       <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #e2e8f0", fontSize: 14, margin: "0 0 14px" }}>
-        <thead><tr><th style={{ ...cab, textAlign: "left" }}>Ojo</th><th style={cab}>Esfera</th><th style={cab}>Cilindro</th><th style={cab}>Eje</th><th style={cab}>AV sin lentes</th><th style={cab}>AV con lentes</th></tr></thead>
+        <thead><tr><th style={{ ...cab, textAlign: "left" }}>Ojo</th><th style={cab}>Esfera</th><th style={cab}>Cilindro</th><th style={cab}>Eje</th><th style={cab}>AV sin lentes</th><th style={cab}>{conReceta ? "AV con la receta" : "AV con lentes"}</th></tr></thead>
         <tbody>{ojo("OD", "derecho", receta.od)}{ojo("OI", "izquierdo", receta.oi)}</tbody>
       </table>
       {medidas.length > 0 && <p style={{ margin: "0 0 14px", fontSize: 13 }}>{medidas.map(([t, v], i) => <span key={t}>{i > 0 && " · "}<b>{t}:</b> {v}</span>)}</p>}

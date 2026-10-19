@@ -213,6 +213,8 @@ function mapConsulta(c) {
     usaLentes: c.usa_lentes, antecedentes: c.antecedentes, alergias: c.alergias, antecedentesFamiliares: c.antecedentes_familiares,
     retinoscopia: c.datos_clinicos?.retinoscopia, od: c.datos_clinicos?.od, oi: c.datos_clinicos?.oi,
     medidas: c.datos_clinicos?.medidas, examen: c.datos_clinicos?.examen,
+    // Lo nuevo de la ficha de cinco pasos (anamnesis, lentes actuales, cover test, objetiva, queratometría, salud ocular): solo el personal.
+    ficha: c.datos_clinicos?.ficha || null,
     // Un ojo que no se evaluó, con su motivo (por ejemplo, una prótesis ocular): { od: "motivo", oi: "" }. Sin eso, una receta lleva los dos ojos.
     ojoNoEvaluado: c.datos_clinicos?.ojo_no_evaluado || null,
     // Producto de inventario vinculado al lente recomendado (jsonb, sin columna

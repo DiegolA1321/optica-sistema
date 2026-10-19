@@ -11,6 +11,7 @@ import { textoDiagnostico } from "../utilidades/pasesVenta"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import PermisosMensajes from "./PermisosMensajes"
 import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
+import { textoAgudeza } from "../utilidades/agudeza"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -199,31 +200,93 @@ function Seccion({ titulo, children }) {
   )
 }
 
-// Todo lo que se registró ese día. Lo usan la ventana de la atención y el despliegue de "Última consulta" en el Resumen.
+// Todo lo que se registró ese día. Lo usan la ventana de la atención, el despliegue de "Última consulta" en el Resumen y las fichas anteriores abiertas desde la ficha clínica. Sirve para las fichas
+// de cinco pasos (con su anamnesis, las tres agudezas, adición y prisma por ojo y salud ocular por ojo) y para las anteriores, que se ven con los datos que tienen, cada uno en su lugar.
 export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
   const ex = consulta.examen || {}
   const bio = ex.biomicroscopia || {}
-  const hayExamen = ex.testMotor || ex.oftalmoscopia || (ex.testColor && ex.testColor !== "Normal") || ex.pioOd || ex.pioOi || (ex.coverTestLejos && ex.coverTestLejos !== "Ortoforia") || (ex.coverTestCerca && ex.coverTestCerca !== "Ortoforia") || bio.parpados || bio.cornea || bio.camara || consulta.retinoscopia?.od || consulta.retinoscopia?.oi || consulta.imagenes?.length > 0
+  const fi = consulta.ficha || null
+  const an = fi?.anamnesis || null
+  const salud = fi?.salud || null
+  const m = consulta.medidas || {}
+  const tex = (v) => (v == null || v === "" ? "—" : v)
+  const filaAv = (nombre, color, o, ambos) => (
+    <tr className="border-t border-slate-100">
+      <td className="px-2 py-1.5 font-bold" style={{ color }}>{nombre}</td>
+      <td className="px-2 py-1.5">{tex(textoAgudeza(ambos ? ambos.sc : o?.avSc, ambos ? ambos.scF : o?.avScF))}</td>
+      <td className="px-2 py-1.5">{tex(textoAgudeza(ambos ? ambos.cc : o?.avCc, ambos ? ambos.ccF : o?.avCcF))}</td>
+      <td className="px-2 py-1.5">{tex(textoAgudeza(ambos ? ambos.rx : o?.avRx, ambos ? ambos.rxF : o?.avRxF))}</td>
+    </tr>
+  )
   const ojo = (nombre, color, o) => (
     <tr className="border-t border-slate-100">
       <td className="px-2 py-1.5 font-bold" style={{ color }}>{nombre}</td>
       <td className="px-2 py-1.5">{o?.esfera || "—"}</td><td className="px-2 py-1.5">{o?.cilindro || "—"}</td><td className="px-2 py-1.5">{o?.eje ? o.eje + "°" : "—"}</td>
-      <td className="px-2 py-1.5">{o?.avSc || "—"}</td><td className="px-2 py-1.5">{o?.avCc || "—"}</td>
     </tr>
   )
+  const conReceta = Boolean(consulta.od?.avRx || consulta.oi?.avRx)
+  const adOd = m.adicionOd || m.adicion || "", adOi = m.adicionOi || m.adicion || ""
+  const medidas = [
+    (adOd || adOi) && ["Adición", adOd === adOi ? adOd : `OD ${adOd || "—"} · OI ${adOi || "—"}`],
+    (m.dp || m.dpOd || m.dpOi) && ["Distancia pupilar", [m.dp && `${m.dp} mm`, (m.dpOd || m.dpOi) && `OD ${m.dpOd || "—"} · OI ${m.dpOi || "—"}`, m.dpCerca && `de cerca ${m.dpCerca} mm`].filter(Boolean).join(" · ")],
+    m.alt && ["Altura de montaje", m.alt],
+    (m.prismaOdCant || m.prismaOiCant) && ["Prisma", [m.prismaOdCant && `OD ${m.prismaOdCant}Δ ${(m.prismaOdBase || "").toLowerCase()}`, m.prismaOiCant && `OI ${m.prismaOiCant}Δ ${(m.prismaOiBase || "").toLowerCase()}`].filter(Boolean).join(" · ")],
+    (m.avCerca || m.avCercaSc || m.avCercaCc || m.avCercaRx) && ["Agudeza de cerca (Jaeger)", m.avCercaSc || m.avCercaCc || m.avCercaRx ? [m.avCercaSc && `sin corrección ${m.avCercaSc}`, m.avCercaCc && `con su corrección ${m.avCercaCc}`, m.avCercaRx && `con la receta ${m.avCercaRx}`].filter(Boolean).join(" · ") : m.avCerca],
+  ].filter(Boolean)
+  const cover = fi?.coverTest?.tipo ? `${fi.coverTest.tipo}${fi.coverTest.magnitud ? ` ${fi.coverTest.magnitud}Δ` : ""}${fi.coverTest.distancia ? ` (${{ lejos: "lejos", cerca: "cerca", ambas: "lejos y cerca" }[fi.coverTest.distancia]})` : ""}`
+    : ((ex.coverTestLejos && ex.coverTestLejos !== "Ortoforia") || (ex.coverTestCerca && ex.coverTestCerca !== "Ortoforia")) ? `lejos ${ex.coverTestLejos || "—"} · cerca ${ex.coverTestCerca || "—"}` : ""
+  const porOjo = (x) => (x?.od || x?.oi ? `OD ${x.od || "—"} · OI ${x.oi || "—"}` : "")
+  const bioNueva = salud?.biomicroscopia
+  const hayExamen = ex.testMotor || ex.oftalmoscopia || (ex.testColor && ex.testColor !== "Normal") || ex.pioOd || ex.pioOi || cover || bio.parpados || bio.cornea || bio.camara || consulta.retinoscopia?.od || consulta.retinoscopia?.oi || fi?.queratometria
+  const listaAnam = an ? [
+    ["Síntomas", [...(an.sintomas || []), an.sintomasOtros].filter(Boolean).join(", ")],
+    ["Antecedentes médicos", [...(an.antMedicos?.chips || []), an.antMedicos?.detalle].filter(Boolean).join(", ")],
+    ["Antecedentes familiares", [...(an.antFamiliares?.chips || []), an.antFamiliares?.detalle].filter(Boolean).join(", ")],
+    ["Alergias", [...(an.alergias?.chips || []), an.alergias?.detalle].filter(Boolean).join(", ")],
+    ["Medicamentos", [...(an.medicamentos?.chips || []), an.medicamentos?.detalle].filter(Boolean).join(", ")],
+    ["Uso de lentes", an.usaLentes === "si" ? [{ lentes: "Lentes", contacto: "Lentes de contacto", ambos: "Lentes y lentes de contacto" }[an.tipoLentes] || "Sí", an.usaLentesDesde && `desde ${an.usaLentesDesde}`].filter(Boolean).join(" · ") : an.usaLentes === "no" ? "No usa" : ""],
+  ].filter(([, v]) => v) : [
+    ["Antecedentes médicos", consulta.antecedentes], ["Antecedentes familiares", consulta.antecedentesFamiliares], ["Alergias", consulta.alergias],
+  ].filter(([, v]) => v)
+  const kerato = fi?.queratometria && ["od", "oi"].some((l) => fi.queratometria[l]?.k1 || fi.queratometria[l]?.k2)
   return (
     <div className={compacto ? "rounded-xl border border-slate-200/60 bg-white" : ""}>
       <Seccion titulo="Diagnóstico">
         <p className="flex items-center gap-2 text-base font-bold" style={{ color: INK }}><Stethoscope size={16} className="shrink-0 text-blue-600" aria-hidden="true" />{textoDiagnostico(consulta) || "Sin diagnóstico registrado"}</p>
-        {consulta.motivo && <p className="mt-1 text-sm text-slate-600">Motivo: {consulta.motivo}</p>}
+        {consulta.motivo && <p className="mt-1 text-sm text-slate-600">Motivo: {consulta.motivo}{consulta.detalleConsulta ? ` · «${consulta.detalleConsulta}»` : ""}</p>}
       </Seccion>
-      <Seccion titulo="Refracción y agudeza visual">
+      {listaAnam.length > 0 && (
+        <Seccion titulo="Anamnesis">
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+            {listaAnam.map(([t, v]) => <div key={t}><dt className="inline font-semibold text-slate-700">{t}: </dt><dd className="inline text-slate-600">{v}</dd></div>)}
+          </dl>
+        </Seccion>
+      )}
+      <Seccion titulo="Agudeza visual">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[22rem] border-collapse font-mono text-sm">
-            <thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-2 py-1" /><th className="px-2 py-1">Esfera</th><th className="px-2 py-1">Cilindro</th><th className="px-2 py-1">Eje</th><th className="px-2 py-1">AV s/c</th><th className="px-2 py-1">AV c/c</th></tr></thead>
+            <thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-2 py-1" /><th className="px-2 py-1">Sin corrección</th><th className="px-2 py-1">{conReceta ? "Con su corrección actual" : "Con lentes"}</th>{conReceta && <th className="px-2 py-1">Con la receta nueva</th>}</tr></thead>
+            <tbody>
+              {[["OD", "#1d4ed8", consulta.od, null], ["OI", "#0891b2", consulta.oi, null], ...(fi?.agudeza?.ambos && Object.values(fi.agudeza.ambos).some(Boolean) ? [["Ambos", "#475569", null, fi.agudeza.ambos]] : [])].map(([n, c, o, a]) => (
+                <tr key={n} className="border-t border-slate-100">
+                  <td className="px-2 py-1.5 font-bold" style={{ color: c }}>{n}</td>
+                  <td className="px-2 py-1.5">{tex(textoAgudeza(a ? a.sc : o?.avSc, a ? a.scF : o?.avScF))}</td>
+                  <td className="px-2 py-1.5">{tex(textoAgudeza(a ? a.cc : o?.avCc, a ? a.ccF : o?.avCcF))}</td>
+                  {conReceta && <td className="px-2 py-1.5">{tex(textoAgudeza(a ? a.rx : o?.avRx, a ? a.rxF : o?.avRxF))}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Seccion>
+      <Seccion titulo="Refracción final">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[18rem] border-collapse font-mono text-sm">
+            <thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-2 py-1" /><th className="px-2 py-1">Esfera</th><th className="px-2 py-1">Cilindro</th><th className="px-2 py-1">Eje</th></tr></thead>
             <tbody>{ojo("OD", "#1d4ed8", consulta.od)}{ojo("OI", "#0891b2", consulta.oi)}</tbody>
           </table>
         </div>
+        {medidas.length > 0 && <dl className="mt-2 space-y-0.5 text-sm text-slate-600">{medidas.map(([t, v]) => <div key={t}><dt className="inline font-semibold text-slate-700">{t}: </dt><dd className="inline">{v}</dd></div>)}</dl>}
       </Seccion>
       {(consulta.indicaciones || consulta.lenteRecomendado || consulta.productoNombre) && (
         <Seccion titulo="Indicaciones y lente recomendado">
@@ -232,18 +295,23 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
           {consulta.productoNombre && <p className="mt-1.5 text-xs text-blue-700">Vinculado al inventario: <span className="font-semibold">{consulta.productoNombre}</span></p>}
         </Seccion>
       )}
-      {hayExamen && (
-        <Seccion titulo="Examen, biomicroscopía, retinoscopía e imágenes">
+      {(hayExamen || kerato || adjuntos) && (
+        <Seccion titulo="Examen, salud ocular e imágenes">
           <div className="space-y-1 text-sm text-slate-600">
             {ex.testMotor && <p><span className="font-semibold text-slate-700">Motilidad ocular:</span> {ex.testMotor}</p>}
-            {((ex.coverTestLejos && ex.coverTestLejos !== "Ortoforia") || (ex.coverTestCerca && ex.coverTestCerca !== "Ortoforia")) && <p><span className="font-semibold text-slate-700">Cover test:</span> lejos {ex.coverTestLejos || "—"} · cerca {ex.coverTestCerca || "—"}</p>}
-            {ex.oftalmoscopia && <p><span className="font-semibold text-slate-700">Oftalmoscopia:</span> {ex.oftalmoscopia}</p>}
+            {cover && <p><span className="font-semibold text-slate-700">Cover test:</span> {cover}</p>}
+            {(consulta.retinoscopia?.od || consulta.retinoscopia?.oi) && <p><span className="font-semibold text-slate-700">{{ autorrefractometro: "Autorrefractómetro", retinoscopia: "Retinoscopía" }[fi?.objetiva?.metodo] || "Retinoscopía"}:</span> OD {consulta.retinoscopia?.od || "—"} · OI {consulta.retinoscopia?.oi || "—"}</p>}
+            {kerato && <p><span className="font-semibold text-slate-700">Queratometría:</span> OD {["k1", "k2"].map((k) => fi.queratometria.od?.[k]).filter(Boolean).join(" / ") || "—"}{fi.queratometria.od?.eje ? ` × ${fi.queratometria.od.eje}°` : ""} · OI {["k1", "k2"].map((k) => fi.queratometria.oi?.[k]).filter(Boolean).join(" / ") || "—"}{fi.queratometria.oi?.eje ? ` × ${fi.queratometria.oi.eje}°` : ""}</p>}
+            {bioNueva
+              ? ["parpados", "cornea", "camara"].map((k) => (bioNueva.od?.[k] || bioNueva.oi?.[k]) && <p key={k}><span className="font-semibold text-slate-700">{{ parpados: "Párpados y conjuntiva", cornea: "Córnea", camara: "Cámara anterior y cristalino" }[k]}:</span> OD {bioNueva.od?.[k] || "—"} · OI {bioNueva.oi?.[k] || "—"}</p>)
+              : <>
+                {bio.parpados && <p><span className="font-semibold text-slate-700">Párpados/conjuntiva:</span> {bio.parpados}</p>}
+                {bio.cornea && <p><span className="font-semibold text-slate-700">Córnea:</span> {bio.cornea}</p>}
+                {bio.camara && <p><span className="font-semibold text-slate-700">Cámara anterior/cristalino:</span> {bio.camara}</p>}
+              </>}
+            {ex.oftalmoscopia && <p><span className="font-semibold text-slate-700">{salud ? "Fondo de ojo" : "Oftalmoscopia"}:</span> {salud ? porOjo(salud.fondo) || ex.oftalmoscopia : ex.oftalmoscopia}</p>}
+            {(ex.pioOd || ex.pioOi) && <p><span className="font-semibold text-slate-700">Presión intraocular:</span> OD {ex.pioOd || "—"} · OI {ex.pioOi || "—"} mmHg{salud?.pio?.metodo ? ` · ${salud.pio.metodo}` : ""}{salud?.pio?.hora ? ` · a las ${salud.pio.hora}` : ""}</p>}
             {ex.testColor && ex.testColor !== "Normal" && <p><span className="font-semibold text-slate-700">Test de color:</span> {ex.testColor}</p>}
-            {(ex.pioOd || ex.pioOi) && <p><span className="font-semibold text-slate-700">PIO:</span> OD {ex.pioOd || "—"} · OI {ex.pioOi || "—"} mmHg</p>}
-            {bio.parpados && <p><span className="font-semibold text-slate-700">Párpados/conjuntiva:</span> {bio.parpados}</p>}
-            {bio.cornea && <p><span className="font-semibold text-slate-700">Córnea:</span> {bio.cornea}</p>}
-            {bio.camara && <p><span className="font-semibold text-slate-700">Cámara anterior/cristalino:</span> {bio.camara}</p>}
-            {(consulta.retinoscopia?.od || consulta.retinoscopia?.oi) && <p><span className="font-semibold text-slate-700">Retinoscopía:</span> OD {consulta.retinoscopia?.od || "—"} · OI {consulta.retinoscopia?.oi || "—"}</p>}
           </div>
           {adjuntos}
         </Seccion>
