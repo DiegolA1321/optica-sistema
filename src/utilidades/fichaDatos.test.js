@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { transponer, validarOjo, validarAdicion, formatoDioptria } from "./refraccion"
 import { estadoCorreccionDe, textoAgudeza, LISTA_AGUDEZA } from "./agudeza"
-import { crearForm, recetaDesdeForm, datosClinicosDesdeForm, estadoDePasos, validarPasos, estadoCorreccionDeForm, anamnesisDeConsulta, componerTexto, medidasDeForm } from "./fichaDatos"
+import { crearForm, recetaDesdeForm, datosClinicosDesdeForm, estadoDePasos, validarPasos, estadoCorreccionDeForm, anamnesisDeConsulta, componerTexto, medidasDeForm, partirTexto } from "./fichaDatos"
 
 describe("transposición", () => {
   it("−1.50 +0.50 × 90 pasa a −1.00 −0.50 × 180 (la esfera cambia)", () => {
@@ -119,7 +119,7 @@ describe("pasos", () => {
 
 describe("antecedentes", () => {
   it("se precargan de la última consulta (texto o opciones) y se componen en el texto de siempre", () => {
-    expect(anamnesisDeConsulta({ antecedentes: "Diabetes", alergias: "Penicilina", antecedentesFamiliares: "", usaLentes: true })).toMatchObject({ antMedDetalle: "Diabetes", alergiasDetalle: "Penicilina", usaLentes: "si" })
+    expect(anamnesisDeConsulta({ antecedentes: "Diabetes", alergias: "Penicilina", antecedentesFamiliares: "", usaLentes: true })).toMatchObject({ antMedChips: ["Diabetes"], antMedDetalle: "", alergiasChips: ["Penicilina"], alergiasDetalle: "", usaLentes: "si" })
     const prev = { ficha: { anamnesis: { antMedicos: { chips: ["Diabetes"], detalle: "tipo 2" }, medicamentos: { chips: ["Ninguno"], detalle: "" } } } }
     expect(anamnesisDeConsulta(prev)).toMatchObject({ antMedChips: ["Diabetes"], antMedDetalle: "tipo 2", medChips: ["Ninguno"] })
     expect(componerTexto(["Diabetes", "Hipertensión"], "tipo 2")).toBe("Diabetes, Hipertensión, tipo 2")
@@ -135,5 +135,25 @@ describe("escritura de las dioptrías en la receta", () => {
     expect(r.oi.esfera).toBe("0.00")
     expect(r.medidas.adicionOd).toBe("+1.50")
     expect(datosClinicosDesdeForm(f).od).toEqual(r.od)
+  })
+})
+
+describe("antecedentes precargados: lo escrito que coincide con una opción la marca", () => {
+  it("«Penicilina» marca la opción y «Losartán 50 mg» marca «Antihipertensivos» (y se queda como detalle)", () => {
+    const a = anamnesisDeConsulta({ antecedentes: "hipertensión, Tiroides, gripe frecuente", alergias: "Penicilina", antecedentesFamiliares: "Diabetes", usaLentes: true,
+      ficha: { anamnesis: { antMedicos: { chips: [], detalle: "hipertensión, Tiroides, gripe frecuente" }, antFamiliares: { chips: [], detalle: "Diabetes" }, alergias: { chips: [], detalle: "Penicilina" }, medicamentos: { chips: [], detalle: "Losartán 50 mg" }, usaLentes: "si" } } })
+    expect(a.alergiasChips).toEqual(["Penicilina"])
+    expect(a.alergiasDetalle).toBe("")
+    expect(a.antMedChips).toEqual(["Hipertensión", "Tiroides"])
+    expect(a.antMedDetalle).toBe("gripe frecuente")
+    expect(a.antFamChips).toEqual(["Diabetes"])
+    expect(a.medChips).toEqual(["Antihipertensivos"])
+    expect(a.medDetalle).toBe("Losartán 50 mg")
+  })
+  it("una ficha anterior (solo texto) también", () => {
+    const a = anamnesisDeConsulta({ antecedentes: "Diabetes", alergias: "Ninguna conocida", antecedentesFamiliares: "", usaLentes: true })
+    expect(a.antMedChips).toEqual(["Diabetes"])
+    expect(a.alergiasChips).toEqual(["Ninguna conocida"])
+    expect(a.antMedDetalle).toBe("")
   })
 })

@@ -2203,7 +2203,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         fidelidad={{ puntaje: puntajeFidelidad, consultas: totalConsultasFidelizacion, referidos: referidosPorEste, frecuente, referidoPor: pacienteHistorial.referidoPor, diasCumple, edad: edadPaciente, onCrm: () => setVista?.("crm") }}
                       />
                     ) : tabHistorial === "graduacion" && puedeVerFichas ? (
-                      <GraduacionPerfil consultas={consultasPaciente} paciente={pacienteHistorial} usuario={usuario} />
+                      <GraduacionPerfil consultas={consultasPaciente} paciente={pacienteHistorial} usuario={usuario} parametrizacion={parametrizacion} />
                     ) : tabHistorial === "citas" ? (
                       <div className="space-y-4">
                         <PanelCitasPaciente
@@ -2822,6 +2822,7 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
           consulta={consultaDe(citaAbierta)}
           paciente={paciente}
           usuario={usuario}
+          parametrizacion={parametrizacion}
           adjuntos={consultaDe(citaAbierta).imagenes?.length > 0 && (
             <div className="mt-3">
               <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-600"><ImageIcon size={13} /> Imágenes adjuntas</p>
@@ -2990,7 +2991,7 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
       </section>
 
       {citaVentana && consultaVentana && (
-        <ModalAtencion cita={citaVentana} consulta={consultaVentana} paciente={paciente} usuario={usuario} adjuntos={adjuntosDe(consultaVentana)} onCerrar={() => setCitaVentana(null)} />
+        <ModalAtencion cita={citaVentana} consulta={consultaVentana} paciente={paciente} usuario={usuario} parametrizacion={parametrizacion} adjuntos={adjuntosDe(consultaVentana)} onCerrar={() => setCitaVentana(null)} />
       )}
 
       <section aria-label="Citas por mes" className="rounded-2xl border border-slate-200/60 bg-white p-4">

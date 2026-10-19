@@ -8,12 +8,13 @@ import { ordenarPorFechaYCreacion } from "../../utilidades/fidelizacion"
 import { recetasDe } from "../../utilidades/graduacion"
 import { imprimirHojaReceta } from "../../utilidades/imprimirHojaReceta"
 import { VistaGraduacion } from "./Graduacion"
+import { datosOpticaReceta } from "../../utilidades/datosReceta"
 
 // La pestaña «Graduación» del perfil del paciente del sistema del personal: la MISMA vista que «Mi receta» del portal (`VistaGraduacion`), en la versión del personal: notación técnica (OD y OI,
 // esfera, cilindro, eje, adición, agudeza visual con y sin lentes y distancia pupilar; «No registrado» donde falta un dato), el selector de receta arriba (cambia toda la vista), el antes → ahora,
 // la gráfica de tendencia (`tendencia({ onElegir, fechaActiva })`: la de siempre, siempre dibujada y con sus puntos pulsables), las indicaciones y «Comparar dos recetas». «Explicar al paciente» cambia la vista a la de palabras simples del portal y
 // «Imprimir receta» imprime la hoja única (`HojaReceta`). El perfil solo ofrece la pestaña a quien tiene permiso de Ficha clínica «ver».
-export default function GraduacionPerfil({ consultas = [], paciente, usuario }) {
+export default function GraduacionPerfil({ consultas = [], paciente, usuario, parametrizacion }) {
   const recetas = useMemo(() => recetasDe([...consultas].sort(ordenarPorFechaYCreacion)), [consultas])
   if (recetas.length === 0) {
     return (
@@ -25,7 +26,7 @@ export default function GraduacionPerfil({ consultas = [], paciente, usuario }) 
     )
   }
   const imprimir = (r) => imprimirHojaReceta({
-    optica: { nombre: usuario?.opticaNombre, direccion: usuario?.opticaMarca?.direccion, telefono: usuario?.opticaMarca?.telefono, correo: usuario?.opticaMarca?.correo, logoUrl: usuario?.opticaLogoUrl },
+    optica: datosOpticaReceta(usuario, parametrizacion),
     paciente: { nombre: paciente?.nombre, cedula: paciente?.cedula, edad: edadEnAnios(paciente?.fecha_nacimiento || paciente?.fechaNacimiento) },
     receta: r,
   })

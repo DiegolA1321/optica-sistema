@@ -140,7 +140,8 @@ describe("ConsultaMedica — los cinco pasos", () => {
     empezar()
     irAPaso(3, "Refracción")
     for (const id of ["odEsfera", "odCilindro", "odEje", "oiEsfera", "oiCilindro", "oiEje", "objOdEsfera", "adicionOd"]) expect(document.getElementById(id).value).toBe("")
-    expect(document.getElementById("odEsfera")).toHaveAttribute("placeholder", "0.00")
+    // un campo vacío muestra «—», nunca un número de ejemplo que parezca un dato
+    for (const id of ["odEsfera", "kOdK1", "prismaOdCant", "dpOd"]) { const el = document.getElementById(id); if (el) expect(el).toHaveAttribute("placeholder", "—") }
   })
 
   it("ojo izquierdo a la izquierda y derecho a la derecha en las tarjetas lado a lado", () => {
@@ -256,7 +257,9 @@ describe("ConsultaMedica — los cinco pasos", () => {
     for (const n of ["Ninguno", "Ninguna conocida"]) expect(screen.getAllByRole("button", { name: n }).length).toBeGreaterThan(0)
     for (const n of ["Estrabismo", "Queratocono", "Catarata", "Degeneración macular"]) expect(screen.getByRole("button", { name: n })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Sí" }))
-    expect(screen.getByRole("option", { name: "Lentes de contacto" })).toBeInTheDocument()
+    // «Qué usa» son botones, no una lista nativa
+    for (const n of ["Lentes", "Lentes de contacto", "Ambos"]) expect(screen.getByRole("button", { name: n })).toBeInTheDocument()
+    expect(document.getElementById("tipoLentes")).toBeNull()
   })
 
   it("salud ocular por ojo con «Sin hallazgos» e «Igual en el otro ojo»", () => {
@@ -269,7 +272,13 @@ describe("ConsultaMedica — los cinco pasos", () => {
     const der = screen.getAllByRole("group", { name: "Ojo derecho" })[0]
     fireEvent.click(within(der).getAllByRole("button", { name: "Igual en el otro ojo" })[0])
     expect(document.getElementById("bioOdCornea")).toHaveValue("Sin hallazgos")
-    expect(screen.getByLabelText(/Hora de la medición/i)).toBeInTheDocument()
+    // la hora con el formato del sistema (03:20 PM), y la presión de cada ojo con el izquierdo a la izquierda
+    expect(screen.getByRole("group", { name: "Hora de la medición" })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Hora de la medición: hora"), { target: { value: "3" } })
+    fireEvent.change(screen.getByLabelText("Hora de la medición: minutos"), { target: { value: "20" } })
+    fireEvent.change(screen.getByLabelText("Hora de la medición: AM o PM"), { target: { value: "PM" } })
+    const pio = screen.getByRole("heading", { name: /Presión intraocular/ }).closest("section")
+    expect(within(pio).getAllByRole("group").filter((g) => /^Ojo/.test(g.getAttribute("aria-label"))).map((g) => g.getAttribute("aria-label"))).toEqual(["Ojo izquierdo", "Ojo derecho"])
   })
 
   it("distancia pupilar: total, de cada ojo y de cerca", () => {
@@ -383,5 +392,69 @@ describe("ConsultaMedica — guardado automático del borrador", () => {
     expect(await screen.findByText(/Hay una ficha a medias de este paciente/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Recuperar" }))
     expect(screen.queryByText(/Hay una ficha a medias/i)).not.toBeInTheDocument()
+  })
+})
+
+describe("ConsultaMedica — correcciones de la revisión", () => {
+  it("la distancia pupilar total se calcula sola con la de cada ojo, y avisa si no coincide", () => {
+    renderFicha()
+    empezar()
+    irAPaso(2, "Agudeza visual")
+    fireEvent.change(document.getElementById("dpOd"), { target: { value: "31" } })
+    fireEvent.change(document.getElementById("dpOi"), { target: { value: "30.5" } })
+    expect(document.getElementById("dp")).toHaveValue("61.5")
+    expect(screen.queryByText(/La suma de los dos ojos/)).not.toBeInTheDocument()
+    fireEvent.change(document.getElementById("dp"), { target: { value: "64" } })
+    expect(screen.getByText(/La suma de los dos ojos es 61.5 mm y el total escrito es 64 mm/)).toBeInTheDocument()
+  })
+
+  it("test de color: resultado «14 de 14» e interpretación Normal o Alterado", () => {
+    renderFicha()
+    empezar()
+    irAPaso(4, "Salud ocular")
+    expect(screen.getByLabelText(/Resultado \(láminas acertadas\)/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Alterado" }))
+    expect(screen.getByRole("button", { name: "Alterado" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("button", { name: "Normal" })).toHaveAttribute("aria-pressed", "false")
+  })
+
+  it("«Lente a recomendar» va en azul, no en amarillo (el amarillo es advertencia)", () => {
+    renderFicha()
+    empezar()
+    irAPaso(5, "Diagnóstico y receta")
+    fireEvent.click(screen.getByLabelText(/Añadir recomendación de lente/))
+    const bloque = screen.getByText("Lente a recomendar").closest("div.rounded-xl")
+    expect(bloque.className).toMatch(/blue/)
+    expect(bloque.className).not.toMatch(/amber|yellow/)
+    expect(bloque.getAttribute("style") || "").not.toMatch(/200,\s*162/)
+  })
+
+  it("diagnóstico sugerido: con esfera negativa y cilindro sugiere «Miopía y astigmatismo»; con adición avisa de presbicia; el optómetra lo confirma", () => {
+    renderFicha()
+    empezar()
+    llenarMedidas()
+    irAPaso(3, "Refracción")
+    fireEvent.change(document.getElementById("adicionOd"), { target: { value: "1.50" } })
+    irAPaso(5, "Diagnóstico y receta")
+    const sug = screen.getByRole("status", { name: "Diagnóstico sugerido" })
+    expect(sug).toHaveTextContent("Miopía y astigmatismo")
+    expect(sug).toHaveTextContent("Tiene adición")
+    // no se marca solo
+    expect(screen.getByRole("button", { name: "Miopía y astigmatismo" })).toHaveAttribute("aria-pressed", "false")
+    fireEvent.click(within(sug).getByRole("button", { name: "Usar la sugerencia" }))
+    expect(screen.getByRole("button", { name: "Miopía y astigmatismo" })).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("antecedentes precargados: lo guardado que coincide con una opción la marca", () => {
+    const previa = { id: "c0", fecha: "2026-04-20", pacienteId: "p1", paciente: PACIENTE.nombre, motivo: "Control", alergias: "Penicilina", antecedentes: "Hipertensión", antecedentesFamiliares: "", usaLentes: true, od: {}, oi: {}, creadoEn: "a",
+      ficha: { anamnesis: { antMedicos: { chips: [], detalle: "Hipertensión" }, antFamiliares: { chips: [], detalle: "" }, alergias: { chips: [], detalle: "Penicilina" }, medicamentos: { chips: [], detalle: "Losartán 50 mg" }, usaLentes: "si" } } }
+    renderFicha({ consultas: [previa] })
+    fireEvent.change(screen.getByLabelText(/Paciente \*/i), { target: { value: "Paciente De" } })
+    fireEvent.click(screen.getByText(PACIENTE.nombre))
+    fireEvent.click(screen.getByRole("button", { name: /actualizar/ }))
+    expect(screen.getByRole("button", { name: "Penicilina" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("button", { name: "Hipertensión" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("button", { name: "Antihipertensivos" })).toHaveAttribute("aria-pressed", "true")
+    expect(document.getElementById("alergiasDetalle")).toHaveValue("")
   })
 })

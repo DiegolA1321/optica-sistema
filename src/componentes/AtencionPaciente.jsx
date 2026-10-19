@@ -13,6 +13,7 @@ import PermisosMensajes from "./PermisosMensajes"
 import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
 import { textoAgudeza } from "../utilidades/agudeza"
 import { dioptriaTexto } from "../utilidades/refraccion"
+import { datosOpticaReceta } from "../utilidades/datosReceta"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -322,10 +323,10 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
 }
 
 // `onVerReceta` y `onVerCompra` (opcionales): llevan a la receta de esa atención (pestaña Graduación) y a su compra (pestaña Compras); cada uno solo se ofrece si existe.
-export function ModalAtencion({ cita, consulta, paciente, usuario, adjuntos, onCerrar, onVerReceta, onVerCompra }) {
+export function ModalAtencion({ cita, consulta, paciente, usuario, parametrizacion, adjuntos, onCerrar, onVerReceta, onVerCompra }) {
   // La hoja de la receta es la misma que imprime el optómetra al terminar la consulta (HojaReceta) y la que el paciente guarda como PDF desde su portal.
   const imprimirReceta = () => imprimirHojaReceta({
-    optica: { nombre: usuario?.opticaNombre, direccion: usuario?.opticaMarca?.direccion, telefono: usuario?.opticaMarca?.telefono, correo: usuario?.opticaMarca?.correo, logoUrl: usuario?.opticaLogoUrl },
+    optica: datosOpticaReceta(usuario, parametrizacion),
     paciente: { nombre: paciente?.nombre || consulta.paciente, cedula: paciente?.cedula, edad: edadEnAnios(paciente?.fecha_nacimiento || paciente?.fechaNacimiento) },
     receta: consulta,
   })

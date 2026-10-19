@@ -5,7 +5,7 @@ import { ClipboardList, Glasses, History, ChevronDown, Stethoscope } from "lucid
 import { INK } from "@/lib/tema"
 import { fechaLegible } from "../../utilidades/formatoFecha"
 import { SINTOMAS, ANT_MEDICOS, ANT_FAMILIARES, ALERGIAS_FRECUENTES, MEDICAMENTOS_FRECUENTES, NINGUNO, TIPOS_LENTES, componerTexto } from "../../utilidades/fichaDatos"
-import { Tarjeta, Obligatorio, Etiqueta, Campo, Texto, AreaTexto, Chips, Lista, BotonTexto, CLASE_INPUT } from "./piezas"
+import { Tarjeta, Obligatorio, Etiqueta, Campo, Texto, AreaTexto, Chips, Opciones, BotonTexto, CLASE_INPUT } from "./piezas"
 
 // Paso 1 · Anamnesis: motivo, síntomas, antecedentes médicos y familiares, alergias, medicamentos y uso de lentes.
 // El motivo es el del catálogo de la óptica (el de la cita; alimenta Reportes); lo que cuenta el paciente va aparte, como detalle.
@@ -96,7 +96,7 @@ export default function PasoAnamnesis({ f, set, errores, motivosConsulta, conCit
             </div>
           </div>
           {f.usaLentes === "si" && <>
-            <Lista id="tipoLentes" etiqueta="Qué usa" valor={f.tipoLentes} onCambiar={(v) => set("tipoLentes", v)} opciones={TIPOS_LENTES} ancho="w-44" />
+            <div><p className="mb-1 text-xs font-semibold text-slate-500">Qué usa</p><Opciones etiqueta="Qué usa" opciones={TIPOS_LENTES.map(([v, t]) => [v, { lentes: "Lentes", contacto: "Lentes de contacto", ambos: "Ambos" }[v] || t])} valor={f.tipoLentes} onCambiar={(v) => set("tipoLentes", v)} /></div>
             <Texto id="usaLentesDesde" etiqueta="Desde cuándo" valor={f.usaLentesDesde} onCambiar={(v) => set("usaLentesDesde", v)} placeholder="Ej. 3 años" ancho="w-32" />
           </>}
         </div>

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { AlertCircle } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { filtrarNumeroDecimalConSigno, filtrarSoloNumeros } from "../../utilidades/validaciones"
@@ -40,11 +41,12 @@ export function Campo({ id, etiqueta, error, children, className = "" }) {
 }
 
 // Un número corto (esfera, cilindro, eje, mm…): ancho fijo, centrado.
-export function Numero({ id, etiqueta, valor, onCambiar, error, tipo = "decimal", maxLength, placeholder, ancho = "w-[4.5rem]", "aria-label": ariaLabel }) {
+// Un campo vacío muestra «—», nunca un número de ejemplo que parezca un dato.
+export function Numero({ id, etiqueta, valor, onCambiar, error, tipo = "decimal", maxLength, ancho = "w-[4.5rem]", "aria-label": ariaLabel }) {
   const cambiar = (e) => onCambiar(tipo === "entero" ? filtrarSoloNumeros(e.target.value, maxLength) : tipo === "libre" ? e.target.value : filtrarNumeroDecimalConSigno(e.target.value))
   return (
     <Campo id={id} etiqueta={etiqueta} error={error} className="shrink-0">
-      <input id={id} type="text" inputMode={tipo === "entero" ? "numeric" : "decimal"} value={valor} onChange={cambiar} placeholder={placeholder} aria-label={ariaLabel} aria-invalid={Boolean(error)}
+      <input id={id} type="text" inputMode={tipo === "entero" ? "numeric" : "decimal"} value={valor} onChange={cambiar} placeholder="—" aria-label={ariaLabel} aria-invalid={Boolean(error)}
         className={CLASE_INPUT + ancho + " px-1.5 text-center font-mono font-semibold placeholder:font-normal placeholder:text-slate-300 " + borde(error)} />
     </Campo>
   )
@@ -115,6 +117,45 @@ export function CuadroOjo({ lado, children, noEvaluado }) {
         {od ? "Ojo derecho" : "Ojo izquierdo"}
       </p>
       {children}
+    </div>
+  )
+}
+
+// Opciones excluyentes como botones (no una lista nativa): se ven todas de una vez.
+export function Opciones({ etiqueta, opciones, valor, onCambiar }) {
+  return (
+    <div role="group" aria-label={etiqueta} className="flex flex-wrap gap-1.5">
+      {opciones.map((o) => {
+        const [v, t] = Array.isArray(o) ? o : [o, o]
+        const on = valor === v
+        return (
+          <button key={v} type="button" aria-pressed={on} onClick={() => onCambiar(on ? "" : v)}
+            className={"rounded-lg border px-3 py-2 text-sm font-semibold transition-colors cursor-pointer " + (on ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-600 hover:border-slate-400")}>{t}</button>
+        )
+      })}
+    </div>
+  )
+}
+
+// La hora con el formato del sistema («03:20 PM»): hora, minutos y AM/PM. Guarda el texto completo; vacío mientras falte alguna parte.
+const analizarHora = (t) => { const m = /^(\d{1,2}):(\d{2}) (AM|PM)$/.exec(String(t || "")); return m ? { h: String(Number(m[1])), m: m[2], ap: m[3] } : { h: "", m: "", ap: "AM" } }
+export function HoraAmPm({ id, etiqueta, valor, onCambiar }) {
+  const [partes, setPartes] = useState(() => analizarHora(valor))
+  const cambiar = (campo, v) => {
+    const n = { ...partes, [campo]: v }
+    setPartes(n)
+    onCambiar(n.h && n.m ? `${String(n.h).padStart(2, "0")}:${n.m} ${n.ap}` : "")
+  }
+  const clase = CLASE_INPUT + "border-slate-300 px-1.5 font-mono font-semibold "
+  return (
+    <div role="group" aria-label={etiqueta} className="shrink-0">
+      <p className="mb-1 text-xs font-semibold text-slate-500">{etiqueta}</p>
+      <div className="flex items-center gap-1">
+        <select id={id} aria-label={etiqueta + ": hora"} value={partes.h} onChange={(e) => cambiar("h", e.target.value)} className={clase + "w-14"}><option value="">—</option>{Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => <option key={h} value={h}>{h.padStart(2, "0")}</option>)}</select>
+        <span aria-hidden="true" className="text-slate-400">:</span>
+        <select aria-label={etiqueta + ": minutos"} value={partes.m} onChange={(e) => cambiar("m", e.target.value)} className={clase + "w-14"}><option value="">—</option>{Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")).map((m) => <option key={m} value={m}>{m}</option>)}</select>
+        <select aria-label={etiqueta + ": AM o PM"} value={partes.ap} onChange={(e) => cambiar("ap", e.target.value)} className={clase + "w-[4.25rem]"}><option value="AM">AM</option><option value="PM">PM</option></select>
+      </div>
     </div>
   )
 }

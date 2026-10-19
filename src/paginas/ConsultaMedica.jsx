@@ -41,6 +41,8 @@ import PasoAgudeza from "../componentes/ficha/PasoAgudeza"
 import PasoRefraccion from "../componentes/ficha/PasoRefraccion"
 import PasoSalud from "../componentes/ficha/PasoSalud"
 import { CLASE_INPUT } from "../componentes/ficha/piezas"
+import { datosOpticaReceta } from "../utilidades/datosReceta"
+import { sugerirDiagnostico } from "../utilidades/diagnosticoSugerido"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -562,7 +564,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   // UNA sola receta para la vista previa, la hoja y la impresión: siempre los valores finales del formulario (ya transpuestos si se transpuso).
   const recetaActual = useMemo(() => recetaDesdeForm(f, { id: consultaGuardadaId || recetaNum.split("-").pop().toLowerCase(), profesionalNombre: usuario?.nombre, profesionalRegistro: usuario?.registroProfesional }), [f, consultaGuardadaId, recetaNum, usuario?.nombre, usuario?.registroProfesional])
   const datosDeLaHoja = () => ({
-    optica: { nombre: usuario?.opticaNombre, direccion: usuario?.opticaMarca?.direccion, telefono: usuario?.opticaMarca?.telefono, correo: usuario?.opticaMarca?.correo, logoUrl: usuario?.opticaLogoUrl },
+    optica: datosOpticaReceta(usuario, parametrizacion),
     paciente: { nombre: pacienteSeleccionado, cedula: pacienteInfo?.cedula, edad: edadPaciente },
     receta: recetaActual,
   })
@@ -629,6 +631,9 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const descartarBorrador = () => { borrarBorrador(borradorPendiente?.clave); setBorradorPendiente(null) }
 
   const errDiag = erroresDe("diagnostico")
+  // Diagnóstico sugerido con la refracción final y la adición (receta ya normalizada): el optómetra lo confirma con un clic.
+  const sugerencia = useMemo(() => sugerirDiagnostico(recetaActual, diagnosticosRapidos), [recetaActual, diagnosticosRapidos])
+  const sugerenciaParaUsar = sugerencia ? [...sugerencia.categorias, ...(sugerencia.presbiciaCategoria ? [sugerencia.presbiciaCategoria] : [])] : []
   const bannerPaso = intento && pasoPendiente && pasoPendiente === paso ? mensajeFaltante(paso) : ""
   const otrosPasosPendientes = intento ? PASOS.filter((p) => p.id !== paso && Object.keys(todosLosErrores[p.id] || {}).length > 0) : []
 
@@ -807,6 +812,17 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                     <p className="text-base font-bold" style={{ color: INK }}>{f.diagnosticoCategorias.join(", ")}{f.diagnostico.trim() ? ` — ${f.diagnostico.trim()}` : ""}</p>
                   ) : (
                     <>
+                      {sugerencia && (sugerencia.categorias.length > 0 || sugerencia.presbicia) && (
+                        <div role="status" aria-label="Diagnóstico sugerido" className="mb-3 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2 text-sm">
+                          <p className="text-xs font-semibold text-blue-800">Sugerido según la refracción ({sugerencia.motivo.toLowerCase()})</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            {sugerencia.categorias.map((c) => <span key={c} className="rounded-full border border-blue-300 bg-white px-2.5 py-0.5 text-xs font-bold text-blue-700">{c}</span>)}
+                            {sugerencia.presbicia && <span className="text-xs text-slate-700">Tiene adición{sugerencia.presbiciaCategoria ? <>: ¿<span className="font-bold">{sugerencia.presbiciaCategoria}</span>?</> : " (posible presbicia)"}</span>}
+                            {(sugerenciaParaUsar.length > 0 && !sugerenciaParaUsar.every((c) => f.diagnosticoCategorias.includes(c))) && <button type="button" onClick={() => set("diagnosticoCategorias", [...new Set([...f.diagnosticoCategorias, ...sugerenciaParaUsar])])} className="rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white cursor-pointer">Usar la sugerencia</button>}
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">Tú lo confirmas o lo cambias: no se marca solo.</p>
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-1.5">
                         {/* Las categorías son las del catálogo que configura la óptica; "Otro" siempre disponible como salida. */}
                         {[...diagnosticosRapidos, ...(diagnosticosRapidos.includes("Otro") ? [] : ["Otro"])].map((cat) => {
@@ -833,14 +849,14 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   {!fichaGuardada && (
                     <label className="flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-slate-700">
                       <input type="checkbox" checked={f.recomendarLente} onChange={(e) => { set("recomendarLente", e.target.checked); if (!e.target.checked) set("lenteRecomendado", "") }} className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600" />
-                      <Glasses size={16} style={{ color: GOLD }} /> Añadir recomendación de lente
+                      <Glasses size={16} className="text-blue-600" /> Añadir recomendación de lente
                     </label>
                   )}
                   {f.recomendarLente && (f.lenteRecomendado || !fichaGuardada) && (
-                    <div className="print-force-color mt-3 flex max-w-xl items-start gap-3 rounded-xl border p-3" style={{ borderColor: "rgba(200,162,78,0.35)", backgroundColor: "rgba(200,162,78,0.08)" }}>
-                      <Glasses size={18} style={{ color: GOLD }} className="mt-0.5 shrink-0" />
+                    <div className="print-force-color mt-3 flex max-w-xl items-start gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3">
+                      <Glasses size={18} className="mt-0.5 shrink-0 text-blue-600" />
                       <div className="flex-1 space-y-1">
-                        <label htmlFor="lenteRecomendado" className="block text-xs font-bold uppercase tracking-[0.14em]" style={{ color: "#7c5e14" }}>Lente a recomendar</label>
+                        <label htmlFor="lenteRecomendado" className="block text-xs font-bold uppercase tracking-[0.14em] text-blue-800">Lente a recomendar</label>
                         <input id="lenteRecomendado" type="text" placeholder="Ej. Monofocal con antirreflejo y filtro luz azul" value={f.lenteRecomendado} readOnly={fichaGuardada} onChange={(e) => set("lenteRecomendado", e.target.value)} className="w-full bg-transparent text-sm font-semibold outline-none focus-visible:underline" style={{ color: INK }} />
                         <p className="no-print text-xs text-slate-500">Solo el texto de la receta: la luna se elige y se cobra al vender, sin inventario.</p>
                       </div>

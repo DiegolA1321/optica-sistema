@@ -1,6 +1,7 @@
 "use client"
 
 import { Eye, Glasses, Move, Ruler } from "lucide-react"
+import { aNumero } from "../../utilidades/refraccion"
 import { LISTA_AGUDEZA, LISTA_JAEGER, textoAgudeza } from "../../utilidades/agudeza"
 import { TIPOS_COVER, DISTANCIAS_COVER } from "../../utilidades/fichaDatos"
 import { Tarjeta, Obligatorio, Numero, Texto, Lista, OjosLadoALado, CuadroOjo, BotonTexto, Campo, CLASE_INPUT } from "./piezas"
@@ -36,7 +37,7 @@ export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta
     return (
       <CuadroOjo lado={lado}>
         <div className="flex gap-1.5">
-          <Numero id={`act${P}Esfera`} etiqueta="Esf." valor={f[`act${P}Esfera`]} onCambiar={(v) => set(`act${P}Esfera`, v)} placeholder="0.00" ancho="w-[3.75rem]" />
+          <Numero id={`act${P}Esfera`} etiqueta="Esf." valor={f[`act${P}Esfera`]} onCambiar={(v) => set(`act${P}Esfera`, v)} ancho="w-[3.75rem]" />
           <Numero id={`act${P}Cilindro`} etiqueta="Cil." valor={f[`act${P}Cilindro`]} onCambiar={(v) => set(`act${P}Cilindro`, v)} placeholder="0.00" ancho="w-[3.75rem]" />
           <Numero id={`act${P}Eje`} etiqueta="Eje" valor={f[`act${P}Eje`]} onCambiar={(v) => set(`act${P}Eje`, v)} tipo="entero" maxLength={3} placeholder="0" ancho="w-[3.25rem]" />
         </div>
@@ -44,6 +45,17 @@ export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta
     )
   }
   const errAv = errores.avOdSc || errores.avOiSc
+  // La distancia pupilar total se calcula sola con la de cada ojo (mientras no se haya escrito a mano otra distinta); si no coincide, avisa.
+  const sumaDp = (od, oi) => { const a = aNumero(od), b = aNumero(oi); return a !== null && b !== null ? String(Math.round((a + b) * 10) / 10) : "" }
+  const cambiarDp = (campo, valor) => {
+    const od = campo === "dpOd" ? valor : f.dpOd
+    const oi = campo === "dpOi" ? valor : f.dpOi
+    const anterior = sumaDp(f.dpOd, f.dpOi)
+    const nueva = sumaDp(od, oi)
+    setVarios({ [campo]: valor, ...(nueva && (!f.dp || f.dp === anterior) ? { dp: nueva } : {}) })
+  }
+  const suma = sumaDp(f.dpOd, f.dpOi)
+  const avisoDp = suma && f.dp && aNumero(f.dp) !== aNumero(suma) ? `La suma de los dos ojos es ${suma} mm y el total escrito es ${f.dp} mm: revisa cuál es el correcto.` : ""
   return (
     <div className="space-y-3">
       <Tarjeta titulo="Agudeza visual" icono={Eye} derecha={<Obligatorio />} ayuda="Prueba de las letras. Elige la línea leída y, si falló letras, cuántas («20/25 −2»). Obligatoria: la de cada ojo sin corrección.">
@@ -93,11 +105,12 @@ export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta
 
       <Tarjeta titulo="Distancia pupilar" icono={Ruler}>
         <div className="flex flex-wrap gap-3">
-          <Numero id="dp" etiqueta="Total (mm)" valor={f.dp} onCambiar={(v) => set("dp", v)} placeholder="62" />
-          <Numero id="dpOd" etiqueta="OD (mm)" valor={f.dpOd} onCambiar={(v) => set("dpOd", v)} placeholder="31" />
-          <Numero id="dpOi" etiqueta="OI (mm)" valor={f.dpOi} onCambiar={(v) => set("dpOi", v)} placeholder="31" />
-          <Numero id="dpCerca" etiqueta="De cerca (mm, opcional)" valor={f.dpCerca} onCambiar={(v) => set("dpCerca", v)} placeholder="59" ancho="w-24" />
+          <Numero id="dpOi" etiqueta="OI (mm)" valor={f.dpOi} onCambiar={(v) => cambiarDp("dpOi", v)} />
+          <Numero id="dpOd" etiqueta="OD (mm)" valor={f.dpOd} onCambiar={(v) => cambiarDp("dpOd", v)} />
+          <Numero id="dp" etiqueta="Total (mm)" valor={f.dp} onCambiar={(v) => set("dp", v)} />
+          <Numero id="dpCerca" etiqueta="De cerca (mm, opcional)" valor={f.dpCerca} onCambiar={(v) => set("dpCerca", v)} ancho="w-24" />
         </div>
+        {avisoDp && <p role="alert" className="mt-2 text-xs font-medium text-amber-700">{avisoDp}</p>}
       </Tarjeta>
 
       <Tarjeta titulo="Cover test y motilidad" icono={Move}>

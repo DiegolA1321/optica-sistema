@@ -97,9 +97,9 @@ export default function PasoRefraccion({ f, set, setVarios, errores, edad, manej
     const P = lado === "od" ? "Od" : "Oi"
     return (
       <CuadroOjo lado={lado}>
-        <div className="flex gap-1.5">
-          <Numero id={`prisma${P}Cant`} etiqueta="Cantidad (Δ)" valor={f[`prisma${P}Cant`]} onCambiar={(v) => set(`prisma${P}Cant`, v)} placeholder="2" ancho="w-[4.5rem]" />
-          <Lista id={`prisma${P}Base`} etiqueta="Base" valor={f[`prisma${P}Base`]} onCambiar={(v) => set(`prisma${P}Base`, v)} opciones={BASES_PRISMA} ancho="w-28" />
+        <div className="space-y-2">
+          <Numero id={`prisma${P}Cant`} etiqueta="Cantidad (Δ)" valor={f[`prisma${P}Cant`]} onCambiar={(v) => set(`prisma${P}Cant`, v)} ancho="w-[4.5rem]" />
+          <Lista id={`prisma${P}Base`} etiqueta="Base" valor={f[`prisma${P}Base`]} onCambiar={(v) => set(`prisma${P}Base`, v)} opciones={BASES_PRISMA} vacio="—" ancho="w-full" />
         </div>
       </CuadroOjo>
     )

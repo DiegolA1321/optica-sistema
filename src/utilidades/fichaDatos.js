@@ -24,6 +24,7 @@ export const DISTANCIAS_COVER = [["lejos", "Lejos"], ["cerca", "Cerca"], ["ambas
 export const BASES_PRISMA = ["Superior", "Inferior", "Nasal", "Temporal"]
 export const METODOS_PIO = ["Tonómetro de aire (no contacto)", "Aplanación de Goldmann", "Tonómetro de rebote", "Otro"]
 export const PRUEBAS_COLOR = ["Ishihara", "Farnsworth D-15", "Otra"]
+export const INTERPRETACIONES_COLOR = ["Normal", "Alterado"]
 export const SIN_HALLAZGOS = "Sin hallazgos"
 
 // El formulario completo, vacío. Un campo vacío significa «no medido», nunca «normal».
@@ -47,7 +48,7 @@ export const crearForm = (hoy = "") => ({
   prismaOdCant: "", prismaOdBase: "", prismaOiCant: "", prismaOiBase: "",
   // Paso 4
   bioOdParpados: "", bioOdCornea: "", bioOdCamara: "", bioOiParpados: "", bioOiCornea: "", bioOiCamara: "", fondoOd: "", fondoOi: "",
-  pioOd: "", pioOi: "", pioHora: "", pioMetodo: "", colorPrueba: "", colorResultado: "",
+  pioOd: "", pioOi: "", pioHora: "", pioMetodo: "", colorPrueba: "", colorResultado: "", colorInterpretacion: "",
   // Paso 5
   diagnosticoCategorias: [], diagnostico: "", recomendarLente: false, lenteRecomendado: "", indicaciones: "",
   proximoControlDias: 180, controlModo: "", controlFecha: "", controlHora: "", tratamientoFinalizado: false,
@@ -113,7 +114,7 @@ export function datosClinicosDesdeForm(f) {
     medidas: medidasDeForm(f),
     examen: {
       testMotor: t(f.testMotor), coverTestLejos: coverLejos, coverTestCerca: coverCerca,
-      oftalmoscopia: porOjo(f.fondoOd, f.fondoOi), testColor: unir([f.colorPrueba, f.colorResultado], " · "), pioOd: t(f.pioOd), pioOi: t(f.pioOi),
+      oftalmoscopia: porOjo(f.fondoOd, f.fondoOi), testColor: f.colorInterpretacion === "Alterado" ? unir(["Alterado", f.colorResultado && `(${t(f.colorResultado)})`], " ") : f.colorInterpretacion === "Normal" ? "Normal" : "", pioOd: t(f.pioOd), pioOi: t(f.pioOi),
       biomicroscopia: {
         parpados: porOjo(bio("Od").parpados, bio("Oi").parpados), cornea: porOjo(bio("Od").cornea, bio("Oi").cornea), camara: porOjo(bio("Od").camara, bio("Oi").camara),
       },
@@ -140,7 +141,7 @@ export function datosClinicosDesdeForm(f) {
       queratometria: { od: { k1: t(f.kOdK1), k2: t(f.kOdK2), eje: t(f.kOdEje) }, oi: { k1: t(f.kOiK1), k2: t(f.kOiK2), eje: t(f.kOiEje) } },
       salud: {
         biomicroscopia: { od: bio("Od"), oi: bio("Oi") }, fondo: { od: t(f.fondoOd), oi: t(f.fondoOi) },
-        pio: { od: t(f.pioOd), oi: t(f.pioOi), hora: t(f.pioHora), metodo: f.pioMetodo }, color: { prueba: f.colorPrueba, resultado: t(f.colorResultado) },
+        pio: { od: t(f.pioOd), oi: t(f.pioOi), hora: t(f.pioHora), metodo: f.pioMetodo }, color: { prueba: f.colorPrueba, resultado: t(f.colorResultado), interpretacion: f.colorInterpretacion },
       },
     },
   }
@@ -158,19 +159,51 @@ export const columnasDeAnamnesis = (f) => ({
 export const estadoCorreccionDeForm = (f) => estadoCorreccionDe(ojoDeForm(f, "od"), ojoDeForm(f, "oi"))
 
 // Los antecedentes que el paciente ya tenía (de su última consulta), para precargarlos: solo se actualiza lo que cambió. Una ficha de cinco pasos devuelve sus opciones; una anterior, su texto.
+// Medicamentos frecuentes por su grupo: «Losartán» marca «Antihipertensivos». El nombre se conserva en el detalle.
+const GRUPOS_MEDICAMENTOS = {
+  Antihipertensivos: /losart|enalapril|captopril|amlodipin|valsart|telmisart|hidroclorotiazid|atenolol|metoprolol|propranolol|carvedilol|nifedipin/,
+  Antidiabéticos: /metformin|insulin|glibenclamid|glimepirid|sitagliptin|empagliflozin|dapagliflozin|linagliptin/,
+  Antihistamínicos: /loratadin|cetirizin|desloratadin|clorfenamin|fexofenadin|difenhidramin/,
+  Corticoides: /prednison|prednisolon|dexametason|betametason|hidrocortison|deflazacort/,
+  Anticonceptivos: /anticonceptiv|levonorgestrel|etinilestradiol|drospirenon/,
+}
+const sinTildes = (x) => String(x ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim()
+
+// Un texto guardado («Diabetes, Hipertensión, tipo 2») se reparte en opciones (las que coinciden con una de las listas, sin importar mayúsculas ni tildes) y detalle (lo demás).
+// Con `grupos`, un medicamento por nombre marca su grupo y además se queda en el detalle.
+export function partirTexto(texto, opciones = [], grupos = null) {
+  const chips = []
+  const resto = []
+  for (const trozo of String(texto ?? "").split(/[,;\n]/).map((x) => x.trim()).filter(Boolean)) {
+    const igual = opciones.find((o) => sinTildes(o) === sinTildes(trozo))
+    if (igual) { if (!chips.includes(igual)) chips.push(igual); continue }
+    const grupo = grupos && Object.keys(grupos).find((g) => opciones.includes(g) && grupos[g].test(sinTildes(trozo)))
+    if (grupo && !chips.includes(grupo)) chips.push(grupo)
+    resto.push(trozo)
+  }
+  return { chips, detalle: resto.join(", ") }
+}
+
+// Los antecedentes que el paciente ya tenía (de su última consulta), para precargarlos: solo se actualiza lo que cambió. Una ficha de cinco pasos devuelve sus opciones; una anterior, su texto.
+// En los dos casos, lo escrito que coincide con una opción la marca (hoy «Penicilina» queda marcada, no escrita en «Otra alergia»).
 export function anamnesisDeConsulta(prev) {
   if (!prev) return null
   const a = prev.ficha?.anamnesis
-  const base = {
-    antMedChips: [], antMedDetalle: prev.antecedentes || "", antFamChips: [], antFamDetalle: prev.antecedentesFamiliares || "",
-    alergiasChips: [], alergiasDetalle: prev.alergias || "", medChips: [], medDetalle: "",
-    usaLentes: prev.usaLentes === true || prev.usaLentes === "si" ? "si" : "", usaLentesDesde: "", tipoLentes: "",
+  const completar = (chips, detalle, opciones, grupos) => {
+    const p = partirTexto(detalle, opciones, grupos)
+    return { chips: [...new Set([...(chips || []), ...p.chips])], detalle: p.detalle }
   }
-  if (!a) return base
+  const med = completar(a?.antMedicos?.chips, a ? a.antMedicos?.detalle : prev.antecedentes, ANT_MEDICOS)
+  const fam = completar(a?.antFamiliares?.chips, a ? a.antFamiliares?.detalle : prev.antecedentesFamiliares, ANT_FAMILIARES)
+  const alerg = completar(a?.alergias?.chips, a ? a.alergias?.detalle : prev.alergias, ALERGIAS_FRECUENTES)
+  const meds = completar(a?.medicamentos?.chips, a?.medicamentos?.detalle, MEDICAMENTOS_FRECUENTES, GRUPOS_MEDICAMENTOS)
+  // «Ninguno» / «Ninguna conocida» escritos como texto también marcan su opción.
+  const ninguno = (r, palabra) => (!r.chips.length && sinTildes(r.detalle) === sinTildes(palabra) ? { chips: [palabra], detalle: "" } : r)
+  const m = ninguno(med, NINGUNO.med), f = ninguno(fam, NINGUNO.fam), al = ninguno(alerg, NINGUNO.alergias), md = ninguno(meds, NINGUNO.medicamentos)
   return {
-    antMedChips: a.antMedicos?.chips || [], antMedDetalle: a.antMedicos?.detalle || "", antFamChips: a.antFamiliares?.chips || [], antFamDetalle: a.antFamiliares?.detalle || "",
-    alergiasChips: a.alergias?.chips || [], alergiasDetalle: a.alergias?.detalle || "", medChips: a.medicamentos?.chips || [], medDetalle: a.medicamentos?.detalle || "",
-    usaLentes: a.usaLentes || base.usaLentes, usaLentesDesde: a.usaLentesDesde || "", tipoLentes: a.tipoLentes || "",
+    antMedChips: m.chips, antMedDetalle: m.detalle, antFamChips: f.chips, antFamDetalle: f.detalle,
+    alergiasChips: al.chips, alergiasDetalle: al.detalle, medChips: md.chips, medDetalle: md.detalle,
+    usaLentes: (a && a.usaLentes) || (prev.usaLentes === true || prev.usaLentes === "si" ? "si" : ""), usaLentesDesde: a?.usaLentesDesde || "", tipoLentes: a?.tipoLentes || "",
   }
 }
 export const hayAnamnesisPrevia = (a) => !!a && Boolean(a.antMedChips.length || a.antMedDetalle || a.antFamChips.length || a.antFamDetalle || a.alergiasChips.length || a.alergiasDetalle || a.medChips.length || a.medDetalle || a.usaLentes)
@@ -213,7 +246,7 @@ export function validarPasos(f) {
 export const pasoConErrores = (errs) => PASOS.map((p) => p.id).find((id) => Object.keys(errs[id] || {}).length > 0) || null
 
 // ¿Hay algo escrito en el paso de salud ocular?
-export const haySalud = (f) => Boolean(["bioOdParpados", "bioOdCornea", "bioOdCamara", "bioOiParpados", "bioOiCornea", "bioOiCamara", "fondoOd", "fondoOi", "pioOd", "pioOi", "pioHora", "pioMetodo", "colorPrueba", "colorResultado"].some((k) => t(f[k])))
+export const haySalud = (f) => Boolean(["bioOdParpados", "bioOdCornea", "bioOdCamara", "bioOiParpados", "bioOiCornea", "bioOiCamara", "fondoOd", "fondoOi", "pioOd", "pioOi", "pioHora", "pioMetodo", "colorPrueba", "colorResultado", "colorInterpretacion"].some((k) => t(f[k])))
 
 // El estado de cada paso para la barra: «Completo», «Incompleto», «Opcional» u «Omitido» (salud ocular que se dejó atrás sin llenar). `pasoMax`: el paso más lejano al que se llegó (1–5).
 export function estadoDePasos(f, pasoMax = 1) {
