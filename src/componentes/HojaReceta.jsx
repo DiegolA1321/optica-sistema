@@ -25,8 +25,9 @@ export default function HojaReceta({ optica = {}, paciente = {}, receta = {}, mo
   const ojo = (sigla, nombre, o = {}) => (
     <tr>
       <td style={{ ...celda, textAlign: "left", fontWeight: 700 }}>{sigla} <span style={{ fontWeight: 400, color: GRIS, fontSize: 12 }}>· {nombre}</span></td>
+      {receta.ojoNoEvaluado?.[sigla.toLowerCase()] ? <td colSpan={5} style={{ ...celda, textAlign: "left", color: GRIS }}>Ojo no evaluado: {receta.ojoNoEvaluado[sigla.toLowerCase()]}</td> : <>
       <td style={celda}>{dato(o.esfera)}</td><td style={celda}>{dato(o.cilindro)}</td><td style={celda}>{o.eje ? `${o.eje}°` : "—"}</td>
-      <td style={celda}>{dato(o.avSc)}</td><td style={celda}>{dato(o.avCc)}</td>
+      <td style={celda}>{dato(o.avSc)}</td><td style={celda}>{dato(o.avCc)}</td></>}
     </tr>
   )
   const medidas = [m.adicion && ["Adición", m.adicion], mostrarMedidas && m.dp && ["Distancia pupilar", m.dp], mostrarMedidas && m.alt && ["Altura de montaje", m.alt]].filter(Boolean)

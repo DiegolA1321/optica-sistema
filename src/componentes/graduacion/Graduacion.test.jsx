@@ -62,6 +62,18 @@ describe("La graduación, un solo componente con dos versiones", () => {
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("Sin datos del ojo derecho en esta receta.")
   })
 
+  it("un ojo marcado «Ojo no evaluado» dice su motivo en todas las vistas (portal, personal y receta impresa)", () => {
+    const r = receta({ oi: {}, ojoNoEvaluado: { od: "", oi: "Prótesis ocular" } })
+    const { unmount } = render(<GraduacionVigente receta={r} version="personal" />)
+    expect(screen.getByRole("region", { name: "Ojo izquierdo" })).toHaveTextContent("Ojo no evaluado: Prótesis ocular")
+    unmount()
+    const { unmount: u2 } = render(<GraduacionVigente receta={r} version="paciente" />)
+    expect(screen.getByRole("region", { name: "Ojo izquierdo" })).toHaveTextContent("Ojo no evaluado: Prótesis ocular")
+    u2()
+    render(<HojaReceta optica={{ nombre: "Óptica" }} paciente={{ nombre: "Marta" }} receta={r} />)
+    expect(document.querySelector("[data-hoja-receta]")).toHaveTextContent("Ojo no evaluado: Prótesis ocular")
+  })
+
   it("con una medida suelta (solo la DP) las medidas se muestran y lo que falta dice «No registrado»", () => {
     render(<GraduacionVigente receta={receta({ medidas: { dp: "62" } })} version="personal" />)
     expect(document.body.textContent).toContain("Distancia pupilar (DP)62")

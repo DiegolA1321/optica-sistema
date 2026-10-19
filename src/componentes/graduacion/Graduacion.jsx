@@ -19,7 +19,8 @@ const COLOR_LADO = { od: "#1d4ed8", oi: "#0891b2" }
 // Un ojo sin ninguna medida en esta receta: se dice en una sola línea, no con una cuadrícula de «No registrado».
 export const ojoSinDatos = (o = {}) => !["esfera", "cilindro", "eje", "avSc", "avCc"].some((k) => String(o?.[k] ?? "").trim() !== "")
 const NOMBRE_SIN_DATOS = { od: "ojo derecho", oi: "ojo izquierdo" }
-const sinDatosDelOjo = (lado) => `Sin datos del ${NOMBRE_SIN_DATOS[lado]} en esta receta`
+// Un ojo que el optómetra marcó «Ojo no evaluado» dice su motivo en todas las vistas; si no, simplemente no hay datos de ese ojo.
+const sinDatosDelOjo = (lado, receta) => (receta?.ojoNoEvaluado?.[lado] ? `Ojo no evaluado: ${receta.ojoNoEvaluado[lado]}` : `Sin datos del ${NOMBRE_SIN_DATOS[lado]} en esta receta`)
 
 // Toda la tarjeta del ojo se pulsa y abre «Historia de este ojo»: el botón transparente cubre la tarjeta y «Ver la historia ›» lo avisa.
 const AbrirOjo = ({ lado, onOjo, paciente }) => onOjo && (
@@ -44,7 +45,7 @@ export function GraduacionVigente({ receta, anterior = null, version = "paciente
             return (
               <section key={lado} aria-label={nombre} data-lado={lado} className={"pt-abrible relative min-w-0 self-start rounded-[20px] border border-pt-borde bg-white p-5 transition-shadow hover:shadow-md sm:px-[34px] sm:py-7 " + (lado === "od" ? "@[56rem]:order-2" : "@[56rem]:order-1")}>
                 <p className="text-lg font-semibold text-pt-marino">{nombre}</p>
-                <p className="mt-2 text-lg text-pt-texto">{sinDatosDelOjo(lado)}.</p>
+                <p className="mt-2 text-lg text-pt-texto">{sinDatosDelOjo(lado, receta)}.</p>
                 <AbrirOjo lado={lado} onOjo={onOjo} paciente />
               </section>
             )
@@ -107,7 +108,7 @@ function VigentePersonal({ receta, anterior, onOjo }) {
             return (
               <section key={lado} aria-label={nombre} data-lado={lado} className={"self-start rounded-2xl border border-slate-200/60 bg-white p-5 " + (lado === "od" ? "@[44rem]:order-2 " : "@[44rem]:order-1 ") + (onOjo ? "pt-abrible relative transition-colors hover:border-blue-300 hover:bg-blue-50/30" : "")}>
                 <p className="text-sm font-bold uppercase tracking-wide" style={{ color: COLOR_LADO[lado] }}>{sigla} · {nombre}</p>
-                <p className="mt-2 text-base text-slate-500">{sinDatosDelOjo(lado)}.</p>
+                <p className="mt-2 text-base text-slate-500">{sinDatosDelOjo(lado, receta)}.</p>
                 <AbrirOjo lado={lado} onOjo={onOjo} paciente={false} />
               </section>
             )
@@ -363,7 +364,7 @@ export function VentanaHistoriaOjo({ recetas, lado, version = "paciente", actual
         </section>
         <section aria-label="Recetas de este ojo">
           <h3 className="mb-2 text-base font-bold text-slate-900">Todas las recetas</h3>
-          {filas.length === 0 ? <p className="rounded-xl bg-slate-50 px-4 py-3 text-base text-slate-500">{sinDatosDelOjo(lado)}.</p> : (
+          {filas.length === 0 ? <p className="rounded-xl bg-slate-50 px-4 py-3 text-base text-slate-500">{sinDatosDelOjo(lado, recetas[0])}.</p> : (
             <div data-lista="historia-ojo" className="@container overflow-hidden rounded-2xl border border-slate-200/70">
               <div aria-hidden="true" className={COL + " hidden bg-slate-50 py-2 text-sm font-semibold text-slate-500"}><span>Fecha</span><span className="text-right">Esfera</span><span className="text-right">{paciente ? "Astig." : "Cilindro"}</span><span className="text-right">Eje</span><span className="text-right">AV</span></div>
               <ul className="divide-y divide-slate-100">

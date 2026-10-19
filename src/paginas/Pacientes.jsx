@@ -2624,7 +2624,7 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
   const otras = pendientes.slice(1)
   // El historial, como una tabla: Fecha | Motivo y profesional | Diagnóstico | Receta emitida (OD y OI) | Compra relacionada | Estado | flecha. Toda la fila abre el detalle de la cita.
   // En pantalla angosta las columnas se apilan, cada dato con su rótulo.
-  const COLUMNAS = "@[40rem]:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.5fr)_minmax(0,1fr)_5.75rem_1rem]"
+  const COLUMNAS = "@[40rem]:grid-cols-[6.5rem_minmax(9.5rem,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_5.5rem_1rem]"
   const celda = (rotulo, valor) => (valor ? <p className="min-w-0 text-sm leading-snug text-slate-700"><span className="font-semibold text-slate-500 @[40rem]:hidden">{rotulo}: </span>{valor}</p> : <p className="min-w-0 text-sm text-slate-400"><span className="font-semibold @[40rem]:hidden">{rotulo}: </span>—</p>)
   const filaHistorial = (c) => {
     const k = consultaDe(c)

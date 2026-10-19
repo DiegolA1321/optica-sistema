@@ -11,7 +11,7 @@ import OjoIlustrado from "./OjoIlustrado"
 const COLOR = { od: "#1d4ed8", oi: "#0891b2" }
 const NOMBRE = { od: "Ojo derecho", oi: "Ojo izquierdo" }
 
-function Ojo({ lado, o = {} }) {
+function Ojo({ lado, o = {}, noEvaluado = "" }) {
   const esfera = valorD(o.esfera)
   const cil = valorD(o.cilindro)
   const detalle = cil ? `Cil ${cil}${o.eje ? ` × ${o.eje}°` : ""}` : o.eje ? `Eje ${o.eje}°` : ""
@@ -20,7 +20,7 @@ function Ojo({ lado, o = {} }) {
       <OjoIlustrado ancho={90} className="shrink-0" />
       <span className="block min-w-0">
         <span className="block text-xs font-bold uppercase tracking-wide" style={{ color: COLOR[lado] }}>{lado === "od" ? "OD" : "OI"} · {NOMBRE[lado]}</span>
-        {esfera ? <span className="block text-3xl font-bold leading-tight tabular-nums text-slate-900">{esfera}</span> : <span className="block py-1.5 text-sm text-slate-400">Sin registrar</span>}
+        {esfera ? <span className="block text-3xl font-bold leading-tight tabular-nums text-slate-900">{esfera}</span> : <span className="block py-1.5 text-sm text-slate-400">{noEvaluado ? `No evaluado: ${noEvaluado}` : "Sin registrar"}</span>}
         {esfera && <span className="block text-xs tabular-nums text-slate-500">{detalle || "Esfera"}</span>}
       </span>
     </span>
@@ -47,8 +47,8 @@ export default function GraduacionDeCabecera({ receta, onAbrir, activa = false }
         {!activa && <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-blue-600" aria-hidden="true">Ver graduación <ChevronRight size={16} /></span>}
       </span>
       <span className="grid grid-cols-2 gap-x-6">
-        <Ojo lado="oi" o={receta.oi} />
-        <Ojo lado="od" o={receta.od} />
+        <Ojo lado="oi" o={receta.oi} noEvaluado={receta.ojoNoEvaluado?.oi} />
+        <Ojo lado="od" o={receta.od} noEvaluado={receta.ojoNoEvaluado?.od} />
       </span>
     </Raiz>
   )

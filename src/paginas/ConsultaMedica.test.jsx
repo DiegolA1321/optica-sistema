@@ -155,11 +155,33 @@ describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta",
   it("se puede pasar a Diagnóstico sin medir nada, pero un cilindro sin eje se señala", () => {
     renderFicha()
     avanzarHastaRefraccion()
+    // sin ninguna medida no hay receta: se puede seguir
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    expect(screen.getByRole("button", { name: /Terminar atención/i })).toBeInTheDocument()
+  })
 
+  it("la receta exige los dos ojos: con uno medido, el otro se mide o se marca «Ojo no evaluado» con su motivo", () => {
+    renderFicha()
+    avanzarHastaRefraccion()
+    fireEvent.change(document.getElementById("OD-esf"), { target: { value: "-1.75" } })
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    expect(screen.getByText(/Ingresa la esfera o marca «Ojo no evaluado»/i)).toBeInTheDocument()
+    // «Ojo no evaluado» pide el motivo
+    fireEvent.click(screen.getAllByRole("checkbox", { name: /Ojo no evaluado/i })[0])
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    expect(screen.getByText(/Di por qué no se evaluó este ojo/i)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/¿Por qué no se evaluó?/i), { target: { value: "Prótesis ocular" } })
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    expect(screen.getByRole("button", { name: /Terminar atención/i })).toBeInTheDocument()
+  })
+
+  it("un cilindro sin eje se señala", () => {
+    renderFicha()
+    avanzarHastaRefraccion()
     fireEvent.change(document.getElementById("OD-cil"), { target: { value: "-1.00" } })
+    fireEvent.change(document.getElementById("OI-esf"), { target: { value: "-1.00" } })
     fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
     expect(screen.getByText(/Indica el eje del cilindro/i)).toBeInTheDocument()
-
     fireEvent.change(document.getElementById("OD-eje"), { target: { value: "90" } })
     fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
     expect(screen.getByRole("button", { name: /Terminar atención/i })).toBeInTheDocument()

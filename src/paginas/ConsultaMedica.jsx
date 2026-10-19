@@ -205,6 +205,11 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const [oiEje, setOiEje] = useState("")
   const [oiAgudezaSc, setOiAgudezaSc] = useState("")
   const [oiAgudezaCc, setOiAgudezaCc] = useState("")
+  // Una receta exige los dos ojos: solo se deja uno sin medir si se marca «Ojo no evaluado» y se dice por qué (por ejemplo, una prótesis ocular).
+  const [odNoEval, setOdNoEval] = useState(false)
+  const [odMotivoNoEval, setOdMotivoNoEval] = useState("")
+  const [oiNoEval, setOiNoEval] = useState(false)
+  const [oiMotivoNoEval, setOiMotivoNoEval] = useState("")
 
   // --- Adición y Medidas ---
   const [adicion, setAdicion] = useState("")
@@ -648,6 +653,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setOiEje("")
     setOiAgudezaSc("")
     setOiAgudezaCc("")
+    setOdNoEval(false); setOdMotivoNoEval(""); setOiNoEval(false); setOiMotivoNoEval("")
     setAdicion("")
     setDp("")
     setAlt("")
@@ -731,8 +737,9 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       alergias,
       antecedentesFamiliares,
       retinoscopia: { od: retinoscopiaOd, oi: retinoscopiaOi },
-      od: { esfera: odEsfera, cilindro: odCilindro, eje: odEje, avSc: odAgudezaSc, avCc: odAgudezaCc },
-      oi: { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje, avSc: oiAgudezaSc, avCc: oiAgudezaCc },
+      od: odNoEval ? { esfera: "", cilindro: "", eje: "", avSc: "", avCc: "" } : { esfera: odEsfera, cilindro: odCilindro, eje: odEje, avSc: odAgudezaSc, avCc: odAgudezaCc },
+      oi: oiNoEval ? { esfera: "", cilindro: "", eje: "", avSc: "", avCc: "" } : { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje, avSc: oiAgudezaSc, avCc: oiAgudezaCc },
+      ojoNoEvaluado: { od: odNoEval ? odMotivoNoEval.trim() : "", oi: oiNoEval ? oiMotivoNoEval.trim() : "" },
       medidas: { adicion, dp, alt, avCerca },
       examen: {
         testMotor, coverTestLejos, coverTestCerca, oftalmoscopia, testColor, pioOd, pioOi,
@@ -793,7 +800,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
           antecedentes: nuevaFicha.antecedentes,
           alergias: nuevaFicha.alergias,
           antecedentes_familiares: nuevaFicha.antecedentesFamiliares,
-          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen, control_agenda: nuevaFicha.controlAgenda, control_asignado_a: nuevaFicha.controlAgenda ? usuario?.id || null : null },
+          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen, ojo_no_evaluado: (nuevaFicha.ojoNoEvaluado?.od || nuevaFicha.ojoNoEvaluado?.oi) ? nuevaFicha.ojoNoEvaluado : null, control_agenda: nuevaFicha.controlAgenda, control_asignado_a: nuevaFicha.controlAgenda ? usuario?.id || null : null },
           diagnostico: nuevaFicha.diagnostico,
           diagnostico_categorias: nuevaFicha.diagnosticoCategorias,
           lente_recomendado: nuevaFicha.lenteRecomendado,
@@ -943,7 +950,15 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       // Refracción: todo opcional (puede haber citas que no midan algunos
       // valores). Solo se valida lo que sí se escribió: que sea un número, el
       // rango del eje, y que un cilindro real traiga su eje.
-      for (const [pre, esf, cil, eje] of [["od", odEsfera, odCilindro, odEje], ["oi", oiEsfera, oiCilindro, oiEje]]) {
+      // La receta exige los dos ojos: si uno tiene medidas, el otro también, o se marca «Ojo no evaluado» con su motivo.
+      const medido = (esf, cil, eje) => Boolean(esf.trim() || cil.trim() || eje.trim())
+      const hayReceta = (!odNoEval && medido(odEsfera, odCilindro, odEje)) || (!oiNoEval && medido(oiEsfera, oiCilindro, oiEje))
+      for (const [pre, noEval, motivoNoEval, esf, cil, eje] of [["od", odNoEval, odMotivoNoEval, odEsfera, odCilindro, odEje], ["oi", oiNoEval, oiMotivoNoEval, oiEsfera, oiCilindro, oiEje]]) {
+        if (noEval) {
+          if (motivoNoEval.trim().length < 3) errs[`${pre}_motivo`] = "Di por qué no se evaluó este ojo."
+          continue
+        }
+        if (hayReceta && !esf.trim() && !cil.trim()) errs[`${pre}_esfera`] = "Ingresa la esfera o marca «Ojo no evaluado»"
         if (esf.trim() && !esNumero(esf)) errs[`${pre}_esfera`] = "Número no válido"
         if (cil.trim() && !esNumero(cil)) errs[`${pre}_cilindro`] = "Número no válido"
         if (eje.trim()) {
@@ -970,7 +985,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
 
   const mensajeBanner = (paso, errs = {}) => {
     if (paso === "anamnesis") return "Selecciona un paciente registrado y el motivo de la consulta (si es \"Otros\", descríbelo) antes de continuar."
-    if (paso === "refraccion") return "Revisa la refracción: lo que escribiste en esfera, cilindro y eje debe ser un número válido (el eje es obligatorio si hay cilindro)."
+    if (paso === "refraccion") return "Revisa la refracción: la receta lleva los dos ojos (o marca «Ojo no evaluado» con su motivo) y lo que escribiste en esfera, cilindro y eje debe ser un número válido (el eje es obligatorio si hay cilindro)."
     if (paso === "diagnostico" && errs.control && !errs.diagnostico && !errs.diagnosticoDetalle) return errs.control
     if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico (si es \"Otro\", descríbelo en el detalle) antes de guardar la ficha."
     return "Hay campos por completar."
@@ -1051,8 +1066,9 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     paciente: { nombre: pacienteSeleccionado, cedula: pacienteInfo?.cedula, edad: edadPaciente },
     receta: {
       id: consultaGuardadaId || recetaNum.split("-").pop().toLowerCase(), fecha: fechaConsulta,
-      od: { esfera: odEsfera, cilindro: odCilindro, eje: odEje, avSc: odAgudezaSc, avCc: odAgudezaCc },
-      oi: { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje, avSc: oiAgudezaSc, avCc: oiAgudezaCc },
+      od: odNoEval ? {} : { esfera: odEsfera, cilindro: odCilindro, eje: odEje, avSc: odAgudezaSc, avCc: odAgudezaCc },
+      oi: oiNoEval ? {} : { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje, avSc: oiAgudezaSc, avCc: oiAgudezaCc },
+      ojoNoEvaluado: { od: odNoEval ? odMotivoNoEval.trim() : "", oi: oiNoEval ? oiMotivoNoEval.trim() : "" },
       medidas: { adicion, dp, alt },
       diagnosticoCategorias, diagnostico, lenteRecomendado: recomendarLente ? lenteRecomendado : "", indicaciones,
       profesionalNombre: usuario?.nombre, profesionalRegistro: usuario?.registroProfesional,
@@ -1643,8 +1659,8 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                     </button>
                   )}
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <OjoCard sigla="OD" titulo="Ojo derecho" esfera={odEsfera} setEsfera={setOdEsfera} cilindro={odCilindro} setCilindro={setOdCilindro} eje={odEje} setEje={setOdEje} avSc={odAgudezaSc} setAvSc={setOdAgudezaSc} avCc={odAgudezaCc} setAvCc={setOdAgudezaCc} errores={errores} limpiarError={limpiarError} />
-                    <OjoCard sigla="OI" titulo="Ojo izquierdo" esfera={oiEsfera} setEsfera={setOiEsfera} cilindro={oiCilindro} setCilindro={setOiCilindro} eje={oiEje} setEje={setOiEje} avSc={oiAgudezaSc} setAvSc={setOiAgudezaSc} avCc={oiAgudezaCc} setAvCc={setOiAgudezaCc} errores={errores} limpiarError={limpiarError} />
+                    <OjoCard sigla="OI" titulo="Ojo izquierdo" noEvaluado={oiNoEval} setNoEvaluado={setOiNoEval} motivoNoEval={oiMotivoNoEval} setMotivoNoEval={setOiMotivoNoEval} esfera={oiEsfera} setEsfera={setOiEsfera} cilindro={oiCilindro} setCilindro={setOiCilindro} eje={oiEje} setEje={setOiEje} avSc={oiAgudezaSc} setAvSc={setOiAgudezaSc} avCc={oiAgudezaCc} setAvCc={setOiAgudezaCc} errores={errores} limpiarError={limpiarError} />
+                    <OjoCard sigla="OD" titulo="Ojo derecho" noEvaluado={odNoEval} setNoEvaluado={setOdNoEval} motivoNoEval={odMotivoNoEval} setMotivoNoEval={setOdMotivoNoEval} esfera={odEsfera} setEsfera={setOdEsfera} cilindro={odCilindro} setCilindro={setOdCilindro} eje={odEje} setEje={setOdEje} avSc={odAgudezaSc} setAvSc={setOdAgudezaSc} avCc={odAgudezaCc} setAvCc={setOdAgudezaCc} errores={errores} limpiarError={limpiarError} />
                   </div>
                   {estadoCorreccionActual !== "Sin evaluar" && (
                     <div><ChipCorreccion correccion={estadoCorreccionActual} /></div>
@@ -2352,7 +2368,7 @@ function ChipCorreccion({ correccion }) {
   )
 }
 
-function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje, setEje, avSc, setAvSc, avCc, setAvCc, errores = {}, limpiarError }) {
+function OjoCard({ sigla, titulo, noEvaluado = false, setNoEvaluado, motivoNoEval = "", setMotivoNoEval, esfera, setEsfera, cilindro, setCilindro, eje, setEje, avSc, setAvSc, avCc, setAvCc, errores = {}, limpiarError }) {
   const color = sigla === "OD" ? "#2563EB" : "#06b6d4"
   const pre = sigla.toLowerCase()
   return (
@@ -2363,6 +2379,19 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
         </span>
         <h3 className="text-sm font-bold" style={{ color }}>{titulo}</h3>
       </div>
+      {setNoEvaluado && (
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
+          <input type="checkbox" checked={noEvaluado} onChange={(e) => { setNoEvaluado(e.target.checked); limpiarError?.(`${pre}_motivo`); limpiarError?.(`${pre}_esfera`) }} className="h-4 w-4 accent-blue-600" /> Ojo no evaluado
+        </label>
+      )}
+      {noEvaluado ? (
+        <div>
+          <label htmlFor={`${sigla}-motivo-no-eval`} className="mb-0.5 block text-xs font-semibold text-slate-500">¿Por qué no se evaluó?</label>
+          <input id={`${sigla}-motivo-no-eval`} value={motivoNoEval} maxLength={120} onChange={(e) => { setMotivoNoEval(e.target.value); limpiarError?.(`${pre}_motivo`) }} placeholder="Por ejemplo: prótesis ocular" aria-invalid={Boolean(errores[`${pre}_motivo`])}
+            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 outline-none focus-visible:border-blue-500" />
+          {errores[`${pre}_motivo`] && <p role="alert" className="mt-1 text-xs font-medium text-red-600">{errores[`${pre}_motivo`]}</p>}
+        </div>
+      ) : (<>
       <div className="grid grid-cols-3 gap-2">
         <NumCampo label="Esfera" value={esfera} onChange={(v) => { setEsfera(v); limpiarError?.(`${pre}_esfera`) }} id={`${sigla}-esf`} error={errores[`${pre}_esfera`]} placeholder="0.00" />
         <NumCampo label="Cilindro" value={cilindro} onChange={(v) => { setCilindro(v); limpiarError?.(`${pre}_cilindro`); limpiarError?.(`${pre}_eje`) }} id={`${sigla}-cil`} error={errores[`${pre}_cilindro`]} placeholder="0.00" />
@@ -2384,6 +2413,7 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
           </select>
         </div>
       </div>
+      </>)}
     </div>
   )
 }
