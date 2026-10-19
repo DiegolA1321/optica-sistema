@@ -47,12 +47,18 @@ for (const rol of ['ADMIN', 'OPTOMETRA', 'RECEPCION', 'VENTAS']) {
     await expect(od).toContainText('OD · Ojo derecho')
     for (const t of ['Esfera', 'Cilindro', 'Eje', 'AV sin lentes', 'AV con lentes']) await expect(od).toContainText(t)
     await expect(page.getByLabel('Medidas de la receta')).toContainText('Distancia pupilar (DP)')
-    await expect(page.getByRole('region', { name: 'Cambio desde la consulta anterior' })).toBeVisible()
-    await expect(page.getByText('Tendencia de graduación medida')).toBeVisible()
+    // sin «Cambio» ni «Tendencia»: los cubren «Comparar dos recetas» y la historia de cada ojo
+    await expect(page.getByRole('region', { name: 'Cambio desde la consulta anterior' })).toHaveCount(0)
+    await expect(page.getByText('Tendencia de graduación medida')).toHaveCount(0)
     await expect(page.getByRole('region', { name: 'Indicaciones' })).toBeVisible()
-    // el OD a la izquierda del OI en la vista técnica
+    // el ojo izquierdo a la izquierda y el derecho a la derecha, también en la vista técnica
     const x = async (n) => (await page.getByRole('region', { name: n }).boundingBox()).x
-    expect(await x('Ojo derecho')).toBeLessThan(await x('Ojo izquierdo'))
+    expect(await x('Ojo izquierdo')).toBeLessThan(await x('Ojo derecho'))
+    // toda la tarjeta del ojo abre «Historia de este ojo» (también su centro, no solo el enlace)
+    const caja = await od.boundingBox()
+    await od.click({ position: { x: caja.width / 2, y: caja.height / 2 } })
+    await expect(page.getByRole('dialog', { name: /Historia de este ojo/ })).toBeVisible()
+    await page.keyboard.press('Escape')
     // el selector cambia toda la vista
     await page.getByRole('button', { name: /Elegir otra receta/ }).click()
     await page.getByRole('option', { name: /21 de noviembre de 2025/ }).click()

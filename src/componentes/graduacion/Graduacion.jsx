@@ -55,7 +55,7 @@ export function GraduacionVigente({ receta, anterior = null, version = "paciente
             ...(l.agudeza ? [[l.conLentes ? "Cómo ves con tus lentes" : "Cómo ves sin lentes", l.agudeza, l.explicaAgudeza]] : []),
           ]
           return (
-            <section key={lado} aria-label={nombre} data-lado={lado} className={"@container min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[34px] sm:py-7 " + (onOjo ? "pt-abrible relative transition-shadow hover:shadow-md " : "") + (lado === "od" ? "@[56rem]:order-2" : "@[56rem]:order-1")}>
+            <section key={lado} aria-label={nombre} data-lado={lado} className={"@container min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[34px] sm:py-7 " + (onOjo ? "pt-abrible relative transition-colors hover:border-pt-azul hover:bg-pt-fondo/60 " : "") + (lado === "od" ? "@[56rem]:order-2" : "@[56rem]:order-1")}>
               <div className="grid items-center gap-x-8 gap-y-4 @[24rem]:grid-cols-[auto_minmax(0,1fr)]">
                 <div className="flex flex-col items-center text-center">
                   <OjoIlustrado ancho={150} />
@@ -105,7 +105,7 @@ function VigentePersonal({ receta, anterior, onOjo }) {
           const delta = v == null ? "" : Math.abs(v) < 0.25 ? `Sin cambios desde ${desde}` : `${textoDelta(v)} desde ${desde}`
           if (ojoSinDatos(o)) {
             return (
-              <section key={lado} aria-label={nombre} data-lado={lado} className={"self-start rounded-2xl border border-slate-200/60 bg-white p-5 " + (onOjo ? "pt-abrible relative transition-shadow hover:shadow-md" : "")}>
+              <section key={lado} aria-label={nombre} data-lado={lado} className={"self-start rounded-2xl border border-slate-200/60 bg-white p-5 " + (lado === "od" ? "@[44rem]:order-2 " : "@[44rem]:order-1 ") + (onOjo ? "pt-abrible relative transition-colors hover:border-blue-300 hover:bg-blue-50/30" : "")}>
                 <p className="text-sm font-bold uppercase tracking-wide" style={{ color: COLOR_LADO[lado] }}>{sigla} · {nombre}</p>
                 <p className="mt-2 text-base text-slate-500">{sinDatosDelOjo(lado)}.</p>
                 <AbrirOjo lado={lado} onOjo={onOjo} paciente={false} />
@@ -113,7 +113,7 @@ function VigentePersonal({ receta, anterior, onOjo }) {
             )
           }
           return (
-            <section key={lado} aria-label={nombre} data-lado={lado} className={"@container rounded-2xl border border-slate-200/60 bg-white p-5 " + (onOjo ? "pt-abrible relative transition-shadow hover:shadow-md" : "")}>
+            <section key={lado} aria-label={nombre} data-lado={lado} className={"@container rounded-2xl border border-slate-200/60 bg-white p-5 " + (lado === "od" ? "@[44rem]:order-2 " : "@[44rem]:order-1 ") + (onOjo ? "pt-abrible relative transition-colors hover:border-blue-300 hover:bg-blue-50/30" : "")}>
               <div className="flex items-start gap-5">
                 <OjoIlustrado ancho={150} className="shrink-0" />
                 <div className="min-w-0">
@@ -275,7 +275,7 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
   const boton = portal
     ? "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-[1.5px] border-slate-300/80 bg-white px-5 text-base font-semibold leading-snug text-pt-marino transition-colors hover:bg-slate-50 cursor-pointer"
     : "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
-  const cambio = anterior && <CambioGraduacion consultas={[receta, anterior]} version={v} onElegir={() => setComparando(true)} />
+  const cambio = portal && anterior && <CambioGraduacion consultas={[receta, anterior]} version={v} onElegir={() => setComparando(true)} />
   const bloqueIndicaciones = indicaciones.length > 0 && (
     <section aria-label={paciente ? "Lo que te indicó tu optómetra" : "Indicaciones"} className={"min-w-0 " + (paciente ? "rounded-[20px] border border-pt-borde bg-white p-5 sm:p-6" : "rounded-2xl border border-slate-200/60 bg-white p-4")}>
       <h3 className={paciente ? "font-heading text-xl font-bold text-pt-marino" : "text-sm font-bold text-slate-900"}>{paciente ? "Lo que te indicó tu optómetra" : "Indicaciones"}</h3>
@@ -304,7 +304,7 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
 
       <GraduacionVigente receta={receta} anterior={anterior} version={v} onOjo={setHistoriaOjo} />
 
-      {grafica ? (
+      {portal && grafica ? (
         <>
           {/* El perfil del personal: el antes → ahora y la gráfica lado a lado, las indicaciones debajo */}
           <div className={"grid items-stretch gap-5 sm:gap-6 " + (cambio ? "@[56rem]:grid-cols-2" : "")}>
@@ -427,7 +427,7 @@ export function VentanaComparar({ recetas, version = "paciente", idA: inicialA, 
             <p role="status" className="flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-3 text-base text-slate-800"><Info size={20} className="shrink-0 text-blue-600" aria-hidden="true" />{cmp.cambios === 0 ? "Las dos recetas tienen los mismos valores." : `Cambiaron ${cmp.cambios} ${cmp.cambios === 1 ? "valor" : "valores"}: están marcados en ámbar.`}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {LADOS.map(([lado, nombre, sigla]) => (
-                <section key={lado} aria-label={nombre} className="min-w-0 rounded-2xl border border-slate-200/60">
+                <section key={lado} aria-label={nombre} className={"min-w-0 rounded-2xl border border-slate-200/60 " + (lado === "od" ? "sm:order-2" : "sm:order-1")}>
                   <h3 className="border-b border-slate-100 px-4 py-2.5 text-base font-bold" style={{ color: COLOR_LADO[lado] }}>{paciente ? nombre : `${sigla} · ${nombre}`}</h3>
                   <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 px-4 pb-2 pt-2 text-base font-semibold text-slate-500"><span /><span className="min-w-[4.5rem] text-right">{formatoFecha(cmp.antes.fecha, "medioSinAnio")} {String(cmp.antes.fecha).slice(2, 4)}</span><span className="min-w-[4.5rem] text-right">{formatoFecha(cmp.ahora.fecha, "medioSinAnio")} {String(cmp.ahora.fecha).slice(2, 4)}</span></div>
                   <ul>
@@ -473,8 +473,8 @@ function TablaReceta({ receta, version }) {
     <div role="table" aria-label={paciente ? "Tu receta" : "Receta"} className="overflow-hidden rounded-2xl border border-slate-200/70">
       <div role="row" className="grid grid-cols-[minmax(5.5rem,0.9fr)_1fr_1fr] items-end gap-2 bg-slate-50 px-4 py-3 sm:px-5">
         <span role="columnheader"><span className="sr-only">Dato</span></span>
-        <span role="columnheader" className={T.cab + " text-blue-700"}>{paciente ? "Ojo derecho" : "OD"}</span>
         <span role="columnheader" className={T.cab + " text-cyan-700"}>{paciente ? "Ojo izquierdo" : "OI"}</span>
+        <span role="columnheader" className={T.cab + " text-blue-700"}>{paciente ? "Ojo derecho" : "OD"}</span>
       </div>
       {filas.map(([clave, etiqueta, od, oi]) => (
         <div key={clave} role="row" className="border-t border-slate-200/70">
@@ -484,7 +484,7 @@ function TablaReceta({ receta, version }) {
             <span role="rowheader" className={"flex items-center gap-1.5 " + T.rotulo}>{etiqueta}{paciente && <Info size={18} className="shrink-0 text-slate-400" aria-hidden="true" />}</span>
             {clave === "adicion"
               ? <span role="cell" className={"col-span-2 " + T.valor}>{od}</span>
-              : <><span role="cell" className={T.valor}>{od || (paciente ? "—" : <NoRegistrado />)}</span><span role="cell" className={T.valor}>{oi || (paciente ? "—" : <NoRegistrado />)}</span></>}
+              : <><span role="cell" className={T.valor}>{oi || (paciente ? "—" : <NoRegistrado />)}</span><span role="cell" className={T.valor}>{od || (paciente ? "—" : <NoRegistrado />)}</span></>}
           </button>
           {paciente && abierta === clave && <p role="note" className="bg-pt-fondo px-4 py-3 text-lg text-slate-700 sm:px-5">{AYUDA_RECETA[clave]}</p>}
         </div>

@@ -13,7 +13,7 @@ import { VistaGraduacion } from "./Graduacion"
 // esfera, cilindro, eje, adición, agudeza visual con y sin lentes y distancia pupilar; «No registrado» donde falta un dato), el selector de receta arriba (cambia toda la vista), el antes → ahora,
 // la gráfica de tendencia (`tendencia({ onElegir, fechaActiva })`: la de siempre, siempre dibujada y con sus puntos pulsables), las indicaciones y «Comparar dos recetas». «Explicar al paciente» cambia la vista a la de palabras simples del portal y
 // «Imprimir receta» imprime la hoja única (`HojaReceta`). El perfil solo ofrece la pestaña a quien tiene permiso de Ficha clínica «ver».
-export default function GraduacionPerfil({ consultas = [], paciente, usuario, tendencia = null }) {
+export default function GraduacionPerfil({ consultas = [], paciente, usuario }) {
   const recetas = useMemo(() => recetasDe([...consultas].sort(ordenarPorFechaYCreacion)), [consultas])
   if (recetas.length === 0) {
     return (
@@ -32,7 +32,6 @@ export default function GraduacionPerfil({ consultas = [], paciente, usuario, te
   const subtitulo = (r) => [r.id === recetas[0].id ? `Vigente desde el ${formatoFecha(r.fecha, "largoSinDia")}` : `Receta del ${formatoFecha(r.fecha, "largoSinDia")}`, r.profesionalNombre, r.lenteRecomendado && `Lente recomendado: ${r.lenteRecomendado}`].filter(Boolean).join(" · ")
   return (
     <VistaGraduacion recetas={recetas} version="personal" titulo="Graduación" subtitulo={subtitulo} explicable
-      accion={{ texto: "Imprimir receta", Icono: Printer, onClick: imprimir }}
-      grafica={tendencia} />
+      accion={{ texto: "Imprimir receta", Icono: Printer, onClick: imprimir }} />
   )
 }

@@ -82,15 +82,14 @@ describe("La graduación, un solo componente con dos versiones", () => {
     expect(screen.getByRole("button", { name: /Elegir otra receta/ })).not.toHaveTextContent("vigente")
   })
 
-  it("la posición de los ojos: en el paciente el derecho va a la derecha; en el personal el OD va a la izquierda", () => {
+  it("la posición de los ojos: en el paciente el derecho va a la derecha; en el personal también: ojo izquierdo a la izquierda y derecho a la derecha", () => {
     const { unmount } = render(<GraduacionVigente receta={receta()} version="paciente" />)
     expect(screen.getByRole("region", { name: "Ojo derecho" }).className).toMatch(/order-2/)
     expect(screen.getByRole("region", { name: "Ojo izquierdo" }).className).toMatch(/order-1/)
     unmount()
     render(<GraduacionVigente receta={receta()} version="personal" />)
-    const orden = [...document.querySelectorAll("[data-lado]")].map((e) => e.getAttribute("data-lado"))
-    expect(orden).toEqual(["od", "oi"])
-    expect(document.querySelector("[data-lado]").className).not.toMatch(/(^|s)(@[[^]]+]:)?order-d/)
+    expect(screen.getByRole("region", { name: "Ojo derecho" }).className).toMatch(/order-2/)
+    expect(screen.getByRole("region", { name: "Ojo izquierdo" }).className).toMatch(/order-1/)
   })
 
   it("el antes → ahora dice lo mismo en las dos versiones: la misma cuenta, con palabras distintas", () => {
@@ -158,21 +157,16 @@ describe("La vista completa de una receta (selector, antes → ahora, indicacion
 describe("La pestaña «Graduación» del perfil del personal", () => {
   const props = { consultas: [anterior, receta()], paciente: { nombre: "Marta Zambrano", cedula: "0934070830" }, usuario: { opticaNombre: "Óptica Solna Vision" } }
 
-  it("es la misma vista del portal, en versión técnica, con la tendencia, comparar, imprimir y «Explicar al paciente»", () => {
-    render(<GraduacionPerfil {...props} tendencia={({ onElegir, fechaActiva }) => <button type="button" onClick={() => onElegir("2025-11-21")}>Tendencia existente {fechaActiva}</button>} />)
+  it("es la misma vista del portal, en versión técnica, con comparar, imprimir y «Explicar al paciente» (sin «Cambio» ni «Tendencia»: los cubren comparar y la historia de cada ojo)", () => {
+    render(<GraduacionPerfil {...props} />)
     expect(screen.getByRole("heading", { name: "Graduación" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("Receta del 20 de abril de 2026 · vigente")
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("OD · Ojo derecho")
-    expect(screen.getByRole("region", { name: "Cambio desde la consulta anterior" })).toBeInTheDocument()
-    expect(screen.getByRole("region", { name: "Tendencia de graduación" })).toHaveTextContent("Tendencia existente 2026-04-20")
-    // las filas del antes → ahora abren la comparación de esas dos recetas; los puntos de la tendencia abren esa receta
-    fireEvent.click(screen.getByRole("button", { name: /Comparar las dos recetas .*Ojo derecho/ }))
+    expect(screen.queryByRole("region", { name: "Cambio desde la consulta anterior" })).not.toBeInTheDocument()
+    expect(screen.queryByText("Tendencia de graduación medida")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Comparar dos recetas" }))
     expect(screen.getByRole("dialog", { name: "Comparar dos recetas" })).toBeInTheDocument()
     fireEvent.keyDown(document, { key: "Escape" })
-    fireEvent.click(screen.getByRole("button", { name: /Tendencia existente/ }))
-    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("Receta del 21 de noviembre de 2025")
-    fireEvent.click(screen.getByRole("button", { name: /Elegir otra receta/ }))
-    fireEvent.click(screen.getByRole("option", { name: /20 de abril de 2026/ }))
     expect(screen.getByRole("region", { name: "Indicaciones" })).toHaveTextContent("Usa tus lentes todo el día.")
     expect(screen.getByRole("button", { name: "Comparar dos recetas" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Imprimir receta" })).toBeInTheDocument()
@@ -180,7 +174,6 @@ describe("La pestaña «Graduación» del perfil del personal", () => {
     // «Explicar al paciente» cambia la vista a la de palabras simples del portal, y vuelve
     fireEvent.click(screen.getByRole("button", { name: "Explicar al paciente" }))
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("Tienes miopía leve")
-    expect(screen.getByRole("region", { name: "Cómo cambió desde tu examen anterior" })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Volver a la vista técnica" }))
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("OD · Ojo derecho")
   })

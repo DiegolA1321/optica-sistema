@@ -16,7 +16,7 @@ function Ojo({ lado, o = {} }) {
   const cil = valorD(o.cilindro)
   const detalle = cil ? `Cil ${cil}${o.eje ? ` × ${o.eje}°` : ""}` : o.eje ? `Eje ${o.eje}°` : ""
   return (
-    <span className="flex min-w-0 items-center gap-3">
+    <span className="flex min-w-0 flex-col items-center gap-1 text-center">
       <OjoIlustrado ancho={90} className="shrink-0" />
       <span className="block min-w-0">
         <span className="block text-xs font-bold uppercase tracking-wide" style={{ color: COLOR[lado] }}>{lado === "od" ? "OD" : "OI"} · {NOMBRE[lado]}</span>
@@ -46,9 +46,9 @@ export default function GraduacionDeCabecera({ receta, onAbrir, activa = false }
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Graduación vigente · receta del {formatoFecha(receta.fecha, "medio")}</span>
         {!activa && <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-blue-600" aria-hidden="true">Ver graduación <ChevronRight size={16} /></span>}
       </span>
-      <span className="grid gap-x-6 gap-y-3 @[34rem]:grid-cols-2">
-        <Ojo lado="od" o={receta.od} />
+      <span className="grid grid-cols-2 gap-x-6">
         <Ojo lado="oi" o={receta.oi} />
+        <Ojo lado="od" o={receta.od} />
       </span>
     </Raiz>
   )

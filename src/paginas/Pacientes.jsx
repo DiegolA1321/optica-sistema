@@ -72,7 +72,6 @@ import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, 
 import { minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
-import TendenciaGraduacion from "../componentes/TendenciaGraduacion"
 import GraduacionPerfil from "../componentes/graduacion/GraduacionPerfil"
 import GraduacionDeCabecera from "../componentes/graduacion/GraduacionDeCabecera"
 import { resultadoDeCita } from "../utilidades/resultadoDeCita"
@@ -2170,7 +2169,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         fidelidad={{ puntaje: puntajeFidelidad, consultas: totalConsultasFidelizacion, referidos: referidosPorEste, frecuente, referidoPor: pacienteHistorial.referidoPor, diasCumple, edad: edadPaciente, onCrm: () => setVista?.("crm") }}
                       />
                     ) : tabHistorial === "graduacion" && puedeVerFichas ? (
-                      <GraduacionPerfil consultas={consultasPaciente} paciente={pacienteHistorial} usuario={usuario} tendencia={(grafica) => <TendenciaDelPaciente consultas={consultasPaciente} {...grafica} />} />
+                      <GraduacionPerfil consultas={consultasPaciente} paciente={pacienteHistorial} usuario={usuario} />
                     ) : tabHistorial === "citas" ? (
                       <div className="space-y-4">
                         <PanelCitasPaciente
@@ -2826,25 +2825,6 @@ function Cuadro({ clave, abierto, alternar, className = "", style, children }) {
       {children}
       <ChevronRight size={14} aria-hidden="true" className="absolute right-3 top-3 text-slate-400 transition-colors group-hover:text-slate-600" />
     </button>
-  )
-}
-
-// La gráfica de tendencia de la graduación medida (con su etiqueta): va dentro de la pestaña «Graduación».
-function TendenciaDelPaciente({ consultas, onElegir, fechaActiva }) {
-  const info = tendenciaEntreConsultas(consultas)
-  const t = TENDENCIA[info?.verdicto]
-  return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <h3 className="text-sm font-bold" style={{ color: INK }}>Tendencia de graduación medida</h3>
-        {t && (
-          <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: "#f1f5f9", color: t.fg }}>
-            <t.icon size={12} /> {t.label}
-          </span>
-        )}
-      </div>
-      <TendenciaGraduacion consultas={[...consultas].reverse()} onElegir={onElegir} fechaActiva={fechaActiva} siempreGrafico />
-    </div>
   )
 }
 
