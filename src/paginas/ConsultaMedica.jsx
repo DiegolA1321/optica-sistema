@@ -61,6 +61,7 @@ import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
 import HojaReceta from "../componentes/HojaReceta"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
+import { claveBorrador, guardarBorrador, leerBorrador, borrarBorrador, textoGuardado } from "../utilidades/borradorFicha"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -134,6 +135,10 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const [busquedaPaciente, setBusquedaPaciente] = useState("")
   const [mostrarDropdown, setMostrarDropdown] = useState(false)
   const dropdownRef = useRef(null)
+  const clave = claveBorrador(usuario?.id, pacienteId, citaEnAtencionId)
+  const [guardadoEn, setGuardadoEn] = useState(null)
+  const [borradorPendiente, setBorradorPendiente] = useState(null)
+  const [ahoraTexto, setAhoraTexto] = useState(() => Date.now())
 
   const pacientesFiltrados = useMemo(() => {
     if (!busquedaPaciente.trim()) return pacientesLista
@@ -349,6 +354,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     }
     setCitas?.((prev) => prev.map((c) => (c.id === citaEnAtencionId ? { ...c, ...(cambios.estado ? { estado: cambios.estado } : {}), ...("atendido_por" in cambios ? { atendidoPor: null } : {}) } : c)))
     registrarLog(usuario, "consultas", "Dejó de atender a un paciente", pacienteSeleccionado)
+    borrarBorrador(clave)
     onCambiosSinGuardarChange?.(false)
     onAviso?.(`Dejaste de atender a ${pacienteSeleccionado}. La cita sigue agendada.`)
     setDejandoDeAtender(false)
@@ -405,7 +411,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   }, [
     motivo, detalleConsulta, usaLentes, antecedentes, alergias, antecedentesFamiliares,
     retinoscopiaOd, retinoscopiaOi, odEsfera, odCilindro, odEje, odAgudezaSc, odAgudezaCc,
-    oiEsfera, oiCilindro, oiEje, oiAgudezaSc, oiAgudezaCc, adicion, dp, alt, avCerca,
+    oiEsfera, oiCilindro, oiEje, oiAgudezaSc, oiAgudezaCc, odNoEval, odMotivoNoEval, oiNoEval, oiMotivoNoEval, adicion, dp, alt, avCerca,
     testMotor, coverTestLejos, coverTestCerca, oftalmoscopia, testColor, pioOd, pioOi,
     biomicroParpados, biomicroCornea, biomicroCamara, diagnosticoCategorias, diagnostico,
     recomendarLente, lenteRecomendado, indicaciones, proximoControlDias, controlModo, controlFecha, controlHora, tratamientoFinalizado, archivosImagenes,
@@ -685,6 +691,8 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setErrores({})
     setBannerError("")
     setFichaGuardada(false)
+    borrarBorrador(clave)
+    setGuardadoEn(null)
     setSubTab("anamnesis")
     setSeccionesAbiertas({ antecedentesPaciente: true, refraccionSubjetiva: true })
     setEditandoMotivo(false)
@@ -925,6 +933,8 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setTimeout(() => setNotificacion(false), 3500)
     setFichaGuardada(true)
     setHayCambiosSinGuardar(false)
+    borrarBorrador(clave)
+    setGuardadoEn(null)
     setSubTab("diagnostico")
     // La atención terminó: la receta queda lista y el paciente se pasa a la óptica
     // (o se cobra ahí mismo) desde el bloque de "Atención terminada".
@@ -1126,6 +1136,52 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
 
   const fechaLarga = useMemo(() => formatoFecha(fechaConsulta, "largoSinDia") || fechaConsulta, [fechaConsulta])
 
+  // ─── Guardado automático del borrador (borradorFicha.js) ───
+  // Mientras se escribe, la ficha se guarda sola como borrador en este navegador; al volver a abrir al mismo paciente y la misma cita se ofrece recuperarla.
+  const campos = {
+    fechaConsulta: [fechaConsulta, setFechaConsulta], motivo: [motivo, setMotivo], detalleConsulta: [detalleConsulta, setDetalleConsulta], usaLentes: [usaLentes, setUsaLentes], antecedentes: [antecedentes, setAntecedentes],
+    alergias: [alergias, setAlergias], antecedentesFamiliares: [antecedentesFamiliares, setAntecedentesFamiliares], retinoscopiaOd: [retinoscopiaOd, setRetinoscopiaOd], retinoscopiaOi: [retinoscopiaOi, setRetinoscopiaOi],
+    odEsfera: [odEsfera, setOdEsfera], odCilindro: [odCilindro, setOdCilindro], odEje: [odEje, setOdEje], odAgudezaSc: [odAgudezaSc, setOdAgudezaSc], odAgudezaCc: [odAgudezaCc, setOdAgudezaCc],
+    oiEsfera: [oiEsfera, setOiEsfera], oiCilindro: [oiCilindro, setOiCilindro], oiEje: [oiEje, setOiEje], oiAgudezaSc: [oiAgudezaSc, setOiAgudezaSc], oiAgudezaCc: [oiAgudezaCc, setOiAgudezaCc],
+    odNoEval: [odNoEval, setOdNoEval], odMotivoNoEval: [odMotivoNoEval, setOdMotivoNoEval], oiNoEval: [oiNoEval, setOiNoEval], oiMotivoNoEval: [oiMotivoNoEval, setOiMotivoNoEval],
+    adicion: [adicion, setAdicion], dp: [dp, setDp], alt: [alt, setAlt], avCerca: [avCerca, setAvCerca], testMotor: [testMotor, setTestMotor], coverTestLejos: [coverTestLejos, setCoverTestLejos], coverTestCerca: [coverTestCerca, setCoverTestCerca],
+    oftalmoscopia: [oftalmoscopia, setOftalmoscopia], testColor: [testColor, setTestColor], pioOd: [pioOd, setPioOd], pioOi: [pioOi, setPioOi],
+    biomicroParpados: [biomicroParpados, setBiomicroParpados], biomicroCornea: [biomicroCornea, setBiomicroCornea], biomicroCamara: [biomicroCamara, setBiomicroCamara],
+    diagnosticoCategorias: [diagnosticoCategorias, setDiagnosticoCategorias], diagnostico: [diagnostico, setDiagnostico], recomendarLente: [recomendarLente, setRecomendarLente], lenteRecomendado: [lenteRecomendado, setLenteRecomendado],
+    indicaciones: [indicaciones, setIndicaciones], proximoControlDias: [proximoControlDias, setProximoControlDias], controlModo: [controlModo, setControlModo], controlFecha: [controlFecha, setControlFecha], controlHora: [controlHora, setControlHora],
+    tratamientoFinalizado: [tratamientoFinalizado, setTratamientoFinalizado],
+  }
+  const instantanea = JSON.stringify(Object.fromEntries(Object.entries(campos).map(([k, [v]]) => [k, v])))
+  useEffect(() => {
+    if (!clave || fichaGuardada || !hayCambiosSinGuardar) return undefined
+    const t = setTimeout(() => { if (guardarBorrador(clave, JSON.parse(instantanea))) setGuardadoEn(Date.now()) }, 1200)
+    return () => clearTimeout(t)
+  }, [clave, instantanea, hayCambiosSinGuardar, fichaGuardada])
+  const clavesRevisadas = useRef(new Set())
+  useEffect(() => {
+    if (!clave || fichaGuardada || clavesRevisadas.current.has(clave)) return
+    clavesRevisadas.current.add(clave)
+    const b = leerBorrador(clave)
+    setBorradorPendiente(b ? { ...b, clave } : null)
+    setGuardadoEn(null)
+  }, [clave, fichaGuardada])
+  useEffect(() => {
+    if (!guardadoEn) return undefined
+    const i = setInterval(() => setAhoraTexto(Date.now()), 5000)
+    return () => clearInterval(i)
+  }, [guardadoEn])
+  const recuperarBorrador = () => {
+    if (!borradorPendiente) return
+    detectarCambios.current = false
+    for (const [k, [, poner]] of Object.entries(campos)) if (k in borradorPendiente.datos) poner(borradorPendiente.datos[k])
+    setGuardadoEn(borradorPendiente.guardadoEn)
+    setBorradorPendiente(null)
+    setHayCambiosSinGuardar(true)
+    setTimeout(() => { detectarCambios.current = true }, 400)
+    onAviso?.("Recuperaste la ficha que tenías a medias.")
+  }
+  const descartarBorrador = () => { borrarBorrador(borradorPendiente?.clave); setBorradorPendiente(null) }
+
   return (
     <div className="w-full space-y-6 text-left">
       {/* Estilos para impresión limpia de la receta */}
@@ -1182,6 +1238,17 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
         </div>
       </div>
 
+      {borradorPendiente && !fichaGuardada && (
+        <div role="status" className="no-print flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-slate-800">
+          <History size={18} className="shrink-0 text-blue-600" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-sm"><span className="font-semibold">Hay una ficha a medias de este paciente</span> · {textoGuardado(borradorPendiente.guardadoEn).replace("Guardado", "guardada")}. ¿La recuperas?</p>
+          <div className="flex shrink-0 gap-2">
+            <button type="button" onClick={recuperarBorrador} className="rounded-lg px-4 py-2 text-sm font-semibold text-white cursor-pointer" style={{ background: GRAD }}>Recuperar</button>
+            <button type="button" onClick={descartarBorrador} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Empezar de cero</button>
+          </div>
+        </div>
+      )}
+
       {/* ─── ÉXITO ─── */}
       {notificacion && (
         <div role="status" className="no-print flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900 shadow-sm">
@@ -1193,7 +1260,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="w-full">
         {/* ─── IDENTIDAD DEL PACIENTE (fija al hacer scroll) ─── Antes el
             nombre solo aparecía en el buscador del paso 1 y en el resumen
             del paso 3 — al completar un formulario largo (Refracción tiene
@@ -1490,7 +1557,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                     <input
                       id="paciente"
                       type="text"
-                      placeholder="Escriba para filtrar paciente..."
+                      placeholder="Escribe para filtrar paciente..."
                       value={busquedaPaciente}
                       onFocus={() => setMostrarDropdown(true)}
                       onChange={(e) => {
@@ -2190,7 +2257,10 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
 
             {/* Navegación */}
             <div className="no-print mt-2 flex items-center justify-between border-t border-slate-100 pt-4">
-              <div className="text-sm font-medium text-slate-500">Paso {pasoActual?.n} de 3</div>
+              <div className="flex items-center gap-3 text-sm font-medium text-slate-500">
+                <span>Paso {pasoActual?.n} de 3</span>
+                {!fichaGuardada && guardadoEn != null && <span role="status" className="text-xs font-normal text-slate-400">{textoGuardado(guardadoEn, ahoraTexto)}</span>}
+              </div>
               <div className="flex gap-2">
                 {subTab !== "anamnesis" && (
                   <button
