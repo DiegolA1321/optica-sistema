@@ -1933,6 +1933,23 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                     <IdCard size={15} className="shrink-0" /> Datos
                   </button>
                 </div>
+                {/* Atender desde aquí: con una cita pendiente (la misma que ofrece «Ingresar» en la pestaña Citas y en la Agenda) el botón abre su ficha clínica. Sin cita, «Agendar cita» (arriba) sigue siendo el camino. */}
+                {puedeAtender && (() => {
+                  const hoyCita = hoyISO()
+                  const cita = citas
+                    .filter((c) => (c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre) && ESTADOS_PENDIENTES.includes(c.estado))
+                    .sort((x, y) => (x.estado === "En Atención" ? -1 : y.estado === "En Atención" ? 1 : x.fecha !== y.fecha ? (x.fecha < y.fecha ? -1 : 1) : minutosDesdeMedianoche(x.hora) - minutosDesdeMedianoche(y.hora)))[0]
+                  if (!cita) return null
+                  const esHoy = cita.fecha === hoyCita
+                  return (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <button type="button" onClick={() => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-5 py-2.5 text-base font-bold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+                        <Stethoscope size={18} aria-hidden="true" /> {cita.estado === "En Atención" ? "Seguir atendiendo" : "Ingresar"}
+                      </button>
+                      <p className="text-sm text-slate-500">{cita.estado === "En Atención" ? "Su ficha ya está abierta" : esHoy ? "Cita de hoy" : "Cita del " + (fechaLegible(cita.fecha) || "")} · {cita.hora} · {cita.motivo || "Consulta general"}</p>
+                    </div>
+                  )
+                })()}
                 </div>
                 {puedeVerFichas && <GraduacionDeCabecera receta={recetasDe(consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre).slice().sort(ordenarPorFechaYCreacion))[0]} onAbrir={() => setTabHistorial("graduacion")} activa={tabHistorial === "graduacion"} />}
               </div>

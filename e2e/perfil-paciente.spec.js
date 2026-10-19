@@ -2,7 +2,7 @@
 // se puede acotar por fechas y texto. Con E2E_CAPTURAS=1 guarda capturas a 1366x768 en docs/perfil-capturas/.
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-import { iniciarSesion, crearPacienteConHistorial } from './ayudas.js'
+import { iniciarSesion, crearPacienteConHistorial, crearCitaDeHoyParaPaula } from './ayudas.js'
 
 const CARPETA = 'docs/perfil-capturas'
 const foto = async (page, nombre) => {
@@ -95,5 +95,40 @@ test.describe('Perfil del paciente: pestaña Citas', () => {
     const aviso = page.getByRole('region', { name: 'Sin citas' })
     await expect(aviso.getByText('Este paciente no tiene citas')).toBeVisible()
     await expect(aviso.getByRole('button', { name: 'Agendar cita' })).toBeVisible()
+  })
+})
+
+// Atender desde el perfil: con una cita pendiente la cabecera ofrece «Ingresar» y abre la ficha clínica de esa cita; sin cita no hay botón nuevo («Agendar cita» sigue en su lugar).
+test.describe('Perfil del paciente: atender desde la cabecera', () => {
+  test.use({ viewport: { width: 1366, height: 768 } })
+
+  test('con una cita de hoy, «Ingresar» abre la ficha clínica; sin cita no aparece', async ({ page }) => {
+    test.setTimeout(150_000)
+    const nombre = await crearCitaDeHoyParaPaula('E2E')
+    await iniciarSesion(page, 'ADMIN', 'E2E')
+    await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
+    await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
+    await abrirDesdeLaLista(page, nombre)
+    const ingresar = page.getByRole('button', { name: 'Ingresar', exact: true }).first() // el de la cabecera (la pestaña Citas lleva el suyo)
+    await expect(ingresar).toBeVisible()
+    await expect(page.getByText(/Cita de hoy/)).toBeVisible()
+    // el botón está en la cabecera, encima de las pestañas
+    const caja = await ingresar.boundingBox()
+    const pestanas = await page.getByRole('tablist', { name: 'Secciones del paciente' }).boundingBox()
+    expect(caja.y).toBeLessThan(pestanas.y)
+    await ingresar.click()
+    await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByText(nombre).first()).toBeVisible()
+  })
+
+  test('un paciente sin cita pendiente no tiene «Ingresar» (queda «Agendar cita»)', async ({ page }) => {
+    test.setTimeout(120_000)
+    const nombre = await crearPacienteConHistorial(1)
+    await iniciarSesion(page, 'ADMIN', 'E2E')
+    await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
+    await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
+    await abrirDesdeLaLista(page, nombre)
+    await expect(page.getByRole('button', { name: 'Ingresar', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Agendar cita' }).first()).toBeVisible()
   })
 })
