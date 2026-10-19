@@ -86,24 +86,29 @@ function VentanaSolicitud({ solicitud, onCerrar }) {
 }
 
 // `solicitudes`: { disponible, lista } (la base todavía puede no tenerlo: entonces no se ofrece). `onSolicitar(interes, comentario)` → { ok, error }.
-export default function TarjetaSolicitarLentes({ solicitudes, onSolicitar, recetaVigente = null }) {
+// El botón del título de «Mis compras» («Solicitar lentes nuevos», con su ventana) y, aparte, la lista de lo que ya pidió con su estado.
+export function BotonSolicitarLentes({ solicitudes, onSolicitar, recetaVigente = null }) {
   const [pidiendo, setPidiendo] = useState(false)
+  if (!solicitudes?.disponible) return null
+  const enCurso = (solicitudes.lista || []).some((s) => s.estado !== "atendida")
+  return (
+    <>
+      <button type="button" onClick={() => setPidiendo(true)} disabled={enCurso} title={enCurso ? "Ya tienes una solicitud en curso: la óptica te contactará pronto." : undefined} className={BOTON_PRINCIPAL + " w-full sm:w-auto"} style={ESTILO_PRINCIPAL}>Solicitar lentes nuevos</button>
+      {pidiendo && <VentanaSolicitar recetaVigente={recetaVigente} onEnviar={onSolicitar} onCerrar={() => setPidiendo(false)} />}
+    </>
+  )
+}
+
+export function ListaSolicitudes({ solicitudes }) {
   const [abierta, setAbierta] = useState(null)
   if (!solicitudes?.disponible) return null
   const lista = solicitudes.lista || []
-  const enCurso = lista.some((s) => s.estado !== "atendida")
+  if (lista.length === 0) return null
   return (
     <section aria-labelledby="solicitar-lentes" className="rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[30px] sm:py-6">
-      <div className="flex flex-col gap-4 @[760px]/portal:flex-row @[760px]/portal:items-center @[760px]/portal:justify-between @[760px]/portal:gap-8">
-        <div className="min-w-0">
-          <h2 id="solicitar-lentes" className="font-heading text-xl font-bold text-pt-marino">¿Necesitas lentes nuevos?</h2>
-          <p className="mt-1 text-base text-pt-texto">{enCurso ? "Ya tienes una solicitud en curso: la óptica te contactará pronto." : "Cuéntanos qué te interesa y la óptica te contactará. No es una compra."}</p>
-        </div>
-        <button type="button" onClick={() => setPidiendo(true)} disabled={enCurso} className={BOTON_PRINCIPAL + " w-full shrink-0 @[760px]/portal:w-auto"} style={ESTILO_PRINCIPAL}>Solicitar lentes nuevos</button>
-      </div>
       {lista.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-base font-semibold text-pt-texto">Tus solicitudes</h3>
+        <div>
+          <h2 id="solicitar-lentes" className="font-heading text-xl font-bold text-pt-marino">Tus solicitudes de lentes</h2>
           <ul aria-label="Tus solicitudes de lentes" data-lista="solicitudes" className="mt-1 divide-y divide-pt-borde">
             {lista.map((s) => {
               const e = ESTADOS_SOLICITUD[s.estado] || ESTADOS_SOLICITUD.recibida
@@ -120,7 +125,6 @@ export default function TarjetaSolicitarLentes({ solicitudes, onSolicitar, recet
           </ul>
         </div>
       )}
-      {pidiendo && <VentanaSolicitar recetaVigente={recetaVigente} onEnviar={onSolicitar} onCerrar={() => setPidiendo(false)} />}
       {abierta && <VentanaSolicitud solicitud={lista.find((s) => s.id === abierta.id) || abierta} onCerrar={() => setAbierta(null)} />}
     </section>
   )

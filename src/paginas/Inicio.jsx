@@ -646,6 +646,14 @@ export default function Inicio({
         accion: puedeV("crm", "crear") ? { etiqueta: "Ver en CRM", navega: true, onClick: abrirCrm({ filtro: "control_vencido" }) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
       })),
     })
+    // Un paciente pidió sus medidas (distancia pupilar y montaje) desde su portal: el aviso se quita al marcarla atendida en su perfil.
+    const pidenMedidas = pacientes.filter((p) => p.medidasSolicitadasEn)
+    if (puedeV("pacientes", "ver") && pidenMedidas.length > 0) poner("pacientes", {
+      id: "medidas-solicitadas", cantidad: pidenMedidas.length,
+      texto: uno(pidenMedidas.length, "paciente pidió sus medidas de montaje desde su portal", "pacientes pidieron sus medidas de montaje desde su portal"),
+      nombres: nombresResumidos(pidenMedidas.map((p) => p.nombre)),
+      casos: pidenMedidas.map((p) => ({ id: p.id, nombre: p.nombre, detalle: "Pidió su distancia pupilar y medidas de montaje", accion: { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(p.id) } })),
+    })
     if (incSinConsulta && sinAtender > 0) poner("pacientes", {
       id: "sin-consulta", cantidad: sinAtender,
       texto: uno(sinAtender, "paciente registrado sin ninguna consulta", "pacientes registrados sin ninguna consulta"),

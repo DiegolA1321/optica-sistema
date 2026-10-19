@@ -211,7 +211,7 @@ export function SelectorReceta({ recetas, valorId, onElegir, version = "paciente
   return (
     <div className="relative" ref={raiz}>
       <button type="button" onClick={() => setAbierto((v) => !v)} aria-haspopup="listbox" aria-expanded={abierto} aria-label={`Elegir otra receta. Se muestra: ${rotulo(actual)}`}
-        className={"inline-flex items-center gap-3 border bg-white text-left font-semibold transition-colors cursor-pointer " + (paciente ? "min-h-12 rounded-xl border-[1.5px] border-slate-300/80 px-4 text-base text-pt-marino hover:bg-slate-50" : "min-h-10 rounded-lg border-slate-300 px-3 text-sm text-slate-800 hover:bg-slate-50")}>
+        className={"inline-flex w-full items-center justify-between gap-3 border bg-white text-left font-semibold transition-colors cursor-pointer " + (paciente ? "@[40rem]:w-[22.5rem] min-h-12 rounded-xl border-[1.5px] border-slate-300/80 px-4 text-base text-pt-marino hover:bg-slate-50" : "min-h-10 rounded-lg border-slate-300 px-3 text-sm text-slate-800 hover:bg-slate-50")}>
         <span>{rotulo(actual)}</span>
         <ChevronDown size={paciente ? 20 : 16} className={"shrink-0 text-slate-500 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
       </button>
@@ -290,9 +290,9 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
           <h1 className={portal ? "font-heading text-2xl font-bold tracking-tight text-pt-marino sm:text-[28px] sm:leading-tight" : "text-lg font-bold text-slate-900"}>{titulo}</h1>
           {subtitulo && <p className={"mt-1 " + (portal ? "text-base text-pt-texto" : "text-sm text-slate-500")}>{subtitulo(receta)}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-3 @[56rem]:justify-end">
+        <div className={"flex flex-wrap items-center gap-3 @[56rem]:justify-end " + (portal ? "@[40rem]:flex-nowrap" : "")}>
           <SelectorReceta recetas={recetas} valorId={receta.id} onElegir={setId} version={portal ? "paciente" : "personal"} />
-          {recetas.length > 1 && <button type="button" onClick={() => setComparando(true)} className={boton}><GitCompare size={portal ? 20 : 15} aria-hidden="true" /> Comparar dos recetas</button>}
+          {recetas.length > 1 && <button type="button" onClick={() => setComparando(true)} aria-label="Comparar dos recetas" className={boton + " shrink-0"}><GitCompare size={portal ? 20 : 15} aria-hidden="true" /> {portal ? <><span className="@[48rem]:hidden">Comparar</span><span className="hidden @[48rem]:inline">Comparar dos recetas</span></> : "Comparar dos recetas"}</button>}
           {explicable && <button type="button" onClick={() => setSimple((x) => !x)} aria-pressed={simple} className={boton}><MessageSquareText size={15} aria-hidden="true" /> {simple ? "Volver a la vista técnica" : "Explicar al paciente"}</button>}
           {accion && (
             <button type="button" onClick={() => accion.onClick(receta)} className={portal ? "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 text-base font-semibold leading-snug transition-colors hover:brightness-110 cursor-pointer" : "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"} style={portal ? { background: "var(--portal-acento, #1D5FD6)", color: "var(--portal-texto-boton, #FFFFFF)" } : { background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Receipt, ChevronRight } from "lucide-react"
+import { Receipt, ChevronRight, Wallet, FlaskConical, Star, History } from "lucide-react"
 import { dinero } from "../utilidades/formatoMoneda"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import { diaDeRegistro } from "../utilidades/periodoLista"
@@ -12,7 +12,7 @@ import { porcentajeAbonado } from "../utilidades/portalVistas"
 import { Cascaron } from "./AtencionPaciente"
 import { Insignia, TituloPagina, Esqueleto, PasosLentes, VerDetalle } from "./portal/piezas"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "./portal/estilos"
-import TarjetaSolicitarLentes from "./portal/SolicitarLentes"
+import { BotonSolicitarLentes, ListaSolicitudes } from "./portal/SolicitarLentes"
 
 const anioDe = (c) => String(diaDeRegistro(c.fecha)).slice(0, 4)
 const CHIP = (activo) => "inline-flex min-h-11 items-center rounded-full px-5 text-base font-semibold transition-colors cursor-pointer " + (activo ? "bg-pt-azul text-white" : "border border-pt-borde bg-white text-pt-marino hover:bg-pt-fondo")
@@ -26,6 +26,7 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
   const [errorDescarga, setErrorDescarga] = useState("")
   const [abiertaId, setAbiertaId] = useState(null)
   const [filtro, setFiltro] = useState("todas")
+  const [verHistorial, setVerHistorial] = useState(false)
   const conSaldo = compras.filter((c) => c.estado === "pendiente_pago" && Number(c.saldo) > 0)
   const saldoTotal = conSaldo.reduce((s, c) => s + Number(c.saldo), 0)
   const abierta = compras.find((c) => c.id === abiertaId) || null
@@ -52,21 +53,31 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
   const destacadas = compras.filter((c) => (c.estado === "pendiente_pago" && Number(c.saldo) > 0) || ordenes.some((o) => o.facturaId === c.id && o.estado !== "entregada"))
 
   // Cada resumen se pulsa y abre su detalle en la ventana estándar (lo que dice la tarjeta y lo que abre es lo mismo).
-  const resumen = (titulo, valor, texto, clase, abrir, etiqueta) => (
-    <div className={"min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[30px] sm:py-6 " + (abrir ? "pt-abrible relative transition-shadow hover:shadow-md" : "")}>
+  // Compactos: el ícono, el valor y el texto en una sola línea, sin hueco a la derecha.
+  const resumen = (titulo, valor, texto, clase, abrir, etiqueta, Icono) => (
+    <div className={"flex min-w-0 items-center gap-3.5 rounded-[20px] border border-pt-borde bg-white px-4 py-3.5 sm:px-5 " + (abrir ? "pt-abrible relative transition-shadow hover:shadow-md" : "")}>
       {abrir && <button type="button" onClick={() => onAbrir?.(abrir)} aria-label={etiqueta} className="pt-abrir absolute inset-0 rounded-[20px] cursor-pointer" />}
-      <p className="flex items-center justify-between gap-3 text-base text-pt-texto">{titulo}{abrir && <ChevronRight size={22} className="shrink-0 text-slate-500" aria-hidden="true" />}</p>
-      <p className={"mt-1 font-heading text-[32px] font-bold leading-tight tabular-nums " + clase}>{valor}</p>
-      <p className="mt-1 text-base leading-snug text-pt-texto">{texto}</p>
+      <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-pt-fondo text-pt-azul"><Icono size={22} /></span>
+      <div className="min-w-0 flex-1">
+        <p className="text-base leading-snug text-pt-texto">{titulo}</p>
+        <p className="flex flex-wrap items-baseline gap-x-2.5"><span className={"font-heading text-[26px] font-bold leading-tight tabular-nums " + clase}>{valor}</span><span className="text-base leading-snug text-pt-texto">{texto}</span></p>
+      </div>
+      {abrir && <ChevronRight size={22} className="shrink-0 text-slate-500" aria-hidden="true" />}
     </div>
   )
   // Un solo pedido en proceso abre su pedido; varios, la lista con los pasos de cada uno.
   const abrirLentes = enProceso.length === 0 ? null : enProceso.length === 1 ? { tipo: "pedido", id: enProceso[0].id } : { tipo: "lentes" }
 
-  const solicitar = <TarjetaSolicitarLentes solicitudes={solicitudes} onSolicitar={onSolicitarLentes} recetaVigente={recetaVigente} />
+  // Junto al título: el historial (ventana estándar) y pedir lentes nuevos.
+  const acciones = (
+    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+      {compras.length > 0 && <button type="button" onClick={() => setVerHistorial(true)} aria-haspopup="dialog" className={BOTON_SECUNDARIO + " w-full sm:w-auto"}><History size={20} aria-hidden="true" /> Historial de compras</button>}
+      <BotonSolicitarLentes solicitudes={solicitudes} onSolicitar={onSolicitarLentes} recetaVigente={recetaVigente} />
+    </div>
+  )
   return (
     <div className="space-y-5 sm:space-y-6">
-      <TituloPagina subtitulo="Tus lentes, tus pagos y tus facturas">Mis compras</TituloPagina>
+      <TituloPagina accion={acciones}>Mis compras</TituloPagina>
 
       {cargando ? (
         <div className="space-y-4" aria-busy="true" aria-label="Cargando tus compras">{[0, 1].map((i) => <Esqueleto key={i} alto="h-40" />)}</div>
@@ -80,16 +91,16 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
           {onPedirCita && <button type="button" onClick={() => onPedirCita()} className={BOTON_PRINCIPAL + " mt-4"} style={ESTILO_PRINCIPAL}>Agendar cita</button>}
         </div>
       ) : null}
-      {!cargando && !error && compras.length === 0 && solicitar}
+      {!cargando && !error && compras.length === 0 && <ListaSolicitudes solicitudes={solicitudes} />}
       {!cargando && !error && compras.length > 0 && (
         <>
           <section aria-label="Resumen de tus compras" className="grid gap-4 @[760px]/portal:grid-cols-3 @[760px]/portal:gap-5">
-            {resumen("Por pagar", dinero(saldoTotal), saldoTotal > 0 ? "Págalo en la óptica: efectivo, tarjeta o transferencia." : "No tienes saldo pendiente.", saldoTotal > 0 ? "text-pt-ambar" : "text-pt-marino", saldoTotal > 0 && onAbrir ? { tipo: "saldo" } : null, "Ver tus compras con saldo y el historial de tus abonos")}
-            {resumen("Lentes en proceso", enProceso.length, enProceso.length === 0 ? "No tienes lentes en camino." : listos > 0 ? `${listos === 1 ? "1 listo" : listos + " listos"} para retirar.` : proxima ? `Listos aprox. el ${formatoFecha(proxima, "largoSinDia").replace(/ de \d{4}$/, "")}.` : "Te avisaremos cuando estén listos.", "text-pt-marino", onAbrir ? abrirLentes : null, "Ver el estado de tus lentes en proceso")}
-            {puntos && resumen("Tus puntos", puntos.puntos, puntos.texto + ".", "text-[#15803D]", onAbrir ? { tipo: "puntos" } : null, "Ver cómo sumas tus puntos")}
+            {resumen("Por pagar", dinero(saldoTotal), saldoTotal > 0 ? "Págalo en la óptica: efectivo, tarjeta o transferencia." : "No tienes saldo pendiente.", saldoTotal > 0 ? "text-pt-ambar" : "text-pt-marino", saldoTotal > 0 && onAbrir ? { tipo: "saldo" } : null, "Ver tus compras con saldo y el historial de tus abonos", Wallet)}
+            {resumen("Lentes en proceso", enProceso.length, enProceso.length === 0 ? "No tienes lentes en camino." : listos > 0 ? `${listos === 1 ? "1 listo" : listos + " listos"} para retirar.` : proxima ? `Listos aprox. el ${formatoFecha(proxima, "largoSinDia").replace(/ de \d{4}$/, "")}.` : "Te avisaremos cuando estén listos.", "text-pt-marino", onAbrir ? abrirLentes : null, "Ver el estado de tus lentes en proceso", FlaskConical)}
+            {puntos && resumen("Tus puntos", puntos.puntos, puntos.texto + ".", "text-[#15803D]", onAbrir ? { tipo: "puntos" } : null, "Ver cómo sumas tus puntos", Star)}
           </section>
 
-          {solicitar}
+          <ListaSolicitudes solicitudes={solicitudes} />
 
           {destacadas.length > 0 && (
             <ul className="space-y-5 sm:space-y-6" aria-label="Compras con saldo o lentes en camino">
@@ -148,9 +159,11 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
             </ul>
           )}
 
-          <section aria-labelledby="historial-compras" className="rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[30px] sm:py-7">
+          {verHistorial && (
+          <Cascaron pantallaCompletaEnCelular titulo="Historial de compras" subtitulo="Todas tus compras" Icono={Receipt} ancho="max-w-5xl" onCerrar={() => setVerHistorial(false)}
+            pie={<><span /><button type="button" onClick={() => setVerHistorial(false)} className={BOTON_SECUNDARIO}>Cerrar</button></>}>
+          <section aria-label="Historial de compras" className="p-5 sm:px-[30px] sm:py-6">
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <h2 id="historial-compras" className="font-heading text-xl font-bold text-pt-marino">Historial de compras</h2>
               <p className="text-base text-pt-texto" aria-live="polite">{visibles.length} {visibles.length === 1 ? "compra" : "compras"} · {dinero(totalVisible)} en total</p>
             </div>
             <div role="group" aria-label="Filtrar las compras" className="mt-4 flex flex-wrap gap-2">
@@ -188,6 +201,8 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
             )}
             <p className="mt-4 text-base leading-snug text-pt-texto">Al abrir una compra puedes descargar su factura o solicitar un ajuste o la garantía. Guarda tus facturas: la ley pide conservarlas 7 años.</p>
           </section>
+          </Cascaron>
+          )}
         </>
       )}
       {abierta && (() => {
@@ -198,7 +213,7 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
         const pct = porcentajeAbonado(c.total, c.abonado)
         const abonos = Array.isArray(c.abonos) ? c.abonos : []
         return (
-          <Cascaron pantallaCompletaEnCelular titulo={`Compra ${numeroComprobante(c.numero)}`} subtitulo={formatoFecha(diaDeRegistro(c.fecha), "largoSinDia")} derecha={<Insignia tono={debe ? "ambar" : "verde"}>{debe ? "Con saldo" : "Pagada"}</Insignia>} Icono={Receipt} ancho="max-w-xl" onCerrar={() => setAbiertaId(null)}
+          <Cascaron pantallaCompletaEnCelular capa="z-[60]" titulo={`Compra ${numeroComprobante(c.numero)}`} subtitulo={formatoFecha(diaDeRegistro(c.fecha), "largoSinDia")} derecha={<Insignia tono={debe ? "ambar" : "verde"}>{debe ? "Con saldo" : "Pagada"}</Insignia>} Icono={Receipt} ancho="max-w-xl" onCerrar={() => setAbiertaId(null)}
             pie={<><span /><button type="button" onClick={() => setAbiertaId(null)} className={BOTON_SECUNDARIO}>Cerrar</button></>}>
             <div className="space-y-4 p-5">
               <section aria-label="Lo que compraste">

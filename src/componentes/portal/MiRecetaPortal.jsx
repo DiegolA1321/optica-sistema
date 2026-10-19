@@ -1,6 +1,8 @@
 "use client"
 
-import { FileText, CheckCircle2, Download } from "lucide-react"
+import { useState } from "react"
+import { FileText, CheckCircle2, Download, Ruler } from "lucide-react"
+import { Cascaron } from "../AtencionPaciente"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { Tarjeta, TituloTarjeta, TituloPagina, Esqueleto } from "./piezas"
 import { VistaGraduacion } from "../graduacion/Graduacion"
@@ -10,12 +12,13 @@ import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "./estilos"
 // Arriba, junto al título, el selector con la receta que se muestra (con todas las del paciente y el filtro por año), «Comparar dos recetas» y «Descargar receta»; al elegir otra receta
 // cambia toda la página: los ojos, las explicaciones, el antes → ahora y las indicaciones. «Descargar receta» baja el PDF de la receta elegida.
 export default function MiRecetaPortal({ cargando, ultimaReceta, todasLasRecetas = [], mostrarMedidas, descargar, control, medidasSolicitadas, enviandoMedidas, errorMedidas, onSolicitarMedidas, onAgendar }) {
+  const [confirmando, setConfirmando] = useState(false)
   if (cargando) return <div className="space-y-6" aria-busy="true" aria-label="Cargando tu receta"><TituloPagina>Mi receta</TituloPagina><Esqueleto alto="h-80" /></div>
 
   if (!ultimaReceta) {
     return (
       <div className="space-y-5 sm:space-y-6">
-        <TituloPagina subtitulo="Tu graduación actual y lo que indicó tu optómetra.">Mi receta</TituloPagina>
+        <TituloPagina>Mi receta</TituloPagina>
         <div className="flex flex-col items-center gap-3 rounded-[20px] border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
           <div className="grid h-14 w-14 place-items-center rounded-full bg-pt-fondo text-slate-400"><FileText size={26} aria-hidden="true" /></div>
           <p className="text-xl font-semibold text-slate-700">Todavía no tienes una receta</p>
@@ -51,12 +54,18 @@ export default function MiRecetaPortal({ cargando, ultimaReceta, todasLasRecetas
         {errorMedidas && <p role="alert" className="mt-2 text-lg font-semibold text-red-600">{errorMedidas}</p>}
         {medidasSolicitadas
           ? <span className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#E3F4EA] px-4 text-lg font-semibold text-[#166534]"><CheckCircle2 size={20} aria-hidden="true" /> Solicitud enviada</span>
-          : <button type="button" onClick={onSolicitarMedidas} disabled={enviandoMedidas} className={BOTON_SECUNDARIO + " mt-3 w-full"}>{enviandoMedidas ? "Enviando..." : "Solicitar distancia pupilar y medidas de montaje"}</button>}
+          : <button type="button" onClick={() => setConfirmando(true)} disabled={enviandoMedidas} className={BOTON_SECUNDARIO + " mt-3 w-full"}>{enviandoMedidas ? "Enviando..." : "Solicitar distancia pupilar y medidas de montaje"}</button>}
+        {confirmando && (
+          <Cascaron pantallaCompletaEnCelular titulo="Solicitar tus medidas" subtitulo="Distancia pupilar y medidas de montaje" Icono={Ruler} ancho="max-w-md" onCerrar={() => setConfirmando(false)}
+            pie={<><button type="button" onClick={() => setConfirmando(false)} className={BOTON_SECUNDARIO}>Cancelar</button><button type="button" onClick={() => { setConfirmando(false); onSolicitarMedidas() }} className={BOTON_PRINCIPAL} style={ESTILO_PRINCIPAL}>Enviar solicitud</button></>}>
+            <p className="p-5 text-lg text-pt-marino">¿Quieres que la óptica te envíe tu distancia pupilar y tus medidas de montaje?</p>
+          </Cascaron>
+        )}
       </Tarjeta>
     )
   }
   return (
-    <VistaGraduacion recetas={todasLasRecetas} version="paciente" titulo="Mi receta" subtitulo={subtitulo} indicacionesExtra={extra} derecha={medidas}
+    <VistaGraduacion recetas={todasLasRecetas} version="paciente" titulo="Mi receta" indicacionesExtra={extra} derecha={medidas}
       accion={{ texto: "Descargar receta", Icono: Download, onClick: descargar }} />
   )
 }

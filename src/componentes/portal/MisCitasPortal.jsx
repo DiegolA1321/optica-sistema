@@ -49,7 +49,7 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
   }
   return (
     <div className="space-y-5 sm:space-y-6">
-      <TituloPagina subtitulo="Tu próxima visita y todas las anteriores" accion={<button type="button" onClick={() => onAgendar()} className={BOTON_PRINCIPAL + " w-full sm:w-auto"} style={ESTILO_PRINCIPAL}>Agendar cita</button>}>Mis citas</TituloPagina>
+      <TituloPagina accion={<button type="button" onClick={() => onAgendar()} className={BOTON_PRINCIPAL + " w-full sm:w-auto"} style={ESTILO_PRINCIPAL}>Agendar cita</button>}>Mis citas</TituloPagina>
 
       <BoletoCita variante="citas" conBoton={false} cita={proximas[0] || null} detalle={det(proximas[0]?.id)} detalleDisponible={detalle.disponible} direccion={direccion} citaProps={citaProps} onConfirmar={onConfirmar} onAbrir={setAbierta} onAgendar={onAgendar} />
 

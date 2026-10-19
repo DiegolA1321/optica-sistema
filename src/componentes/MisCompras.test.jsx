@@ -17,6 +17,7 @@ beforeEach(() => { vi.clearAllMocks(); window.HTMLAnchorElement.prototype.click 
 describe("Portal: Mis compras", () => {
   it("arriba van tres resúmenes (por pagar, lentes en proceso y puntos) y el historial lista todas las compras con su estado", () => {
     render(<MisCompras usuario={usuario} puntos={{ puntos: 35, texto: "Te falta 1 consulta para ser cliente frecuente" }} ordenes={[orden({ facturaId: "f2" })]} compras={[compra(), compra({ id: "f2", numero: 18, estado: "pendiente_pago", total: 200, abonado: 60, saldo: 140 })]} />)
+    fireEvent.click(screen.getByRole("button", { name: /Historial de compras/ }))
     const resumen = screen.getByRole("region", { name: "Resumen de tus compras" })
     expect(resumen).toHaveTextContent("Por pagar$140.00")
     expect(resumen).toHaveTextContent("Lentes en proceso1")
@@ -46,6 +47,7 @@ describe("Portal: Mis compras", () => {
 
   it("el historial se filtra: con saldo, pagadas y por año, y dice cuántas compras suman", () => {
     render(<MisCompras usuario={usuario} compras={[compra({ id: "a", numero: 1, fecha: "2026-10-04T17:00:00Z" }), compra({ id: "b", numero: 2, fecha: "2025-04-04T17:00:00Z" }), compra({ id: "c", numero: 3, fecha: "2026-09-04T17:00:00Z", estado: "pendiente_pago", total: 200, abonado: 60, saldo: 140 })]} />)
+    fireEvent.click(screen.getByRole("button", { name: /Historial de compras/ }))
     const historial = screen.getByRole("region", { name: "Historial de compras" })
     fireEvent.click(within(historial).getByRole("button", { name: "Con saldo" }))
     expect(historial).toHaveTextContent("1 compra · $200.00 en total")
@@ -58,6 +60,7 @@ describe("Portal: Mis compras", () => {
 
   it("cada compra abre su detalle, con su factura para descargar (PDF y XML) o por qué no la hay", () => {
     render(<MisCompras usuario={usuario} compras={[compra({ factura_electronica: { numero: "001-001-000001216", pdf: true, xml: true } }), compra({ id: "f2", numero: 18 }), compra({ id: "f3", numero: 19, factura_electronica: { numero: "001-001-000001217", pdf: false, xml: false } })]} />)
+    fireEvent.click(screen.getByRole("button", { name: /Historial de compras/ }))
     fireEvent.click(screen.getByRole("button", { name: /Ver el detalle de tu compra CV-0017/ }))
     const v1 = screen.getByRole("dialog", { name: "Compra CV-0017" })
     expect(within(v1).getByRole("button", { name: "Descargar factura" })).toBeInTheDocument()
@@ -72,6 +75,7 @@ describe("Portal: Mis compras", () => {
 
   it("el detalle de una compra no repite el estado: va una vez, en la cabecera de la ventana", () => {
     render(<MisCompras usuario={usuario} compras={[compra()]} />)
+    fireEvent.click(screen.getByRole("button", { name: /Historial de compras/ }))
     fireEvent.click(screen.getByRole("button", { name: /Ver el detalle de tu compra CV-0017/ }))
     const ventana = screen.getByRole("dialog", { name: "Compra CV-0017" })
     expect(ventana.textContent.match(/Pagada|Pagaste/g)).toHaveLength(1)
@@ -93,6 +97,7 @@ describe("Portal: Mis compras", () => {
 
   it("descargar pide el archivo con la sesión del paciente", async () => {
     render(<MisCompras usuario={usuario} compras={[compra({ factura_electronica: { numero: "001-001-000001216", pdf: true, xml: false } })]} />)
+    fireEvent.click(screen.getByRole("button", { name: /Historial de compras/ }))
     fireEvent.click(screen.getByRole("button", { name: /Ver el detalle de tu compra CV-0017/ }))
     fireEvent.click(screen.getByRole("button", { name: "Descargar factura" }))
     await waitFor(() => expect(api.urlDeDescargaPaciente).toHaveBeenCalledWith({ pacienteId: "p1", token: "tok", facturaId: "f1", tipo: "pdf" }))
@@ -101,6 +106,7 @@ describe("Portal: Mis compras", () => {
   it("si la descarga falla lo dice", async () => {
     api.urlDeDescargaPaciente.mockResolvedValueOnce({ url: null, error: "No se encontró ese archivo en tus compras." })
     render(<MisCompras usuario={usuario} compras={[compra({ factura_electronica: { numero: "x", pdf: true, xml: false } })]} />)
+    fireEvent.click(screen.getByRole("button", { name: /Historial de compras/ }))
     fireEvent.click(screen.getByRole("button", { name: /Ver el detalle de tu compra CV-0017/ }))
     fireEvent.click(screen.getByRole("button", { name: "Descargar factura" }))
     expect(await screen.findByRole("alert")).toHaveTextContent("No se encontró ese archivo en tus compras.")

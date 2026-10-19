@@ -78,7 +78,7 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
       <p className="text-base font-semibold text-pt-marino">Qué llevar a tu cita:</p>
       <ul aria-label="Qué llevar a tu cita" className="flex flex-wrap gap-2">
-        {["Tus lentes actuales", "Tu receta anterior", "Llega 10 minutos antes"].map((t) => <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-pt-fondo px-3 py-1 text-base text-pt-marino"><Check size={16} strokeWidth={2.5} className="text-[#15803D]" aria-hidden="true" />{t}</li>)}
+        {["Tus lentes actuales", "Llega 10 minutos antes"].map((t) => <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-pt-fondo px-3 py-1 text-base text-pt-marino"><Check size={16} strokeWidth={2.5} className="text-[#15803D]" aria-hidden="true" />{t}</li>)}
       </ul>
     </div>
   )
@@ -137,14 +137,25 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
         <div className={"flex min-w-0 flex-col " + (compacto ? "px-5 py-3.5 sm:px-6" : "p-6 sm:px-[30px] sm:py-7")}>
           <p className="sr-only">{formatoFecha(cita.fecha, "largo")}</p>
           {compacto ? (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">{cabecera}<span className="flex items-center gap-4">{estadoCita(false)}<VerDetalle>Ver detalle</VerDetalle></span></div>
-              <div className="flex flex-wrap items-baseline gap-x-5">
+            // Tres columnas: la fecha (el bloque oscuro); al centro la hora, el motivo, el profesional y qué llevar; a la derecha el estado y las acciones.
+            <div className="grid h-full gap-x-8 gap-y-3 grid-cols-[minmax(0,1fr)_minmax(15rem,0.55fr)]">
+              <div className="flex min-w-0 flex-col gap-1.5">
+                {cabecera}
                 <p className="font-heading text-[30px] font-bold leading-none tabular-nums text-pt-marino">{cita.hora}</p>
-                <p className="text-lg font-semibold leading-snug text-pt-marino">{[cita.motivo || "Consulta", detalle?.profesional].filter(Boolean).join(" · ")}</p>
+                <p className="text-lg font-semibold leading-snug text-pt-marino">{cita.motivo || "Consulta"}</p>
+                {detalle?.profesional && <p className="text-base text-pt-texto">Con {detalle.profesional}</p>}
+                {nota && <p className="text-base text-pt-texto">{nota}</p>}
+                {queLlevar}
               </div>
-              {(nota || aviso || error || acciones) && <div className="flex flex-wrap items-center gap-x-5 gap-y-0.5">{nota && <p className="text-base text-pt-texto">{nota}</p>}{aviso}{error}{acciones}</div>}
-              {queLlevar}
+              <div className="flex min-w-0 flex-col items-stretch gap-2.5 sm:items-end">
+                {estadoCita(false)}
+                {error}
+                {(btnConfirmar || btnCalendario || reagendable) && <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[15rem]">{btnConfirmar}{btnCalendario}{btnReagendar}{btnCancelar(BOTON_SECUNDARIO)}</div>}
+                {textoSinCambios && (citaProps.whatsappUrl
+                  ? <a href={citaProps.whatsappUrl} target="_blank" rel="noopener noreferrer" className={BOTON_SECUNDARIO + " w-full sm:w-auto sm:min-w-[15rem]"}>Escribir por WhatsApp</a>
+                  : aviso)}
+                <VerDetalle className="mt-auto">Ver detalle</VerDetalle>
+              </div>
             </div>
           ) : (
             <>
