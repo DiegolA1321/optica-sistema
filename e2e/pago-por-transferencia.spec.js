@@ -12,10 +12,24 @@ async function conPg(fn) {
   try { return await fn(c) } finally { await c.end() }
 }
 
+// La venta de prueba se quita SIEMPRE: en `afterEach` (corre aunque la prueba se corte por tiempo, cosa que un `finally` dentro de la prueba no garantiza) y, como red de seguridad, la limpieza de la
+// óptica de pruebas quita antes de cada corrida lo que el paciente fijo tenga de más. Así no queda un saldo de $30 que haga fallar `portal-recorrido`.
+let factura = null
+test.afterEach(async () => {
+  if (!factura) return
+  await conPg(async (c) => {
+    await c.query('delete from pagos_transferencia where factura_id = $1', [factura.id])
+    await c.query('delete from abonos_factura where factura_id = $1', [factura.id])
+    await c.query('delete from facturas_venta where id = $1', [factura.id])
+    await c.query('update opticas set datos_bancarios = null where slug = $1', [SLUG_PRUEBAS])
+  })
+  factura = null
+})
+
 test('el paciente paga por transferencia y la óptica lo confirma o lo rechaza', async ({ browser }) => {
   test.setTimeout(300_000)
   // Una venta nueva con saldo para el paciente fijo del portal: la prueba no gasta el saldo de las demás.
-  const factura = await conPg(async (c) => {
+  factura = await conPg(async (c) => {
     const op = (await c.query("select id from opticas where slug = $1", [SLUG_PRUEBAS])).rows[0].id
     const p = (await c.query("select id from pacientes_base where optica_id = $1 and nombre = 'E Dos E Portal Auditoria'", [op])).rows[0].id
     const admin = (await c.query("select id from perfiles where optica_id = $1 and rol = 'admin' limit 1", [op])).rows[0].id

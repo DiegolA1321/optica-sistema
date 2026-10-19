@@ -62,6 +62,17 @@ try {
     if (r.rowCount) borrados[t] = r.rowCount
   }
   for (const t of ORDEN) if (tablas.includes(t)) await borrar(t)
+  // Del paciente fijo se conserva SU comprobante (el de menor número: el CV-0006 con su abono y su factura electrónica). Lo demás que una prueba le haya dejado (por ejemplo una venta de $30 de
+  // «pago por transferencia» cuya prueba se cortó antes de limpiar) se quita aquí, con todo lo que cuelga de esas facturas, para que las pruebas del portal siempre partan del mismo saldo.
+  if (fijo) {
+    const sobrantes = (await q("select id from public.facturas_venta where paciente_id = $1 and numero <> (select min(numero) from public.facturas_venta where paciente_id = $1)", [fijo])).map((r) => r.id)
+    if (sobrantes.length) {
+      const hijas = await q("select conrelid::regclass::text t, a.attname col from pg_constraint k join pg_attribute a on a.attrelid = k.conrelid and a.attnum = k.conkey[1] where k.contype = 'f' and k.confrelid = 'public.facturas_venta'::regclass")
+      for (const { t, col } of hijas) await c.query(`delete from ${t} where ${col} = any($1)`, [sobrantes])
+      const r = await c.query("delete from public.facturas_venta where id = any($1)", [sobrantes])
+      borrados.facturas_venta_del_paciente_fijo = r.rowCount
+    }
+  }
   for (const t of tablas) if (!ORDEN.includes(t) && !CONSERVAR.has(t) && !t.startsWith("contador_")) await borrar(t)
   // Los catálogos (motivos, diagnósticos, categorías) viven en la fila de la óptica: lo que una prueba agregó con el prefijo "E2E " y no alcanzó a quitar,
   // se quita aquí. Solo en la óptica de pruebas (el id está fijo arriba).

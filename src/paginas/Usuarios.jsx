@@ -45,7 +45,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
       supabase.from("roles").select("*").eq("optica_id", usuario.opticaId).order("es_predefinido", { ascending: false }).order("nombre"),
       supabase.from("perfil_roles").select("perfil_id, rol_id"),
       supabase.rpc("permisos_por_nivel_vigentes"),
-      supabase.from("perfiles").select("id, nombre, email, etiqueta_rol, es_optometra, cedula, activo, desactivado_en, motivo_desactivacion").eq("optica_id", usuario.opticaId).eq("rol", "asistente"),
+      supabase.from("perfiles").select("id, nombre, email, etiqueta_rol, es_optometra, cedula, registro_profesional, activo, desactivado_en, motivo_desactivacion").eq("optica_id", usuario.opticaId).eq("rol", "asistente"),
       usuario.rol === "admin" ? supabase.rpc("soy_administrador_principal") : Promise.resolve({ data: null }),
     ])
     // Sin la función (base sin la 0098) se asume principal: la base decide al guardar.
@@ -53,7 +53,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
     setRoles(r || [])
     setAsignaciones(a || [])
     setNivelesVigentes(v === true)
-    if (perfiles) setAsistentes(perfiles.map((p) => ({ id: p.id, nombre: p.nombre, correo: p.email, etiquetaRol: p.etiqueta_rol || "", esOptometra: !!p.es_optometra, cedula: p.cedula || "", activo: p.activo !== false, desactivadoEn: p.desactivado_en, motivoDesactivacion: p.motivo_desactivacion || "", permisos: {} })))
+    if (perfiles) setAsistentes(perfiles.map((p) => ({ id: p.id, nombre: p.nombre, correo: p.email, etiquetaRol: p.etiqueta_rol || "", esOptometra: !!p.es_optometra, cedula: p.cedula || "", registroProfesional: p.registro_profesional || "", activo: p.activo !== false, desactivadoEn: p.desactivado_en, motivoDesactivacion: p.motivo_desactivacion || "", permisos: {} })))
     setCargando(false)
   }, [usuario?.opticaId, setAsistentes])
   useEffect(() => { cargar() }, [cargar])
@@ -67,6 +67,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   const [modal, setModal] = useState(null) // { id|null }
   const [nombre, setNombre] = useState("")
   const [cedula, setCedula] = useState("")
+  const [registro, setRegistro] = useState("")
   const [correo, setCorreo] = useState("")
   const [escribirClave, setEscribirClave] = useState(false)
   const [claveEscrita, setClaveEscrita] = useState("")
@@ -84,11 +85,13 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   const rolesDe = (perfilId) => roles.filter((r) => asignaciones.some((a) => a.perfil_id === perfilId && a.rol_id === r.id))
   const permisosDeRoles = (lista) => unirPermisos(lista.map((r) => r.permisos))
 
-  const abrirCrear = () => { setModal({ id: null }); setNombre(""); setCedula(""); setCorreo(""); setEscribirClave(false); setClaveEscrita(""); setRolesElegidos([]); setError("") }
-  const abrirEditar = (a) => { setModal({ id: a.id }); setNombre(a.nombre); setCedula(a.cedula || ""); setCorreo(a.correo); setRolesElegidos(rolesDe(a.id).map((r) => r.id)); setError("") }
+  const abrirCrear = () => { setModal({ id: null }); setNombre(""); setCedula(""); setRegistro(""); setCorreo(""); setEscribirClave(false); setClaveEscrita(""); setRolesElegidos([]); setError("") }
+  const abrirEditar = (a) => { setModal({ id: a.id }); setNombre(a.nombre); setCedula(a.cedula || ""); setRegistro(a.registroProfesional || ""); setCorreo(a.correo); setRolesElegidos(rolesDe(a.id).map((r) => r.id)); setError("") }
   const cerrarModal = () => { if (!guardando) setModal(null) }
   const alternarRol = (id) => setRolesElegidos((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   const rolesSeleccionados = roles.filter((r) => rolesElegidos.includes(r.id))
+  // Quien puede crear fichas clínicas atiende pacientes y firma recetas.
+  const atiende = Boolean(permisosDeRoles(rolesSeleccionados).consultas?.includes("crear"))
   const vistaPrevia = useMemo(() => { const p = permisosDeRoles(rolesSeleccionados); return { menu: menuDePermisos(p), resumen: resumenPermisos(p) } }, [rolesElegidos, roles]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const guardarRoles = async (perfilId, elegidos = rolesElegidos) => {
@@ -126,12 +129,14 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
     if (!esNombreValido(nombre)) { setError("Ingresa un nombre válido (solo letras)."); return }
     if (rolesElegidos.length === 0) { setError("Elige al menos un rol: sin rol la persona no podría hacer nada."); return }
     const nombresRoles = rolesSeleccionados.map((r) => r.nombre).join(", ")
+    // El registro profesional sale en las recetas que firma: es obligatorio para quien atiende (puede crear fichas clínicas).
+    if (atiende && !registro.trim()) { setError("Completa el registro profesional: sale en las recetas que firma esta persona."); return }
 
     if (modal.id != null) {
       const cedulaLimpia = cedula.trim()
       if (cedulaLimpia && !esCedulaValida(cedulaLimpia)) { setError("La cédula ingresada no es válida."); return }
       setGuardando(true)
-      const { error: errorUpdate } = await supabase.from("perfiles").update({ nombre: nombre.trim(), etiqueta_rol: nombresRoles, cedula: cedulaLimpia || null }).eq("id", modal.id)
+      const { error: errorUpdate } = await supabase.from("perfiles").update({ nombre: nombre.trim(), etiqueta_rol: nombresRoles, cedula: cedulaLimpia || null, registro_profesional: registro.trim() || null }).eq("id", modal.id)
       if (errorUpdate) {
         setGuardando(false)
         setError(errorUpdate.code === "23505" || /duplicate key|unique constraint/i.test(errorUpdate.message) ? "Esa cédula ya está registrada por otro usuario de esta óptica." : errorUpdate.message)
@@ -163,7 +168,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
       return
     }
     // El perfil se inserta con la sesión del administrador (no con la de la cuenta recién creada).
-    const { error: errorPerfil } = await supabase.from("perfiles").insert({ id: alta.user.id, optica_id: usuario?.opticaId, rol: "asistente", nombre: nombre.trim(), email: correo.trim(), permisos: {}, etiqueta_rol: nombresRoles, es_optometra: false, cedula: cedulaCrear })
+    const { error: errorPerfil } = await supabase.from("perfiles").insert({ id: alta.user.id, optica_id: usuario?.opticaId, rol: "asistente", nombre: nombre.trim(), email: correo.trim(), permisos: {}, etiqueta_rol: nombresRoles, es_optometra: false, cedula: cedulaCrear, registro_profesional: registro.trim() || null })
     await temp.auth.signOut()
     if (errorPerfil) {
       setGuardando(false)
@@ -378,6 +383,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
           <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula {modal.id == null && <span className="text-red-500">*</span>}</span>
             <div className="relative"><IdCard size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
               <input type="text" inputMode="numeric" value={cedula} onChange={(e) => setCedula(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10 dígitos" maxLength={10} className={CAMPO + " pl-9"} /></div>
+          </label>
+          <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Registro profesional {atiende && <span className="text-red-500">*</span>}</span>
+            <input type="text" value={registro} onChange={(e) => setRegistro(e.target.value.slice(0, 40))} placeholder={atiende ? "Sale en la receta" : "Opcional"} maxLength={40} autoComplete="off" className={CAMPO} />
+            {atiende && <span className="mt-1 block text-xs text-slate-500">Este rol atiende pacientes: su registro sale en cada receta que firma.</span>}
           </label>
         </div>
         {modal.id != null ? (
