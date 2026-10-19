@@ -14,8 +14,9 @@ import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, TONO_ESTADO_ORDEN, plu
 import { useOrdenesLab } from "./ventas/useOrdenesLab"
 
 // Las columnas se reparten el ancho (fr con mínimos): en una pantalla grande el contenido se reparte y el centro de la fila no queda vacío.
-const COLUMNAS_MODULO = "lg:grid-cols-[minmax(4.5rem,0.5fr)_minmax(0,1.6fr)_minmax(6.5rem,0.7fr)_minmax(8.5rem,0.8fr)_minmax(14rem,1.3fr)_minmax(11.5rem,1fr)]"
-const COLUMNAS_PERFIL = COLUMNAS_MODULO
+// Los mínimos suman 40 rem (640 px): caben en los 707 px de lista que deja un perfil o el módulo con el menú abierto en una laptop de 1093 px.
+const COLUMNAS_MODULO = "lg:grid-cols-[4.5rem_minmax(9rem,1.6fr)_6.5rem_7.5rem_minmax(8.5rem,1fr)_minmax(8.5rem,auto)]"
+const COLUMNAS_PERFIL = "lg:grid-cols-[4.5rem_minmax(7rem,1.2fr)_6rem_7.5rem_minmax(6.5rem,1fr)_minmax(8.5rem,auto)]"
 const ADJETIVO = { abiertas: ["abierta", "abiertas"], enviadas: ["enviada", "enviadas"], atrasadas: ["atrasada", "atrasadas"], listas: ["lista", "listas"], sinavisar: ["lista sin avisar", "listas sin avisar"], entregadas: ["entregada", "entregadas"], canceladas: ["cancelada", "canceladas"], todas: ["", ""] }
 
 // Órdenes de laboratorio: lista con filtros por estado y por laboratorio. Cada fila lleva la siguiente acción del proceso (marcar lista,

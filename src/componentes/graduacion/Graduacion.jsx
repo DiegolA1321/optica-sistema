@@ -42,7 +42,7 @@ export function GraduacionVigente({ receta, anterior = null, version = "paciente
           const l = lecturaDeOjo(receta, lado)
           if (ojoSinDatos(receta[lado])) {
             return (
-              <section key={lado} aria-label={nombre} data-lado={lado} className={"pt-abrible relative min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 transition-shadow hover:shadow-md sm:px-[34px] sm:py-7 " + (lado === "od" ? "@[56rem]:order-2" : "@[56rem]:order-1")}>
+              <section key={lado} aria-label={nombre} data-lado={lado} className={"pt-abrible relative min-w-0 self-start rounded-[20px] border border-pt-borde bg-white p-5 transition-shadow hover:shadow-md sm:px-[34px] sm:py-7 " + (lado === "od" ? "@[56rem]:order-2" : "@[56rem]:order-1")}>
                 <p className="text-lg font-semibold text-pt-marino">{nombre}</p>
                 <p className="mt-2 text-lg text-pt-texto">{sinDatosDelOjo(lado)}.</p>
                 <AbrirOjo lado={lado} onOjo={onOjo} paciente />
@@ -105,7 +105,7 @@ function VigentePersonal({ receta, anterior, onOjo }) {
           const delta = v == null ? "" : Math.abs(v) < 0.25 ? `Sin cambios desde ${desde}` : `${textoDelta(v)} desde ${desde}`
           if (ojoSinDatos(o)) {
             return (
-              <section key={lado} aria-label={nombre} data-lado={lado} className={"rounded-2xl border border-slate-200/60 bg-white p-5 " + (onOjo ? "pt-abrible relative transition-shadow hover:shadow-md" : "")}>
+              <section key={lado} aria-label={nombre} data-lado={lado} className={"self-start rounded-2xl border border-slate-200/60 bg-white p-5 " + (onOjo ? "pt-abrible relative transition-shadow hover:shadow-md" : "")}>
                 <p className="text-sm font-bold uppercase tracking-wide" style={{ color: COLOR_LADO[lado] }}>{sigla} · {nombre}</p>
                 <p className="mt-2 text-base text-slate-500">{sinDatosDelOjo(lado)}.</p>
                 <AbrirOjo lado={lado} onOjo={onOjo} paciente={false} />
@@ -113,7 +113,7 @@ function VigentePersonal({ receta, anterior, onOjo }) {
             )
           }
           return (
-            <section key={lado} aria-label={nombre} data-lado={lado} className={"rounded-2xl border border-slate-200/60 bg-white p-5 " + (onOjo ? "pt-abrible relative transition-shadow hover:shadow-md" : "")}>
+            <section key={lado} aria-label={nombre} data-lado={lado} className={"@container rounded-2xl border border-slate-200/60 bg-white p-5 " + (onOjo ? "pt-abrible relative transition-shadow hover:shadow-md" : "")}>
               <div className="flex items-start gap-5">
                 <OjoIlustrado ancho={150} className="shrink-0" />
                 <div className="min-w-0">
@@ -123,7 +123,7 @@ function VigentePersonal({ receta, anterior, onOjo }) {
                   {valorD(o.esfera) && <p className="mt-1.5 text-xs leading-snug text-slate-500"><Partes partes={l.explicaEsfera} /></p>}
                 </div>
               </div>
-              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 border-t border-slate-100 pt-4 text-base">
+              <dl className="mt-4 grid gap-x-6 gap-y-2 border-t border-slate-100 pt-4 text-base @[34rem]:grid-cols-2">
                 {datos.map(([t, x]) => <div key={t} className="flex items-baseline justify-between gap-2"><dt className="text-slate-500">{t}</dt><dd className="text-right font-semibold tabular-nums text-slate-900">{x || <NoRegistrado />}</dd></div>)}
               </dl>
               <AbrirOjo lado={lado} onOjo={onOjo} paciente={false} />

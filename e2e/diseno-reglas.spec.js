@@ -55,6 +55,22 @@ async function revisarListas(page, donde) {
     // El centro de una fila no queda vacío: ningún hueco entre su contenido de más del 40 % del ancho de la fila.
     const filas = [...raiz.querySelectorAll('li, [data-fila]')].filter((f) => !f.closest('[role="dialog"], nav, [role="tablist"], [role="listbox"], [role="menu"]') && visible(f) && f.getBoundingClientRect().width >= 480 && f.getBoundingClientRect().height < 400)
     for (const f of filas) {
+      // nada de la fila queda cortado por el borde derecho ni encimado con otro texto
+      const caja = f.getBoundingClientRect()
+      const cortado = [...f.querySelectorAll('*')].find((e) => visible(e) && e.children.length === 0 && e.textContent.trim() && e.getBoundingClientRect().right > caja.right + 1)
+      if (cortado) problemas.push(`${donde} · algo de una fila se sale por el borde derecho: «${cortado.textContent.trim().slice(0, 40)}»`)
+      // el texto se mide por su propia caja (Range), no por la del botón o la etiqueta que lo contiene
+      const cajas = []
+      const w2 = document.createTreeWalker(f, NodeFilter.SHOW_TEXT)
+      for (let n = w2.nextNode(); n; n = w2.nextNode()) {
+        if (!n.textContent.trim() || !n.parentElement || !visible(n.parentElement)) continue
+        const rango = document.createRange(); rango.selectNodeContents(n)
+        for (const r of rango.getClientRects()) if (r.width > 0) cajas.push({ e: n.parentElement, r })
+      }
+      for (let i = 0; i < cajas.length; i++) for (let j = i + 1; j < cajas.length; j++) {
+        const a = cajas[i].r, b = cajas[j].r
+        if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 3 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 3 && !cajas[i].e.contains(cajas[j].e) && !cajas[j].e.contains(cajas[i].e)) { problemas.push(`${donde} · texto encimado en una fila: «${cajas[i].e.textContent.trim().slice(0, 25)}» y «${cajas[j].e.textContent.trim().slice(0, 25)}»`); i = cajas.length; break }
+      }
       const rs = rectsDeTexto(f).sort((a, b) => a.izq - b.izq)
       if (rs.length < 2) continue
       let hueco = 0, fin = rs[0].der
