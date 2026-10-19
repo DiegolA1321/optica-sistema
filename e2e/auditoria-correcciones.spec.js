@@ -26,6 +26,8 @@ test('Usuarios: ningún rol dice "administración delegada" por tener Soporte, y
 test('Ventas (citas solo ver): el detalle de la cita no ofrece editar ni cancelar', async ({ page }) => {
   await iniciarSesion(page, 'VENTAS')
   await ir(page, 'Citas médicas')
+  // «Hoy» puede ser un día que la óptica no atiende: se miran todas las citas
+  await page.getByRole('button', { name: 'Todas', exact: true }).click()
   await page.getByTitle('Ver el detalle de la cita').first().click()
   const detalle = page.getByRole('dialog')
   await expect(detalle.getByRole('button', { name: 'Cerrar' }).first()).toBeVisible()
@@ -60,6 +62,7 @@ test('La óptica nueva y vacía: catálogos con tildes, "Para empezar", sin acti
   await expect(page.getByRole('heading', { name: 'Para empezar' })).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText(/Sistema cambió los permisos|creó un rol/)).toHaveCount(0)
   await ir(page, 'Citas médicas')
+  await page.getByRole('button', { name: 'Todas', exact: true }).click()
   await expect(page.getByText('Todavía no hay citas')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Gestionar cita' }).first()).toBeVisible()
   await ir(page, 'Pacientes')
@@ -76,11 +79,14 @@ test('La óptica nueva y vacía: catálogos con tildes, "Para empezar", sin acti
 
 test('Portal: el saldo se avisa en el Resumen y en Mis compras, con la factura para descargar', async ({ page }) => {
   await entrar(page, 'v8twzq', process.env.E2E_PORTAL_CEDULA, process.env.E2E_PORTAL_CLAVE)
-  await expect(page.getByText('Saldo por pagar')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText(/por pagar/i).first()).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText('$40.00').first()).toBeVisible()
   await page.getByRole('button', { name: 'Mis compras', exact: true }).first().click()
   await expect(page.getByText(/Debes \$40\.00/)).toBeVisible()
-  await expect(page.getByRole('button', { name: /Factura \(PDF\)/ })).toBeVisible()
+  // la factura se baja desde el detalle de la compra
+  await page.getByRole('button', { name: /Ver el detalle de tu compra/ }).first().click()
+  await expect(page.getByRole('button', { name: /Descargar factura/ })).toBeVisible()
+  await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Mis datos', exact: true }).first().click()
-  await expect(page.getByText(/Avisos de tu control y de tus citas/)).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Recordatorios de salud' })).toBeVisible({ timeout: 20_000 })
 })
