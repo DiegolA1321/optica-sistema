@@ -18,6 +18,8 @@ async function abrirDesdeLaLista(page, nombre) {
     await page.getByText(nombre, { exact: false }).first().click()
     await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 8_000 })
   }).toPass({ timeout: 60_000 })
+  // el perfil abre en el Resumen: estas pruebas son de la pestaña Citas
+  await page.getByRole('tab', { name: /^Citas/ }).click()
 }
 
 async function abrirPerfil(page, nombre) {
@@ -29,6 +31,8 @@ async function abrirPerfil(page, nombre) {
     await page.getByText(nombre, { exact: false }).first().click()
     await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 8_000 })
   }).toPass({ timeout: 60_000 })
+  // el perfil abre en el Resumen: estas pruebas son de la pestaña Citas
+  await page.getByRole('tab', { name: /^Citas/ }).click()
 }
 
 test.describe('Perfil del paciente: pestaña Citas', () => {
@@ -41,7 +45,7 @@ test.describe('Perfil del paciente: pestaña Citas', () => {
     await expect(page.getByRole('search', { name: 'Buscar en el historial de citas' })).toBeVisible()
 
     // Ver atención: ventana encima, la lista no cambia de alto
-    await page.getByRole('button', { name: /Ver la atención del/ }).first().click()
+    await page.getByRole('listitem').filter({ hasText: 'Atendida' }).getByRole('button', { name: /Ver el detalle de la cita del/ }).first().click()
     const ventana = page.getByRole('dialog', { name: /^Atención del/ })
     await expect(ventana).toBeVisible()
     await foto(page, 'perfil-2-ventana')

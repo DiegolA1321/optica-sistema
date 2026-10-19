@@ -47,7 +47,7 @@ test('Optómetra: el perfil del paciente muestra lo que compró (producto y fech
   await ir(page, 'Pacientes')
   await page.getByRole('textbox', { name: /buscar paciente/i }).fill('E Dos E Portal Auditoria')
   await page.locator('main').getByRole('button', { name: 'Ver perfil 360°' }).first().click()
-  await page.getByRole('tab', { name: /Productos y servicios/ }).click()
+  await page.getByRole('tab', { name: /^Compras/ }).click()
   const compras = page.getByRole('region', { name: 'Compras del paciente' })
   await expect(compras).toContainText('E Dos E Servicio portal')
   await expect(compras).toContainText('16 oct 2026')
