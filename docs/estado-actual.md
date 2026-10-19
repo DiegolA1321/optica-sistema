@@ -1,3 +1,11 @@
+## Publicado el 18 oct. 2026 (`main` en `1ba15ea`: merge de `portal-v2`) y pendiente para mañana
+**Publicado:** portal v2 y rondas posteriores (receta con dos ojos, solicitar lentes, avisos de cambio de contacto), pago por transferencia (migraciones 0129, 0130 y 0131 aplicadas con respaldo, ensayo y verificación real; interfaz en portal, Ventas, Inicio y Configuración), botón «Ingresar» en el perfil del paciente y la ficha clínica de tres pestañas (Anamnesis, Refracción, Diagnóstico y receta) a todo el ancho, con guardado automático del borrador en el navegador (`src/utilidades/borradorFicha.js`: se recupera al reabrir al mismo paciente y cita; se borra al terminar, al dejar de atender y al cerrar sesión). El rediseño de una sola página quedó descartado (commit `82f0956` en el historial; vuelta a la ficha de `15a1b6a`). Capturas en `docs/ficha-capturas/`.
+**Estado del CI:** Vercel (Production) terminó con éxito. El CI «build-and-test» FALLÓ en las pruebas unitarias: 1 de 1470, `src/paginas/PortalPaciente.test.jsx › Cabecera › la campanita avisa de los lentes listos y de la cita de mañana…` (`Unable to find role="button" and name /Avisos: tienes 2/`). En local las 1470 pasan; el CI corrió a las 03:51 UTC (todavía 18 oct. en Ecuador). No se arregló, por decisión de Diego.
+**Pendiente para mañana:**
+1. Revisar si el fallo es solo de la prueba o si la función que calcula «mañana» usa la fecha UTC en vez de la de Ecuador (en ese caso un paciente vería mal el aviso entre las 19:00 y las 24:00). Corregirlo y probarlo con `scripts/probar-zonas-y-horas.mjs`; después confirmar el CI en verde.
+2. Correr la suite completa de Playwright (no se corrió en esta publicación).
+3. Los cambios que Diego quiere hacer a la ficha clínica (los indicará él; no cambiar nada sin mostrárselo antes).
+
 <!-- PV2-INICIO -->
 ## Portal del paciente v2 (rama `portal-v2`, 17 oct. 2026, SIN publicar)
 Pedido: rediseñar el portal (menú claro, Resumen sin repetir con Lo próximo · Mis lentes · Mi próximo control · Mi saldo · La óptica, "Agendar cita" como único verbo, receta con "Ojo derecho/izquierdo" y PDF, estado de las órdenes en Mis compras, celular/tablet/laptop, 16 px) y dejar que cada acción del paciente se refleje en el sistema del personal. Regla nueva: la 48 de `docs/principios-diseno.md`.
