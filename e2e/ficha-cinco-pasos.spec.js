@@ -153,7 +153,7 @@ test('ficha de cinco pasos: se llena, se termina y todo queda como se pidió', a
   await foto(page, 'paso-3-refraccion')
   // La agudeza con la receta nueva es UN solo dato: se ve en la tabla del paso 2
   await irAPasoFicha(page, 2, 'Agudeza visual')
-  await expect(page.locator('[data-av-rx="Od"]')).toHaveText('20/25'.replace('20/25', '20/20 −2'))
+  await expect(page.locator('[data-av-rx="Od"]')).toHaveText('20/20 −2')
   await expect(page.locator('[data-av-rx="Cerca"]')).toHaveText('J1')
 
   // ── Paso 4 · Salud ocular ──
@@ -164,9 +164,10 @@ test('ficha de cinco pasos: se llena, se termina y todo queda como se pidió', a
   await expect(page.locator('#bioOdCornea')).toHaveValue('Sin hallazgos')
   await page.locator('#fondoOi').fill('Papila de bordes definidos, relación copa/disco 0.3.')
   await page.getByRole('group', { name: 'Ojo derecho' }).nth(1).getByRole('button', { name: 'Igual en el otro ojo' }).click()
-  await page.locator('#pioOd').fill('14'); await page.locator('#pioOi').fill('15'); await page.locator('#pioHora').fill('15:20')
+  await page.locator('#pioOd').fill('14'); await page.locator('#pioOi').fill('15')
+  await page.getByLabel('Hora de la medición: hora').selectOption('3'); await page.getByLabel('Hora de la medición: minutos').selectOption('20'); await page.getByLabel('Hora de la medición: AM o PM').selectOption('PM')
   await page.locator('#pioMetodo').selectOption({ index: 1 })
-  await page.locator('#colorPrueba').selectOption('Ishihara'); await page.locator('#colorResultado').fill('Ishihara 14 de 14')
+  await page.locator('#colorPrueba').selectOption('Ishihara'); await page.locator('#colorResultado').fill('14 de 14'); await page.getByRole('button', { name: 'Normal' }).click()
   await foto(page, 'paso-4-salud-ocular')
 
   // ── Paso 5 · Diagnóstico y receta ──
@@ -180,9 +181,9 @@ test('ficha de cinco pasos: se llena, se termina y todo queda como se pidió', a
   await page.getByRole('radio', { name: /Agendar después/ }).check()
   // La vista previa del panel muestra los MISMOS valores que se guardarán (OI transpuesto, adición por ojo, prisma, DP por ojo, lente)
   const resumen = page.locator('[data-receta-resumen]')
-  await expect(resumen).toContainText('-1.00')
+  await expect(resumen).toContainText('−1.00')
   await expect(resumen).toContainText('180°')
-  await expect(resumen).not.toContainText('-1.50 -0.50')
+  await expect(resumen).not.toContainText('−1.50 −0.50')
   await expect(resumen).toContainText('OD +1.50 · OI +1.75')
   await expect(resumen).toContainText('OD 31 · OI 31')
   await expect(resumen).toContainText('OD 2Δ nasal')
@@ -192,7 +193,7 @@ test('ficha de cinco pasos: se llena, se termina y todo queda como se pidió', a
   const hoja = page.locator('[data-hoja-receta]')
   await expect(hoja).toContainText('Prisma')
   await expect(hoja).toContainText('+1.75')
-  await expect(hoja).toContainText('AV con la receta')
+  await expect(hoja).toContainText('Con la receta nueva')
   await expect(hoja).toContainText('20/20 −2')
   await expect(hoja).toContainText('Progresivo, policarbonato, antirreflejo')
   await foto(page, 'paso-5b-hoja-de-la-receta')
@@ -222,8 +223,8 @@ test('ficha de cinco pasos: se llena, se termina y todo queda como se pidió', a
   expect(d.ficha.anamnesis.sintomas).toEqual(expect.arrayContaining(['Borrosidad de cerca', 'Dolor de cabeza']))
   expect(d.ficha.coverTest).toMatchObject({ tipo: 'Exoforia', magnitud: '4', distancia: 'ambas' })
   expect(d.ficha.objetiva.metodo).toBe('autorrefractometro')
-  expect(d.ficha.salud.pio).toMatchObject({ od: '14', oi: '15', hora: '15:20' })
-  expect(d.ficha.salud.color.resultado).toBe('Ishihara 14 de 14')
+  expect(d.ficha.salud.pio).toMatchObject({ od: '14', oi: '15', hora: '03:20 PM' })
+  expect(d.ficha.salud.color).toMatchObject({ resultado: '14 de 14', interpretacion: 'Normal' })
   expect(c.estado_correccion).toBe('Bien corregido') // con la agudeza con la receta nueva (20/20 y 20/25)
   expect(c.antecedentes).toContain('Hipertensión')
   expect(d.medidas.alt ?? '').toBe('') // las alturas no van en la ficha

@@ -5,6 +5,7 @@ import { FileText, CheckCircle2, Download, Ruler } from "lucide-react"
 import { Cascaron } from "../AtencionPaciente"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { medidaConUnidad } from "../../utilidades/medidasMontaje"
+import { medidasLegibles } from "../../utilidades/graduacion"
 import { Tarjeta, TituloTarjeta, TituloPagina, Esqueleto } from "./piezas"
 import { VistaGraduacion } from "../graduacion/Graduacion"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "./estilos"
@@ -61,12 +62,13 @@ export default function MiRecetaPortal({ cargando, ultimaReceta, todasLasRecetas
       )
     }
     if (mostrarMedidas) {
-      return (m.dp || m.alt) && (
+      // Las mismas medidas que en el perfil y en la receta: distancia pupilar (total, de cada ojo y de cerca), altura (fichas anteriores) y prisma.
+      const lista = medidasLegibles(m).filter(([t, x]) => x && t !== "Adición")
+      return lista.length > 0 && (
         <Tarjeta aria-labelledby="medidas">
           <TituloTarjeta id="medidas">Medidas para tus lentes</TituloTarjeta>
-          <dl className="mt-3 grid grid-cols-2 gap-3">
-            {m.dp && <div><dt className="text-base text-pt-texto">Distancia pupilar</dt><dd className="font-heading text-2xl font-bold tabular-nums text-pt-marino">{m.dp}</dd></div>}
-            {m.alt && <div><dt className="text-base text-pt-texto">Altura</dt><dd className="font-heading text-2xl font-bold tabular-nums text-pt-marino">{m.alt}</dd></div>}
+          <dl className="mt-3 space-y-3">
+            {lista.map(([t, x]) => <div key={t}><dt className="text-base text-pt-texto">{t.replace(" (DP)", "")}</dt><dd className="font-heading text-xl font-bold tabular-nums text-pt-marino">{x}</dd></div>)}
           </dl>
         </Tarjeta>
       )

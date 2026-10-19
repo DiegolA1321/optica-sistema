@@ -806,6 +806,9 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   </button>
                 </div>
 
+                {!usuario?.registroProfesional && !fichaGuardada && (
+                  <p role="note" className="no-print rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">Tu registro profesional no está anotado: la receta saldrá sin él. Pídele al administrador que lo complete en Usuarios.</p>
+                )}
                 <section className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
                   <h3 className="mb-2 flex items-center gap-2 text-sm font-bold" style={{ color: INK }}><Stethoscope size={16} className="text-blue-600" aria-hidden="true" /> Diagnóstico <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">Obligatorio</span></h3>
                   {fichaGuardada ? (

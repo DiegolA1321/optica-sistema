@@ -458,7 +458,7 @@ describe("Mi receta", () => {
     await resumen()
     irA("Mi receta")
     expect(screen.getByText("Distancia pupilar")).toBeInTheDocument()
-    expect(screen.getByText("62")).toBeInTheDocument()
+    expect(screen.getByText("62 mm")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /Solicitar distancia pupilar/ })).not.toBeInTheDocument()
   })
   it("cuando la óptica le envía las medidas, el paciente las ve; si lo cita para tomarlas, ve cuándo lo esperan; con la solicitud abierta lo dice", async () => {
