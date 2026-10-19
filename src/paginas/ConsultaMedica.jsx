@@ -10,25 +10,19 @@ import {
   FileText,
   ClipboardList,
   CheckCircle,
-  Ruler,
   ArrowLeft,
-  ArrowRight,
   Save,
   Stethoscope,
   AlertCircle,
   User,
   Sparkles,
   Printer,
-  Calendar,
   Search,
   TrendingUp,
   TrendingDown,
   Minus,
-  Move,
   ScanEye,
-  Palette,
   Glasses,
-  Droplet,
   CalendarClock,
   XCircle,
   History,
@@ -40,7 +34,7 @@ import {
   LogOut,
   ShoppingBag,
 } from "lucide-react"
-import { filtrarSoloNumeros, filtrarNumeroDecimalConSigno } from "../utilidades/validaciones"
+import { filtrarSoloNumeros } from "../utilidades/validaciones"
 import { hoyISO, diaTieneCupo } from "../utilidades/disponibilidad"
 import { sumarDiasISO, diaHabilMasCercano } from "../utilidades/controles"
 import { MENSAJE_HORA_INVALIDA, esErrorHoraInvalida } from "../utilidades/erroresCitas"
@@ -61,6 +55,9 @@ import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
 import HojaReceta from "../componentes/HojaReceta"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
+import TablaRefraccion from "../componentes/ficha/TablaRefraccion"
+import { SeccionFicha, BarraPasos, BloqueOpcional, VistaPreviaHoja, useAltoCabecera, useSeccionActiva } from "../componentes/ficha/PartesFicha"
+import { claveBorrador, guardarBorrador, leerBorrador, borrarBorrador, textoGuardado } from "../utilidades/borradorFicha"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -68,11 +65,15 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
 const escalasSnellen = ["20/20", "20/25", "20/30", "20/40", "20/50", "20/70", "20/100", "20/200"]
 const ORDEN_SNELLEN = escalasSnellen.reduce((acc, esc, i) => ({ ...acc, [esc]: i }), {})
 
-const PASOS = [
-  { id: "anamnesis", n: 1, label: "Anamnesis", icon: ClipboardList },
-  { id: "refraccion", n: 2, label: "Refracción", icon: Eye },
-  { id: "diagnostico", n: 3, label: "Diagnóstico y receta", icon: FileText },
+// Las secciones de la ficha (una sola página): nombres cortos, para que la barra de pasos nunca los corte. Los ids de anamnesis, refraccion y diagnostico son los de la validación.
+const SECCIONES = [
+  { id: "anamnesis", label: "Motivo" },
+  { id: "refraccion", label: "Refracción" },
+  { id: "examen", label: "Examen" },
+  { id: "diagnostico", label: "Diagnóstico" },
+  { id: "receta", label: "Receta" },
 ]
+const IDS_SECCIONES = SECCIONES.map((s) => s.id)
 
 // Tendencia de la graduación medida (solo describe el número, no implica cura ni deterioro clínico)
 const TENDENCIA = {
@@ -109,7 +110,14 @@ const evaluarCorreccion = (avCcOd, avCcOi) => {
 const textoVariacion = textoDioptrias
 
 export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange, onAviso, pases = [], setPases }) {
-  const [subTab, setSubTab] = useState("anamnesis")
+  const cabeceraRef = useRef(null)
+  useAltoCabecera(cabeceraRef)
+  const [seccionActiva, setSeccionActiva] = useSeccionActiva(IDS_SECCIONES)
+  const [mostrarHojaCompleta, setMostrarHojaCompleta] = useState(false)
+  // Guardado automático (borradorFicha.js): cuándo se guardó por última vez y si hay una ficha a medias que recuperar.
+  const [guardadoEn, setGuardadoEn] = useState(null)
+  const [borradorPendiente, setBorradorPendiente] = useState(null)
+  const [ahoraTexto, setAhoraTexto] = useState(() => Date.now())
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas
   // médicas (ver citaIdInicial más abajo) — se guarda aparte de
   // pacienteInicial porque debe seguir disponible al guardar, no solo al
@@ -134,6 +142,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const [busquedaPaciente, setBusquedaPaciente] = useState("")
   const [mostrarDropdown, setMostrarDropdown] = useState(false)
   const dropdownRef = useRef(null)
+  const clave = claveBorrador(usuario?.id, pacienteId, citaEnAtencionId)
 
   const pacientesFiltrados = useMemo(() => {
     if (!busquedaPaciente.trim()) return pacientesLista
@@ -349,6 +358,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     }
     setCitas?.((prev) => prev.map((c) => (c.id === citaEnAtencionId ? { ...c, ...(cambios.estado ? { estado: cambios.estado } : {}), ...("atendido_por" in cambios ? { atendidoPor: null } : {}) } : c)))
     registrarLog(usuario, "consultas", "Dejó de atender a un paciente", pacienteSeleccionado)
+    borrarBorrador(clave)
     onCambiosSinGuardarChange?.(false)
     onAviso?.(`Dejaste de atender a ${pacienteSeleccionado}. La cita sigue agendada.`)
     setDejandoDeAtender(false)
@@ -405,7 +415,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   }, [
     motivo, detalleConsulta, usaLentes, antecedentes, alergias, antecedentesFamiliares,
     retinoscopiaOd, retinoscopiaOi, odEsfera, odCilindro, odEje, odAgudezaSc, odAgudezaCc,
-    oiEsfera, oiCilindro, oiEje, oiAgudezaSc, oiAgudezaCc, adicion, dp, alt, avCerca,
+    oiEsfera, oiCilindro, oiEje, oiAgudezaSc, oiAgudezaCc, odNoEval, odMotivoNoEval, oiNoEval, oiMotivoNoEval, adicion, dp, alt, avCerca,
     testMotor, coverTestLejos, coverTestCerca, oftalmoscopia, testColor, pioOd, pioOi,
     biomicroParpados, biomicroCornea, biomicroCamara, diagnosticoCategorias, diagnostico,
     recomendarLente, lenteRecomendado, indicaciones, proximoControlDias, controlModo, controlFecha, controlHora, tratamientoFinalizado, archivosImagenes,
@@ -448,12 +458,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   useEffect(() => {
     if (motivo === "Otros") detalleRef.current?.focus()
   }, [motivo])
-
-  // Scroll automático al inicio del formulario al cambiar de paso
-  const inicioFormRef = useRef(null)
-  useEffect(() => {
-    inicioFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-  }, [subTab])
 
   // Acceso rápido al historial clínico del paciente sin salir del flujo de consulta
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
@@ -549,7 +553,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     // Propuesta de flujo de atención (Ronda 3): primero el contexto del
     // paciente y el motivo, después la captura — la ficha abre siempre en el
     // paso 1, con o sin historial (antes abría en Refracción si ya tenía).
-    setSubTab("anamnesis")
     // La detección de cambios solo se pausaba al montar el componente o al
     // reiniciar el formulario — buscar y elegir un paciente casi siempre
     // toma más de los 400ms de esa pausa, así que la precarga de
@@ -685,7 +688,8 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setErrores({})
     setBannerError("")
     setFichaGuardada(false)
-    setSubTab("anamnesis")
+    borrarBorrador(clave)
+    setGuardadoEn(null)
     setSeccionesAbiertas({ antecedentesPaciente: true, refraccionSubjetiva: true })
     setEditandoMotivo(false)
     setMostrarDetalle(false)
@@ -704,7 +708,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       if (Object.keys(errs).length > 0) {
         setErrores(errs)
         setBannerError(mensajeBanner(paso, errs))
-        setSubTab(paso)
+        irASeccion(paso)
         return
       }
     }
@@ -925,7 +929,8 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setTimeout(() => setNotificacion(false), 3500)
     setFichaGuardada(true)
     setHayCambiosSinGuardar(false)
-    setSubTab("diagnostico")
+    borrarBorrador(clave)
+    setGuardadoEn(null)
     // La atención terminó: la receta queda lista y el paciente se pasa a la óptica
     // (o se cobra ahí mismo) desde el bloque de "Atención terminada".
     setCobroEstado("terminada")
@@ -1001,36 +1006,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setBannerError("")
   }
 
-  const ORDEN = { anamnesis: 1, refraccion: 2, diagnostico: 3 }
-
-  const irA = (destino) => {
-    // Si vuelve a un paso de edición, la receta deja de estar "guardada"
-    if (destino !== "diagnostico") setFichaGuardada(false)
-    // Retroceder o quedarse en el paso actual: libre
-    if (ORDEN[destino] <= ORDEN[subTab]) {
-      setErrores({})
-      setBannerError("")
-      setSubTab(destino)
-      return
-    }
-    // Avanzar: validar el paso actual y los intermedios; si algo falla, se detiene ahí
-    for (const paso of ["anamnesis", "refraccion", "diagnostico"]) {
-      if (ORDEN[paso] >= ORDEN[subTab] && ORDEN[paso] < ORDEN[destino]) {
-        const errs = validarPaso(paso)
-        if (Object.keys(errs).length > 0) {
-          setErrores(errs)
-          setBannerError(mensajeBanner(paso, errs))
-          setSubTab(paso)
-          return
-        }
-      }
-    }
-    setErrores({})
-    setBannerError("")
-    setSubTab(destino)
-  }
-
-  const pasoActual = PASOS.find((p) => p.id === subTab)
+  // Para llevar al optómetra a la sección que falta, mientras guarda.
 
   // "Registrado"/"No registrado" en las secciones opcionales de Refracción —
   // el ing pidió justo esto: no todas las consultas requieren retinoscopía,
@@ -1126,8 +1102,101 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
 
   const fechaLarga = useMemo(() => formatoFecha(fechaConsulta, "largoSinDia") || fechaConsulta, [fechaConsulta])
 
+  // ─── Ficha de una sola página ───
+  // Los cinco pasos son secciones de la misma página; la barra fija de arriba salta a cada una y cada sección dice sola cómo va (Registrado / Falta algo). Nada de «Siguiente».
+  const erroresRefraccion = validarPaso("refraccion")
+  const erroresDiagnostico = validarPaso("diagnostico")
+  const ojosSinDatos = ["od", "oi"].filter((k) => erroresRefraccion[`${k}_esfera`]?.startsWith("Ingresa la esfera")).map((k) => (k === "od" ? "derecho" : "izquierdo"))
+  const estadosSeccion = {
+    anamnesis: !pacienteId ? { texto: "Falta el paciente", tono: "pend" }
+      : !motivo.trim() ? { texto: "Falta el motivo", tono: "pend" }
+      : motivo === "Otros" && !detalleConsulta.trim() ? { texto: "Falta describir el motivo", tono: "pend" }
+      : { texto: "Registrado", tono: "ok" },
+    refraccion: ojosSinDatos.length ? { texto: `Falta el ojo ${ojosSinDatos.join(" y el ")}`, tono: "pend" }
+      : Object.keys(erroresRefraccion).length ? { texto: "Revisa los valores", tono: "pend" }
+      : registradoRefraccion ? { texto: "Registrada", tono: "ok" } : { texto: "Sin medir", tono: "neutro" },
+    examen: registradoExamenFisico || registradoBiomicroscopia ? { texto: "Registrado", tono: "ok" } : { texto: "Opcional", tono: "neutro" },
+    diagnostico: erroresDiagnostico.diagnostico ? { texto: "Falta el diagnóstico", tono: "pend" }
+      : erroresDiagnostico.diagnosticoDetalle ? { texto: "Falta el detalle de «Otro»", tono: "pend" }
+      : erroresDiagnostico.control ? { texto: "Falta el control", tono: "pend" }
+      : { texto: "Registrado", tono: "ok" },
+    receta: fichaGuardada ? { texto: "Lista para imprimir", tono: "ok" } : indicaciones.trim() ? { texto: "Registrada", tono: "ok" } : { texto: "Opcional", tono: "neutro" },
+  }
+  const pasosFicha = SECCIONES.map((s) => ({ ...s, estado: estadosSeccion[s.id] }))
+
+  // Cada dato de la ficha con su «poner»: sirve para guardar el borrador y para recuperarlo sin repetir la lista.
+  const campos = {
+    fechaConsulta: [fechaConsulta, setFechaConsulta], motivo: [motivo, setMotivo], detalleConsulta: [detalleConsulta, setDetalleConsulta], usaLentes: [usaLentes, setUsaLentes], antecedentes: [antecedentes, setAntecedentes],
+    alergias: [alergias, setAlergias], antecedentesFamiliares: [antecedentesFamiliares, setAntecedentesFamiliares], retinoscopiaOd: [retinoscopiaOd, setRetinoscopiaOd], retinoscopiaOi: [retinoscopiaOi, setRetinoscopiaOi],
+    odEsfera: [odEsfera, setOdEsfera], odCilindro: [odCilindro, setOdCilindro], odEje: [odEje, setOdEje], odAgudezaSc: [odAgudezaSc, setOdAgudezaSc], odAgudezaCc: [odAgudezaCc, setOdAgudezaCc],
+    oiEsfera: [oiEsfera, setOiEsfera], oiCilindro: [oiCilindro, setOiCilindro], oiEje: [oiEje, setOiEje], oiAgudezaSc: [oiAgudezaSc, setOiAgudezaSc], oiAgudezaCc: [oiAgudezaCc, setOiAgudezaCc],
+    odNoEval: [odNoEval, setOdNoEval], odMotivoNoEval: [odMotivoNoEval, setOdMotivoNoEval], oiNoEval: [oiNoEval, setOiNoEval], oiMotivoNoEval: [oiMotivoNoEval, setOiMotivoNoEval],
+    adicion: [adicion, setAdicion], dp: [dp, setDp], alt: [alt, setAlt], avCerca: [avCerca, setAvCerca], testMotor: [testMotor, setTestMotor], coverTestLejos: [coverTestLejos, setCoverTestLejos], coverTestCerca: [coverTestCerca, setCoverTestCerca],
+    oftalmoscopia: [oftalmoscopia, setOftalmoscopia], testColor: [testColor, setTestColor], pioOd: [pioOd, setPioOd], pioOi: [pioOi, setPioOi],
+    biomicroParpados: [biomicroParpados, setBiomicroParpados], biomicroCornea: [biomicroCornea, setBiomicroCornea], biomicroCamara: [biomicroCamara, setBiomicroCamara],
+    diagnosticoCategorias: [diagnosticoCategorias, setDiagnosticoCategorias], diagnostico: [diagnostico, setDiagnostico], recomendarLente: [recomendarLente, setRecomendarLente], lenteRecomendado: [lenteRecomendado, setLenteRecomendado],
+    indicaciones: [indicaciones, setIndicaciones], proximoControlDias: [proximoControlDias, setProximoControlDias], controlModo: [controlModo, setControlModo], controlFecha: [controlFecha, setControlFecha], controlHora: [controlHora, setControlHora],
+    tratamientoFinalizado: [tratamientoFinalizado, setTratamientoFinalizado],
+  }
+  const instantanea = JSON.stringify(Object.fromEntries(Object.entries(campos).map(([k, [v]]) => [k, v])))
+
+  // Guardado automático: mientras se escribe, la ficha se guarda sola como borrador (en este navegador, ver borradorFicha.js). Al volver a abrir al mismo paciente y la misma cita se ofrece recuperarlo.
+  useEffect(() => {
+    if (!clave || fichaGuardada || !hayCambiosSinGuardar) return undefined
+    const t = setTimeout(() => { if (guardarBorrador(clave, JSON.parse(instantanea))) setGuardadoEn(Date.now()) }, 1200)
+    return () => clearTimeout(t)
+  }, [clave, instantanea, hayCambiosSinGuardar, fichaGuardada])
+  const clavesRevisadas = useRef(new Set())
+  useEffect(() => {
+    if (!clave || fichaGuardada || clavesRevisadas.current.has(clave)) return
+    clavesRevisadas.current.add(clave)
+    const b = leerBorrador(clave)
+    setBorradorPendiente(b ? { ...b, clave } : null)
+    setGuardadoEn(null)
+  }, [clave, fichaGuardada])
+  useEffect(() => {
+    if (!guardadoEn) return undefined
+    const i = setInterval(() => setAhoraTexto(Date.now()), 5000)
+    return () => clearInterval(i)
+  }, [guardadoEn])
+  const recuperarBorrador = () => {
+    if (!borradorPendiente) return
+    detectarCambios.current = false
+    for (const [k, [, poner]] of Object.entries(campos)) if (k in borradorPendiente.datos) poner(borradorPendiente.datos[k])
+    setGuardadoEn(borradorPendiente.guardadoEn)
+    setBorradorPendiente(null)
+    setHayCambiosSinGuardar(true)
+    setTimeout(() => { detectarCambios.current = true }, 400)
+    onAviso?.("Recuperaste la ficha que tenías a medias.")
+  }
+  const descartarBorrador = () => { borrarBorrador(borradorPendiente?.clave); setBorradorPendiente(null) }
+  // «Guardar y salir»: deja el borrador al día y sale sin terminar la atención (la cita sigue «En atención»; al volver a abrir la ficha se recupera).
+  const guardarYSalir = () => {
+    if (clave && pacienteId) guardarBorrador(clave, JSON.parse(instantanea))
+    setHayCambiosSinGuardar(false)
+    onCambiosSinGuardarChange?.(false)
+    onAviso?.(`Guardaste lo que llevas de la ficha de ${pacienteSeleccionado}. Al abrirla otra vez podrás seguir donde la dejaste.`)
+    ;(onCerrar || onVolver)?.()
+  }
+
+  const irASeccion = (id) => {
+    setSeccionActiva(id)
+    document.getElementById(`ficha-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+  const ojosTabla = {
+    od: { esfera: odEsfera, cilindro: odCilindro, eje: odEje, avSc: odAgudezaSc, avCc: odAgudezaCc, noEval: odNoEval, motivo: odMotivoNoEval },
+    oi: { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje, avSc: oiAgudezaSc, avCc: oiAgudezaCc, noEval: oiNoEval, motivo: oiMotivoNoEval },
+  }
+  const ponerOjo = {
+    od: { esfera: setOdEsfera, cilindro: setOdCilindro, eje: setOdEje, avSc: setOdAgudezaSc, avCc: setOdAgudezaCc, noEval: setOdNoEval, motivo: setOdMotivoNoEval },
+    oi: { esfera: setOiEsfera, cilindro: setOiCilindro, eje: setOiEje, avSc: setOiAgudezaSc, avCc: setOiAgudezaCc, noEval: setOiNoEval, motivo: setOiMotivoNoEval },
+  }
+  const claseCampo = "w-full rounded-lg border bg-white px-3 py-2.5 text-base text-slate-900 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 "
+  const etiqueta = "mb-1.5 block text-sm font-semibold text-slate-700"
+  const textoError = (m) => m && <p className="mt-1.5 flex items-center gap-1 text-sm font-medium text-red-600"><AlertCircle size={14} aria-hidden="true" /> {m}</p>
+
   return (
-    <div className="w-full space-y-6 text-left">
+    <div className="w-full space-y-4 text-left">
       {/* Estilos para impresión limpia de la receta */}
       <style>{`
         @page { margin: 1.4cm; }
@@ -1141,45 +1210,22 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
         }
       `}</style>
 
-      {/* ─── VOLVER / CERRAR ───
-          Ficha clínica ya no tiene entrada propia en el sidebar (se llega
-          acá desde "Atender" en Citas médicas o desde "Ficha clínica" en el
-          perfil del paciente) — sin esto no había forma de salir salvo
-          eligiendo otra sección al azar en el menú. Volver y Cerrar no son
-          lo mismo: "Volver" reabre lo que había antes (el perfil del
-          paciente, si se entró desde ahí — lo maneja Dashboard.jsx), "Cerrar"
-          siempre sale a la lista de origen sin importar de dónde se venía. */}
-      {(onVolver || onCerrar) && (
-        <div className="no-print -mt-2 flex items-center justify-between">
-          <button type="button" onClick={onVolver || onCerrar} className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
-            <ArrowLeft size={18} /> {origenNombre}
+      {/* ─── VOLVER / DEJAR DE ATENDER ─── «Volver» reabre lo que había antes (el perfil del paciente, si se entró desde ahí), «Cerrar» sale a la lista de origen. «Dejar de atender» descarta lo no guardado. */}
+      <div className="no-print flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {(onVolver || onCerrar) && (
+            <button type="button" onClick={onVolver || onCerrar} className="flex shrink-0 items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
+              <ArrowLeft size={18} aria-hidden="true" /> {origenNombre}
+            </button>
+          )}
+          <h1 className="flex items-center gap-2 font-serif text-xl font-bold tracking-tight" style={{ color: INK }}><Stethoscope size={20} className="text-blue-600" aria-hidden="true" /> Ficha clínica</h1>
+        </div>
+        {citaEnAtencionId && !fichaGuardada && (
+          <button type="button" onClick={() => { setErrorDejarDeAtender(""); setMostrarDejarDeAtender(true) }} title="Salir sin guardar: la cita se mantiene agendada"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-red-50 hover:text-red-700 cursor-pointer">
+            <LogOut size={15} aria-hidden="true" /> Dejar de atender
           </button>
-          <div className="flex items-center gap-1">
-            {citaEnAtencionId && !fichaGuardada && (
-              <button
-                type="button"
-                onClick={() => { setErrorDejarDeAtender(""); setMostrarDejarDeAtender(true) }}
-                title="Salir sin guardar: la cita se mantiene agendada"
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-red-50 hover:text-red-700 cursor-pointer"
-              >
-                <LogOut size={14} aria-hidden="true" /> Dejar de atender
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ─── HEADER ─── */}
-      <div className="no-print flex items-start gap-3.5">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
-          <Stethoscope size={24} />
-        </div>
-        <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Ficha clínica</h1>
-          <p className="text-sm text-slate-500">
-            Examen visual digitalizado, toma de medidas refractivas y actualización del expediente del paciente.
-          </p>
-        </div>
+        )}
       </div>
 
       {/* ─── ÉXITO ─── */}
@@ -1188,540 +1234,316 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
           <CheckCircle className="shrink-0 text-emerald-600" size={20} />
           <div>
             <p className="text-sm font-semibold">Ficha clínica guardada con éxito.</p>
-            <p className="text-xs text-emerald-700">La evolución del paciente se ha actualizado en el sistema.</p>
+            <p className="text-sm text-emerald-700">La evolución del paciente se ha actualizado en el sistema.</p>
           </div>
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-3xl">
-        {/* ─── IDENTIDAD DEL PACIENTE (fija al hacer scroll) ─── Antes el
-            nombre solo aparecía en el buscador del paso 1 y en el resumen
-            del paso 3 — al completar un formulario largo (Refracción tiene
-            bastante contenido) el optómetra podía perder de vista a quién
-            le está tomando las medidas. Sticky respecto del contenedor con
-            scroll real (Dashboard.jsx, no la ventana), no se necesita
-            ningún offset especial. */}
-        {/* ─── BARRA DE LA VISITA ─── Opaca (sin blur) y con el scroll
-            del paso calculado debajo de ella (scrollMarginTop de
-            inicioFormRef) para que ya no tape el título de la sección.
-            Reúne lo que antes se repartía entre esta barra, el bloque
-            "Datos del paciente e historial" y el campo de motivo:
-            paciente, cita de origen, fecha de la consulta (editable),
-            alergias (rojo) y última graduación. */}
-        {pacienteId && pacienteSeleccionado && (
-          <div className="no-print sticky top-0 z-10 mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}>
-                  <User size={15} />
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold" style={{ color: INK }}>
-                    {pacienteSeleccionado}{edadPaciente != null ? ` · ${edadPaciente} años` : ""}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {citaDeLaVisita
-                      ? `Cita ${citaDeLaVisita.hora} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? "Hoy" : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}`
-                      : "Sin cita · consulta directa"}
-                    {motivo && !citaDeLaVisita ? ` · ${motivo}` : ""}
-                  </p>
-                </div>
+      {borradorPendiente && !fichaGuardada && (
+        <div role="status" className="no-print flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-slate-800">
+          <History size={18} className="shrink-0 text-blue-600" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-base"><span className="font-semibold">Hay una ficha a medias de este paciente</span> · {textoGuardado(borradorPendiente.guardadoEn).replace("Guardado", "guardada")}. ¿La recuperas?</p>
+          <div className="flex shrink-0 gap-2">
+            <button type="button" onClick={recuperarBorrador} className="min-h-10 rounded-lg px-4 text-base font-semibold text-white cursor-pointer" style={{ background: GRAD }}>Recuperar</button>
+            <button type="button" onClick={descartarBorrador} className="min-h-10 rounded-lg border border-slate-300 bg-white px-4 text-base font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Empezar de cero</button>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={intentarGuardar} className="@container/ficha no-print flex flex-col gap-4" noValidate>
+        {/* ─── CABECERA FIJA: el paciente (con sus alergias a la vista) y los pasos ─── Opaca y compacta; su alto se mide para que el panel de la receta y los saltos queden justo debajo. */}
+        <div ref={cabeceraRef} className="sticky top-0 z-30 space-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+          {pacienteId && pacienteSeleccionado ? (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }} aria-hidden="true"><User size={17} /></span>
+              <div className="min-w-0">
+                <p className="truncate text-base font-bold" style={{ color: INK }}>
+                  {pacienteSeleccionado} <span className="font-semibold text-slate-600">· {edadPaciente != null ? `${edadPaciente} años` : <span title="Sin fecha de nacimiento registrada">edad sin registrar</span>}</span>
+                </p>
+                <p className="truncate text-sm text-slate-600">
+                  {citaDeLaVisita
+                    ? `Cita ${citaDeLaVisita.hora} · ${citaDeLaVisita.motivo || "Consulta"}${citaDeLaVisita.fecha === hoyISO() ? "" : ` · agendada ${fechaCorta(citaDeLaVisita.fecha)}`}`
+                    : "Sin cita · consulta directa"}
+                </p>
               </div>
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                <Calendar size={13} aria-hidden="true" /> Fecha de la consulta
-                <span className="w-44"><CampoFecha id="consulta-fecha" etiqueta="Fecha de la consulta" valor={fechaConsulta} onCambiar={setFechaConsulta} min={sumarDiasISO(hoyISO(), -365 * 3)} max={hoyISO()} /></span>
-              </label>
-            </div>
-            {(alergiaSignificativa || ultimaGraduacion || antecedentesAlerta.length > 0) && (
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
                 {alergiaSignificativa && (
-                  <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 font-bold text-red-700">
-                    <AlertCircle size={12} className="shrink-0" aria-hidden="true" />
+                  <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-red-300 bg-red-50 px-3 py-1 text-sm font-bold text-red-700">
+                    <AlertCircle size={15} className="shrink-0" aria-hidden="true" />
                     <span className="truncate">Alergias: {alergias.trim()}</span>
                   </span>
                 )}
                 {antecedentesAlerta.length > 0 && (
-                  <span role="status" className="flex w-full items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 px-2.5 py-1 font-bold text-amber-800">
-                    <AlertCircle size={12} className="shrink-0" aria-hidden="true" />
+                  <span role="status" className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-amber-300/70 bg-amber-50 px-3 py-1 text-sm font-bold text-amber-800">
+                    <AlertCircle size={15} className="shrink-0" aria-hidden="true" />
                     <span className="truncate">Antecedentes importantes: {textoAntecedentes(antecedentesAlerta)}</span>
                   </span>
                 )}
                 {ultimaGraduacion && (
-                  <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-slate-200/60 bg-slate-50 px-2.5 py-1 font-mono text-xs text-slate-600">
-                    <Glasses size={12} className="shrink-0 text-slate-500" aria-hidden="true" />
+                  <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-mono text-sm text-slate-700">
+                    <Glasses size={15} className="shrink-0 text-slate-500" aria-hidden="true" />
                     <span className="truncate">Últ. graduación ({fechaCorta(ultimaGraduacion.fecha)}): OD {ultimaGraduacion.od} · OI {ultimaGraduacion.oi}</span>
                   </span>
                 )}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* ─── FORMULARIO PRINCIPAL ─── */}
-        <div className="no-print flex flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-          {/* Stepper */}
-          <div className="flex gap-1 border-b border-slate-200/60 bg-slate-50/70 p-2">
-            {PASOS.map((paso) => {
-              const Icono = paso.icon
-              const activo = subTab === paso.id
-              return (
-                <button
-                  key={paso.id}
-                  type="button"
-                  onClick={() => irA(paso.id)}
-                  className={"flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition " + (activo ? "bg-white shadow-sm" : "text-slate-500 hover:text-slate-800")}
-                  style={activo ? { color: "#2563EB" } : undefined}
-                >
-                  <span className="grid h-5 w-5 place-items-center rounded-full text-xs font-bold text-white" style={activo ? { background: GRAD } : { backgroundColor: "#cbd5e1" }}>
-                    {paso.n}
-                  </span>
-                  <span className="hidden items-center gap-1.5 sm:flex">
-                    <Icono size={15} /> {paso.label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          <form onSubmit={intentarGuardar} className="flex flex-1 flex-col justify-between gap-6 p-6">
-            <div ref={inicioFormRef} style={{ scrollMarginTop: 140 }} />
-            {bannerError && (
-              <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-red-200/60 bg-red-50 p-3.5 text-red-700">
-                <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-500" />
-                <div>
-                  <p className="text-sm font-bold">No puedes continuar todavía</p>
-                  <p className="text-xs text-red-600">{bannerError}</p>
-                </div>
+            </div>
+          ) : (
+            <p className="text-base font-semibold text-slate-600">Elige al paciente para empezar la ficha</p>
+          )}
+          <BarraPasos pasos={pasosFicha} activa={seccionActiva} onIr={irASeccion} />
+          {bannerError && (
+            <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-700">
+              <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-500" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-bold">No puedes continuar todavía</p>
+                <p className="text-sm text-red-600">{bannerError}</p>
               </div>
-            )}
-            {/* ─── Antecedentes del paciente (dato fijo de la persona, no
-                relacional a esta consulta) — se muestra una sola vez, en el
-                paso donde se abre la ficha para este paciente (decisión de
-                Diego, 29 sept.): paciente nuevo abre en Anamnesis y el
-                bloque vive solo ahí; paciente con historial abre directo en
-                Refracción (ver seleccionarPacienteCombo, pedido ING7) y el
-                resumen plegado vive solo ahí — nunca en los dos pasos ni en
-                Diagnóstico. Colapsado cuando ya están registrados de una
-                visita anterior (pedido de Diego: no repetir este formulario
-                completo en cada visita; solo la primera vez, o si el
-                optómetra quiere revisarlo/editarlo, se despliega). Mismo
-                patrón alternarSeccion() que usa Refracción para
-                retinoscopía/examen físico/biomicroscopía. ─── */}
-            {/* Contexto en lectura, arriba: última visita, tendencia y acceso al
-                historial (lo que pidió el ingeniero el 29 sep: "todo el
-                contexto del paciente primero, y luego me dedico a registrar"). */}
-            {pacienteId && subTab === "anamnesis" && (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200/60 bg-blue-50/50 px-4 py-3">
-                <div className="min-w-0 space-y-0.5 text-xs text-slate-600">
-                  {ultimaConsultaPaciente ? (
-                    <>
-                      <p>
-                        <span className="font-bold" style={{ color: INK }}>Última visita</span> {fechaCorta(ultimaConsultaPaciente.fecha)} · {ultimaConsultaPaciente.diagnostico || "Sin diagnóstico registrado"}
-                      </p>
-                      {tendenciaHistorica && (() => {
-                        const t = TENDENCIA[tendenciaHistorica.verdicto] || TENDENCIA["Sin cambios"]
-                        const IconoT = t.icon
-                        return (
-                          <p className="flex items-center gap-1">
-                            <IconoT size={12} style={{ color: t.fg }} aria-hidden="true" />
-                            Tendencia: <span className="font-semibold" style={{ color: t.fg }}>{tendenciaHistorica.verdicto.toLowerCase()}</span> ({textoVariacion(tendenciaHistorica.variacion)})
-                          </p>
-                        )
-                      })()}
-                    </>
-                  ) : (
-                    <p><span className="font-bold" style={{ color: INK }}>Primera consulta</span> de este paciente — sin historial previo.</p>
-                  )}
-                </div>
-                {historialPaciente.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setMostrarHistorial(true)}
-                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-700 cursor-pointer"
-                  >
-                    <History size={13} /> Ver historial ({historialPaciente.length})
-                  </button>
-                )}
-              </div>
-            )}
+            </div>
+          )}
+        </div>
 
-            {pacienteId && subTab === "anamnesis" && (
-              <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                <button type="button" onClick={() => alternarSeccion("antecedentesPaciente")} aria-expanded={!!seccionesAbiertas.antecedentesPaciente} className="flex w-full items-center justify-between gap-2 text-left cursor-pointer">
-                  <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: INK }}>
-                    <ClipboardList size={16} className="text-blue-600" /> Antecedentes del paciente
-                    <EtiquetaRegistro registrado={registradoAntecedentes} />
-                  </span>
-                  <span className="flex items-center gap-2">
-                    {tieneHistorialAntecedentes && !seccionesAbiertas.antecedentesPaciente && (
-                      <span className="hidden items-center gap-1 text-xs font-normal normal-case text-slate-500 sm:flex">
-                        <History size={11} /> Ya registrados{fechaPrecarga ? ` el ${fechaLegible(fechaPrecarga)}` : ""} · toca para ver o editar
-                      </span>
-                    )}
-                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.antecedentesPaciente ? "" : "-rotate-90")} />
-                  </span>
-                </button>
+        <div className="grid gap-4 @[56rem]/ficha:grid-cols-[minmax(0,1fr)_20rem] @[72rem]/ficha:grid-cols-[minmax(0,1fr)_26rem]">
+          <div className="min-w-0 space-y-4">
+          <fieldset disabled={fichaGuardada} className="m-0 min-w-0 space-y-4 border-0 p-0">
+            <legend className="sr-only">Datos de la ficha clínica</legend>
 
-                {/* Línea base siempre visible al colapsar — antes, colapsado
-                    solo decía "ya registrados, toca para ver": el optómetra
-                    tenía que abrir el acordeón para enterarse de una alergia
-                    antes de recetar. Ahora el dato real queda a la vista sin
-                    clic, que es justo lo que se necesita revisar antes de
-                    empezar la consulta; el acordeón sigue existiendo para
-                    editar sin repetir el formulario completo cada visita. */}
-                {!seccionesAbiertas.antecedentesPaciente && (
-                  <div className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200/60 bg-white p-3 text-xs leading-relaxed text-slate-700 sm:grid-cols-3">
-                    <p><span className="block text-xs font-bold uppercase tracking-wide text-slate-400">Alergias</span>{alergias || "Ninguna registrada"}</p>
-                    <p><span className="block text-xs font-bold uppercase tracking-wide text-slate-400">Antecedentes médicos/oculares</span>{antecedentes || "Ninguno registrado"}</p>
-                    <p><span className="block text-xs font-bold uppercase tracking-wide text-slate-400">Antecedentes familiares</span>{antecedentesFamiliares || "Ninguno registrado"}</p>
-                  </div>
-                )}
-
-                {seccionesAbiertas.antecedentesPaciente && (
-                <>
-                <div className="flex flex-col gap-3 rounded-lg border border-slate-200/60 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                    <Glasses size={16} className="text-slate-500" />
-                    ¿Utiliza o ha utilizado lentes?
-                    {precargado.usaLentes && <InsigniaHistorial fecha={fechaPrecarga} />}
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { setUsaLentes("si"); setPrecargado((p) => ({ ...p, usaLentes: false })) }}
-                      aria-pressed={usaLentes === "si"}
-                      className={
-                        "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition sm:flex-none " +
-                        (usaLentes === "si"
-                          ? "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-100"
-                          : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")
-                      }
-                    >
-                      <CheckCircle size={16} className={usaLentes === "si" ? "text-blue-600" : "text-slate-400"} />
-                      Sí
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setUsaLentes("no"); setPrecargado((p) => ({ ...p, usaLentes: false })) }}
-                      aria-pressed={usaLentes === "no"}
-                      className={
-                        "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition sm:flex-none " +
-                        (usaLentes === "no"
-                          ? "border-red-400 bg-red-50 text-red-600 ring-2 ring-red-100"
-                          : "border-slate-300 bg-white text-slate-500 hover:border-slate-400")
-                      }
-                    >
-                      <XCircle size={16} className={usaLentes === "no" ? "text-red-500" : "text-slate-400"} />
-                      No
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="antecedentes" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
-                    Antecedentes médicos / oculares
-                    {precargado.antecedentes && <InsigniaHistorial fecha={fechaPrecarga} />}
-                  </label>
-                  <textarea
-                    id="antecedentes"
-                    rows={3}
-                    placeholder="Ej. Paciente con diabetes tipo 2. Usa lentes desde hace 3 años."
-                    value={antecedentes}
-                    onChange={(e) => { setAntecedentes(e.target.value); setPrecargado((p) => ({ ...p, antecedentes: false })) }}
-                    className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="alergias" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
-                      Alergias
-                      {precargado.alergias && <InsigniaHistorial fecha={fechaPrecarga} />}
-                    </label>
-                    <input
-                      id="alergias"
-                      type="text"
-                      placeholder="Ej. Alergia a fluoresceína, ninguna conocida..."
-                      value={alergias}
-                      onChange={(e) => { setAlergias(e.target.value); setPrecargado((p) => ({ ...p, alergias: false })) }}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="antFamiliares" className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-600">
-                      Antecedentes familiares oculares
-                      {precargado.antecedentesFamiliares && <InsigniaHistorial fecha={fechaPrecarga} />}
-                    </label>
-                    <input
-                      id="antFamiliares"
-                      type="text"
-                      placeholder="Ej. Glaucoma en línea materna, sin antecedentes..."
-                      value={antecedentesFamiliares}
-                      onChange={(e) => { setAntecedentesFamiliares(e.target.value); setPrecargado((p) => ({ ...p, antecedentesFamiliares: false })) }}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
-                    />
-                  </div>
-                </div>
-                </>
-                )}
-              </div>
-            )}
-
-            {/* PASO 1: CONTEXTO Y ANAMNESIS */}
-            {subTab === "anamnesis" && (
-              <div className="space-y-5">
-                {/* ─── Buscador de paciente: solo si la ficha se abrió sin uno ya
-                    resuelto. Cuando llega desde "Atender" o desde el perfil del
-                    paciente (pacienteInicial → seleccionarPacienteCombo ya fijó
-                    pacienteId), no tiene sentido dejarlo buscar/cambiar de
-                    paciente acá — el nombre sigue visible en la barra de la
-                    visita de arriba. Sigue apareciendo para el caso real en
-                    que sí hace falta: "Nueva consulta" al final de la ficha
-                    (resetForm limpia pacienteId a propósito para el siguiente
-                    paciente) y cualquier apertura sin paciente precargado.
-                    Decisión de Diego, 30 sept. ─── */}
+            {/* ─── 1 · MOTIVO: paciente, motivo, antecedentes ─── */}
+            <SeccionFicha id="anamnesis" n={1} titulo="Motivo" estado={estadosSeccion.anamnesis}>
+              <div className="space-y-4">
+                {/* Buscador de paciente: solo si la ficha se abrió sin uno ya resuelto (desde «Atender» o el perfil llega fijado). */}
                 {!pacienteId && (
-                <div className="relative" ref={dropdownRef}>
-                  <label htmlFor="paciente" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                    Paciente <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <User size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                      id="paciente"
-                      type="text"
-                      placeholder="Escriba para filtrar paciente..."
-                      value={busquedaPaciente}
-                      onFocus={() => setMostrarDropdown(true)}
-                      onChange={(e) => {
-                        setBusquedaPaciente(e.target.value)
-                        // Escribir sólo filtra el desplegable — no cuenta como selección hasta
-                        // hacer clic en un paciente real de la lista (ver seleccionarPacienteCombo).
-                        setPacienteId(null)
-                        setPacienteSeleccionado("")
-                        setMostrarDropdown(true)
-                      }}
-                      className={"w-full rounded-lg border bg-white py-2.5 pl-9 pr-8 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 " + (errores.paciente ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
-                    />
-                    <Search size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                  </div>
-
-                  {mostrarDropdown && pacientesFiltrados.length > 0 && (
-                    <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
-                      {pacientesFiltrados.map((p) => (
-                        <li
-                          key={p.id || p.nombre}
-                          onClick={() => seleccionarPacienteCombo(p)}
-                          className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                        >
-                          <span className="font-semibold">{p.nombre}</span>
-                          {p.cedula && <span className="font-mono text-xs text-slate-500">ID: {p.cedula}</span>}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {mostrarDropdown && busquedaPaciente.trim() && pacientesFiltrados.length === 0 && (
-                    <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200/60 bg-white p-3 text-xs text-slate-500 shadow-lg">
-                      Ningún paciente registrado coincide. Créalo primero en el módulo Pacientes — aquí no se puede escribir un nombre nuevo.
+                  <div className="relative" ref={dropdownRef}>
+                    <label htmlFor="paciente" className={etiqueta}>Paciente <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <User size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                      <input id="paciente" type="text" autoComplete="off" placeholder="Escriba para filtrar paciente..." value={busquedaPaciente} onFocus={() => setMostrarDropdown(true)}
+                        onChange={(e) => {
+                          setBusquedaPaciente(e.target.value)
+                          // Escribir solo filtra el desplegable: cuenta como selección únicamente al elegir un paciente real de la lista.
+                          setPacienteId(null)
+                          setPacienteSeleccionado("")
+                          setMostrarDropdown(true)
+                        }}
+                        className={claseCampo + "pl-10 pr-9 " + (errores.paciente ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")} />
+                      <Search size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
                     </div>
-                  )}
-
-                  {errores.paciente && (
-                    <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                      <AlertCircle size={13} /> {errores.paciente}
-                    </p>
-                  )}
-                </div>
-                )}
-
-                {/* ─── Motivo de la consulta: con cita llega relleno y se
-                    muestra como dato (con "Cambiar"); sin cita (entrada desde
-                    el perfil) es el selector obligatorio de siempre. Al elegir
-                    "Otros", el detalle se abre debajo con el foco puesto. ─── */}
-                {pacienteId && (
-                  <div className="space-y-3">
-                    {citaEnAtencionId && motivo && motivo !== "Otros" && !editandoMotivo ? (
-                      <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-white px-4 py-3">
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Motivo de la consulta</p>
-                          <p className="text-sm font-semibold" style={{ color: INK }}>{motivo} <span className="text-xs font-normal text-slate-400">(de la cita)</span></p>
-                        </div>
-                        <button type="button" onClick={() => setEditandoMotivo(true)} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Cambiar</button>
-                      </div>
-                    ) : (
-                      <div>
-                        <label htmlFor="motivo" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                          Motivo de la consulta <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          id="motivo"
-                          value={motivo}
-                          onChange={(e) => {
-                            setMotivo(e.target.value)
-                            limpiarError("motivo")
-                            if (e.target.value !== "Otros") limpiarError("detalleConsulta")
-                          }}
-                          className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.motivo ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
-                        >
-                          <option value="" disabled>Selecciona un motivo...</option>
-                          {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
-                          <option value="Otros">Otros</option>
-                        </select>
-                        {errores.motivo && (
-                          <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                            <AlertCircle size={13} /> {errores.motivo}
-                          </p>
-                        )}
+                    {mostrarDropdown && pacientesFiltrados.length > 0 && (
+                      <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200/60 bg-white shadow-lg">
+                        {pacientesFiltrados.map((p) => (
+                          <li key={p.id || p.nombre} onClick={() => seleccionarPacienteCombo(p)} className="flex cursor-pointer items-center justify-between px-3 py-2.5 text-base text-slate-700 hover:bg-blue-50 hover:text-blue-700">
+                            <span className="font-semibold">{p.nombre}</span>
+                            {p.cedula && <span className="font-mono text-sm text-slate-500">ID: {p.cedula}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {mostrarDropdown && busquedaPaciente.trim() && pacientesFiltrados.length === 0 && (
+                      <div className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200/60 bg-white p-3 text-sm text-slate-500 shadow-lg">
+                        Ningún paciente registrado coincide. Créalo primero en el módulo Pacientes — aquí no se puede escribir un nombre nuevo.
                       </div>
                     )}
+                    {textoError(errores.paciente)}
+                  </div>
+                )}
 
-                    {motivo === "Otros" || detalleConsulta || mostrarDetalle ? (
-                      <div>
-                        <label htmlFor="detalleConsulta" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                          {motivo === "Otros" ? <>Describe el motivo <span className="text-red-500">*</span></> : <>Detalle de la consulta <span className="font-normal text-slate-400">(opcional)</span></>}
-                        </label>
-                        <input
-                          id="detalleConsulta"
-                          ref={detalleRef}
-                          type="text"
-                          placeholder="Ej. Visión borrosa de lejos hace 2 semanas, dolor ocular..."
-                          value={detalleConsulta}
-                          onChange={(e) => { setDetalleConsulta(e.target.value); limpiarError("detalleConsulta") }}
-                          className={"w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.detalleConsulta ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
-                        />
-                        {errores.detalleConsulta && (
-                          <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                            <AlertCircle size={13} /> {errores.detalleConsulta}
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => { setMostrarDetalle(true); setTimeout(() => detalleRef.current?.focus(), 30) }} className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                        + Agregar detalle
+                {/* Contexto en lectura, arriba: última visita, tendencia y acceso al historial. */}
+                {pacienteId && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200/60 bg-blue-50/50 px-4 py-3">
+                    <div className="min-w-0 space-y-0.5 text-sm text-slate-700">
+                      {ultimaConsultaPaciente ? (
+                        <>
+                          <p><span className="font-bold" style={{ color: INK }}>Última visita</span> {fechaCorta(ultimaConsultaPaciente.fecha)} · {ultimaConsultaPaciente.diagnostico || "Sin diagnóstico registrado"}</p>
+                          {tendenciaHistorica && (() => {
+                            const t = TENDENCIA[tendenciaHistorica.verdicto] || TENDENCIA["Sin cambios"]
+                            const IconoT = t.icon
+                            return (
+                              <p className="flex items-center gap-1">
+                                <IconoT size={14} style={{ color: t.fg }} aria-hidden="true" />
+                                Tendencia: <span className="font-semibold" style={{ color: t.fg }}>{tendenciaHistorica.verdicto.toLowerCase()}</span> ({textoVariacion(tendenciaHistorica.variacion)})
+                              </p>
+                            )
+                          })()}
+                        </>
+                      ) : (
+                        <p><span className="font-bold" style={{ color: INK }}>Primera consulta</span> de este paciente — sin historial previo.</p>
+                      )}
+                    </div>
+                    {historialPaciente.length > 0 && (
+                      <button type="button" onClick={() => setMostrarHistorial(true)} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-700 cursor-pointer">
+                        <History size={14} aria-hidden="true" /> Ver historial ({historialPaciente.length})
                       </button>
                     )}
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* PASO 2: REFRACCIÓN */}
-            {subTab === "refraccion" && (
-              <div className="space-y-5">
-                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("retinoscopia")} aria-expanded={!!seccionesAbiertas.retinoscopia} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
-                    <ScanEye size={16} className="text-blue-600" /> Retinoscopía (refracción objetiva)
-                    <span className="ml-auto flex items-center gap-2 text-xs font-normal normal-case text-slate-500">
-                      Opcional · punto de partida antes de refinar
-                      <EtiquetaRegistro registrado={registradoRetinoscopia} />
-                    </span>
-                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.retinoscopia ? "" : "-rotate-90")} />
-                  </button>
-                  {seccionesAbiertas.retinoscopia && (
-                  <>
-                  <p className="text-xs text-slate-500">Hallazgo objetivo antes de refinar con la refracción subjetiva del paciente, abajo.</p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <label htmlFor="retinoOd" className="mb-1 block text-xs font-semibold text-slate-500">Hallazgo OD</label>
-                      <input
-                        id="retinoOd" type="text" placeholder="Ej. -1.00 -0.50 x180"
-                        value={retinoscopiaOd} onChange={(e) => setRetinoscopiaOd(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 font-mono text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                      />
+                {/* Motivo de la consulta: con cita llega relleno y se muestra como dato (con «Cambiar»); sin cita es el selector obligatorio. Al elegir «Otros» el detalle se abre con el foco puesto. */}
+                {pacienteId && (
+                  <div className="grid gap-4 @[30rem]:grid-cols-[minmax(0,1fr)_15rem]">
+                    <div className="space-y-3">
+                      {citaEnAtencionId && motivo && motivo !== "Otros" && !editandoMotivo ? (
+                        <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-white px-4 py-3">
+                          <div>
+                            <p className="text-sm font-bold text-slate-600">Motivo de la consulta</p>
+                            <p className="text-base font-semibold" style={{ color: INK }}>{motivo} <span className="text-sm font-normal text-slate-500">(de la cita)</span></p>
+                          </div>
+                          <button type="button" onClick={() => setEditandoMotivo(true)} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Cambiar</button>
+                        </div>
+                      ) : (
+                        <div>
+                          <label htmlFor="motivo" className={etiqueta}>Motivo de la consulta <span className="text-red-500">*</span></label>
+                          <select id="motivo" value={motivo} onChange={(e) => { setMotivo(e.target.value); limpiarError("motivo"); if (e.target.value !== "Otros") limpiarError("detalleConsulta") }}
+                            className={claseCampo + "font-medium " + (errores.motivo ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}>
+                            <option value="" disabled>Selecciona un motivo...</option>
+                            {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
+                            <option value="Otros">Otros</option>
+                          </select>
+                          {textoError(errores.motivo)}
+                        </div>
+                      )}
+                      {motivo === "Otros" || detalleConsulta || mostrarDetalle ? (
+                        <div>
+                          <label htmlFor="detalleConsulta" className={etiqueta}>
+                            {motivo === "Otros" ? <>Describe el motivo <span className="text-red-500">*</span></> : <>Detalle de la consulta <span className="font-normal text-slate-500">(opcional)</span></>}
+                          </label>
+                          <input id="detalleConsulta" ref={detalleRef} type="text" placeholder="Ej. Visión borrosa de lejos hace 2 semanas, dolor ocular..." value={detalleConsulta}
+                            onChange={(e) => { setDetalleConsulta(e.target.value); limpiarError("detalleConsulta") }}
+                            className={claseCampo + (errores.detalleConsulta ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")} />
+                          {textoError(errores.detalleConsulta)}
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => { setMostrarDetalle(true); setTimeout(() => detalleRef.current?.focus(), 30) }} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                          + Agregar detalle
+                        </button>
+                      )}
                     </div>
                     <div>
-                      <label htmlFor="retinoOi" className="mb-1 block text-xs font-semibold text-slate-500">Hallazgo OI</label>
-                      <input
-                        id="retinoOi" type="text" placeholder="Ej. -0.75 -0.25 x175"
-                        value={retinoscopiaOi} onChange={(e) => setRetinoscopiaOi(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 font-mono text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                      />
+                      <label htmlFor="consulta-fecha" className={etiqueta}>Fecha de la consulta</label>
+                      <CampoFecha id="consulta-fecha" etiqueta="Fecha de la consulta" valor={fechaConsulta} onCambiar={setFechaConsulta} min={sumarDiasISO(hoyISO(), -365 * 3)} max={hoyISO()} />
                     </div>
                   </div>
-                  </>
-                  )}
-                </div>
+                )}
 
-                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("refraccionSubjetiva")} aria-expanded={!!seccionesAbiertas.refraccionSubjetiva} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
-                    <Eye size={16} className="text-blue-600" /> Refracción subjetiva final
-                    <span className="ml-auto flex items-center gap-2 text-xs font-normal normal-case text-slate-500">
-                      Todo opcional · vacío significa "no medido"
-                      <EtiquetaRegistro registrado={registradoRefraccion} />
-                    </span>
-                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.refraccionSubjetiva ? "" : "-rotate-90")} />
-                  </button>
-                  {seccionesAbiertas.refraccionSubjetiva && (
-                  <>
-                  {copiarDesdeAnterior && (
-                    <button type="button" onClick={copiarDesdeAnterior.accion} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                      <History size={13} aria-hidden="true" /> Copiar de la visita anterior ({fechaCorta(copiarDesdeAnterior.fecha)})
+                {/* Antecedentes del paciente (dato fijo de la persona): plegados cuando ya están registrados de una visita anterior, con lo importante siempre a la vista. */}
+                {pacienteId && (
+                  <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
+                    <button type="button" onClick={() => alternarSeccion("antecedentesPaciente")} aria-expanded={!!seccionesAbiertas.antecedentesPaciente} className="flex w-full items-center justify-between gap-2 text-left cursor-pointer">
+                      <span className="flex items-center gap-2 text-base font-semibold" style={{ color: INK }}>
+                        <ClipboardList size={18} className="text-blue-600" aria-hidden="true" /> Antecedentes del paciente
+                        <EtiquetaRegistro registrado={registradoAntecedentes} />
+                      </span>
+                      <span className="flex items-center gap-2">
+                        {tieneHistorialAntecedentes && !seccionesAbiertas.antecedentesPaciente && (
+                          <span className="hidden items-center gap-1 text-sm font-normal text-slate-500 @[30rem]:flex">
+                            <History size={13} aria-hidden="true" /> Ya registrados{fechaPrecarga ? ` el ${fechaLegible(fechaPrecarga)}` : ""} · toca para ver o editar
+                          </span>
+                        )}
+                        <ChevronDown size={18} aria-hidden="true" className={"text-slate-500 transition-transform " + (seccionesAbiertas.antecedentesPaciente ? "" : "-rotate-90")} />
+                      </span>
                     </button>
-                  )}
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <OjoCard sigla="OI" titulo="Ojo izquierdo" noEvaluado={oiNoEval} setNoEvaluado={setOiNoEval} motivoNoEval={oiMotivoNoEval} setMotivoNoEval={setOiMotivoNoEval} esfera={oiEsfera} setEsfera={setOiEsfera} cilindro={oiCilindro} setCilindro={setOiCilindro} eje={oiEje} setEje={setOiEje} avSc={oiAgudezaSc} setAvSc={setOiAgudezaSc} avCc={oiAgudezaCc} setAvCc={setOiAgudezaCc} errores={errores} limpiarError={limpiarError} />
-                    <OjoCard sigla="OD" titulo="Ojo derecho" noEvaluado={odNoEval} setNoEvaluado={setOdNoEval} motivoNoEval={odMotivoNoEval} setMotivoNoEval={setOdMotivoNoEval} esfera={odEsfera} setEsfera={setOdEsfera} cilindro={odCilindro} setCilindro={setOdCilindro} eje={odEje} setEje={setOdEje} avSc={odAgudezaSc} setAvSc={setOdAgudezaSc} avCc={odAgudezaCc} setAvCc={setOdAgudezaCc} errores={errores} limpiarError={limpiarError} />
-                  </div>
-                  {estadoCorreccionActual !== "Sin evaluar" && (
-                    <div><ChipCorreccion correccion={estadoCorreccionActual} /></div>
-                  )}
-                  </>
-                  )}
-                </div>
 
-                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("visionCercana")} aria-expanded={!!seccionesAbiertas.visionCercana} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
-                    <Ruler size={16} className="text-blue-600" /> Visión cercana y centrado
-                    <span className="ml-auto flex items-center gap-2 text-xs font-normal normal-case text-slate-500">
-                      Opcional
-                      <EtiquetaRegistro registrado={registradoCercana} />
-                    </span>
-                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.visionCercana ? "" : "-rotate-90")} />
-                  </button>
-                  {seccionesAbiertas.visionCercana && (
-                  <div className={"grid grid-cols-1 gap-3 sm:grid-cols-" + (manejaProgresion ? "4" : "3")}>
-                    {manejaProgresion && <MedidaCampo id="add" label="Adición (ADD)" value={adicion} onChange={setAdicion} placeholder="+0.00" />}
-                    <MedidaCampo id="dp" label="Distancia pupilar (DP)" value={dp} onChange={setDp} placeholder="64 mm" />
-                    <MedidaCampo id="alt" label="Altura pupilar (ALT)" value={alt} onChange={setAlt} placeholder="18 mm" />
-                    <MedidaCampo id="avCerca" label="AV Cerca (Jaeger)" value={avCerca} onChange={setAvCerca} placeholder="J1" />
-                  </div>
-                  )}
-                </div>
+                    {!seccionesAbiertas.antecedentesPaciente && (
+                      <div className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200/60 bg-white p-3 text-sm leading-relaxed text-slate-700 @[30rem]:grid-cols-3">
+                        <p><span className="block text-sm font-bold text-slate-500">Alergias</span>{alergias || "Ninguna registrada"}</p>
+                        <p><span className="block text-sm font-bold text-slate-500">Antecedentes médicos/oculares</span>{antecedentes || "Ninguno registrado"}</p>
+                        <p><span className="block text-sm font-bold text-slate-500">Antecedentes familiares</span>{antecedentesFamiliares || "Ninguno registrado"}</p>
+                      </div>
+                    )}
 
-                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("examenFisico")} aria-expanded={!!seccionesAbiertas.examenFisico} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
-                    <ScanEye size={16} className="text-blue-600" /> Examen físico complementario
-                    <span className="ml-auto flex items-center gap-2 text-xs font-normal normal-case text-slate-500">
-                      Opcional
-                      <EtiquetaRegistro registrado={registradoExamenFisico} />
-                    </span>
-                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.examenFisico ? "" : "-rotate-90")} />
-                  </button>
-                  {seccionesAbiertas.examenFisico && (
-                  <>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {seccionesAbiertas.antecedentesPaciente && (
+                      <>
+                        <div className="flex flex-col gap-3 rounded-lg border border-slate-200/60 bg-white p-3 @[30rem]:flex-row @[30rem]:items-center @[30rem]:justify-between">
+                          <span className="flex items-center gap-2 text-base font-medium text-slate-700">
+                            <Glasses size={18} className="text-slate-500" aria-hidden="true" />
+                            ¿Utiliza o ha utilizado lentes?
+                            {precargado.usaLentes && <InsigniaHistorial fecha={fechaPrecarga} />}
+                          </span>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => { setUsaLentes("si"); setPrecargado((p) => ({ ...p, usaLentes: false })) }} aria-pressed={usaLentes === "si"}
+                              className={"flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-5 text-base font-semibold transition-colors cursor-pointer @[30rem]:flex-none " + (usaLentes === "si" ? "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-100" : "border-slate-300 bg-white text-slate-600 hover:border-slate-400")}>
+                              <CheckCircle size={17} className={usaLentes === "si" ? "text-blue-600" : "text-slate-400"} aria-hidden="true" /> Sí
+                            </button>
+                            <button type="button" onClick={() => { setUsaLentes("no"); setPrecargado((p) => ({ ...p, usaLentes: false })) }} aria-pressed={usaLentes === "no"}
+                              className={"flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-5 text-base font-semibold transition-colors cursor-pointer @[30rem]:flex-none " + (usaLentes === "no" ? "border-red-400 bg-red-50 text-red-600 ring-2 ring-red-100" : "border-slate-300 bg-white text-slate-600 hover:border-slate-400")}>
+                              <XCircle size={17} className={usaLentes === "no" ? "text-red-500" : "text-slate-400"} aria-hidden="true" /> No
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label htmlFor="antecedentes" className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-slate-700">Antecedentes médicos / oculares {precargado.antecedentes && <InsigniaHistorial fecha={fechaPrecarga} />}</label>
+                          <textarea id="antecedentes" rows={3} placeholder="Ej. Paciente con diabetes tipo 2. Usa lentes desde hace 3 años." value={antecedentes}
+                            onChange={(e) => { setAntecedentes(e.target.value); setPrecargado((p) => ({ ...p, antecedentes: false })) }} className={claseCampo + "resize-none leading-relaxed border-slate-300"} />
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 @[30rem]:grid-cols-2">
+                          <div>
+                            <label htmlFor="alergias" className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-slate-700">Alergias {precargado.alergias && <InsigniaHistorial fecha={fechaPrecarga} />}</label>
+                            <input id="alergias" type="text" placeholder="Ej. Alergia a fluoresceína, ninguna conocida..." value={alergias}
+                              onChange={(e) => { setAlergias(e.target.value); setPrecargado((p) => ({ ...p, alergias: false })) }} className={claseCampo + "border-slate-300"} />
+                          </div>
+                          <div>
+                            <label htmlFor="antFamiliares" className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-slate-700">Antecedentes familiares oculares {precargado.antecedentesFamiliares && <InsigniaHistorial fecha={fechaPrecarga} />}</label>
+                            <input id="antFamiliares" type="text" placeholder="Ej. Glaucoma en línea materna, sin antecedentes..." value={antecedentesFamiliares}
+                              onChange={(e) => { setAntecedentesFamiliares(e.target.value); setPrecargado((p) => ({ ...p, antecedentesFamiliares: false })) }} className={claseCampo + "border-slate-300"} />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </SeccionFicha>
+
+            {/* ─── 2 · REFRACCIÓN: la tabla del optómetra, una fila por ojo ─── */}
+            <SeccionFicha id="refraccion" n={2} titulo="Refracción" estado={estadosSeccion.refraccion}>
+              <div className="space-y-4">
+                <TablaRefraccion
+                  ojos={ojosTabla}
+                  onCambiar={(ojo, c, v) => ponerOjo[ojo][c](v)}
+                  medidas={{ adicion, dp }}
+                  onMedida={(c, v) => (c === "adicion" ? setAdicion(v) : setDp(v))}
+                  manejaProgresion={manejaProgresion}
+                  errores={errores}
+                  limpiarError={limpiarError}
+                  escalas={escalasSnellen}
+                  copiar={copiarDesdeAnterior ? { accion: copiarDesdeAnterior.accion, fechaTexto: fechaCorta(copiarDesdeAnterior.fecha) } : null}
+                  bloqueada={fichaGuardada}
+                />
+                {estadoCorreccionActual !== "Sin evaluar" && <div><ChipCorreccion correccion={estadoCorreccionActual} /></div>}
+                <div className="grid grid-cols-1 gap-4 @[30rem]:grid-cols-2">
+                  <MedidaCampo id="alt" label="Altura pupilar (ALT) · mm" value={alt} onChange={setAlt} placeholder="18" />
+                  <MedidaCampo id="avCerca" label="AV de cerca (Jaeger)" value={avCerca} onChange={setAvCerca} placeholder="J1" />
+                </div>
+                <BloqueOpcional icono={ScanEye} titulo="Retinoscopía (refracción objetiva)" nota="Opcional · punto de partida antes de refinar" registrado={registradoRetinoscopia} abierto={!!seccionesAbiertas.retinoscopia} onAlternar={() => alternarSeccion("retinoscopia")}>
+                  <div className="grid grid-cols-1 gap-3 @[30rem]:grid-cols-2">
                     <div>
-                      <label htmlFor="testMotor" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500"><Move size={12} /> Motilidad ocular</label>
-                      <input
-                        id="testMotor" type="text" placeholder="Ej. Movimientos normales, sin restricción"
-                        value={testMotor} onChange={(e) => setTestMotor(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                      />
+                      <label htmlFor="retinoOd" className={etiqueta}>Hallazgo OD</label>
+                      <input id="retinoOd" type="text" placeholder="Ej. -1.00 -0.50 x180" value={retinoscopiaOd} onChange={(e) => setRetinoscopiaOd(e.target.value)} className={claseCampo + "font-mono border-slate-300"} />
                     </div>
                     <div>
-                      <label htmlFor="oftalmoscopia" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500"><ScanEye size={12} /> Oftalmoscopia</label>
-                      <input
-                        id="oftalmoscopia" type="text" placeholder="Ej. Papila y retina sin alteraciones"
-                        value={oftalmoscopia} onChange={(e) => setOftalmoscopia(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                      />
+                      <label htmlFor="retinoOi" className={etiqueta}>Hallazgo OI</label>
+                      <input id="retinoOi" type="text" placeholder="Ej. -0.75 -0.25 x175" value={retinoscopiaOi} onChange={(e) => setRetinoscopiaOi(e.target.value)} className={claseCampo + "font-mono border-slate-300"} />
+                    </div>
+                  </div>
+                </BloqueOpcional>
+                <LineaVariacion analisis={analisisEvolucion} />
+              </div>
+            </SeccionFicha>
+
+            {/* ─── 3 · EXAMEN: complementarios, opcionales y plegados ─── */}
+            <SeccionFicha id="examen" n={3} titulo="Examen" estado={estadosSeccion.examen}>
+              <div className="space-y-3">
+                <BloqueOpcional icono={ScanEye} titulo="Examen físico complementario" nota="Opcional" registrado={registradoExamenFisico} abierto={!!seccionesAbiertas.examenFisico} onAlternar={() => alternarSeccion("examenFisico")}>
+                  <div className="grid grid-cols-1 gap-3 @[30rem]:grid-cols-3">
+                    <div>
+                      <label htmlFor="testMotor" className={etiqueta}>Motilidad ocular</label>
+                      <input id="testMotor" type="text" placeholder="Ej. Movimientos normales" value={testMotor} onChange={(e) => setTestMotor(e.target.value)} className={claseCampo + "border-slate-300"} />
                     </div>
                     <div>
-                      <label htmlFor="testColor" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500"><Palette size={12} /> Test de color</label>
-                      <select
-                        id="testColor" value={testColor} onChange={(e) => setTestColor(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 outline-none focus-visible:border-blue-500"
-                      >
+                      <label htmlFor="oftalmoscopia" className={etiqueta}>Oftalmoscopia</label>
+                      <input id="oftalmoscopia" type="text" placeholder="Ej. Papila y retina sin alteraciones" value={oftalmoscopia} onChange={(e) => setOftalmoscopia(e.target.value)} className={claseCampo + "border-slate-300"} />
+                    </div>
+                    <div>
+                      <label htmlFor="testColor" className={etiqueta}>Test de color</label>
+                      <select id="testColor" value={testColor} onChange={(e) => setTestColor(e.target.value)} className={claseCampo + "font-medium border-slate-300"}>
                         <option value="Normal">Normal</option>
                         <option value="Deficiencia rojo-verde">Deficiencia rojo-verde</option>
                         <option value="Deficiencia azul-amarillo">Deficiencia azul-amarillo</option>
@@ -1729,523 +1551,298 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                       </select>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3 border-t border-slate-200/60 pt-3">
-                    <div>
-                      <label htmlFor="coverLejos" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500">Cover test — lejos</label>
-                      <select
-                        id="coverLejos" value={coverTestLejos} onChange={(e) => setCoverTestLejos(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 outline-none focus-visible:border-blue-500"
-                      >
-                        <option value="Ortoforia">Ortoforia</option>
-                        <option value="Exoforia">Exoforia</option>
-                        <option value="Esoforia">Esoforia</option>
-                        <option value="Exotropia">Exotropia</option>
-                        <option value="Esotropia">Esotropia</option>
-                        <option value="No realizado">No realizado</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="coverCerca" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500">Cover test — cerca</label>
-                      <select
-                        id="coverCerca" value={coverTestCerca} onChange={(e) => setCoverTestCerca(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 outline-none focus-visible:border-blue-500"
-                      >
-                        <option value="Ortoforia">Ortoforia</option>
-                        <option value="Exoforia">Exoforia</option>
-                        <option value="Esoforia">Esoforia</option>
-                        <option value="Exotropia">Exotropia</option>
-                        <option value="Esotropia">Esotropia</option>
-                        <option value="No realizado">No realizado</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 border-t border-slate-200/60 pt-3">
-                    <div>
-                      <label htmlFor="pioOd" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500">
-                        <Droplet size={12} /> PIO — Ojo derecho (mmHg)
-                      </label>
-                      <input
-                        id="pioOd" type="text" placeholder="Ej. 14" inputMode="numeric" maxLength={2}
-                        value={pioOd} onChange={(e) => setPioOd(filtrarSoloNumeros(e.target.value, 2))}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="pioOi" className="mb-1 flex items-center gap-1 text-xs font-semibold text-slate-500">
-                        <Droplet size={12} /> PIO — Ojo izquierdo (mmHg)
-                      </label>
-                      <input
-                        id="pioOi" type="text" placeholder="Ej. 15" inputMode="numeric" maxLength={2}
-                        value={pioOi} onChange={(e) => setPioOi(filtrarSoloNumeros(e.target.value, 2))}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                      />
-                    </div>
-                  </div>
-                  </>
-                  )}
-                </div>
-
-                <div className="space-y-3 rounded-xl border border-slate-200/60 bg-slate-50 p-4">
-                  <button type="button" onClick={() => alternarSeccion("biomicroscopia")} aria-expanded={!!seccionesAbiertas.biomicroscopia} className="flex w-full items-center gap-1.5 border-b border-slate-200/60 pb-2 text-left text-sm font-semibold cursor-pointer" style={{ color: INK }}>
-                    <Eye size={16} className="text-blue-600" /> Biomicroscopía (segmento anterior)
-                    <span className="ml-auto flex items-center gap-2 text-xs font-normal normal-case text-slate-500">
-                      Opcional · lámpara de hendidura
-                      <EtiquetaRegistro registrado={registradoBiomicroscopia} />
-                    </span>
-                    <ChevronDown size={15} className={"text-slate-500 transition-transform " + (seccionesAbiertas.biomicroscopia ? "" : "-rotate-90")} />
-                  </button>
-                  {seccionesAbiertas.biomicroscopia && (
-                  <>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div>
-                      <label htmlFor="biomicroParpados" className="mb-1 block text-xs font-semibold text-slate-500">Párpados / conjuntiva</label>
-                      <input
-                        id="biomicroParpados" type="text" placeholder="Ej. Sin alteraciones"
-                        value={biomicroParpados} onChange={(e) => setBiomicroParpados(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="biomicroCornea" className="mb-1 block text-xs font-semibold text-slate-500">Córnea</label>
-                      <input
-                        id="biomicroCornea" type="text" placeholder="Ej. Transparente, sin lesiones"
-                        value={biomicroCornea} onChange={(e) => setBiomicroCornea(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="biomicroCamara" className="mb-1 block text-xs font-semibold text-slate-500">Cámara anterior / cristalino</label>
-                      <input
-                        id="biomicroCamara" type="text" placeholder="Ej. Formada, cristalino transparente"
-                        value={biomicroCamara} onChange={(e) => setBiomicroCamara(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-800 outline-none focus-visible:border-blue-500"
-                      />
-                    </div>
-                  </div>
-                  </>
-                  )}
-                </div>
-
-                {/* Pie: variación frente a la visita anterior, solo si hay valores */}
-                <LineaVariacion analisis={analisisEvolucion} />
-              </div>
-            )}
-
-            {/* PASO 3: DIAGNÓSTICO Y RECETA */}
-            {subTab === "diagnostico" && (
-              <div className="space-y-5">
-                {/* Una línea de variación en vez de las tarjetas "Estado de
-                    corrección" y "Comparación" (que repetían lo del paso 2). */}
-                <LineaVariacion analisis={analisisEvolucion} />
-
-                {/* Barra de acción (no se imprime) */}
-                <div className="no-print flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-sm font-bold" style={{ color: INK }}>Vista previa de la receta</h3>
-                    {fichaGuardada ? (
-                      <p className="flex items-center gap-1 text-xs font-medium text-emerald-600">
-                        <CheckCircle size={12} /> Ficha guardada · lista para imprimir
-                      </p>
-                    ) : (
-                      <p className="text-xs text-slate-500">Guarda la ficha clínica para habilitar la impresión.</p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={imprimirReceta}
-                    disabled={!fichaGuardada}
-                    title={fichaGuardada ? "Imprimir o descargar como PDF" : "Primero guarda la ficha clínica"}
-                    className={"flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition " + (fichaGuardada ? "text-white hover:-translate-y-0.5 cursor-pointer" : "cursor-not-allowed text-slate-400")}
-                    style={fichaGuardada ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" } : { backgroundColor: "#e2e8f0" }}
-                  >
-                    <Printer size={15} /> Imprimir / Descargar PDF
-                  </button>
-                </div>
-
-                {/* DATOS DE LA RECETA: aquí se completan; la hoja de más abajo es exactamente lo que se imprime */}
-                <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-                  <div className="border-b border-slate-100 px-8 py-4">
-                    <h3 className="text-sm font-bold" style={{ color: INK }}>Datos de la receta</h3>
-                    <p className="text-xs text-slate-500">Lo que escribas aquí aparece al instante en la hoja de abajo.</p>
-                  </div>
-
-                  {/* Diagnóstico, lente recomendado e indicaciones — lo que el paciente se lleva */}
-                  <div className="space-y-3.5 px-8 pt-5">
-                    <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
-                      <label className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                        <Stethoscope size={12} /> Diagnóstico
-                      </label>
-                      {fichaGuardada ? (
-                        <p className="text-base font-bold" style={{ color: INK }}>
-                          {diagnosticoCategorias.join(", ")}{diagnostico.trim() ? ` — ${diagnostico.trim()}` : ""}
-                        </p>
-                      ) : (
-                        <>
-                          <div className="flex flex-wrap gap-1.5">
-                            {/* "Otro" siempre disponible como salida de emergencia,
-                                sin depender de qué catálogo haya configurado el
-                                admin — pedido del ing: "puede ser tal vez pongo
-                                'Otro' y aquí detallo". */}
-                            {[...diagnosticosRapidos, ...(diagnosticosRapidos.includes("Otro") ? [] : ["Otro"])].map((cat) => {
-                              const activo = diagnosticoCategorias.includes(cat)
-                              return (
-                                <button
-                                  key={cat}
-                                  type="button"
-                                  onClick={() => {
-                                    setDiagnosticoCategorias((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]))
-                                    limpiarError("diagnostico")
-                                    limpiarError("diagnosticoDetalle")
-                                  }}
-                                  className="rounded-full border px-3 py-1.5 text-xs font-bold transition cursor-pointer"
-                                  style={activo ? { backgroundColor: "#2563eb", borderColor: "#2563eb", color: "#fff" } : { borderColor: "#e2e8f0", color: "#475569", backgroundColor: "#fff" }}
-                                >
-                                  {cat}
-                                </button>
-                              )
-                            })}
-                          </div>
-                          {errores.diagnostico && (
-                            <p className="no-print mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                              <AlertCircle size={13} /> {errores.diagnostico}
-                            </p>
-                          )}
-                          {/* Con "Otro" seleccionado, el detalle deja de ser una
-                              nota opcional de una línea — es la única fuente
-                              del diagnóstico en sí, así que pasa a ser un
-                              textarea más amplio pensado para escribir el
-                              hallazgo completo, no solo una aclaración. */}
-                          {diagnosticoCategorias.includes("Otro") ? (
-                            <>
-                              <label htmlFor="diagnostico" className="mb-1 mt-3 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                                Detalle del diagnóstico personalizado
-                              </label>
-                              <textarea
-                                id="diagnostico"
-                                rows={3}
-                                placeholder="Detalle del diagnóstico personalizado..."
-                                value={diagnostico}
-                                onChange={(e) => { setDiagnostico(e.target.value); limpiarError("diagnosticoDetalle") }}
-                                className={"w-full resize-none rounded-lg border bg-white px-3 py-2.5 text-sm font-medium leading-relaxed outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 " + (errores.diagnosticoDetalle ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
-                                style={{ color: INK }}
-                              />
-                              {errores.diagnosticoDetalle && (
-                                <p className="no-print mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                                  <AlertCircle size={13} /> {errores.diagnosticoDetalle}
-                                </p>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <label htmlFor="diagnostico" className="mb-1 mt-3 block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                                Detalle <span className="font-normal normal-case text-slate-400">(opcional)</span>
-                              </label>
-                              <input
-                                id="diagnostico"
-                                type="text"
-                                placeholder="Ej. Se determina progresión leve, control en 6 meses"
-                                value={diagnostico}
-                                onChange={(e) => setDiagnostico(e.target.value)}
-                                className="w-full bg-transparent text-sm font-medium outline-none focus-visible:underline"
-                                style={{ color: INK }}
-                              />
-                            </>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {/* No todo diagnóstico recomienda un lente — el ing fue
-                        explícito con esto ("no sé si todos los tratamientos
-                        recomiendan un lente"). Sin el checkbox, ni el campo
-                        de texto ni la búsqueda de inventario aparecen. */}
-                    {!fichaGuardada && (
-                      <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50/70 p-3.5 text-sm font-semibold text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={recomendarLente}
-                          onChange={(e) => {
-                            setRecomendarLente(e.target.checked)
-                            if (!e.target.checked) {
-                              setLenteRecomendado("")
-                            }
-                          }}
-                          className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500"
-                        />
-                        <Glasses size={16} style={{ color: GOLD }} /> Añadir recomendación de lente
-                      </label>
-                    )}
-
-                    {recomendarLente && (lenteRecomendado || !fichaGuardada) && (
-                      <div className="print-force-color flex items-start gap-3 rounded-xl border p-4" style={{ borderColor: "rgba(200,162,78,0.35)", backgroundColor: "rgba(200,162,78,0.08)" }}>
-                        <Glasses size={18} style={{ color: GOLD }} className="mt-0.5 shrink-0" />
-                        <div className="flex-1 space-y-2">
-                          <label htmlFor="lenteRecomendado" className="mb-1 block text-xs font-bold uppercase tracking-[0.14em]" style={{ color: "#7c5e14" }}>Lente a recomendar</label>
-                          <input
-                            id="lenteRecomendado"
-                            type="text"
-                            placeholder="Ej. Monofocal con antirreflejo y filtro luz azul"
-                            value={lenteRecomendado}
-                            readOnly={fichaGuardada}
-                            onChange={(e) => setLenteRecomendado(e.target.value)}
-                            className="w-full bg-transparent text-sm font-semibold outline-none focus-visible:underline"
-                            style={{ color: INK }}
-                          />
-                          <p className="no-print text-xs text-slate-500">Solo el texto de la receta: la luna se elige y se cobra al vender, sin inventario.</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Atención terminada (R33-R34): la receta está lista; el paciente se
-                        pasa a la óptica (queda "Listo para venta") o se cobra ahí mismo. */}
-                    {fichaGuardada && cobroEstado === "terminada" && (
-                      <div role="status" className="no-print space-y-2.5 rounded-lg border border-emerald-200/60 bg-emerald-50 p-3.5">
-                        <p className="flex items-center gap-1.5 text-sm font-bold text-emerald-900">
-                          <CheckCircle size={16} className="shrink-0 text-emerald-600" />
-                          Atención terminada{citaEnAtencionId ? " · la cita quedó atendida" : ""}. La receta está lista.
-                        </p>
-                        {paseDeEstaConsulta ? (
-                          <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
-                            <ShoppingBag size={14} className="shrink-0" /> Listo para venta: quien venda verá a este paciente en su lista.
-                          </p>
-                        ) : (
-                          <p className="text-xs text-emerald-800">Si el paciente va a comprar, pásalo a la óptica o cóbralo ahora.</p>
-                        )}
-                        {errorPase && <p role="alert" className="text-xs font-medium text-red-700">{errorPase}</p>}
-                        <div className="flex flex-wrap items-center gap-2">
-                          {!paseDeEstaConsulta && (
-                            <button type="button" onClick={pasarAOptica} disabled={pasandoAOptica || !consultaGuardadaId} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold text-white transition hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
-                              <ShoppingBag size={14} /> {pasandoAOptica ? "Pasando…" : "Pasar a la óptica"}
-                            </button>
-                          )}
-                          <button type="button" onClick={() => setMostrarPanelCobro(true)} className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3.5 py-2 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100 cursor-pointer">
-                            <Receipt size={14} /> Cobrar ahora
-                          </button>
-                          {(onVolver || onCerrar) && (
-                            <button type="button" onClick={onVolver || onCerrar} className="rounded-lg border border-slate-200/60 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
-                              Volver a {origenNombre}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {fichaGuardada && cobroEstado === "cobrado" && (
-                      <div role="status" className="no-print flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-3">
-                        <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
-                          <CheckCircle size={14} className="shrink-0" />
-                          Cobrado {dinero(cobroTotal)}{citaEnAtencionId ? " · cita atendida" : ""}. Ya puedes imprimir la receta.
-                        </p>
-                        {(onVolver || onCerrar) && (
-                          <button type="button" onClick={onVolver || onCerrar} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700 cursor-pointer">
-                            Volver a {origenNombre}
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {!fichaGuardada && (
-                      <div className="no-print rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3">
-                        <label className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                          <ImageIcon size={12} /> Adjuntar imágenes <span className="font-normal normal-case text-slate-500">(opcional — hasta 6)</span>
-                        </label>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                          {archivosImagenes.map((f, i) => (
-                            <div key={i} className="relative h-14 w-14 overflow-hidden rounded-lg border border-slate-200/60">
-                              <img src={previsualizacionesImagenes[i]} alt={f.name} className="h-full w-full object-cover" />
-                              <button type="button" onClick={() => quitarArchivoImagen(i)} aria-label="Quitar imagen" className="absolute right-0.5 top-0.5 grid h-4 w-4 place-items-center rounded-full bg-black/60 text-white cursor-pointer">
-                                <X size={10} />
-                              </button>
-                            </div>
-                          ))}
-                          {archivosImagenes.length < 6 && (
-                            <label className="grid h-14 w-14 cursor-pointer place-items-center rounded-lg border border-dashed border-slate-300 text-slate-400 transition hover:border-blue-300 hover:text-blue-500">
-                              <ImageIcon size={18} />
-                              <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(e) => { agregarArchivosImagenes(e.target.files); e.target.value = "" }} />
-                            </label>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {(indicaciones || !fichaGuardada) && (
-                      <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
-                        <label htmlFor="indicaciones" className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                          <ClipboardList size={12} /> Indicaciones y cuidados
-                        </label>
-                        <textarea
-                          id="indicaciones"
-                          rows={2}
-                          placeholder="Ej. Uso permanente de lentes con filtro antirreflejo y luz azul."
-                          value={indicaciones}
-                          readOnly={fichaGuardada}
-                          onChange={(e) => setIndicaciones(e.target.value)}
-                          className="w-full resize-none bg-transparent text-sm font-medium outline-none focus-visible:underline"
-                          style={{ color: INK }}
-                        />
-                      </div>
-                    )}
-
-                    {/* Punto 2.1 (plan 29 sept.): si el optómetra da de alta
-                        al paciente, ya no tiene sentido pedirle un próximo
-                        control — se oculta el selector y se explica por qué. */}
-                    <label className="no-print flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={tratamientoFinalizado}
-                        disabled={fichaGuardada}
-                        onChange={(e) => setTratamientoFinalizado(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500 disabled:cursor-not-allowed"
-                      />
-                      <span>
-                        <span className="block text-sm font-semibold" style={{ color: INK }}>Tratamiento finalizado</span>
-                        <span className="block text-xs text-slate-500">El paciente ya no necesita más controles — queda marcado como "De alta".</span>
-                      </span>
-                    </label>
-
-                    <div className="print-force-color flex items-center gap-3 rounded-xl border border-slate-200/60 bg-slate-50 px-4 py-3">
-                      <CalendarClock size={18} className="no-print shrink-0 text-blue-600" />
-                      <div className="flex-1">
-                        <label htmlFor="proximoControl" className="block text-xs font-bold uppercase tracking-wide text-slate-500">Próximo control recomendado</label>
-                        <p className="no-print text-xs text-slate-500">
-                          {tratamientoFinalizado ? "No aplica — el tratamiento quedó finalizado." : "Define cuándo el CRM debe avisar si el paciente no ha vuelto."}
-                        </p>
-                      </div>
-                      {!tratamientoFinalizado && (
-                        <select
-                          id="proximoControl"
-                          value={proximoControlDias}
-                          disabled={fichaGuardada}
-                          onChange={(e) => { setProximoControlDias(Number(e.target.value)); setControlFecha(""); setControlHora("") }}
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
-                        >
-                          <option value={30}>1 mes</option>
-                          <option value={90}>3 meses</option>
-                          <option value={180}>6 meses</option>
-                          <option value={365}>1 año</option>
+                  <div className="grid grid-cols-1 gap-3 border-t border-slate-200/70 pt-3 @[30rem]:grid-cols-2">
+                    {[["coverLejos", "Cover test — lejos", coverTestLejos, setCoverTestLejos], ["coverCerca", "Cover test — cerca", coverTestCerca, setCoverTestCerca]].map(([id, texto, valor, poner]) => (
+                      <div key={id}>
+                        <label htmlFor={id} className={etiqueta}>{texto}</label>
+                        <select id={id} value={valor} onChange={(e) => poner(e.target.value)} className={claseCampo + "font-medium border-slate-300"}>
+                          {["Ortoforia", "Exoforia", "Esoforia", "Exotropia", "Esotropia", "No realizado"].map((o) => <option key={o} value={o}>{o}</option>)}
                         </select>
-                      )}
-                    </div>
-
-                    {!tratamientoFinalizado && (
-                      <fieldset disabled={fichaGuardada} className="no-print mt-3 rounded-xl border border-slate-200/60 bg-white p-4">
-                        <legend className="px-1 text-sm font-bold" style={{ color: INK }}>¿Cuándo se agenda ese control?</legend>
-                        <p className="mb-3 text-xs text-slate-500">El paciente tiene que aceptar la fecha y la hora, así que la cita solo se crea si eliges "Agendar ahora" y al guardar la ficha.</p>
-                        <div role="radiogroup" aria-label="Cuándo se agenda el control" className="grid gap-2 sm:grid-cols-2">
-                          {[
-                            ["ahora", "Agendar ahora", "Elige fecha y hora con los horarios libres."],
-                            ["despues", "Agendar después", "No se crea la cita: queda como aviso para Recepción y el administrador."],
-                          ].map(([valor, titulo, ayuda]) => (
-                            <label key={valor} className={"flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors " + (controlModo === valor ? "border-blue-300 bg-blue-50/50" : "border-slate-200/60 bg-slate-50 hover:border-blue-200") + (fichaGuardada ? " cursor-not-allowed opacity-70" : "")}>
-                              <input type="radio" name="control-agenda" value={valor} checked={controlModo === valor} onChange={() => { setControlModo(valor); limpiarError("control") }} className="mt-0.5 h-4 w-4 accent-blue-600" />
-                              <span className="min-w-0 text-sm">
-                                <span className="block font-semibold text-slate-700">{titulo}</span>
-                                <span className="block text-xs leading-relaxed text-slate-500">{ayuda}</span>
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                        {controlModo === "ahora" && (
-                          <div className="mt-3 space-y-3">
-                            {diaControlSugerido ? (
-                              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                                <span>
-                                  Fecha recomendada: <span className="font-semibold">{textoDia(fechaControlRecomendada)}</span>
-                                  {diaControlSugerido !== fechaControlRecomendada && <> · ese día no hay atención; el día hábil más cercano es el <span className="font-semibold">{textoDia(diaControlSugerido)}</span></>}
-                                </span>
-                                <button type="button" onClick={() => { setControlFecha(diaControlSugerido); setControlHora("") }} className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
-                                  Elegir {diaControlSugerido === fechaControlRecomendada ? "esa fecha" : "ese día"}
-                                </button>
-                              </div>
-                            ) : (
-                              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">No hay un día con cupo cerca de la fecha recomendada ({textoDia(fechaControlRecomendada)}). Elige otro en el calendario.</p>
-                            )}
-                            <SelectorFechaHora
-                              disponibilidad={disponibilidad}
-                              citas={citas}
-                              fecha={controlFecha}
-                              hora={controlHora}
-                              onCambiarFecha={(f) => { setControlFecha(f); limpiarError("control") }}
-                              onCambiarHora={(h) => { setControlHora(h); limpiarError("control") }}
-                              mesesAdelante={14}
-                              mesInicial={diaControlSugerido || fechaControlRecomendada}
-                            />
-                          </div>
-                        )}
-                        {errores.control && <p role="alert" className="mt-3 text-sm font-semibold text-red-600">{errores.control}</p>}
-                      </fieldset>
-                    )}
+                      </div>
+                    ))}
                   </div>
+                  <div className="grid grid-cols-1 gap-3 border-t border-slate-200/70 pt-3 @[30rem]:grid-cols-2">
+                    <div>
+                      <label htmlFor="pioOd" className={etiqueta}>PIO — ojo derecho (mmHg)</label>
+                      <input id="pioOd" type="text" placeholder="Ej. 14" inputMode="numeric" maxLength={2} value={pioOd} onChange={(e) => setPioOd(filtrarSoloNumeros(e.target.value, 2))} className={claseCampo + "border-slate-300"} />
+                    </div>
+                    <div>
+                      <label htmlFor="pioOi" className={etiqueta}>PIO — ojo izquierdo (mmHg)</label>
+                      <input id="pioOi" type="text" placeholder="Ej. 15" inputMode="numeric" maxLength={2} value={pioOi} onChange={(e) => setPioOi(filtrarSoloNumeros(e.target.value, 2))} className={claseCampo + "border-slate-300"} />
+                    </div>
+                  </div>
+                </BloqueOpcional>
+                <BloqueOpcional icono={Eye} titulo="Biomicroscopía (segmento anterior)" nota="Opcional · lámpara de hendidura" registrado={registradoBiomicroscopia} abierto={!!seccionesAbiertas.biomicroscopia} onAlternar={() => alternarSeccion("biomicroscopia")}>
+                  <div className="grid grid-cols-1 gap-3 @[30rem]:grid-cols-3">
+                    <div>
+                      <label htmlFor="biomicroParpados" className={etiqueta}>Párpados / conjuntiva</label>
+                      <input id="biomicroParpados" type="text" placeholder="Ej. Sin alteraciones" value={biomicroParpados} onChange={(e) => setBiomicroParpados(e.target.value)} className={claseCampo + "border-slate-300"} />
+                    </div>
+                    <div>
+                      <label htmlFor="biomicroCornea" className={etiqueta}>Córnea</label>
+                      <input id="biomicroCornea" type="text" placeholder="Ej. Transparente, sin lesiones" value={biomicroCornea} onChange={(e) => setBiomicroCornea(e.target.value)} className={claseCampo + "border-slate-300"} />
+                    </div>
+                    <div>
+                      <label htmlFor="biomicroCamara" className={etiqueta}>Cámara anterior / cristalino</label>
+                      <input id="biomicroCamara" type="text" placeholder="Ej. Formada, cristalino transparente" value={biomicroCamara} onChange={(e) => setBiomicroCamara(e.target.value)} className={claseCampo + "border-slate-300"} />
+                    </div>
+                  </div>
+                </BloqueOpcional>
+              </div>
+            </SeccionFicha>
 
+            {/* ─── 4 · DIAGNÓSTICO: categorías, lente recomendado y próximo control ─── */}
+            <SeccionFicha id="diagnostico" n={4} titulo="Diagnóstico" estado={estadosSeccion.diagnostico}>
+              <div className="space-y-4">
+                <div>
+                  <p className={etiqueta}>Categorías <span className="text-red-500">*</span></p>
+                  <div className="flex flex-wrap gap-2">
+                    {/* «Otro» siempre disponible como salida, sin depender del catálogo que haya configurado el administrador. */}
+                    {[...diagnosticosRapidos, ...(diagnosticosRapidos.includes("Otro") ? [] : ["Otro"])].map((cat) => {
+                      const activo = diagnosticoCategorias.includes(cat)
+                      return (
+                        <button key={cat} type="button" aria-pressed={activo}
+                          onClick={() => { setDiagnosticoCategorias((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat])); limpiarError("diagnostico"); limpiarError("diagnosticoDetalle") }}
+                          className="min-h-10 rounded-full border px-4 text-base font-semibold transition-colors cursor-pointer"
+                          style={activo ? { backgroundColor: "#2563eb", borderColor: "#2563eb", color: "#fff" } : { borderColor: "#cbd5e1", color: "#475569", backgroundColor: "#fff" }}>
+                          {cat}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {textoError(errores.diagnostico)}
+                </div>
+                {diagnosticoCategorias.includes("Otro") ? (
+                  <div>
+                    <label htmlFor="diagnostico" className={etiqueta}>Detalle del diagnóstico personalizado</label>
+                    <textarea id="diagnostico" rows={3} placeholder="Detalle del diagnóstico personalizado..." value={diagnostico} onChange={(e) => { setDiagnostico(e.target.value); limpiarError("diagnosticoDetalle") }}
+                      className={claseCampo + "resize-none leading-relaxed " + (errores.diagnosticoDetalle ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")} />
+                    {textoError(errores.diagnosticoDetalle)}
+                  </div>
+                ) : (
+                  <div>
+                    <label htmlFor="diagnostico" className={etiqueta}>Detalle <span className="font-normal text-slate-500">(opcional)</span></label>
+                    <input id="diagnostico" type="text" placeholder="Ej. Se determina progresión leve, control en 6 meses" value={diagnostico} onChange={(e) => setDiagnostico(e.target.value)} className={claseCampo + "border-slate-300"} />
+                  </div>
+                )}
+
+                {/* No todo diagnóstico recomienda un lente: sin la casilla, ni el campo ni la búsqueda aparecen. */}
+                <label className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50/70 px-4 text-base font-semibold text-slate-700">
+                  <input type="checkbox" checked={recomendarLente} onChange={(e) => { setRecomendarLente(e.target.checked); if (!e.target.checked) setLenteRecomendado("") }} className="h-5 w-5 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500" />
+                  <Glasses size={18} style={{ color: GOLD }} aria-hidden="true" /> Añadir recomendación de lente
+                </label>
+                {recomendarLente && (
+                  <div className="flex items-start gap-3 rounded-xl border p-4" style={{ borderColor: "rgba(200,162,78,0.35)", backgroundColor: "rgba(200,162,78,0.08)" }}>
+                    <Glasses size={20} style={{ color: GOLD }} className="mt-0.5 shrink-0" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <label htmlFor="lenteRecomendado" className="mb-1.5 block text-sm font-bold" style={{ color: "#7c5e14" }}>Lente a recomendar</label>
+                      <input id="lenteRecomendado" type="text" placeholder="Ej. Monofocal con antirreflejo y filtro luz azul" value={lenteRecomendado} onChange={(e) => setLenteRecomendado(e.target.value)} className={claseCampo + "border-amber-200"} />
+                      <p className="mt-1.5 text-sm text-slate-600">Solo el texto de la receta: la luna se elige y se cobra al vender, sin inventario.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Si el optómetra da de alta al paciente ya no tiene sentido pedir un próximo control: se oculta el selector y se explica por qué. */}
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 px-4 py-3">
+                  <input type="checkbox" checked={tratamientoFinalizado} onChange={(e) => setTratamientoFinalizado(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-blue-500" />
+                  <span>
+                    <span className="block text-base font-semibold" style={{ color: INK }}>Tratamiento finalizado</span>
+                    <span className="block text-sm text-slate-600">El paciente ya no necesita más controles — queda marcado como "De alta".</span>
+                  </span>
+                </label>
+
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200/60 bg-slate-50 px-4 py-3">
+                  <CalendarClock size={20} className="shrink-0 text-blue-600" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <label htmlFor="proximoControl" className="block text-base font-semibold text-slate-700">Próximo control recomendado</label>
+                    <p className="text-sm text-slate-600">{tratamientoFinalizado ? "No aplica — el tratamiento quedó finalizado." : "Define cuándo el CRM debe avisar si el paciente no ha vuelto."}</p>
+                  </div>
+                  {!tratamientoFinalizado && (
+                    <select id="proximoControl" value={proximoControlDias} onChange={(e) => { setProximoControlDias(Number(e.target.value)); setControlFecha(""); setControlHora("") }}
+                      className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-base font-semibold text-slate-700 outline-none focus-visible:border-blue-500">
+                      <option value={30}>1 mes</option>
+                      <option value={90}>3 meses</option>
+                      <option value={180}>6 meses</option>
+                      <option value={365}>1 año</option>
+                    </select>
+                  )}
                 </div>
 
-                {/* VISTA PREVIA: la misma hoja que se imprime y que el paciente descarga desde su portal */}
-                <section aria-label="Vista previa de la receta" className="rounded-2xl border border-slate-200/60 bg-slate-100/70 p-4">
-                  <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Vista previa · así sale impresa</p>
-                  <div className="overflow-x-auto rounded-xl border border-slate-200/60 bg-white shadow-sm"><HojaReceta {...datosDeLaHoja()} /></div>
-                </section>
+                {!tratamientoFinalizado && (
+                  <fieldset className="rounded-xl border border-slate-200/60 bg-white p-4">
+                    <legend className="px-1 text-base font-bold" style={{ color: INK }}>¿Cuándo se agenda ese control?</legend>
+                    <p className="mb-3 text-sm text-slate-600">El paciente tiene que aceptar la fecha y la hora, así que la cita solo se crea si eliges "Agendar ahora" y al guardar la ficha.</p>
+                    <div role="radiogroup" aria-label="Cuándo se agenda el control" className="grid gap-2 @[30rem]:grid-cols-2">
+                      {[
+                        ["ahora", "Agendar ahora", "Elige fecha y hora con los horarios libres."],
+                        ["despues", "Agendar después", "No se crea la cita: queda como aviso para Recepción y el administrador."],
+                      ].map(([valor, titulo, ayuda]) => (
+                        <label key={valor} className={"flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors " + (controlModo === valor ? "border-blue-300 bg-blue-50/50" : "border-slate-200/60 bg-slate-50 hover:border-blue-200")}>
+                          <input type="radio" name="control-agenda" value={valor} checked={controlModo === valor} onChange={() => { setControlModo(valor); limpiarError("control") }} className="mt-1 h-4 w-4 accent-blue-600" />
+                          <span className="min-w-0">
+                            <span className="block text-base font-semibold text-slate-700">{titulo}</span>
+                            <span className="block text-sm leading-relaxed text-slate-600">{ayuda}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    {controlModo === "ahora" && (
+                      <div className="mt-3 space-y-3">
+                        {diaControlSugerido ? (
+                          <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                            <span>
+                              Fecha recomendada: <span className="font-semibold">{textoDia(fechaControlRecomendada)}</span>
+                              {diaControlSugerido !== fechaControlRecomendada && <> · ese día no hay atención; el día hábil más cercano es el <span className="font-semibold">{textoDia(diaControlSugerido)}</span></>}
+                            </span>
+                            <button type="button" onClick={() => { setControlFecha(diaControlSugerido); setControlHora("") }} className="rounded-full border border-blue-200 bg-white px-3 py-1 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
+                              Elegir {diaControlSugerido === fechaControlRecomendada ? "esa fecha" : "ese día"}
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">No hay un día con cupo cerca de la fecha recomendada ({textoDia(fechaControlRecomendada)}). Elige otro en el calendario.</p>
+                        )}
+                        <SelectorFechaHora disponibilidad={disponibilidad} citas={citas} fecha={controlFecha} hora={controlHora}
+                          onCambiarFecha={(f) => { setControlFecha(f); limpiarError("control") }} onCambiarHora={(h) => { setControlHora(h); limpiarError("control") }}
+                          mesesAdelante={14} mesInicial={diaControlSugerido || fechaControlRecomendada} />
+                      </div>
+                    )}
+                    {errores.control && <p role="alert" className="mt-3 text-base font-semibold text-red-600">{errores.control}</p>}
+                  </fieldset>
+                )}
+              </div>
+            </SeccionFicha>
+          </fieldset>
+
+        {/* ─── 5 · RECETA: indicaciones, imágenes y, ya guardada, lo que sigue ─── */}
+        <SeccionFicha id="receta" n={5} titulo="Receta" estado={estadosSeccion.receta}>
+          <div className="space-y-4">
+            <fieldset disabled={fichaGuardada} className="m-0 min-w-0 space-y-4 border-0 p-0">
+              <div>
+                <label htmlFor="indicaciones" className={etiqueta}>Indicaciones y cuidados</label>
+                <textarea id="indicaciones" rows={3} placeholder="Ej. Uso permanente de lentes con filtro antirreflejo y luz azul." value={indicaciones} onChange={(e) => setIndicaciones(e.target.value)} className={claseCampo + "resize-none leading-relaxed border-slate-300"} />
+              </div>
+              {!fichaGuardada && (
+                <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-3">
+                  <p className="flex items-center gap-1.5 text-sm font-bold text-slate-600"><ImageIcon size={14} aria-hidden="true" /> Adjuntar imágenes <span className="font-normal text-slate-500">(opcional — hasta 6)</span></p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {archivosImagenes.map((f, i) => (
+                      <div key={i} className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200/60">
+                        <img src={previsualizacionesImagenes[i]} alt={f.name} className="h-full w-full object-cover" />
+                        <button type="button" onClick={() => quitarArchivoImagen(i)} aria-label="Quitar imagen" className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white cursor-pointer"><X size={12} aria-hidden="true" /></button>
+                      </div>
+                    ))}
+                    {archivosImagenes.length < 6 && (
+                      <label className="grid h-16 w-16 cursor-pointer place-items-center rounded-lg border border-dashed border-slate-300 text-slate-500 transition-colors hover:border-blue-300 hover:text-blue-500">
+                        <span className="sr-only">Agregar una imagen</span>
+                        <ImageIcon size={20} aria-hidden="true" />
+                        <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(e) => { agregarArchivosImagenes(e.target.files); e.target.value = "" }} />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              )}
+            </fieldset>
+
+            {/* Atención terminada: la receta está lista; el paciente se pasa a la óptica (queda «Listo para venta») o se cobra ahí mismo. */}
+            {fichaGuardada && cobroEstado === "terminada" && (
+              <div role="status" className="space-y-2.5 rounded-lg border border-emerald-200/60 bg-emerald-50 p-4">
+                <p className="flex items-center gap-1.5 text-base font-bold text-emerald-900">
+                  <CheckCircle size={18} className="shrink-0 text-emerald-600" aria-hidden="true" />
+                  Atención terminada{citaEnAtencionId ? " · la cita quedó atendida" : ""}. La receta está lista.
+                </p>
+                {paseDeEstaConsulta ? (
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-800"><ShoppingBag size={15} className="shrink-0" aria-hidden="true" /> Listo para venta: quien venda verá a este paciente en su lista.</p>
+                ) : (
+                  <p className="text-sm text-emerald-800">Si el paciente va a comprar, pásalo a la óptica o cóbralo ahora.</p>
+                )}
+                {errorPase && <p role="alert" className="text-sm font-medium text-red-700">{errorPase}</p>}
+                <div className="flex flex-wrap items-center gap-2">
+                  {!paseDeEstaConsulta && (
+                    <button type="button" onClick={pasarAOptica} disabled={pasandoAOptica || !consultaGuardadaId} className="flex min-h-10 items-center gap-1.5 rounded-lg px-4 text-sm font-bold text-white transition hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>
+                      <ShoppingBag size={15} aria-hidden="true" /> {pasandoAOptica ? "Pasando…" : "Pasar a la óptica"}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setMostrarPanelCobro(true)} className="flex min-h-10 items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-4 text-sm font-bold text-emerald-800 transition-colors hover:bg-emerald-100 cursor-pointer">
+                    <Receipt size={15} aria-hidden="true" /> Cobrar ahora
+                  </button>
+                  {(onVolver || onCerrar) && (
+                    <button type="button" onClick={onVolver || onCerrar} className="min-h-10 rounded-lg border border-slate-200/60 bg-white px-4 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Volver a {origenNombre}</button>
+                  )}
+                </div>
+              </div>
+            )}
+            {fichaGuardada && cobroEstado === "cobrado" && (
+              <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-3">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
+                  <CheckCircle size={15} className="shrink-0" aria-hidden="true" />
+                  Cobrado {dinero(cobroTotal)}{citaEnAtencionId ? " · cita atendida" : ""}. Ya puedes imprimir la receta.
+                </p>
+                {(onVolver || onCerrar) && (
+                  <button type="button" onClick={onVolver || onCerrar} className="min-h-10 rounded-lg bg-emerald-600 px-4 text-sm font-bold text-white transition-colors hover:bg-emerald-700 cursor-pointer">Volver a {origenNombre}</button>
+                )}
               </div>
             )}
 
-            {/* Navegación */}
-            <div className="no-print mt-2 flex items-center justify-between border-t border-slate-100 pt-4">
-              <div className="text-sm font-medium text-slate-500">Paso {pasoActual?.n} de 3</div>
-              <div className="flex gap-2">
-                {subTab !== "anamnesis" && (
-                  <button
-                    type="button"
-                    onClick={() => irA(subTab === "diagnostico" ? "refraccion" : "anamnesis")}
-                    className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer"
-                  >
-                    <ArrowLeft size={15} /> Anterior
-                  </button>
-                )}
-                {subTab !== "diagnostico" ? (
-                  <button
-                    key="btn-siguiente"
-                    type="button"
-                    onClick={() => irA(subTab === "anamnesis" ? "refraccion" : "diagnostico")}
-                    className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer"
-                    style={{ backgroundColor: INK }}
-                  >
-                    Siguiente <ArrowRight size={15} />
-                  </button>
-                ) : !fichaGuardada ? (
-                  // key distinta del botón "Siguiente" de arriba a propósito: sin
-                  // ella, React reutiliza el mismo nodo <button> al cambiar de
-                  // paso y solo le muta el atributo type de "button" a "submit"
-                  // A MITAD del despacho síncrono del clic — el navegador evalúa
-                  // si el clic activa un envío de formulario DESPUÉS de ese
-                  // re-render, así que un clic real en "Siguiente" terminaba
-                  // disparando un submit fantasma del formulario completo
-                  // (intentarGuardar) apenas se entraba a Diagnóstico, mostrando
-                  // el error de categoría/costo sin que el usuario tocara nada
-                  // (bug reportado por el ing 29-sept, ver docs/feedback-ing/bug-diagnostico-receta.md).
-                  <button
-                    key="btn-guardar"
-                    type="submit"
-                    className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer"
-                    style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}
-                  >
-                    <Save size={15} /> Terminar atención
-                  </button>
-                ) : (
-                  <button
-                    key="btn-nueva-consulta"
-                    type="button"
-                    onClick={resetForm}
-                    className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 cursor-pointer"
-                    style={{ backgroundColor: INK }}
-                  >
-                    <ClipboardList size={15} /> Nueva consulta
-                  </button>
-                )}
-              </div>
+            {/* En pantallas angostas el panel de la derecha no cabe: la hoja se ve aquí, al final. */}
+            <div className="@[56rem]/ficha:hidden">
+              <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-600">Receta que se imprimirá</h3>
+              <VistaPreviaHoja datos={datosDeLaHoja()} onAmpliar={() => setMostrarHojaCompleta(true)} />
             </div>
-          </form>
+          </div>
+        </SeccionFicha>
+          </div>
+
+          {/* ─── PANEL DE LA DERECHA: la hoja tal como se imprime (OD arriba, OI abajo), siempre a la vista bajo la cabecera ─── */}
+          <aside aria-label="Vista previa de la receta" className="hidden @[56rem]/ficha:block">
+            <div className="sticky top-[calc(var(--alto-cabecera-ficha,7rem)+1rem)] space-y-3">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-600">Receta que se imprimirá</h2>
+              <VistaPreviaHoja datos={datosDeLaHoja()} onAmpliar={() => setMostrarHojaCompleta(true)} />
+            </div>
+          </aside>
         </div>
-      </div>
+
+        {/* ─── BARRA INFERIOR FIJA: siempre a la vista, sin tapar el formulario (la página termina sobre ella) ─── */}
+        <div className="sticky bottom-0 z-30 -mt-1 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-[0_-6px_18px_-12px_rgba(15,35,64,0.35)]">
+          <p className="min-w-0 flex-1 text-sm text-slate-600" role="status" aria-live="polite">
+            {fichaGuardada ? "La ficha ya está en el expediente del paciente." : (
+              <span className="inline-flex items-center gap-2"><span aria-hidden="true" className={"h-2 w-2 rounded-full " + (guardadoEn ? "bg-emerald-500" : "bg-slate-300")} /> {textoGuardado(guardadoEn, ahoraTexto)}</span>
+            )}
+          </p>
+          {fichaGuardada ? (
+            <>
+              <button type="button" onClick={imprimirReceta} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-base font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+                <Printer size={18} aria-hidden="true" /> Imprimir / Descargar PDF
+              </button>
+              <button type="button" onClick={resetForm} className="flex min-h-11 items-center gap-2 rounded-xl px-5 text-base font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ backgroundColor: INK }}>
+                <ClipboardList size={18} aria-hidden="true" /> Nueva consulta
+              </button>
+            </>
+          ) : (
+            <>
+              {(onCerrar || onVolver) && pacienteId && (
+                <button type="button" onClick={guardarYSalir} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-base font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+                  <LogOut size={18} aria-hidden="true" /> Guardar y salir
+                </button>
+              )}
+              {/* key propia a propósito: evita que React reutilice un <button> de otro tipo y dispare un envío fantasma del formulario (bug del 29 sept., docs/feedback-ing/bug-diagnostico-receta.md). */}
+              <button key="btn-guardar" type="submit" className="flex min-h-11 items-center gap-2 rounded-xl px-6 text-base font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}>
+                <Save size={18} aria-hidden="true" /> Terminar atención
+              </button>
+            </>
+          )}
+        </div>
+      </form>
+
+      {mostrarHojaCompleta && (
+        <Cascaron titulo="Receta que se imprimirá" subtitulo={pacienteSeleccionado} Icono={FileText} ancho="max-w-4xl" onCerrar={() => setMostrarHojaCompleta(false)}
+          pie={<>
+            <span />
+            <button type="button" onClick={() => setMostrarHojaCompleta(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+          </>}
+        >
+          <div className="overflow-x-auto bg-slate-100/70 p-4"><div className="rounded-xl border border-slate-200 bg-white shadow-sm"><HojaReceta {...datosDeLaHoja()} /></div></div>
+        </Cascaron>
+      )}
 
       {mostrarDejarDeAtender && (
         <ConfirmarEliminarModal
@@ -2368,89 +1965,17 @@ function ChipCorreccion({ correccion }) {
   )
 }
 
-function OjoCard({ sigla, titulo, noEvaluado = false, setNoEvaluado, motivoNoEval = "", setMotivoNoEval, esfera, setEsfera, cilindro, setCilindro, eje, setEje, avSc, setAvSc, avCc, setAvCc, errores = {}, limpiarError }) {
-  const color = sigla === "OD" ? "#2563EB" : "#06b6d4"
-  const pre = sigla.toLowerCase()
-  return (
-    <div className="space-y-3.5 rounded-xl border border-slate-200/60 bg-slate-50/60 p-4">
-      <div className="flex items-center gap-2 border-b border-slate-200/60 pb-2">
-        <span className="grid h-6 w-6 place-items-center rounded-md font-mono text-xs font-bold text-white" style={{ backgroundColor: color }}>
-          {sigla}
-        </span>
-        <h3 className="text-sm font-bold" style={{ color }}>{titulo}</h3>
-      </div>
-      {setNoEvaluado && (
-        <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
-          <input type="checkbox" checked={noEvaluado} onChange={(e) => { setNoEvaluado(e.target.checked); limpiarError?.(`${pre}_motivo`); limpiarError?.(`${pre}_esfera`) }} className="h-4 w-4 accent-blue-600" /> Ojo no evaluado
-        </label>
-      )}
-      {noEvaluado ? (
-        <div>
-          <label htmlFor={`${sigla}-motivo-no-eval`} className="mb-0.5 block text-xs font-semibold text-slate-500">¿Por qué no se evaluó?</label>
-          <input id={`${sigla}-motivo-no-eval`} value={motivoNoEval} maxLength={120} onChange={(e) => { setMotivoNoEval(e.target.value); limpiarError?.(`${pre}_motivo`) }} placeholder="Por ejemplo: prótesis ocular" aria-invalid={Boolean(errores[`${pre}_motivo`])}
-            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 outline-none focus-visible:border-blue-500" />
-          {errores[`${pre}_motivo`] && <p role="alert" className="mt-1 text-xs font-medium text-red-600">{errores[`${pre}_motivo`]}</p>}
-        </div>
-      ) : (<>
-      <div className="grid grid-cols-3 gap-2">
-        <NumCampo label="Esfera" value={esfera} onChange={(v) => { setEsfera(v); limpiarError?.(`${pre}_esfera`) }} id={`${sigla}-esf`} error={errores[`${pre}_esfera`]} placeholder="0.00" />
-        <NumCampo label="Cilindro" value={cilindro} onChange={(v) => { setCilindro(v); limpiarError?.(`${pre}_cilindro`); limpiarError?.(`${pre}_eje`) }} id={`${sigla}-cil`} error={errores[`${pre}_cilindro`]} placeholder="0.00" />
-        <NumCampo label="Eje (°)" value={eje} onChange={(v) => { setEje(v); limpiarError?.(`${pre}_eje`) }} id={`${sigla}-eje`} error={errores[`${pre}_eje`]} tipo="entero" maxLength={3} placeholder="0" />
-      </div>
-      <div className="grid grid-cols-2 gap-2 border-t border-slate-200/60 pt-2">
-        <div>
-          <label htmlFor={`${sigla}-avsc`} className="mb-0.5 block text-xs font-semibold text-slate-500">AV sin lentes</label>
-          <select id={`${sigla}-avsc`} value={avSc} onChange={(e) => setAvSc(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500">
-            <option value="">Sin evaluar</option>
-            {escalasSnellen.map((esc) => (<option key={esc} value={esc}>{esc}</option>))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor={`${sigla}-avcc`} className="mb-0.5 block text-xs font-semibold text-slate-500">AV con lentes</label>
-          <select id={`${sigla}-avcc`} value={avCc} onChange={(e) => setAvCc(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500">
-            <option value="">Sin evaluar</option>
-            {escalasSnellen.map((esc) => (<option key={esc} value={esc}>{esc}</option>))}
-          </select>
-        </div>
-      </div>
-      </>)}
-    </div>
-  )
-}
-
-function NumCampo({ label, value, onChange, id, error, tipo = "decimal", maxLength, placeholder }) {
-  const manejarCambio = (e) => {
-    const filtrado = tipo === "entero" ? filtrarSoloNumeros(e.target.value, maxLength) : filtrarNumeroDecimalConSigno(e.target.value)
-    onChange(filtrado)
-  }
-  return (
-    <div>
-      <label htmlFor={id} className="mb-0.5 block text-xs font-semibold text-slate-500">{label}</label>
-      <input
-        id={id}
-        type="text"
-        inputMode={tipo === "entero" ? "numeric" : "decimal"}
-        value={value}
-        onChange={manejarCambio}
-        placeholder={placeholder}
-        className={"w-full rounded-lg border bg-white px-2 py-1.5 text-center font-mono text-sm font-semibold text-slate-800 outline-none placeholder:font-normal placeholder:text-slate-300 focus-visible:border-blue-500 " + (error ? "border-red-400 ring-2 ring-red-100" : "border-slate-300")}
-      />
-      {error && <p className="mt-0.5 text-xs font-medium text-red-600">{error}</p>}
-    </div>
-  )
-}
-
 function MedidaCampo({ id, label, value, onChange, placeholder }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-xs font-semibold text-slate-500">{label}</label>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</label>
       <input
         id={id}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-semibold text-slate-700 outline-none placeholder:font-normal placeholder:text-slate-300 focus-visible:border-blue-500"
+        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base font-semibold text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
       />
     </div>
   )

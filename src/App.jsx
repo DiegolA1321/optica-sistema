@@ -13,6 +13,7 @@ import { cargarMisPermisos, MENSAJE_CUENTA_DESACTIVADA } from './utilidades/sesi
 import { mapAbono, EVENTO_ABONO, EVENTO_ABONO_QUITADO, EVENTO_ABONO_ANULADO } from './utilidades/abonos';
 import { lazyConReintento } from './utilidades/lazyConReintento';
 import GuardiaClaveTemporal from './componentes/GuardiaClaveTemporal';
+import { borrarTodosLosBorradores } from './utilidades/borradorFicha';
 
 // Login se queda como import normal: es la pantalla de entrada más común
 // (cualquier visitante público, paciente o staff pasa por acá primero) — el
@@ -1008,6 +1009,8 @@ function App() {
     }
     // Cerrar la sesión estando dentro de una óptica también es una salida: se registra antes de cerrar la sesión real.
     const salida = usuario?.impersonadoPor ? registrarSalidaImpersonacion(usuario, 'al cerrar la sesión') : null;
+    // Al cerrar sesión no queda ninguna ficha clínica a medias guardada en este equipo.
+    borrarTodosLosBorradores();
     setUsuario(null);
     setPantallaActual('login');
     guardarSesion(null);

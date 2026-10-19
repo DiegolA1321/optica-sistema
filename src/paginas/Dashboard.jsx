@@ -284,6 +284,17 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [fichaClinicaPacienteOrigenId, setFichaClinicaPacienteOrigenId] = useState(null)
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [colapsado, setColapsado] = useState(false)
+  // Modo atención: al entrar a la ficha clínica el menú se pliega solo (la ficha queda en dos columnas, con la receta a la vista); el optómetra puede abrirlo, y al salir vuelve a como estaba.
+  const colapsadoAntesDeAtender = useRef(null)
+  useEffect(() => {
+    if (seccionActiva === "consultas") {
+      if (colapsadoAntesDeAtender.current === null) { colapsadoAntesDeAtender.current = colapsado; setColapsado(true) }
+    } else if (colapsadoAntesDeAtender.current !== null) {
+      setColapsado(colapsadoAntesDeAtender.current)
+      colapsadoAntesDeAtender.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seccionActiva])
   const [notifAbierta, setNotifAbierta] = useState(false)
   const [userMenuAbierto, setUserMenuAbierto] = useState(false)
 

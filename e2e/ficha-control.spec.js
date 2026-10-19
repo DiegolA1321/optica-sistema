@@ -28,9 +28,8 @@ test('ficha clínica: el control exige elegir agendar ahora o después', async (
   // Un paciente sin antecedentes ve primero su resumen
   const antecedentes = page.getByRole('button', { name: 'Entendido, completar antecedentes' })
   if (await antecedentes.waitFor({ timeout: 8_000 }).then(() => true, () => false)) await antecedentes.click()
-  await expect(page.getByText('Paso 1 de 3')).toBeVisible({ timeout: 20_000 })
-  await page.getByRole('button', { name: /^Siguiente$/i }).click()
-  await page.getByRole('button', { name: /^Siguiente$/i }).click()
+  // La ficha es una sola página: la barra de pasos salta a cada sección, sin «Siguiente».
+  await expect(page.getByRole('navigation', { name: 'Pasos de la ficha' })).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: /^Miop[ií]a$/ }).first().click()
 
   const ahora = page.getByRole('radio', { name: /Agendar ahora/ })
