@@ -57,8 +57,11 @@ import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas, textoDioptrias } from "../utilidades/tendenciaGraduacion"
+import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
+import HojaReceta from "../componentes/HojaReceta"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
+import { claveBorrador, guardarBorrador, leerBorrador, borrarBorrador, textoGuardado } from "../utilidades/borradorFicha"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -132,6 +135,10 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const [busquedaPaciente, setBusquedaPaciente] = useState("")
   const [mostrarDropdown, setMostrarDropdown] = useState(false)
   const dropdownRef = useRef(null)
+  const clave = claveBorrador(usuario?.id, pacienteId, citaEnAtencionId)
+  const [guardadoEn, setGuardadoEn] = useState(null)
+  const [borradorPendiente, setBorradorPendiente] = useState(null)
+  const [ahoraTexto, setAhoraTexto] = useState(() => Date.now())
 
   const pacientesFiltrados = useMemo(() => {
     if (!busquedaPaciente.trim()) return pacientesLista
@@ -203,6 +210,11 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const [oiEje, setOiEje] = useState("")
   const [oiAgudezaSc, setOiAgudezaSc] = useState("")
   const [oiAgudezaCc, setOiAgudezaCc] = useState("")
+  // Una receta exige los dos ojos: solo se deja uno sin medir si se marca «Ojo no evaluado» y se dice por qué (por ejemplo, una prótesis ocular).
+  const [odNoEval, setOdNoEval] = useState(false)
+  const [odMotivoNoEval, setOdMotivoNoEval] = useState("")
+  const [oiNoEval, setOiNoEval] = useState(false)
+  const [oiMotivoNoEval, setOiMotivoNoEval] = useState("")
 
   // --- Adición y Medidas ---
   const [adicion, setAdicion] = useState("")
@@ -342,6 +354,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     }
     setCitas?.((prev) => prev.map((c) => (c.id === citaEnAtencionId ? { ...c, ...(cambios.estado ? { estado: cambios.estado } : {}), ...("atendido_por" in cambios ? { atendidoPor: null } : {}) } : c)))
     registrarLog(usuario, "consultas", "Dejó de atender a un paciente", pacienteSeleccionado)
+    borrarBorrador(clave)
     onCambiosSinGuardarChange?.(false)
     onAviso?.(`Dejaste de atender a ${pacienteSeleccionado}. La cita sigue agendada.`)
     setDejandoDeAtender(false)
@@ -398,7 +411,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   }, [
     motivo, detalleConsulta, usaLentes, antecedentes, alergias, antecedentesFamiliares,
     retinoscopiaOd, retinoscopiaOi, odEsfera, odCilindro, odEje, odAgudezaSc, odAgudezaCc,
-    oiEsfera, oiCilindro, oiEje, oiAgudezaSc, oiAgudezaCc, adicion, dp, alt, avCerca,
+    oiEsfera, oiCilindro, oiEje, oiAgudezaSc, oiAgudezaCc, odNoEval, odMotivoNoEval, oiNoEval, oiMotivoNoEval, adicion, dp, alt, avCerca,
     testMotor, coverTestLejos, coverTestCerca, oftalmoscopia, testColor, pioOd, pioOi,
     biomicroParpados, biomicroCornea, biomicroCamara, diagnosticoCategorias, diagnostico,
     recomendarLente, lenteRecomendado, indicaciones, proximoControlDias, controlModo, controlFecha, controlHora, tratamientoFinalizado, archivosImagenes,
@@ -646,6 +659,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setOiEje("")
     setOiAgudezaSc("")
     setOiAgudezaCc("")
+    setOdNoEval(false); setOdMotivoNoEval(""); setOiNoEval(false); setOiMotivoNoEval("")
     setAdicion("")
     setDp("")
     setAlt("")
@@ -677,6 +691,8 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setErrores({})
     setBannerError("")
     setFichaGuardada(false)
+    borrarBorrador(clave)
+    setGuardadoEn(null)
     setSubTab("anamnesis")
     setSeccionesAbiertas({ antecedentesPaciente: true, refraccionSubjetiva: true })
     setEditandoMotivo(false)
@@ -729,8 +745,9 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       alergias,
       antecedentesFamiliares,
       retinoscopia: { od: retinoscopiaOd, oi: retinoscopiaOi },
-      od: { esfera: odEsfera, cilindro: odCilindro, eje: odEje, avSc: odAgudezaSc, avCc: odAgudezaCc },
-      oi: { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje, avSc: oiAgudezaSc, avCc: oiAgudezaCc },
+      od: odNoEval ? { esfera: "", cilindro: "", eje: "", avSc: "", avCc: "" } : { esfera: odEsfera, cilindro: odCilindro, eje: odEje, avSc: odAgudezaSc, avCc: odAgudezaCc },
+      oi: oiNoEval ? { esfera: "", cilindro: "", eje: "", avSc: "", avCc: "" } : { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje, avSc: oiAgudezaSc, avCc: oiAgudezaCc },
+      ojoNoEvaluado: { od: odNoEval ? odMotivoNoEval.trim() : "", oi: oiNoEval ? oiMotivoNoEval.trim() : "" },
       medidas: { adicion, dp, alt, avCerca },
       examen: {
         testMotor, coverTestLejos, coverTestCerca, oftalmoscopia, testColor, pioOd, pioOi,
@@ -791,7 +808,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
           antecedentes: nuevaFicha.antecedentes,
           alergias: nuevaFicha.alergias,
           antecedentes_familiares: nuevaFicha.antecedentesFamiliares,
-          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen, control_agenda: nuevaFicha.controlAgenda, control_asignado_a: nuevaFicha.controlAgenda ? usuario?.id || null : null },
+          datos_clinicos: { retinoscopia: nuevaFicha.retinoscopia, od: nuevaFicha.od, oi: nuevaFicha.oi, medidas: nuevaFicha.medidas, examen: nuevaFicha.examen, ojo_no_evaluado: (nuevaFicha.ojoNoEvaluado?.od || nuevaFicha.ojoNoEvaluado?.oi) ? nuevaFicha.ojoNoEvaluado : null, control_agenda: nuevaFicha.controlAgenda, control_asignado_a: nuevaFicha.controlAgenda ? usuario?.id || null : null },
           diagnostico: nuevaFicha.diagnostico,
           diagnostico_categorias: nuevaFicha.diagnosticoCategorias,
           lente_recomendado: nuevaFicha.lenteRecomendado,
@@ -916,6 +933,8 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setTimeout(() => setNotificacion(false), 3500)
     setFichaGuardada(true)
     setHayCambiosSinGuardar(false)
+    borrarBorrador(clave)
+    setGuardadoEn(null)
     setSubTab("diagnostico")
     // La atención terminó: la receta queda lista y el paciente se pasa a la óptica
     // (o se cobra ahí mismo) desde el bloque de "Atención terminada".
@@ -941,7 +960,15 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       // Refracción: todo opcional (puede haber citas que no midan algunos
       // valores). Solo se valida lo que sí se escribió: que sea un número, el
       // rango del eje, y que un cilindro real traiga su eje.
-      for (const [pre, esf, cil, eje] of [["od", odEsfera, odCilindro, odEje], ["oi", oiEsfera, oiCilindro, oiEje]]) {
+      // La receta exige los dos ojos: si uno tiene medidas, el otro también, o se marca «Ojo no evaluado» con su motivo.
+      const medido = (esf, cil, eje) => Boolean(esf.trim() || cil.trim() || eje.trim())
+      const hayReceta = (!odNoEval && medido(odEsfera, odCilindro, odEje)) || (!oiNoEval && medido(oiEsfera, oiCilindro, oiEje))
+      for (const [pre, noEval, motivoNoEval, esf, cil, eje] of [["od", odNoEval, odMotivoNoEval, odEsfera, odCilindro, odEje], ["oi", oiNoEval, oiMotivoNoEval, oiEsfera, oiCilindro, oiEje]]) {
+        if (noEval) {
+          if (motivoNoEval.trim().length < 3) errs[`${pre}_motivo`] = "Di por qué no se evaluó este ojo."
+          continue
+        }
+        if (hayReceta && !esf.trim() && !cil.trim()) errs[`${pre}_esfera`] = "Ingresa la esfera o marca «Ojo no evaluado»"
         if (esf.trim() && !esNumero(esf)) errs[`${pre}_esfera`] = "Número no válido"
         if (cil.trim() && !esNumero(cil)) errs[`${pre}_cilindro`] = "Número no válido"
         if (eje.trim()) {
@@ -968,7 +995,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
 
   const mensajeBanner = (paso, errs = {}) => {
     if (paso === "anamnesis") return "Selecciona un paciente registrado y el motivo de la consulta (si es \"Otros\", descríbelo) antes de continuar."
-    if (paso === "refraccion") return "Revisa la refracción: lo que escribiste en esfera, cilindro y eje debe ser un número válido (el eje es obligatorio si hay cilindro)."
+    if (paso === "refraccion") return "Revisa la refracción: la receta lleva los dos ojos (o marca «Ojo no evaluado» con su motivo) y lo que escribiste en esfera, cilindro y eje debe ser un número válido (el eje es obligatorio si hay cilindro)."
     if (paso === "diagnostico" && errs.control && !errs.diagnostico && !errs.diagnosticoDetalle) return errs.control
     if (paso === "diagnostico") return "Selecciona al menos una categoría de diagnóstico (si es \"Otro\", descríbelo en el detalle) antes de guardar la ficha."
     return "Hay campos por completar."
@@ -1042,54 +1069,22 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const registradoExamenFisico = Boolean(testMotor.trim() || oftalmoscopia.trim() || pioOd.trim() || pioOi.trim())
   const registradoBiomicroscopia = Boolean(biomicroParpados.trim() || biomicroCornea.trim() || biomicroCamara.trim())
 
-  // Impresión robusta: clona la receta a una capa pegada al <body>
-  const imprimirReceta = () => {
-    const receta = document.getElementById("receta-imprimible")
-    if (!receta) {
-      window.print()
-      return
-    }
-    const clon = receta.cloneNode(true)
-    clon.removeAttribute("id")
-
-    // Los inputs/textarea/select no se clonan con su valor: se reemplazan por
-    // texto — un <select> impreso tal cual se ve con flechita de dropdown,
-    // que no tiene sentido en un documento ya emitido.
-    const origs = receta.querySelectorAll("input, textarea, select")
-    const clones = clon.querySelectorAll("input, textarea, select")
-    clones.forEach((el, i) => {
-      const original = origs[i]
-      const val = el.tagName === "SELECT"
-        ? (original?.options[original.selectedIndex]?.text || "")
-        : (original?.value || "")
-      const div = document.createElement("div")
-      div.textContent = val
-      div.style.cssText = "border-bottom:1px solid #cbd5e1;padding:4px 0;font-size:14px;font-weight:600;color:#0f172a;min-height:22px;"
-      el.replaceWith(div)
-    })
-
-    clon.querySelectorAll(".no-print").forEach((n) => n.remove())
-    clon.style.border = "none"
-    clon.style.boxShadow = "none"
-    clon.style.borderRadius = "0"
-
-    const previo = document.getElementById("print-portal")
-    if (previo) previo.remove()
-    const portal = document.createElement("div")
-    portal.id = "print-portal"
-    portal.appendChild(clon)
-    document.body.appendChild(portal)
-    document.body.classList.add("printing-receta")
-
-    const limpiar = () => {
-      document.body.classList.remove("printing-receta")
-      const p = document.getElementById("print-portal")
-      if (p) p.remove()
-    }
-    window.addEventListener("afterprint", limpiar, { once: true })
-    window.print()
-    setTimeout(limpiar, 1500)
-  }
+  // La receta impresa es la hoja de la receta (HojaReceta): la misma que ve el paciente al descargarla desde su portal y la que sale de «Imprimir receta» en el perfil.
+  // Los datos de la hoja: los mismos para la vista previa de la pantalla y para la impresión (HojaReceta).
+  const datosDeLaHoja = () => ({
+    optica: { nombre: usuario?.opticaNombre, direccion: usuario?.opticaMarca?.direccion, telefono: usuario?.opticaMarca?.telefono, correo: usuario?.opticaMarca?.correo, logoUrl: usuario?.opticaLogoUrl },
+    paciente: { nombre: pacienteSeleccionado, cedula: pacienteInfo?.cedula, edad: edadPaciente },
+    receta: {
+      id: consultaGuardadaId || recetaNum.split("-").pop().toLowerCase(), fecha: fechaConsulta,
+      od: odNoEval ? {} : { esfera: odEsfera, cilindro: odCilindro, eje: odEje, avSc: odAgudezaSc, avCc: odAgudezaCc },
+      oi: oiNoEval ? {} : { esfera: oiEsfera, cilindro: oiCilindro, eje: oiEje, avSc: oiAgudezaSc, avCc: oiAgudezaCc },
+      ojoNoEvaluado: { od: odNoEval ? odMotivoNoEval.trim() : "", oi: oiNoEval ? oiMotivoNoEval.trim() : "" },
+      medidas: { adicion, dp, alt },
+      diagnosticoCategorias, diagnostico, lenteRecomendado: recomendarLente ? lenteRecomendado : "", indicaciones,
+      profesionalNombre: usuario?.nombre, profesionalRegistro: usuario?.registroProfesional,
+    },
+  })
+  const imprimirReceta = () => imprimirHojaReceta(datosDeLaHoja())
 
   // ── Datos derivados para la receta impresa ──
   const pacienteInfo = useMemo(
@@ -1140,6 +1135,52 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const textoDia = (iso) => formatoFecha(iso, "largo")
 
   const fechaLarga = useMemo(() => formatoFecha(fechaConsulta, "largoSinDia") || fechaConsulta, [fechaConsulta])
+
+  // ─── Guardado automático del borrador (borradorFicha.js) ───
+  // Mientras se escribe, la ficha se guarda sola como borrador en este navegador; al volver a abrir al mismo paciente y la misma cita se ofrece recuperarla.
+  const campos = {
+    fechaConsulta: [fechaConsulta, setFechaConsulta], motivo: [motivo, setMotivo], detalleConsulta: [detalleConsulta, setDetalleConsulta], usaLentes: [usaLentes, setUsaLentes], antecedentes: [antecedentes, setAntecedentes],
+    alergias: [alergias, setAlergias], antecedentesFamiliares: [antecedentesFamiliares, setAntecedentesFamiliares], retinoscopiaOd: [retinoscopiaOd, setRetinoscopiaOd], retinoscopiaOi: [retinoscopiaOi, setRetinoscopiaOi],
+    odEsfera: [odEsfera, setOdEsfera], odCilindro: [odCilindro, setOdCilindro], odEje: [odEje, setOdEje], odAgudezaSc: [odAgudezaSc, setOdAgudezaSc], odAgudezaCc: [odAgudezaCc, setOdAgudezaCc],
+    oiEsfera: [oiEsfera, setOiEsfera], oiCilindro: [oiCilindro, setOiCilindro], oiEje: [oiEje, setOiEje], oiAgudezaSc: [oiAgudezaSc, setOiAgudezaSc], oiAgudezaCc: [oiAgudezaCc, setOiAgudezaCc],
+    odNoEval: [odNoEval, setOdNoEval], odMotivoNoEval: [odMotivoNoEval, setOdMotivoNoEval], oiNoEval: [oiNoEval, setOiNoEval], oiMotivoNoEval: [oiMotivoNoEval, setOiMotivoNoEval],
+    adicion: [adicion, setAdicion], dp: [dp, setDp], alt: [alt, setAlt], avCerca: [avCerca, setAvCerca], testMotor: [testMotor, setTestMotor], coverTestLejos: [coverTestLejos, setCoverTestLejos], coverTestCerca: [coverTestCerca, setCoverTestCerca],
+    oftalmoscopia: [oftalmoscopia, setOftalmoscopia], testColor: [testColor, setTestColor], pioOd: [pioOd, setPioOd], pioOi: [pioOi, setPioOi],
+    biomicroParpados: [biomicroParpados, setBiomicroParpados], biomicroCornea: [biomicroCornea, setBiomicroCornea], biomicroCamara: [biomicroCamara, setBiomicroCamara],
+    diagnosticoCategorias: [diagnosticoCategorias, setDiagnosticoCategorias], diagnostico: [diagnostico, setDiagnostico], recomendarLente: [recomendarLente, setRecomendarLente], lenteRecomendado: [lenteRecomendado, setLenteRecomendado],
+    indicaciones: [indicaciones, setIndicaciones], proximoControlDias: [proximoControlDias, setProximoControlDias], controlModo: [controlModo, setControlModo], controlFecha: [controlFecha, setControlFecha], controlHora: [controlHora, setControlHora],
+    tratamientoFinalizado: [tratamientoFinalizado, setTratamientoFinalizado],
+  }
+  const instantanea = JSON.stringify(Object.fromEntries(Object.entries(campos).map(([k, [v]]) => [k, v])))
+  useEffect(() => {
+    if (!clave || fichaGuardada || !hayCambiosSinGuardar) return undefined
+    const t = setTimeout(() => { if (guardarBorrador(clave, JSON.parse(instantanea))) setGuardadoEn(Date.now()) }, 1200)
+    return () => clearTimeout(t)
+  }, [clave, instantanea, hayCambiosSinGuardar, fichaGuardada])
+  const clavesRevisadas = useRef(new Set())
+  useEffect(() => {
+    if (!clave || fichaGuardada || clavesRevisadas.current.has(clave)) return
+    clavesRevisadas.current.add(clave)
+    const b = leerBorrador(clave)
+    setBorradorPendiente(b ? { ...b, clave } : null)
+    setGuardadoEn(null)
+  }, [clave, fichaGuardada])
+  useEffect(() => {
+    if (!guardadoEn) return undefined
+    const i = setInterval(() => setAhoraTexto(Date.now()), 5000)
+    return () => clearInterval(i)
+  }, [guardadoEn])
+  const recuperarBorrador = () => {
+    if (!borradorPendiente) return
+    detectarCambios.current = false
+    for (const [k, [, poner]] of Object.entries(campos)) if (k in borradorPendiente.datos) poner(borradorPendiente.datos[k])
+    setGuardadoEn(borradorPendiente.guardadoEn)
+    setBorradorPendiente(null)
+    setHayCambiosSinGuardar(true)
+    setTimeout(() => { detectarCambios.current = true }, 400)
+    onAviso?.("Recuperaste la ficha que tenías a medias.")
+  }
+  const descartarBorrador = () => { borrarBorrador(borradorPendiente?.clave); setBorradorPendiente(null) }
 
   return (
     <div className="w-full space-y-6 text-left">
@@ -1197,6 +1238,17 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
         </div>
       </div>
 
+      {borradorPendiente && !fichaGuardada && (
+        <div role="status" className="no-print flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-slate-800">
+          <History size={18} className="shrink-0 text-blue-600" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-sm"><span className="font-semibold">Hay una ficha a medias de este paciente</span> · {textoGuardado(borradorPendiente.guardadoEn).replace("Guardado", "guardada")}. ¿La recuperas?</p>
+          <div className="flex shrink-0 gap-2">
+            <button type="button" onClick={recuperarBorrador} className="rounded-lg px-4 py-2 text-sm font-semibold text-white cursor-pointer" style={{ background: GRAD }}>Recuperar</button>
+            <button type="button" onClick={descartarBorrador} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Empezar de cero</button>
+          </div>
+        </div>
+      )}
+
       {/* ─── ÉXITO ─── */}
       {notificacion && (
         <div role="status" className="no-print flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900 shadow-sm">
@@ -1208,7 +1260,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="w-full">
         {/* ─── IDENTIDAD DEL PACIENTE (fija al hacer scroll) ─── Antes el
             nombre solo aparecía en el buscador del paso 1 y en el resumen
             del paso 3 — al completar un formulario largo (Refracción tiene
@@ -1505,7 +1557,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                     <input
                       id="paciente"
                       type="text"
-                      placeholder="Escriba para filtrar paciente..."
+                      placeholder="Escribe para filtrar paciente..."
                       value={busquedaPaciente}
                       onFocus={() => setMostrarDropdown(true)}
                       onChange={(e) => {
@@ -1674,8 +1726,8 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                     </button>
                   )}
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <OjoCard sigla="OD" titulo="Ojo derecho" esfera={odEsfera} setEsfera={setOdEsfera} cilindro={odCilindro} setCilindro={setOdCilindro} eje={odEje} setEje={setOdEje} avSc={odAgudezaSc} setAvSc={setOdAgudezaSc} avCc={odAgudezaCc} setAvCc={setOdAgudezaCc} errores={errores} limpiarError={limpiarError} />
-                    <OjoCard sigla="OI" titulo="Ojo izquierdo" esfera={oiEsfera} setEsfera={setOiEsfera} cilindro={oiCilindro} setCilindro={setOiCilindro} eje={oiEje} setEje={setOiEje} avSc={oiAgudezaSc} setAvSc={setOiAgudezaSc} avCc={oiAgudezaCc} setAvCc={setOiAgudezaCc} errores={errores} limpiarError={limpiarError} />
+                    <OjoCard sigla="OI" titulo="Ojo izquierdo" noEvaluado={oiNoEval} setNoEvaluado={setOiNoEval} motivoNoEval={oiMotivoNoEval} setMotivoNoEval={setOiMotivoNoEval} esfera={oiEsfera} setEsfera={setOiEsfera} cilindro={oiCilindro} setCilindro={setOiCilindro} eje={oiEje} setEje={setOiEje} avSc={oiAgudezaSc} setAvSc={setOiAgudezaSc} avCc={oiAgudezaCc} setAvCc={setOiAgudezaCc} errores={errores} limpiarError={limpiarError} />
+                    <OjoCard sigla="OD" titulo="Ojo derecho" noEvaluado={odNoEval} setNoEvaluado={setOdNoEval} motivoNoEval={odMotivoNoEval} setMotivoNoEval={setOdMotivoNoEval} esfera={odEsfera} setEsfera={setOdEsfera} cilindro={odCilindro} setCilindro={setOdCilindro} eje={odEje} setEje={setOdEje} avSc={odAgudezaSc} setAvSc={setOdAgudezaSc} avCc={odAgudezaCc} setAvCc={setOdAgudezaCc} errores={errores} limpiarError={limpiarError} />
                   </div>
                   {estadoCorreccionActual !== "Sin evaluar" && (
                     <div><ChipCorreccion correccion={estadoCorreccionActual} /></div>
@@ -1879,53 +1931,12 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   </button>
                 </div>
 
-                {/* RECETA IMPRIMIBLE */}
-                <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm" id="receta-imprimible">
-                  {/* Membrete */}
-                  <div className="print-force-color px-8 pt-8" style={{ color: INK }}>
-                    <div className="flex items-start justify-between gap-6">
-                      <div className="flex items-center gap-3.5">
-                        <div className="print-force-color grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD }}>
-                          <Eye size={26} strokeWidth={2.1} />
-                        </div>
-                        <div>
-                          <h2 className="font-serif text-2xl font-bold leading-none tracking-tight">{usuario?.opticaNombre || "Tu óptica"}</h2>
-                          <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Salud visual &amp; optometría</p>
-                          {(usuario?.opticaMarca?.direccion || usuario?.opticaMarca?.telefono || usuario?.opticaMarca?.correo) && (
-                            <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                              {[usuario?.opticaMarca?.direccion, usuario?.opticaMarca?.telefono, usuario?.opticaMarca?.correo].filter(Boolean).join(" · ")}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Receta óptica</p>
-                        <p className="mt-1 font-mono text-xs font-semibold text-slate-700">N.º {recetaNum}</p>
-                        <p className="text-xs text-slate-500">{fechaLarga}</p>
-                      </div>
-                    </div>
+                {/* DATOS DE LA RECETA: aquí se completan; la hoja de más abajo es exactamente lo que se imprime */}
+                <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+                  <div className="border-b border-slate-100 px-8 py-4">
+                    <h3 className="text-sm font-bold" style={{ color: INK }}>Datos de la receta</h3>
+                    <p className="text-xs text-slate-500">Lo que escribas aquí aparece al instante en la hoja de abajo.</p>
                   </div>
-
-                  {/* Línea de acento dorada */}
-                  <div className="print-force-color mx-8 mt-5 h-[3px] rounded-full" style={{ background: `linear-gradient(90deg, ${GOLD}, ${GOLD}55 60%, transparent)` }} />
-
-                  {/* Datos del paciente */}
-                  <div className="print-force-color mx-8 mt-5 grid grid-cols-2 gap-x-6 gap-y-2 rounded-xl bg-slate-50 px-5 py-3.5 sm:grid-cols-4">
-                    <RecetaDato label="Paciente" valor={pacienteSeleccionado || "—"} />
-                    <RecetaDato label="Cédula" valor={pacienteInfo?.cedula || "—"} />
-                    <RecetaDato label="Edad" valor={edadPaciente != null ? `${edadPaciente} años` : "—"} />
-                    <RecetaDato label="¿Usa lentes?" valor={usaLentes === "si" ? "Sí" : usaLentes === "no" ? "No" : "—"} />
-                  </div>
-
-                  {/* El ing probó esta receta impresa y pidió quitar el
-                      cartel de "Estado de corrección visual" de aquí — "esto
-                      es subjetivo" y su sistema no está pensado para dar un
-                      diagnóstico previo antes del propio diagnóstico del
-                      optómetra (ver ING7). El cálculo sigue vivo como
-                      contexto interno para el optómetra (PanelEvolucion,
-                      arriba, marcado "no se imprime") y sigue alimentando el
-                      indicador de Reportes — solo se retira de este documento
-                      impreso. */}
 
                   {/* Diagnóstico, lente recomendado e indicaciones — lo que el paciente se lleva */}
                   <div className="space-y-3.5 px-8 pt-5">
@@ -2143,20 +2154,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                       </div>
                     )}
 
-                    <div className="print-force-color rounded-xl border border-slate-200/60 bg-slate-50/70 p-4">
-                      <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Medidas de graduación</p>
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <p className="text-xs font-semibold text-slate-500">OD (derecho)</p>
-                          <p className="font-semibold" style={{ color: INK }}>{odEsfera || "—"} {odCilindro || ""} x{odEje || "—"}°</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-500">OI (izquierdo)</p>
-                          <p className="font-semibold" style={{ color: INK }}>{oiEsfera || "—"} {oiCilindro || ""} x{oiEje || "—"}°</p>
-                        </div>
-                      </div>
-                    </div>
-
                     {/* Punto 2.1 (plan 29 sept.): si el optómetra da de alta
                         al paciente, ya no tiene sentido pedirle un próximo
                         control — se oculta el selector y se explica por qué. */}
@@ -2248,26 +2245,22 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                     )}
                   </div>
 
-                  {/* Pie: validez + firma */}
-                  <div className="mt-8 border-t border-slate-100 px-8 pb-8 pt-6">
-                    <div className="flex items-end justify-between gap-6">
-                      <p className="max-w-[16rem] text-xs leading-relaxed text-slate-500">
-                        Presente esta receta para la elaboración de sus lentes. Validez de 12 meses desde la fecha de emisión.
-                      </p>
-                      <div className="w-52 text-center">
-                        <div className="mb-2.5 border-t border-slate-400" />
-                        <p className="text-sm font-bold" style={{ color: INK }}>{usuario?.nombre || "Optómetra"}</p>
-                        <p className="text-xs text-slate-500">{usuario?.registroProfesional ? `Reg. Prof. ${usuario.registroProfesional}` : "Reg. Prof. ____________"}</p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
+
+                {/* VISTA PREVIA: la misma hoja que se imprime y que el paciente descarga desde su portal */}
+                <section aria-label="Vista previa de la receta" className="rounded-2xl border border-slate-200/60 bg-slate-100/70 p-4">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Vista previa · así sale impresa</p>
+                  <div className="overflow-x-auto rounded-xl border border-slate-200/60 bg-white shadow-sm"><HojaReceta {...datosDeLaHoja()} /></div>
+                </section>
               </div>
             )}
 
             {/* Navegación */}
             <div className="no-print mt-2 flex items-center justify-between border-t border-slate-100 pt-4">
-              <div className="text-sm font-medium text-slate-500">Paso {pasoActual?.n} de 3</div>
+              <div className="flex items-center gap-3 text-sm font-medium text-slate-500">
+                <span>Paso {pasoActual?.n} de 3</span>
+                {!fichaGuardada && guardadoEn != null && <span role="status" className="text-xs font-normal text-slate-400">{textoGuardado(guardadoEn, ahoraTexto)}</span>}
+              </div>
               <div className="flex gap-2">
                 {subTab !== "anamnesis" && (
                   <button
@@ -2445,7 +2438,7 @@ function ChipCorreccion({ correccion }) {
   )
 }
 
-function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje, setEje, avSc, setAvSc, avCc, setAvCc, errores = {}, limpiarError }) {
+function OjoCard({ sigla, titulo, noEvaluado = false, setNoEvaluado, motivoNoEval = "", setMotivoNoEval, esfera, setEsfera, cilindro, setCilindro, eje, setEje, avSc, setAvSc, avCc, setAvCc, errores = {}, limpiarError }) {
   const color = sigla === "OD" ? "#2563EB" : "#06b6d4"
   const pre = sigla.toLowerCase()
   return (
@@ -2456,6 +2449,19 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
         </span>
         <h3 className="text-sm font-bold" style={{ color }}>{titulo}</h3>
       </div>
+      {setNoEvaluado && (
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
+          <input type="checkbox" checked={noEvaluado} onChange={(e) => { setNoEvaluado(e.target.checked); limpiarError?.(`${pre}_motivo`); limpiarError?.(`${pre}_esfera`) }} className="h-4 w-4 accent-blue-600" /> Ojo no evaluado
+        </label>
+      )}
+      {noEvaluado ? (
+        <div>
+          <label htmlFor={`${sigla}-motivo-no-eval`} className="mb-0.5 block text-xs font-semibold text-slate-500">¿Por qué no se evaluó?</label>
+          <input id={`${sigla}-motivo-no-eval`} value={motivoNoEval} maxLength={120} onChange={(e) => { setMotivoNoEval(e.target.value); limpiarError?.(`${pre}_motivo`) }} placeholder="Por ejemplo: prótesis ocular" aria-invalid={Boolean(errores[`${pre}_motivo`])}
+            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 outline-none focus-visible:border-blue-500" />
+          {errores[`${pre}_motivo`] && <p role="alert" className="mt-1 text-xs font-medium text-red-600">{errores[`${pre}_motivo`]}</p>}
+        </div>
+      ) : (<>
       <div className="grid grid-cols-3 gap-2">
         <NumCampo label="Esfera" value={esfera} onChange={(v) => { setEsfera(v); limpiarError?.(`${pre}_esfera`) }} id={`${sigla}-esf`} error={errores[`${pre}_esfera`]} placeholder="0.00" />
         <NumCampo label="Cilindro" value={cilindro} onChange={(v) => { setCilindro(v); limpiarError?.(`${pre}_cilindro`); limpiarError?.(`${pre}_eje`) }} id={`${sigla}-cil`} error={errores[`${pre}_cilindro`]} placeholder="0.00" />
@@ -2477,6 +2483,7 @@ function OjoCard({ sigla, titulo, esfera, setEsfera, cilindro, setCilindro, eje,
           </select>
         </div>
       </div>
+      </>)}
     </div>
   )
 }

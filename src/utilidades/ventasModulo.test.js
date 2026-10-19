@@ -93,3 +93,40 @@ describe("el número de avisos de Ventas", () => {
     expect(contarAvisosVentas({})).toBe(0)
   })
 })
+
+import { solicitudesNuevasDelPortal } from "./ventasModulo"
+import { esSolicitudNueva, esDelPortal, etiquetaInteres } from "./pasesVenta"
+describe("solicitudes de lentes del portal en Ventas y en «Requiere tu atención»", () => {
+  const hoy = new Date(2026, 9, 18, 10, 0)
+  const portal = (extra = {}) => ({ id: "s", origen: "portal", interes: "montura_nueva", estado: "listo", pasadaEn: "2026-10-17T10:00:00Z", enAtencionEn: null, proformaEntregadaEn: null, ...extra })
+  it("una solicitud recibida cuenta; una ya tomada o con proforma no", () => {
+    expect(esSolicitudNueva(portal())).toBe(true)
+    expect(esSolicitudNueva(portal({ enAtencionEn: "2026-10-17T12:00:00Z" }))).toBe(false)
+    expect(esSolicitudNueva(portal({ proformaEntregadaEn: "2026-10-17T12:00:00Z" }))).toBe(false)
+    expect(esSolicitudNueva(portal({ estado: "vendido" }))).toBe(false)
+    expect(esSolicitudNueva({ origen: "consulta", estado: "listo" })).toBe(false)
+  })
+  it("cuenta mientras está «Recibida» y, a los 30 días sin cerrarse, la cuenta el seguimiento (una sola vez)", () => {
+    const nueva = portal()
+    const vieja = portal({ id: "v", pasadaEn: "2026-08-01T10:00:00Z" })
+    expect(contarAvisosVentas({ pases: [nueva], hoy })).toBe(1)
+    expect(solicitudesNuevasDelPortal([{ pase: vieja }], hoy)).toHaveLength(0)
+    expect(contarAvisosVentas({ pases: [vieja], hoy })).toBe(1) // por el seguimiento, no dos veces
+    expect(contarAvisosVentas({ pases: [nueva, vieja], hoy })).toBe(2)
+    expect(contarAvisosVentas({ pases: [portal({ enAtencionEn: "2026-10-17T12:00:00Z" })], hoy })).toBe(0) // ya la tomaron y no pasó el plazo
+  })
+  it("el filtro «Desde el portal» muestra solo esas y las etiquetas salen en palabras del personal", () => {
+    const listos = [{ pase: portal() }, { pase: { id: "c", origen: "consulta", estado: "listo", pasadaEn: "2026-10-10T10:00:00Z" } }]
+    expect(listaPorVender("portal", { listos, descartados: [], hoy })).toHaveLength(1)
+    expect(esDelPortal(listos[0].pase)).toBe(true)
+    expect(etiquetaInteres("lentes_de_contacto")).toBe("Lentes de contacto")
+  })
+})
+
+describe("pagos por transferencia por verificar en los avisos de Ventas", () => {
+  it("cada pago por verificar suma uno, el mismo número que ve el Inicio", () => {
+    expect(contarAvisosVentas({ pagosPorVerificar: 2 })).toBe(2)
+    expect(contarAvisosVentas({ pagosPorVerificar: 0 })).toBe(0)
+    expect(contarAvisosVentas({ pases: [{ id: "n", origen: "portal", estado: "listo", pasadaEn: new Date().toISOString() }], pagosPorVerificar: 3, hoy: new Date() })).toBe(4)
+  })
+})

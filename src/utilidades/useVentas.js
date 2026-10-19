@@ -68,9 +68,11 @@ export function useVentas({
     window.dispatchEvent(new CustomEvent(EVENTO_FE_CAMBIADA, { detail: factura.id })) // el detalle del comprobante vuelve a leer sus archivos
   }
 
+  // Una solicitud del portal no nace de una consulta: se le muestra la última del paciente (la que tiene su receta vigente).
+  const ultimaConsultaDe = (pacienteId) => consultas.filter((c) => c.pacienteId === pacienteId).slice().sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0))[0] || null
   const construirCola = (estado) => pases
     .filter((p) => p.estado === estado)
-    .map((pase) => ({ pase, paciente: pacientes.find((x) => x.id === pase.pacienteId) || null, consulta: consultas.find((c) => c.id === pase.consultaId) || null }))
+    .map((pase) => ({ pase, paciente: pacientes.find((x) => x.id === pase.pacienteId) || null, consulta: (pase.consultaId ? consultas.find((c) => c.id === pase.consultaId) : ultimaConsultaDe(pase.pacienteId)) || null }))
     .sort((a, b) => (estado === "listo" ? (a.pase.pasadaEn < b.pase.pasadaEn ? -1 : 1) : (a.pase.pasadaEn < b.pase.pasadaEn ? 1 : -1)))
   const colaListos = useMemo(() => construirCola("listo"), [pases, pacientes, consultas]) // eslint-disable-line react-hooks/exhaustive-deps
   const colaDescartados = useMemo(() => construirCola("descartado"), [pases, pacientes, consultas]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -85,7 +87,7 @@ export function useVentas({
         avisarError?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo registrar la proforma. Revisa tu conexión e intenta de nuevo.")
         return
       }
-      setPases?.((prev) => prev.map((p) => (p.id === item.pase.id ? { ...p, proformaEntregadaEn: data, proformaTotal: total } : p)))
+      setPases?.((prev) => prev.map((p) => (p.id === item.pase.id ? { ...p, proformaEntregadaEn: data, proformaTotal: total, enAtencionEn: p.enAtencionEn || data } : p)))
     }
     imprimirHtml(armarHtmlProforma({
       opticaNombre: usuario?.opticaNombre,
@@ -96,6 +98,17 @@ export function useVentas({
       incluirMedidas,
     }))
     notificar?.("Proforma registrada e impresa.")
+  }
+
+  // «Tomar datos del diagnóstico»: una solicitud del portal se marca «En atención» (lo ve el paciente en su portal) antes de abrir la venta.
+  const tomarDatos = async (item) => {
+    const { pase } = item
+    if (pase.origen === "portal" && !pase.enAtencionEn && supabase) {
+      const { data, error } = await supabase.rpc("tomar_solicitud_portal", { p_pase_id: pase.id })
+      if (error) { avisarError?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo tomar la solicitud. Revisa tu conexión e intenta de nuevo."); return }
+      setPases?.((prev) => prev.map((p) => (p.id === pase.id ? { ...p, enAtencionEn: data } : p)))
+    }
+    setVentaCola(item)
   }
 
   const alVenderDesdeCola = (factura) => {
@@ -129,6 +142,6 @@ export function useVentas({
     ventaCola, setVentaCola, noComproPara, setNoComproPara, abonoPara, setAbonoPara, anularPara, setAnularPara,
     ordenParaVenta, setOrdenParaVenta, facturaElectronicaPara, setFacturaElectronicaPara, corregirAbonoPara, setCorregirAbonoPara, reabriendoId,
     colaListos, colaDescartados, saldoDe,
-    registrarFactura, alAbonar, alCorregirAbono, alAnular, alGuardarFacturaElectronica, imprimirProformaCola, alVenderDesdeCola, reabrirPase, alNoComprar,
+    registrarFactura, alAbonar, alCorregirAbono, alAnular, alGuardarFacturaElectronica, imprimirProformaCola, tomarDatos, alVenderDesdeCola, reabrirPase, alNoComprar,
   }
 }

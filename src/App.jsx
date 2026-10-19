@@ -13,6 +13,7 @@ import { cargarMisPermisos, MENSAJE_CUENTA_DESACTIVADA } from './utilidades/sesi
 import { mapAbono, EVENTO_ABONO, EVENTO_ABONO_QUITADO, EVENTO_ABONO_ANULADO } from './utilidades/abonos';
 import { lazyConReintento } from './utilidades/lazyConReintento';
 import GuardiaClaveTemporal from './componentes/GuardiaClaveTemporal';
+import { borrarTodosLosBorradores } from './utilidades/borradorFicha';
 
 // Login se queda como import normal: es la pantalla de entrada más común
 // (cualquier visitante público, paciente o staff pasa por acá primero) — el
@@ -202,6 +203,8 @@ function mapPase(p) {
     // 0086: motivo de "No compró" y proforma entregada (fecha y monto).
     motivoDescarte: p.motivo_descarte || null, detalleDescarte: p.detalle_descarte || null,
     proformaEntregadaEn: p.proforma_entregada_en || null, proformaTotal: p.proforma_total != null ? Number(p.proforma_total) : null,
+    // 0129: solicitud hecha por el paciente desde el portal (origen 'portal', sin consulta): qué le interesa, su comentario y cuándo la tomó el personal.
+    origen: p.origen || "consulta", interes: p.interes || null, comentarioPaciente: p.comentario_paciente || null, enAtencionEn: p.en_atencion_en || null,
   }
 }
 function mapConsulta(c) {
@@ -210,6 +213,8 @@ function mapConsulta(c) {
     usaLentes: c.usa_lentes, antecedentes: c.antecedentes, alergias: c.alergias, antecedentesFamiliares: c.antecedentes_familiares,
     retinoscopia: c.datos_clinicos?.retinoscopia, od: c.datos_clinicos?.od, oi: c.datos_clinicos?.oi,
     medidas: c.datos_clinicos?.medidas, examen: c.datos_clinicos?.examen,
+    // Un ojo que no se evaluó, con su motivo (por ejemplo, una prótesis ocular): { od: "motivo", oi: "" }. Sin eso, una receta lleva los dos ojos.
+    ojoNoEvaluado: c.datos_clinicos?.ojo_no_evaluado || null,
     // Producto de inventario vinculado al lente recomendado (jsonb, sin columna
     // propia): permite precargarlo al cobrar "más tarde" desde Citas o el perfil.
     lenteProductoId: c.datos_clinicos?.lente_producto_id || null,
@@ -255,6 +260,8 @@ function mapFacturaVenta(f) {
     numero: f.numero ?? null, facturaElectronica: f.factura_electronica || "",
     // Quién la registró, cómo se pagó al contado (lista de pagos por método) y, si se anuló, quién, cuándo y por qué.
     registradoPor: f.registrado_por || null, pagos: Array.isArray(f.pagos) ? f.pagos.map((p) => ({ metodo: p.metodo, monto: Number(p.monto) })) : null,
+    // 0130: el teléfono y el correo del paciente el día en que se emitió el comprobante (no cambian aunque después los cambie el paciente).
+    pacienteTelefono: f.paciente_telefono || null, pacienteCorreo: f.paciente_correo || null,
     anuladaPor: f.anulada_por || null, anuladaEn: f.anulada_at || null, anuladaMotivo: f.anulada_motivo || "",
     // facturas_venta_lineas llega embebida por el select de abajo (join por
     // factura_id) — sin esto, `lineas` solo existía para una factura recién
@@ -431,6 +438,8 @@ function App() {
   // que Login.jsx pueda personalizarse — null mientras no se resuelve o
   // cuando el sitio no es de tipo 'optica'.
   const [opticaPublica, setOpticaPublica] = useState(null);
+  // El portal del paciente muestra esqueletos hasta que llegan sus citas y su receta (sin esto, un paciente con datos veía un instante la bienvenida de un paciente nuevo).
+  const [cargandoDatosPaciente, setCargandoDatosPaciente] = useState(true);
   // Evita el parpadeo al recargar: si ya hay (o podría haber) una sesión de
   // Supabase Auth (superadmin/admin/asistente) por restaurar, no se sabe
   // todavía si pantallaActual='login' es la respuesta correcta o solo el
@@ -452,10 +461,15 @@ function App() {
     if (!supabase) return
     const sesion = cargarDeStorage('optica_sesion', null)
     if (sesion?.tipo !== 'paciente' || sesion.pacienteId == null) return
-    if (usuario?.rol === 'paciente' && usuario?.id === sesion.pacienteId && usuario?.token === sesion.token) return
+    // Sesión ya resuelta de forma sincrónica (el paciente estaba en el `pacientes` guardado de este navegador): igual hay que traer sus citas y recetas;
+    // sin esto «Inicio», «Mis citas» y «Mi receta» se quedaban en esqueleto para siempre.
+    const yaResuelta = usuario?.rol === 'paciente' && usuario?.id === sesion.pacienteId && usuario?.token === sesion.token
+    // La sesión SIEMPRE se valida en el servidor, también cuando ya está resuelta de forma local: con un token vencido (la sesión del paciente expira) todas las funciones del portal
+    // devuelven vacío, y el portal se abría como el de un paciente nuevo («Agenda tu primera cita») aunque tuviera citas, lentes y saldo.
     supabase.rpc('obtener_paciente_por_id', { p_paciente_id: sesion.pacienteId, p_token: sesion.token }).then(({ data }) => {
       const fila = data?.[0]
-      if (!fila) { guardarSesion(null); setUsuario(null); setPantallaActual('login'); return }
+      if (!fila) { guardarSesion(null); setUsuario(null); setPantallaActual('login'); setAvisoSesion({ texto: 'Tu sesión venció. Vuelve a iniciar sesión.', id: Date.now() }); return }
+      if (yaResuelta) { hidratarDatosPaciente(sesion.pacienteId, sesion.token); return }
       const pacienteMapeado = mapPaciente(fila)
       setUsuario({ ...pacienteMapeado, rol: 'paciente', token: sesion.token })
       setPantallaActual('panel_paciente')
@@ -973,13 +987,15 @@ function App() {
   // id — sin él, el RPC no devuelve nada, así que un pacienteId suelto ya no
   // alcanza para leer los datos de otra persona.
   const hidratarDatosPaciente = async (pacienteId, token) => {
-    if (!supabase) return
+    if (!supabase) { setCargandoDatosPaciente(false); return }
+    setCargandoDatosPaciente(true)
     const [{ data: misCitas }, { data: misConsultas }] = await Promise.all([
       supabase.rpc('mis_citas_paciente', { p_paciente_id: pacienteId, p_token: token }),
       supabase.rpc('mis_consultas_paciente', { p_paciente_id: pacienteId, p_token: token }),
     ])
     if (misCitas) setCitas(misCitas.map(mapCita))
     if (misConsultas) setConsultas(misConsultas.map(mapConsulta))
+    setCargandoDatosPaciente(false)
   };
 
   // Ciberseguridad: además de olvidar la sesión localmente, invalida el
@@ -993,6 +1009,8 @@ function App() {
     }
     // Cerrar la sesión estando dentro de una óptica también es una salida: se registra antes de cerrar la sesión real.
     const salida = usuario?.impersonadoPor ? registrarSalidaImpersonacion(usuario, 'al cerrar la sesión') : null;
+    // Al cerrar sesión no queda ninguna ficha clínica a medias guardada en este equipo.
+    borrarTodosLosBorradores();
     setUsuario(null);
     setPantallaActual('login');
     guardarSesion(null);
@@ -1260,6 +1278,7 @@ function App() {
           opticaPublica={opticaPublica}
           parametrizacion={parametrizacion}
           motivosConsulta={motivosConsulta}
+          cargandoDatos={cargandoDatosPaciente}
           onCerrarSesion={cerrarSesion}
           alActualizarUsuario={(datos) => setUsuario((prev) => ({ ...prev, ...datos }))}
         />
@@ -1280,7 +1299,9 @@ function App() {
     );
   }
 
-  return <ResolutionGuard>{contenido}</ResolutionGuard>;
+  // El personal y el superadmin (dashboard y panel) siguen con la guarda de tamaño y zoom; todo lo que ve un paciente o un visitante se adapta (regla 48).
+  const pantallaDelPersonal = pantallaActual === 'dashboard' || pantallaActual === 'panel_superadmin';
+  return <ResolutionGuard desactivado={!pantallaDelPersonal}>{contenido}</ResolutionGuard>;
 }
 
 export default App;

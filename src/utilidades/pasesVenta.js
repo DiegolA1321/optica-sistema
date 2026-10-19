@@ -16,6 +16,12 @@ export function etiquetaMotivo(id, detalle) {
   return MOTIVOS_NO_COMPRO.find((m) => m.id === id)?.etiqueta || ""
 }
 
+// Una solicitud de lentes que el paciente hizo desde el portal (migración 0129): no nace de una consulta, y se le dice «Desde el portal».
+export const esDelPortal = (pase) => pase?.origen === "portal"
+const INTERES = { lentes_con_receta: "Lentes con su receta vigente", montura_nueva: "Montura nueva", lentes_de_sol: "Lentes de sol", lentes_de_contacto: "Lentes de contacto" }
+export const etiquetaInteres = (id) => INTERES[id] || "Lentes nuevos"
+// Una solicitud del portal que nadie ha tomado todavía: es lo que «Requiere tu atención» cuenta mientras esté así.
+export const esSolicitudNueva = (pase) => esDelPortal(pase) && pase.estado === "listo" && !pase.enAtencionEn && !pase.proformaEntregadaEn
 export const pasesListos = (pases = []) => pases.filter((p) => p.estado === "listo")
 export const pasesDescartados = (pases = []) => pases.filter((p) => p.estado === "descartado")
 

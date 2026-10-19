@@ -2,6 +2,7 @@
 
 import { etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { dinero } from "../utilidades/formatoMoneda"
+import { numeroComprobante } from "../utilidades/comprobantes"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { fechaHoraLegible, fechaCorta, fechaLegible, formatoFecha, nombreMes as nombreMesDe } from "../utilidades/formatoFecha"
@@ -44,8 +45,9 @@ import VentanaTotal from "../componentes/VentanaTotal"
 import ParaEmpezar from "../componentes/ParaEmpezar"
 import VentanaActividad from "../componentes/VentanaActividad"
 import { puede } from "../utilidades/permisosUi"
-import { textoDiagnostico, textoEspera, diasEnEspera } from "../utilidades/pasesVenta"
-import { DIAS_PARA_SEGUIMIENTO, pacientesParaSeguimiento } from "../utilidades/ventasModulo"
+import { textoDiagnostico, textoEspera, diasEnEspera, esDelPortal, etiquetaInteres } from "../utilidades/pasesVenta"
+import { textoAvisoContacto } from "../utilidades/avisosContacto"
+import { DIAS_PARA_SEGUIMIENTO, pacientesParaSeguimiento, solicitudesNuevasDelPortal } from "../utilidades/ventasModulo"
 import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
 import { NOMBRE_MODULO, detalleActividad, moduloDeRegistro } from "../utilidades/logs"
 import { puedeNivel } from "../utilidades/roles"
@@ -65,6 +67,7 @@ export default function Inicio({
   onVerCrm, // abre el CRM con un motivo: { filtro }
   paraContactar, // la lista "Para contactar" del CRM ({ filas }), o null mientras carga; sin ella (pruebas) se calcula sin contactos
   setCitas,
+  solicitudesEliminacion = [], // pacientes que pidieron eliminar su cuenta desde el portal (pendientes)
   onAviso,
   onAtenderCita,
   onAtenderEnCitas,
@@ -88,6 +91,9 @@ export default function Inicio({
   onVerSaldos,
   onVerStockBajo,
   vista = null,
+  avisosContacto = [],
+  onAtenderAvisoContacto,
+  pagosPorVerificar = [],
   pases = [],
   facturasVenta = [],
   abonos = [],
@@ -490,7 +496,7 @@ export default function Inicio({
                     <button type="button" onClick={() => onVerCola?.()} className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-bold text-slate-800">{paciente?.nombre || "Paciente"}</span>
-                        <span className="block truncate text-xs text-slate-500">{diagnostico || consulta?.motivo || "Consulta"}{pase.proformaEntregadaEn ? " · con proforma" : ""}</span>
+                        <span className="block truncate text-xs text-slate-500">{esDelPortal(pase) ? "Desde el portal · " + etiquetaInteres(pase.interes) : diagnostico || consulta?.motivo || "Consulta"}{pase.proformaEntregadaEn ? " · con proforma" : ""}</span>
                       </span>
                       <span className="shrink-0 rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">{textoEspera(diasEnEspera(pase))}</span>
                     </button>
@@ -526,6 +532,8 @@ export default function Inicio({
   const incPorConfirmar = ["administrador", "recepcion"].includes(plantilla)
   // Pacientes que se registraron solos al agendar por la web (R15) y cuyos datos recepción todavía no confirma (R22).
   const porConfirmar = pacientes.filter((p) => p.origen === "paciente" && !p.confirmadoRecepcion)
+  // Un paciente que pide eliminar su cuenta desde el portal es una decisión del administrador de la óptica: tiene que verla sin entrar al perfil.
+  const incEliminacion = plantilla === "administrador" && puedeV("pacientes", "editar")
   const incCumple = (["administrador", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
   const incSaldos = veVentas && plantilla !== "optometra"
   const incSinConsulta = puedeV("pacientes", "ver") && plantilla !== "ventas" && plantilla !== "optometra"
@@ -617,6 +625,21 @@ export default function Inicio({
         })),
       })
     }
+    if (incEliminacion && solicitudesEliminacion.length > 0) {
+      const n = solicitudesEliminacion.length
+      const nombreDe2 = (id) => pacientes.find((p) => p.id === id)?.nombre || "Paciente"
+      poner("pacientes", {
+        id: "eliminacion", cantidad: n,
+        texto: uno(n, "paciente pidió eliminar su cuenta", "pacientes pidieron eliminar su cuenta"),
+        nombres: nombresResumidos(solicitudesEliminacion.map((x) => nombreDe2(x.pacienteId))),
+        casos: solicitudesEliminacion.map((x) => ({
+          id: x.id, nombre: nombreDe2(x.pacienteId),
+          insignia: { texto: "Pidió eliminar su cuenta", tono: "urgente" },
+          detalle: `Lo pidió el ${fechaLegible(String(x.creadoEn || "").slice(0, 10)) || "—"}${x.motivo ? ` · Motivo: ${x.motivo}` : ""}`,
+          accion: { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(x.pacienteId) },
+        })),
+      })
+    }
     if (incControles && hayInactivos) poner("pacientes", {
       id: "controles", cantidad: inactivos.length,
       texto: esVistaOptometra ? "de tus pacientes con el control vencido" : uno(inactivos.length, "paciente con el control vencido", "pacientes con el control vencido"),
@@ -627,6 +650,21 @@ export default function Inicio({
         detalle: `Control vencido hace ${dias} ${dias === 1 ? "día" : "días"}`,
         accion: puedeV("crm", "crear") ? { etiqueta: "Ver en CRM", navega: true, onClick: abrirCrm({ filtro: "control_vencido" }) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
       })),
+    })
+    // Un paciente cambió su teléfono o su correo desde su portal: «Marta Zambrano actualizó su teléfono». Se queda hasta que se marca como visto.
+    if (puedeV("pacientes", "ver") && avisosContacto.length > 0) poner("pacientes", {
+      id: "contacto-actualizado", cantidad: avisosContacto.length,
+      texto: uno(avisosContacto.length, "paciente actualizó su contacto desde su portal", "pacientes actualizaron su contacto desde su portal"),
+      nombres: nombresResumidos(avisosContacto.map((a) => nombreDe(a.pacienteId))),
+      casos: avisosContacto.map((a) => ({ id: a.id, nombre: nombreDe(a.pacienteId), detalle: textoAvisoContacto(nombreDe(a.pacienteId), a.campos).replace(/^.*? actualizó /, "Actualizó "), accion: { etiqueta: "Visto", onClick: () => onAtenderAvisoContacto?.(a.id) } })),
+    })
+    // Un paciente pidió sus medidas (distancia pupilar y montaje) desde su portal: el aviso se quita al marcarla atendida en su perfil.
+    const pidenMedidas = pacientes.filter((p) => p.medidasSolicitadasEn)
+    if (puedeV("pacientes", "ver") && pidenMedidas.length > 0) poner("pacientes", {
+      id: "medidas-solicitadas", cantidad: pidenMedidas.length,
+      texto: uno(pidenMedidas.length, "paciente pidió sus medidas de montaje desde su portal", "pacientes pidieron sus medidas de montaje desde su portal"),
+      nombres: nombresResumidos(pidenMedidas.map((p) => p.nombre)),
+      casos: pidenMedidas.map((p) => ({ id: p.id, nombre: p.nombre, detalle: "Pidió su distancia pupilar y medidas de montaje", accion: { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(p.id) } })),
     })
     if (incSinConsulta && sinAtender > 0) poner("pacientes", {
       id: "sin-consulta", cantidad: sinAtender,
@@ -652,6 +690,27 @@ export default function Inicio({
       })
     }
     // Quien lleva más de 30 días esperando su venta pasa aquí para contactarlo o cerrarlo con "No compró"; nunca se cierra solo.
+    // Pagos por transferencia que los pacientes reportan desde su portal: esperan que Ventas revise el comprobante (el mismo número que en Ventas · Cobros y saldos).
+    if (incSaldos && pagosPorVerificar.length > 0) poner("ventas", {
+      id: "pagos-por-verificar", cantidad: pagosPorVerificar.length,
+      texto: uno(pagosPorVerificar.length, "pago por transferencia por verificar", "pagos por transferencia por verificar"),
+      nombres: nombresResumidos(pagosPorVerificar.map((p) => p.pacienteNombre || nombreDe(p.pacienteId))),
+      enlace: { texto: `Abrir en Ventas · Pagos por verificar (${pagosPorVerificar.length})`, onClick: () => onVerSaldos?.() },
+      casos: pagosPorVerificar.map((p) => ({ id: p.id, nombre: p.pacienteNombre || nombreDe(p.pacienteId), detalle: `${dinero(p.monto)} · compra ${numeroComprobante(p.facturaNumero)}`, accion: { etiqueta: "Revisar", navega: true, onClick: () => onVerSaldos?.() } })),
+    })
+    // Lo que un paciente pide desde su portal («Solicitar lentes nuevos») cuenta mientras nadie lo toma; a los 30 días lo cuenta la línea de abajo (no se cuenta dos veces).
+    const solicitudesPortal = incSaldos ? solicitudesNuevasDelPortal(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
+    if (solicitudesPortal.length > 0) poner("ventas", {
+      id: "solicitudes-portal", cantidad: solicitudesPortal.length,
+      texto: uno(solicitudesPortal.length, "paciente pidió lentes nuevos desde su portal", "pacientes pidieron lentes nuevos desde su portal"),
+      nombres: nombresResumidos(solicitudesPortal.map(({ pase }) => nombreDe(pase.pacienteId))),
+      enlace: { texto: `Abrir en Ventas · Desde el portal (${solicitudesPortal.length})`, onClick: () => onVerCola?.("portal") },
+      casos: solicitudesPortal.map(({ pase }) => ({
+        id: pase.id, nombre: nombreDe(pase.pacienteId),
+        detalle: `${etiquetaInteres(pase.interes)} · ${diasEnEspera(pase) === 0 ? "hoy" : "hace " + diasEnEspera(pase) + (diasEnEspera(pase) === 1 ? " día" : " días")}`,
+        accion: { etiqueta: "Atender", navega: true, onClick: () => onVerCola?.("portal") },
+      })),
+    })
     const esperanMucho = incSaldos ? pacientesParaSeguimiento(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
     if (esperanMucho.length > 0) poner("ventas", {
       id: "esperan-venta", cantidad: esperanMucho.length,
@@ -719,7 +778,7 @@ export default function Inicio({
   const filasDe = (area) => avisosPorArea.filter((f) => f.area === area)
   // Un bloque solo existe si el rol tiene avisos de esa área; el que existe y está vacío dice "todo en orden".
   const aplicaCitas = incAtenciones || incControlesPorAgendar || incCanceladas || puedeReasignarCitas
-  const aplicaPacientes = incPorConfirmar || incControles || incSinConsulta || incCumple
+  const aplicaPacientes = incPorConfirmar || incEliminacion || incControles || incSinConsulta || incCumple
   const aplicaVentas = incOrdenes || incSaldos
   const bloquesAtencion = [
     veCitas && aplicaCitas && { id: "citas", titulo: "Citas", modulo: "Citas", icono: Calendar, filas: filasDe("citas"), onVerTodo: () => setVista?.("citas") },

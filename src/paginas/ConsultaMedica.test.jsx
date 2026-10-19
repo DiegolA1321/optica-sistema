@@ -155,11 +155,33 @@ describe("ConsultaMedica — navegación Refracción → Diagnóstico y receta",
   it("se puede pasar a Diagnóstico sin medir nada, pero un cilindro sin eje se señala", () => {
     renderFicha()
     avanzarHastaRefraccion()
+    // sin ninguna medida no hay receta: se puede seguir
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    expect(screen.getByRole("button", { name: /Terminar atención/i })).toBeInTheDocument()
+  })
 
+  it("la receta exige los dos ojos: con uno medido, el otro se mide o se marca «Ojo no evaluado» con su motivo", () => {
+    renderFicha()
+    avanzarHastaRefraccion()
+    fireEvent.change(document.getElementById("OD-esf"), { target: { value: "-1.75" } })
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    expect(screen.getByText(/Ingresa la esfera o marca «Ojo no evaluado»/i)).toBeInTheDocument()
+    // «Ojo no evaluado» pide el motivo
+    fireEvent.click(screen.getAllByRole("checkbox", { name: /Ojo no evaluado/i })[0])
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    expect(screen.getByText(/Di por qué no se evaluó este ojo/i)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/¿Por qué no se evaluó?/i), { target: { value: "Prótesis ocular" } })
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    expect(screen.getByRole("button", { name: /Terminar atención/i })).toBeInTheDocument()
+  })
+
+  it("un cilindro sin eje se señala", () => {
+    renderFicha()
+    avanzarHastaRefraccion()
     fireEvent.change(document.getElementById("OD-cil"), { target: { value: "-1.00" } })
+    fireEvent.change(document.getElementById("OI-esf"), { target: { value: "-1.00" } })
     fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
     expect(screen.getByText(/Indica el eje del cilindro/i)).toBeInTheDocument()
-
     fireEvent.change(document.getElementById("OD-eje"), { target: { value: "90" } })
     fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
     expect(screen.getByRole("button", { name: /Terminar atención/i })).toBeInTheDocument()
@@ -239,5 +261,30 @@ describe("Entrar a la ficha desde una cita", () => {
     await new Promise((r) => setTimeout(r, 60))
     expect(cambios.reduce((lista, f) => f(lista), [deHoy])[0].fecha).toBe(deHoy.fecha)
     expect(avisos).toEqual([])
+  })
+})
+
+describe("ConsultaMedica — guardado automático del borrador", () => {
+  const ficha = () => render(<ConsultaMedica usuario={{ id: "u1", nombre: "Optómetra" }} pacientes={[PACIENTE]} consultas={[]} inventario={[]} parametrizacion={{}} diagnosticosRapidos={["Miopía"]} motivosConsulta={["Consulta General"]} citas={[]} pacienteInicial={PACIENTE} />)
+
+  it("mientras se escribe se guarda solo y lo dice con discreción", async () => {
+    localStorage.clear()
+    ficha()
+    fireEvent.click(await screen.findByRole("button", { name: /Entendido, completar antecedentes/i }))
+    await new Promise((r) => setTimeout(r, 500))
+    fireEvent.change(screen.getByLabelText(/Motivo de la consulta/i), { target: { value: "Consulta General" } })
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
+    fireEvent.change(document.getElementById("OD-esf"), { target: { value: "-2.25" } })
+    await waitFor(() => expect(JSON.stringify(Object.values(localStorage))).toContain("-2.25"), { timeout: 4000 })
+    expect(screen.getByText(/Guardado (ahora|hace)/)).toBeInTheDocument()
+  })
+
+  it("al volver a abrirla ofrece recuperar lo que estaba a medias", async () => {
+    localStorage.clear()
+    localStorage.setItem("ficha-borrador:u1:p1:directa", JSON.stringify({ v: 1, guardadoEn: Date.now(), datos: { motivo: "Consulta General", odEsfera: "-1.75" } }))
+    ficha()
+    expect(await screen.findByText(/Hay una ficha a medias de este paciente/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Recuperar" }))
+    expect(screen.queryByText(/Hay una ficha a medias/i)).not.toBeInTheDocument()
   })
 })

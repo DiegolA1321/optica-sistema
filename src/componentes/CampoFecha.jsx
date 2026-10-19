@@ -14,8 +14,9 @@ const aFecha = (iso) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)
 // Campo de fecha con el calendario del sistema (el mismo de SelectorFechaHora), para fechas que no dependen del horario:
 // fecha de nacimiento, vencimientos... El mes y el año se eligen en listas, para llegar a 1950 sin pulsar 800 veces "anterior".
 // `etiqueta` conecta el campo con su rótulo visible para lectores de pantalla (el nombre incluye la fecha elegida).
+// `grande`: el portal del paciente (texto de 16 px y botones de 44 px o más).
 // El calendario se abre en línea debajo del campo (no flota) para que ningún modal con scroll lo recorte.
-export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min = "", error = false, placeholder = "Elige una fecha", icono: Icono = Calendar, requerido = false, etiqueta = "" }) {
+export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min = "", error = false, placeholder = "Elige una fecha", icono: Icono = Calendar, requerido = false, etiqueta = "", grande = false }) {
   const [abierto, setAbierto] = useState(false)
   const [mesVista, setMesVista] = useState(() => aFecha(valor || max))
   const raiz = useRef(null)
@@ -49,16 +50,16 @@ export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min =
   const alcanzable = (d) => { const n = new Date(mesVista.getFullYear(), mesVista.getMonth() + d, 1); return n.getFullYear() <= anioMax && n.getFullYear() >= anioMin && fechaAISO(n) <= max }
   const alAbrir = () => { if (!abierto) setMesVista(aFecha(valor || max)); setAbierto((a) => !a) }
   const elegir = (iso) => { onCambiar(iso); setAbierto(false) }
-  const lista = "rounded-lg border border-slate-200/60 bg-white px-2 py-1 text-xs font-bold outline-none transition-colors focus-visible:border-blue-500 cursor-pointer"
+  const lista = (grande ? "min-h-11 px-2 text-base " : "px-2 py-1 text-xs ") + "rounded-lg border border-slate-200/60 bg-white font-bold outline-none transition-colors focus-visible:border-blue-500 cursor-pointer"
 
   return (
     <div ref={raiz}>
       <button
         id={id} type="button" onClick={alAbrir} aria-haspopup="dialog" aria-expanded={abierto} aria-required={requerido || undefined}
         aria-label={etiqueta ? etiqueta + ": " + (valor ? formatoFecha(valor, "medio") : "sin elegir") : undefined}
-        className={"flex w-full items-center gap-2 rounded-xl border bg-slate-50 py-2.5 pl-3 pr-3 text-left text-sm outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 cursor-pointer " + (error ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+        className={"flex w-full items-center gap-2 rounded-xl border bg-slate-50 pl-3 pr-3 text-left outline-none " + (grande ? "min-h-12 text-base " : "py-2.5 text-sm ") + " transition-colors focus-visible:bg-white focus-visible:ring-2 cursor-pointer " + (error ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
       >
-        <Icono size={15} className="shrink-0 text-slate-500" aria-hidden="true" />
+        <Icono size={grande ? 20 : 15} className="shrink-0 text-slate-500" aria-hidden="true" />
         <span className={valor ? "text-slate-800" : "text-slate-400"}>{valor ? formatoFecha(valor, "medio") : placeholder}</span>
       </button>
       {abierto && (
@@ -73,11 +74,11 @@ export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min =
               </select>
             </div>
             <div className="flex gap-1 text-slate-500">
-              <button type="button" onClick={() => moverMes(-1)} disabled={!alcanzable(-1)} aria-label="Mes anterior" className={"rounded-md p-0.5 transition-colors " + (alcanzable(-1) ? "hover:bg-slate-200 hover:text-slate-700 cursor-pointer" : "cursor-not-allowed opacity-30")}><ChevronLeft size={14} /></button>
-              <button type="button" onClick={() => moverMes(1)} disabled={!alcanzable(1)} aria-label="Mes siguiente" className={"rounded-md p-0.5 transition-colors " + (alcanzable(1) ? "hover:bg-slate-200 hover:text-slate-700 cursor-pointer" : "cursor-not-allowed opacity-30")}><ChevronRight size={14} /></button>
+              <button type="button" onClick={() => moverMes(-1)} disabled={!alcanzable(-1)} aria-label="Mes anterior" className={(grande ? "grid h-11 w-11 place-items-center rounded-lg " : "rounded-md p-0.5 ") + "transition-colors " + (alcanzable(-1) ? "hover:bg-slate-200 hover:text-slate-700 cursor-pointer" : "cursor-not-allowed opacity-30")}><ChevronLeft size={grande ? 22 : 14} /></button>
+              <button type="button" onClick={() => moverMes(1)} disabled={!alcanzable(1)} aria-label="Mes siguiente" className={(grande ? "grid h-11 w-11 place-items-center rounded-lg " : "rounded-md p-0.5 ") + "transition-colors " + (alcanzable(1) ? "hover:bg-slate-200 hover:text-slate-700 cursor-pointer" : "cursor-not-allowed opacity-30")}><ChevronRight size={grande ? 22 : 14} /></button>
             </div>
           </div>
-          <div className="mb-1.5 grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-500">
+          <div className={"mb-1.5 grid grid-cols-7 gap-1 text-center font-bold text-slate-500 " + (grande ? "text-base" : "text-xs")}>
             {DIAS_CORTOS.map((d, i) => <span key={i}>{d}</span>)}
           </div>
           <div className="grid grid-cols-7 gap-1">
@@ -87,7 +88,7 @@ export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min =
               return (
                 <button
                   key={dia.iso} type="button" disabled={dia.bloqueado} onClick={() => elegir(dia.iso)} aria-pressed={sel}
-                  className={"grid h-7 w-full place-items-center rounded-lg border text-xs font-bold transition-colors " + (dia.bloqueado ? "cursor-not-allowed border-slate-100 bg-slate-50/60 text-slate-300" : sel ? "border-transparent text-white shadow-md" : "border-slate-200/60 bg-white text-slate-700 hover:border-blue-400 cursor-pointer")}
+                  className={(grande ? "grid h-11 w-full place-items-center rounded-lg border text-base font-bold transition-colors " : "grid h-7 w-full place-items-center rounded-lg border text-xs font-bold transition-colors ") + "" + (dia.bloqueado ? "cursor-not-allowed border-slate-100 bg-slate-50/60 text-slate-300" : sel ? "border-transparent text-white shadow-md" : "border-slate-200/60 bg-white text-slate-700 hover:border-blue-400 cursor-pointer")}
                   style={sel ? { background: GRAD } : undefined}
                 >
                   {dia.numero}

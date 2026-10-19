@@ -96,7 +96,7 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
               {paciente && onVerPaciente ? <button type="button" onClick={() => onVerPaciente(paciente)} className="text-left text-blue-700 transition-colors hover:text-blue-800 hover:underline cursor-pointer">{paciente.nombre}</button> : (paciente?.nombre || "Paciente")}
             </Dato>
             <Dato etiqueta="Cédula" vacio={!paciente?.cedula}>{paciente?.cedula || "Sin cédula"}</Dato>
-            <Dato etiqueta="Teléfono" vacio={!paciente?.telefono}>{paciente?.telefono || "Sin teléfono"}</Dato>
+            <Dato etiqueta="Teléfono (el día de la venta)" vacio={!(f.pacienteTelefono || paciente?.telefono)}>{f.pacienteTelefono || paciente?.telefono || "Sin teléfono"}</Dato>
           </Columna>
         </div>
 

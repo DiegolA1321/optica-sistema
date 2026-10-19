@@ -1,88 +1,272 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Download, Receipt } from "lucide-react"
-import { INK } from "@/lib/tema"
+import { useMemo, useState } from "react"
+import { Receipt, ChevronRight, Wallet, FlaskConical, Star, History } from "lucide-react"
 import { dinero } from "../utilidades/formatoMoneda"
-import { fechaLegible } from "../utilidades/formatoFecha"
+import { formatoFecha } from "../utilidades/formatoFecha"
 import { diaDeRegistro } from "../utilidades/periodoLista"
 import { numeroComprobante } from "../utilidades/comprobantes"
-import { misCompras, urlDeDescargaPaciente } from "../utilidades/facturaElectronicaApi"
+import { urlDeDescargaPaciente } from "../utilidades/facturaElectronicaApi"
+import { tipoDeLentes, nombreDeLosLentes, proximoPasoLentes } from "../utilidades/portalPaciente"
+import { porcentajeAbonado } from "../utilidades/portalVistas"
+import { Cascaron } from "./AtencionPaciente"
+import { Insignia, TituloPagina, Esqueleto, PasosLentes, VerDetalle } from "./portal/piezas"
+import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "./portal/estilos"
+import { BotonSolicitarLentes, ListaSolicitudes } from "./portal/SolicitarLentes"
 
-const ETIQUETA = { pagada: "Pagada", pendiente_pago: "Con saldo" }
-const CLASE = { pagada: "border-emerald-200/60 bg-emerald-50 text-emerald-700", pendiente_pago: "border-amber-200/60 bg-amber-50 text-amber-700" }
+const anioDe = (c) => String(diaDeRegistro(c.fecha)).slice(0, 4)
+const CHIP = (activo) => "inline-flex min-h-11 items-center rounded-full px-5 text-base font-semibold transition-colors cursor-pointer " + (activo ? "bg-pt-azul text-white" : "border border-pt-borde bg-white text-pt-marino hover:bg-pt-fondo")
 
-// Portal del paciente, "Mis compras": sus comprobantes (con lo que debe y lo abonado, si tienen saldo) y, en los que la óptica ya registró su factura
-// electrónica, el PDF y el XML para descargar. Solo ve lo suyo: la base valida su sesión, y los archivos salen por una función que la vuelve a validar.
-export default function MisCompras({ usuario, onPedirCita }) {
-  const [estado, setEstado] = useState({ cargando: true, compras: [], error: "" })
+// Portal del paciente, «Mis compras» (diseño aprobado): arriba tres resúmenes pequeños (por pagar, lentes en proceso y tus puntos); después una tarjeta por cada compra que tiene saldo o lentes en
+// camino (con lo que compró, lo abonado y lo que debe, y el estado de sus lentes); y el historial de todas las compras con filtros (con saldo, pagadas y por año). Cada compra se pulsa y abre su
+// detalle: lo que compró, los pagos y el historial de abonos, el estado de sus lentes y las facturas para descargar. Solo ve lo suyo: la base valida su sesión, y los archivos salen por una función
+// que la vuelve a validar. Los datos los pide el portal una sola vez (los comparte con el Inicio).
+export default function MisCompras({ usuario, compras = [], ordenes = [], cargando = false, error = "", contacto = null, puntos = null, transferencia = null, solicitudes = null, onSolicitarLentes, recetaVigente = null, onPedirCita, onGarantia, onAbrir }) {
   const [bajando, setBajando] = useState("")
   const [errorDescarga, setErrorDescarga] = useState("")
-
-  useEffect(() => {
-    let vivo = true
-    misCompras(typeof usuario?.id === "string" ? usuario.id : null, usuario?.token).then(({ compras, error }) => { if (vivo) setEstado({ cargando: false, compras, error: error || "" }) })
-    return () => { vivo = false }
-  }, [usuario?.id, usuario?.token])
+  const [abiertaId, setAbiertaId] = useState(null)
+  const [filtro, setFiltro] = useState("todas")
+  const [verHistorial, setVerHistorial] = useState(false)
+  const conSaldo = compras.filter((c) => c.estado === "pendiente_pago" && Number(c.saldo) > 0)
+  const saldoTotal = conSaldo.reduce((s, c) => s + Number(c.saldo), 0)
+  const abierta = compras.find((c) => c.id === abiertaId) || null
+  const anios = useMemo(() => [...new Set(compras.map(anioDe))].sort((a, b) => b.localeCompare(a)), [compras])
+  const enProceso = ordenes.filter((o) => o.estado === "enviada" || o.estado === "lista")
+  const listos = enProceso.filter((o) => o.estado === "lista").length
+  const proxima = enProceso.map((o) => o.fechaPrometida).filter(Boolean).sort()[0]
 
   const descargar = async (compra, tipo) => {
     setBajando(`${compra.id}-${tipo}`)
     setErrorDescarga("")
-    const { url, error } = await urlDeDescargaPaciente({ pacienteId: usuario.id, token: usuario.token, facturaId: compra.id, tipo })
+    const { url, error: fallo } = await urlDeDescargaPaciente({ pacienteId: usuario.id, token: usuario.token, facturaId: compra.id, tipo })
     setBajando("")
-    if (error) { setErrorDescarga(error); return }
+    if (fallo) { setErrorDescarga(fallo); return }
     const a = document.createElement("a")
     a.href = url; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove()
   }
+  // «de lunes a sábado de 9:00 AM a 6:00 PM» cuando la óptica tiene un solo horario.
+  const cuando = contacto?.horario?.length === 1 ? `, de ${contacto.horario[0].etiqueta.toLowerCase()} de ${contacto.horario[0].horario.replace(/\s*[–-]\s*/, " a ").replace(/\b0(\d:)/g, "$1")}` : ""
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Mis compras</h1>
-        <p className="text-sm text-slate-500">Tus comprobantes y tus facturas electrónicas, para descargar cuando las necesites.</p>
+  const visibles = compras.filter((c) => (filtro === "todas" ? true : filtro === "saldo" ? c.estado === "pendiente_pago" && Number(c.saldo) > 0 : filtro === "pagadas" ? !(c.estado === "pendiente_pago" && Number(c.saldo) > 0) : anioDe(c) === filtro))
+  const totalVisible = visibles.reduce((s, c) => s + Number(c.total), 0)
+  // Las compras que merecen su tarjeta arriba: las que deben algo o tienen lentes en camino.
+  const destacadas = compras.filter((c) => (c.estado === "pendiente_pago" && Number(c.saldo) > 0) || ordenes.some((o) => o.facturaId === c.id && o.estado !== "entregada"))
+
+  // Cada resumen se pulsa y abre su detalle en la ventana estándar (lo que dice la tarjeta y lo que abre es lo mismo).
+  // Compactos: el ícono, el valor y el texto en una sola línea, sin hueco a la derecha.
+  const resumen = (titulo, valor, texto, clase, abrir, etiqueta, Icono) => (
+    <div className={"flex min-w-0 items-center gap-3.5 rounded-[20px] border border-pt-borde bg-white px-4 py-3.5 sm:px-5 " + (abrir ? "pt-abrible relative transition-shadow hover:shadow-md" : "")}>
+      {abrir && <button type="button" onClick={() => onAbrir?.(abrir)} aria-label={etiqueta} className="pt-abrir absolute inset-0 rounded-[20px] cursor-pointer" />}
+      <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-pt-fondo text-pt-azul"><Icono size={22} /></span>
+      <div className="min-w-0 flex-1">
+        <p className="flex items-baseline gap-x-2.5" title={texto}><span className={"shrink-0 font-heading text-[28px] font-bold leading-tight tabular-nums " + clase}>{valor}</span><span className="min-w-0 text-base font-semibold leading-snug text-pt-marino">{titulo}</span></p>
+        <p className="sr-only">{texto}</p>
       </div>
+      {abrir && <ChevronRight size={22} className="shrink-0 text-slate-500" aria-hidden="true" />}
+    </div>
+  )
+  // Un solo pedido en proceso abre su pedido; varios, la lista con los pasos de cada uno.
+  const abrirLentes = enProceso.length === 0 ? null : enProceso.length === 1 ? { tipo: "pedido", id: enProceso[0].id } : { tipo: "lentes" }
 
-      {estado.cargando ? (
-        <div className="space-y-3" aria-busy="true" aria-label="Cargando tus compras">{[0, 1].map((i) => <div key={i} className="h-24 animate-pulse rounded-3xl bg-slate-200/70" />)}</div>
-      ) : estado.error ? (
-        <p role="alert" className="rounded-2xl border border-red-200/60 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{estado.error}</p>
-      ) : estado.compras.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full bg-slate-50 text-slate-400"><Receipt size={26} aria-hidden="true" /></div>
-          <p className="text-base font-semibold text-slate-600">Todavía no tienes compras registradas</p>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">Cuando compres en la óptica, tu comprobante aparece aquí.</p>
-          {onPedirCita && <button type="button" onClick={onPedirCita} className="mt-3 text-sm font-semibold text-blue-600 hover:underline cursor-pointer">Pedir una cita</button>}
+  // Junto al título: el historial (ventana estándar) y pedir lentes nuevos.
+  const acciones = (
+    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+      {compras.length > 0 && <button type="button" onClick={() => setVerHistorial(true)} aria-haspopup="dialog" className={BOTON_SECUNDARIO + " w-full sm:w-auto"}><History size={20} aria-hidden="true" /> Historial de compras</button>}
+      <BotonSolicitarLentes solicitudes={solicitudes} onSolicitar={onSolicitarLentes} recetaVigente={recetaVigente} />
+    </div>
+  )
+  return (
+    <div className="space-y-5 sm:space-y-6">
+      <TituloPagina accion={acciones}>Mis compras</TituloPagina>
+
+      {cargando ? (
+        <div className="space-y-4" aria-busy="true" aria-label="Cargando tus compras">{[0, 1].map((i) => <Esqueleto key={i} alto="h-40" />)}</div>
+      ) : error ? (
+        <p role="alert" className="rounded-2xl border border-red-200/60 bg-red-50 px-4 py-3 text-lg font-medium text-red-700">{error}</p>
+      ) : compras.length === 0 ? (
+        <div className="rounded-[20px] border border-dashed border-slate-300 bg-white p-10 text-center">
+          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full bg-pt-fondo text-slate-400"><Receipt size={26} aria-hidden="true" /></div>
+          <p className="text-xl font-semibold text-slate-700">Todavía no tienes compras registradas</p>
+          <p className="mx-auto mt-1 max-w-sm text-lg text-pt-texto">Cuando compres en la óptica, tu comprobante aparece aquí.</p>
+          {onPedirCita && <button type="button" onClick={() => onPedirCita()} className={BOTON_PRINCIPAL + " mt-4"} style={ESTILO_PRINCIPAL}>Agendar cita</button>}
         </div>
-      ) : (
-        <ul className="space-y-3" aria-label="Mis compras">
-          {estado.compras.map((c) => {
-            const fe = c.factura_electronica
-            return (
-              <li key={c.id} className="grid grid-cols-1 gap-x-6 gap-y-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-[1fr_auto] sm:items-center">
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-2 text-sm font-bold" style={{ color: INK }}>
-                    <span className="font-mono">{numeroComprobante(c.numero)}</span>
-                    <span className="font-medium text-slate-500">· {fechaLegible(diaDeRegistro(c.fecha))}</span>
-                    <span className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + CLASE[c.estado]}>{ETIQUETA[c.estado] || c.estado}</span>
-                  </p>
-                  <p className="truncate text-sm text-slate-500" title={c.lineas.map((l) => l.descripcion).join(", ")}>{c.lineas.map((l) => l.descripcion).join(" · ") || "Compra"}</p>
-                  <p className="mt-1 text-sm text-slate-700">
-                    Total <span className="font-mono font-semibold">{dinero(c.total)}</span>
-                    {c.estado === "pendiente_pago" && <> · Abonado <span className="font-mono font-semibold">{dinero(c.abonado)}</span> · <span className="font-semibold text-amber-700">Debes <span className="font-mono">{dinero(c.saldo)}</span></span></>}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  {fe?.pdf && <button type="button" onClick={() => descargar(c, "pdf")} disabled={bajando === `${c.id}-pdf`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60"><Download size={14} aria-hidden="true" /> Factura (PDF)</button>}
-                  {fe?.xml && <button type="button" onClick={() => descargar(c, "xml")} disabled={bajando === `${c.id}-xml`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60"><Download size={14} aria-hidden="true" /> XML</button>}
-                  {!fe?.pdf && !fe?.xml && <p className="max-w-[16rem] text-sm text-slate-500 sm:text-right">{fe ? "Tu óptica todavía no subió los archivos de tu factura electrónica." : "Tu óptica todavía no registró la factura electrónica de esta compra."}</p>}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+      ) : null}
+      {!cargando && !error && compras.length === 0 && <ListaSolicitudes solicitudes={solicitudes} />}
+      {!cargando && !error && compras.length > 0 && (
+        <>
+          <section aria-label="Resumen de tus compras" className="grid gap-4 @[760px]/portal:grid-cols-3 @[760px]/portal:gap-5">
+            {resumen("Por pagar", dinero(saldoTotal), saldoTotal > 0 ? "Págalo en la óptica." : "No tienes saldo pendiente.", saldoTotal > 0 ? "text-pt-ambar" : "text-pt-marino", saldoTotal > 0 && onAbrir ? { tipo: "saldo" } : null, "Ver tus compras con saldo y el historial de tus abonos", Wallet)}
+            {resumen("Lentes en proceso", enProceso.length, enProceso.length === 0 ? "No tienes lentes en camino." : listos > 0 ? `${listos === 1 ? "1 listo" : listos + " listos"} para retirar.` : proxima ? `Listos aprox. el ${formatoFecha(proxima, "medioSinAnio")}.` : "Te avisaremos cuando estén listos.", "text-pt-marino", onAbrir ? abrirLentes : null, "Ver el estado de tus lentes en proceso", FlaskConical)}
+            {puntos && resumen("Tus puntos", puntos.puntos, puntos.texto + ".", "text-[#15803D]", onAbrir ? { tipo: "puntos" } : null, "Ver cómo sumas tus puntos", Star)}
+          </section>
+
+          <ListaSolicitudes solicitudes={solicitudes} />
+
+          {destacadas.length > 0 && (
+            <ul className="space-y-5 sm:space-y-6" aria-label="Compras con saldo o lentes en camino">
+              {destacadas.map((c) => {
+                const lentes = ordenes.filter((o) => o.facturaId === c.id)
+                const debe = c.estado === "pendiente_pago" && Number(c.saldo) > 0
+                const enCurso = lentes.filter((o) => o.estado !== "entregada")
+                const titulo = lentes[0] ? tipoDeLentes(lentes[0]) : c.lineas?.[0]?.descripcion || "Compra"
+                return (
+                  <li key={c.id} className="pt-abrible relative min-w-0 rounded-[20px] border border-pt-borde bg-white p-5 transition-shadow hover:shadow-md sm:px-[30px] sm:py-7">
+                    <button type="button" onClick={() => setAbiertaId(c.id)} aria-label={`Ver el detalle de tu compra ${numeroComprobante(c.numero)}`} className="pt-abrir absolute inset-0 rounded-[20px] cursor-pointer" />
+                    <div className={"grid gap-x-8 gap-y-5 " + (enCurso.length > 0 ? "@[700px]/portal:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]" : "")}>
+                      <div className="min-w-0 space-y-3">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                          <h2 className="font-heading text-xl font-bold leading-tight text-pt-marino">{titulo}</h2>
+                          {debe && <Insignia tono="ambar">Con saldo</Insignia>}
+                          {(transferencia?.pagos || []).some((p) => p.facturaId === c.id && p.estado === "por_verificar") && <Insignia tono="azul">Pago en verificación</Insignia>}
+                        </div>
+                        <p className="text-base text-pt-texto">Comprobante {numeroComprobante(c.numero)} · {formatoFecha(diaDeRegistro(c.fecha), "largoSinDia")}</p>
+                        <ul aria-label="Lo que compraste" className="space-y-2 pt-1 text-base text-pt-marino">
+                          {(c.lineas?.length ? c.lineas : [{ descripcion: "Compra", subtotal: c.total }]).map((l, i) => (
+                            <li key={i} className="flex items-baseline gap-3"><span className="min-w-0">{l.descripcion}</span><span aria-hidden="true" data-relleno className="min-w-4 flex-1 self-end border-b border-dotted border-slate-300" />{l.subtotal != null && <span className="shrink-0 font-bold tabular-nums">{dinero(l.subtotal)}</span>}</li>
+                          ))}
+                        </ul>
+                        {debe && (
+                          <>
+                            <div role="img" aria-label={`Has abonado el ${porcentajeAbonado(c.total, c.abonado)} por ciento`}><div className="h-2 overflow-hidden rounded-full bg-[#E9EEF5]"><div className="h-full rounded-full bg-pt-azul" style={{ width: porcentajeAbonado(c.total, c.abonado) + "%" }} /></div></div>
+                            <div className="flex flex-wrap items-baseline justify-between gap-x-4 text-base">
+                              <p className="text-pt-marino">Abonaste <span className="font-bold tabular-nums">{dinero(c.abonado)}</span> de <span className="font-bold tabular-nums">{dinero(c.total)}</span></p>
+                              <p className="font-bold text-pt-ambar">Debes <span className="tabular-nums">{dinero(c.saldo)}</span></p>
+                            </div>
+                          </>
+                        )}
+                        {Array.isArray(c.abonos) && c.abonos.length > 0 && (
+                          <div className="border-t border-pt-borde pt-3">
+                            <h3 className="text-base font-semibold text-pt-texto">Abonos realizados</h3>
+                            <ul aria-label="Abonos realizados" className="mt-1 space-y-1 text-base text-pt-marino">
+                              {c.abonos.map((a, i) => <li key={i} className="flex items-baseline gap-3"><span>{formatoFecha(a.fecha, "largoSinDia")}</span><span aria-hidden="true" data-relleno className="min-w-4 flex-1 self-end border-b border-dotted border-slate-300" /><span className="shrink-0 font-bold tabular-nums">{dinero(a.monto)}</span></li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {enCurso[0] && (
+                          <p className="flex items-start gap-2 rounded-xl bg-pt-suave px-4 py-3 text-base font-semibold leading-snug text-[#1B4FB5]"><span className="sr-only">Lo que sigue: </span>{proximoPasoLentes(enCurso[0])}</p>
+                        )}
+                      </div>
+                      {enCurso.length > 0 && (
+                        <div className="flex flex-col space-y-4 rounded-[20px] bg-pt-fondo p-5 sm:p-6">
+                          <h3 className="text-lg font-bold text-pt-marino">Estado de tus lentes</h3>
+                          {enCurso.map((o) => <PasosLentes key={o.id} orden={o} variante="lista" />)}
+                          <p className="mt-auto text-right"><VerDetalle /></p>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+
+          {verHistorial && (
+          <Cascaron pantallaCompletaEnCelular titulo="Historial de compras" subtitulo="Todas tus compras" Icono={Receipt} ancho="max-w-5xl" onCerrar={() => setVerHistorial(false)}
+            pie={<><span /><button type="button" onClick={() => setVerHistorial(false)} className={BOTON_SECUNDARIO}>Cerrar</button></>}>
+          <section aria-label="Historial de compras" className="p-5 sm:px-[30px] sm:py-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <p className="text-base text-pt-texto" aria-live="polite">{visibles.length} {visibles.length === 1 ? "compra" : "compras"} · {dinero(totalVisible)} en total</p>
+            </div>
+            <div role="group" aria-label="Filtrar las compras" className="mt-4 flex flex-wrap gap-2">
+              {[["todas", "Todas"], ...(conSaldo.length > 0 ? [["saldo", "Con saldo"]] : []), ["pagadas", "Pagadas"], ...(anios.length > 1 ? anios.map((a) => [a, a]) : [])].map(([id, nombre]) => (
+                <button key={id} type="button" aria-pressed={filtro === id} onClick={() => setFiltro(id)} className={CHIP(filtro === id)}>{nombre}</button>
+              ))}
+            </div>
+            {visibles.length === 0 ? (
+              <p role="status" className="mt-4 rounded-2xl bg-pt-fondo px-5 py-6 text-center text-lg font-semibold text-pt-marino">Ninguna compra coincide con este filtro.</p>
+            ) : (
+              <ul className="mt-3 divide-y divide-pt-borde" aria-label="Historial de compras" data-lista="historial-compras">
+                {visibles.map((c) => {
+                  const lentes = ordenes.filter((o) => o.facturaId === c.id)
+                  const debe = c.estado === "pendiente_pago" && Number(c.saldo) > 0
+                  const entregada = lentes.length > 0 && lentes.every((o) => o.estado === "entregada")
+                  const titulo = lentes[0] ? tipoDeLentes(lentes[0]) : c.lineas?.[0]?.descripcion || "Compra"
+                  const productos = [...new Set((c.lineas || []).map((l) => l.descripcion).filter(Boolean))].join(" · ")
+                  const sub = [numeroComprobante(c.numero), c.factura_electronica ? `factura ${c.factura_electronica.numero}` : c.lineas?.length > 1 ? `${c.lineas.length} productos` : ""].filter(Boolean).join(" · ")
+                  return (
+                    <li key={c.id} data-fila className="pt-abrible relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-2 py-4 transition-colors hover:bg-pt-fondo/60 sm:grid-cols-[minmax(7.5rem,0.8fr)_minmax(0,2fr)_minmax(6.5rem,0.7fr)_minmax(12.5rem,0.9fr)_1.5rem] sm:gap-x-5">
+                      <button type="button" onClick={() => setAbiertaId(c.id)} aria-label={`Ver el detalle de tu compra ${numeroComprobante(c.numero)}`} className="pt-abrir absolute inset-0 cursor-pointer" />
+                      <p className="col-span-2 text-base text-pt-texto sm:col-span-1">{formatoFecha(diaDeRegistro(c.fecha), "medio")}</p>
+                      <div className="min-w-0">
+                        <p className="text-base font-semibold leading-snug text-pt-marino">{titulo}</p>
+                        <p className="text-base leading-snug text-pt-texto">{sub}</p>
+                        {productos && productos !== titulo && <p className="text-base leading-snug text-pt-texto">{productos}</p>}
+                      </div>
+                      <p data-col="monto" className="text-right text-lg font-bold tabular-nums text-pt-marino sm:order-none">{dinero(c.total)}</p>
+                      <div data-col="estado" className="justify-self-start sm:justify-self-stretch"><Insignia tono={debe ? "ambar" : "verde"}>{debe ? "Con saldo" : entregada ? "Pagada y entregada" : "Pagada"}</Insignia></div>
+                      <ChevronRight size={22} className="hidden shrink-0 text-slate-500 sm:block" aria-hidden="true" />
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            <p className="mt-4 text-base leading-snug text-pt-texto">Al abrir una compra puedes descargar su factura o solicitar un ajuste o la garantía. Guarda tus facturas: la ley pide conservarlas 7 años.</p>
+          </section>
+          </Cascaron>
+          )}
+        </>
       )}
-      {errorDescarga && <p role="alert" className="rounded-2xl border border-red-200/60 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{errorDescarga}</p>}
-      <p className="text-xs text-slate-500">Solo ves tus compras. Las facturas electrónicas se conservan por 7 años: guarda tu copia.</p>
+      {abierta && (() => {
+        const c = abierta
+        const lentes = ordenes.filter((o) => o.facturaId === c.id)
+        const fe = c.factura_electronica
+        const debe = c.estado === "pendiente_pago"
+        const pct = porcentajeAbonado(c.total, c.abonado)
+        const abonos = Array.isArray(c.abonos) ? c.abonos : []
+        return (
+          <Cascaron pantallaCompletaEnCelular capa="z-[60]" titulo={`Compra ${numeroComprobante(c.numero)}`} subtitulo={formatoFecha(diaDeRegistro(c.fecha), "largoSinDia")} derecha={<Insignia tono={debe ? "ambar" : "verde"}>{debe ? "Con saldo" : "Pagada"}</Insignia>} Icono={Receipt} ancho="max-w-xl" onCerrar={() => setAbiertaId(null)}
+            pie={<><span /><button type="button" onClick={() => setAbiertaId(null)} className={BOTON_SECUNDARIO}>Cerrar</button></>}>
+            <div className="space-y-4 p-5">
+              <section aria-label="Lo que compraste">
+                <h3 className="font-heading text-lg font-bold text-pt-marino">Lo que compraste</h3>
+                <ul className="mt-2 divide-y divide-pt-borde">
+                  {(c.lineas?.length ? c.lineas : [{ descripcion: "Compra", subtotal: c.total }]).map((l, i) => (
+                    <li key={i} className="flex items-baseline justify-between gap-4 py-2 text-lg text-pt-marino"><span className="min-w-0">{l.descripcion}{l.cantidad > 1 ? ` × ${l.cantidad}` : ""}</span>{l.subtotal != null && <span className="shrink-0 font-bold tabular-nums">{dinero(l.subtotal)}</span>}</li>
+                  ))}
+                  <li className="flex items-baseline justify-between gap-4 py-2 text-lg font-bold text-pt-marino"><span>Total</span><span className="tabular-nums">{dinero(c.total)}</span></li>
+                </ul>
+              </section>
+              {(debe || abonos.length > 1) && (
+                <section aria-label="Tus pagos" className="space-y-3 rounded-2xl bg-pt-fondo p-5">
+                  <h3 className="font-heading text-lg font-bold text-pt-marino">Tus pagos</h3>
+                  {debe && <div role="img" aria-label={`Has abonado el ${pct} por ciento`}><div className="h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-pt-azul" style={{ width: pct + "%" }} /></div></div>}
+                  {debe && <p className="text-lg text-pt-marino">Abonaste <span className="font-bold tabular-nums">{dinero(c.abonado)}</span> de <span className="font-bold tabular-nums">{dinero(c.total)}</span> · <span className="font-bold text-pt-ambar">debes {dinero(c.saldo)}</span></p>}
+                  {abonos.length > 0 && (
+                    <div>
+                      <h4 className="text-base font-semibold text-pt-texto">Historial de abonos</h4>
+                      <ul className="mt-1 divide-y divide-pt-borde">{abonos.map((a, i) => <li key={i} className="flex items-baseline justify-between gap-4 py-2 text-base text-pt-marino"><span>{formatoFecha(a.fecha, "largoSinDia")}</span><span className="font-bold tabular-nums">{dinero(a.monto)}</span></li>)}</ul>
+                    </div>
+                  )}
+                  {debe && abonos.length === 0 && Number(c.abonado) > 0 && <p className="text-base text-pt-texto">En total has abonado {dinero(c.abonado)}.</p>}
+                  {debe && contacto && <p className="text-base text-pt-texto">Puedes pagar el saldo en la óptica{cuando}, en efectivo, con tarjeta o por transferencia.</p>}
+                </section>
+              )}
+              {lentes.length > 0 && (
+                <section aria-label="Estado de tus lentes" className="space-y-3">
+                  <h3 className="font-heading text-lg font-bold text-pt-marino">Estado de tus lentes</h3>
+                  {lentes.map((o) => (
+                    <div key={o.id} className="rounded-2xl border border-pt-borde p-4">
+                      <PasosLentes orden={o} variante="lista" />
+                    </div>
+                  ))}
+                </section>
+              )}
+              <section aria-label="Factura" className="space-y-3">
+                <h3 className="font-heading text-lg font-bold text-pt-marino">Factura</h3>
+                {fe ? <p className="text-lg text-slate-800">Factura electrónica <span className="tabular-nums">{fe.numero}</span></p> : <p className="text-lg text-pt-texto">Tu óptica todavía no registró la factura electrónica de esta compra.</p>}
+                {fe && !fe.pdf && !fe.xml && <p className="text-base text-pt-texto">Tu óptica todavía no subió los archivos de tu factura electrónica.</p>}
+                <div className="flex flex-wrap gap-3">
+                  {fe?.pdf && <button type="button" onClick={() => descargar(c, "pdf")} disabled={bajando === `${c.id}-pdf`} className={BOTON_SECUNDARIO}>Descargar factura</button>}
+                  {fe?.xml && <button type="button" onClick={() => descargar(c, "xml")} disabled={bajando === `${c.id}-xml`} className={BOTON_SECUNDARIO}>Descargar XML</button>}
+                  {!debe && onGarantia && <button type="button" onClick={() => { setAbiertaId(null); onGarantia(c) }} className={BOTON_SECUNDARIO}>Solicitar ajuste o garantía</button>}
+                </div>
+                {errorDescarga && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base font-medium text-red-700">{errorDescarga}</p>}
+              </section>
+            </div>
+          </Cascaron>
+        )
+      })()}
+      {errorDescarga && !abierta && <p role="alert" className="rounded-2xl border border-red-200/60 bg-red-50 px-4 py-3 text-lg font-medium text-red-700">{errorDescarga}</p>}
     </div>
   )
 }

@@ -13,7 +13,7 @@ import { fechaLegible } from "../../utilidades/formatoFecha"
 import { coincideTexto } from "../../utilidades/busqueda"
 import { linkWhatsApp } from "../../utilidades/whatsapp"
 import { registrarLog } from "../../utilidades/logs"
-import { diasEnEspera, etiquetaMotivo } from "../../utilidades/pasesVenta"
+import { diasEnEspera, etiquetaMotivo, esDelPortal, etiquetaInteres } from "../../utilidades/pasesVenta"
 import { FILTROS_POR_VENDER, DIAS_PARA_SEGUIMIENTO, listaPorVender, llevaProforma, lineaDiagnosticoYLente, diagnosticoCorto, textoDiasEspera, mensajeSeguimientoVenta } from "../../utilidades/ventasModulo"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
 
@@ -74,14 +74,15 @@ export default function PestanaPorVender({ v, usuario, puedeVender, onVerPacient
             const { pase, paciente, consulta } = item
             const dias = diasEnEspera(pase, hoy)
             const largo = !nocompraron && dias > DIAS_PARA_SEGUIMIENTO
-            const linea = lineaDiagnosticoYLente(consulta)
+            const delPortal = esDelPortal(pase)
+            const linea = delPortal ? [etiquetaInteres(pase.interes), pase.comentarioPaciente && `«${pase.comentarioPaciente}»`].filter(Boolean).join(" · ") : lineaDiagnosticoYLente(consulta)
             return (
               <li key={pase.id} className={"relative grid grid-cols-1 gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-slate-50/70 lg:items-center " + COLUMNAS}>
                 <div className="min-w-0">
                   <button type="button" onClick={() => setDetalle({ item, descartado: nocompraron })} title={paciente?.nombre} className="block max-w-full truncate text-left text-sm font-bold transition-colors after:absolute after:inset-0 hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{paciente?.nombre || "Paciente"}</button>
                   {paciente?.cedula && <p className="truncate text-xs text-slate-500">{paciente.cedula}</p>}
                 </div>
-                <p className="text-sm text-slate-600">{fechaLegible(consulta?.fecha) || "—"}</p>
+                <div className="min-w-0">{delPortal ? <Insignia tono="violeta" title="La solicitó el paciente desde su portal">Desde el portal</Insignia> : <p className="text-sm text-slate-600">{fechaLegible(consulta?.fecha) || "—"}</p>}</div>
                 <p className="min-w-0 truncate text-sm text-slate-700" title={linea}>{linea || <span className="text-slate-400">Sin diagnóstico</span>}</p>
                 <div className="min-w-0">
                   {nocompraron
@@ -95,7 +96,7 @@ export default function PestanaPorVender({ v, usuario, puedeVender, onVerPacient
                 </div>
                 <div className="relative z-10 flex justify-end">
                   {puedeVender && !nocompraron && (
-                    <button type="button" onClick={() => v.setVentaCola(item)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}><ShoppingBag size={14} aria-hidden="true" /> Tomar datos del diagnóstico</button>
+                    <button type="button" onClick={() => v.tomarDatos(item)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}><ShoppingBag size={14} aria-hidden="true" /> Tomar datos del diagnóstico</button>
                   )}
                   {puedeVender && nocompraron && (
                     <button type="button" onClick={() => v.reabrirPase(item)} disabled={v.reabriendoId === pase.id} className={CLASE_ACCION_SECUNDARIA}><Undo2 size={14} aria-hidden="true" /> {v.reabriendoId === pase.id ? "Volviendo…" : "Volver a la lista de espera"}</button>
@@ -113,7 +114,7 @@ export default function PestanaPorVender({ v, usuario, puedeVender, onVerPacient
           onCerrar={() => setDetalle(null)}
           onVerPerfil={() => { const p = detalle.item.paciente; setDetalle(null); if (p) onVerPaciente?.(p.id) }}
           onEscribir={() => escribir(detalle.item)}
-          onTomarDatos={() => { const it = detalle.item; setDetalle(null); v.setVentaCola(it) }}
+          onTomarDatos={() => { const it = detalle.item; setDetalle(null); v.tomarDatos(it) }}
           onNoCompro={() => { const it = detalle.item; setDetalle(null); v.setNoComproPara(it) }}
           onReabrir={() => { const it = detalle.item; setDetalle(null); v.reabrirPase(it) }}
         />
@@ -128,10 +129,11 @@ function DetallePorVender({ item, descartado, hoy, puedeVender, onCerrar, onVerP
   const dias = diasEnEspera(pase, hoy)
   const largo = !descartado && dias > DIAS_PARA_SEGUIMIENTO
   const diagnostico = diagnosticoCorto(consulta)
+  const delPortal = esDelPortal(pase)
   return (
     <Cascaron
       titulo={paciente?.nombre || "Paciente"}
-      subtitulo={descartado ? "No compró" : "Por vender"}
+      subtitulo={descartado ? "No compró" : delPortal ? "Por vender · Desde el portal" : "Por vender"}
       Icono={ShoppingBag}
       ancho="max-w-3xl"
       etiqueta={`Por vender: ${paciente?.nombre || "Paciente"}`}
@@ -151,14 +153,17 @@ function DetallePorVender({ item, descartado, hoy, puedeVender, onCerrar, onVerP
       )}
     >
       <div className="grid grid-cols-1 gap-6 p-5 sm:grid-cols-3">
-        <Columna titulo="La consulta">
-          <Dato etiqueta="Fecha">{fechaLegible(consulta?.fecha) || "—"}</Dato>
+        <Columna titulo={delPortal ? "Lo que pidió" : "La consulta"}>
+          {delPortal && <Dato etiqueta="Le interesa">{etiquetaInteres(pase.interes)}</Dato>}
+          {delPortal && <Dato etiqueta="Su comentario" vacio={!pase.comentarioPaciente}>{pase.comentarioPaciente || "Sin comentario"}</Dato>}
+          {delPortal && <Dato etiqueta="Estado">{pase.enAtencionEn || pase.proformaEntregadaEn ? "En atención" : "Recibida"}</Dato>}
+          <Dato etiqueta={delPortal ? "Última consulta" : "Fecha"}>{fechaLegible(consulta?.fecha) || "—"}</Dato>
           <Dato etiqueta="Motivo" vacio={!consulta?.motivo}>{consulta?.motivo || "Sin motivo"}</Dato>
           <Dato etiqueta="Diagnóstico" vacio={!diagnostico}><span className="inline-flex items-start gap-1.5">{diagnostico ? <Stethoscope size={14} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" /> : null}{diagnostico || "Sin diagnóstico"}</span></Dato>
           <Dato etiqueta="Lente recomendado" vacio={!consulta?.lenteRecomendado}>{consulta?.lenteRecomendado || "Sin lente recomendado"}</Dato>
         </Columna>
         <Columna titulo="Seguimiento">
-          <Dato etiqueta="Pasó a la óptica">{fechaLegible(pase.pasadaEn) || "—"}{!descartado ? ` · espera ${textoDiasEspera(dias).toLowerCase()}` : ""}</Dato>
+          <Dato etiqueta={delPortal ? "Lo solicitó" : "Pasó a la óptica"}>{fechaLegible(pase.pasadaEn) || "—"}{!descartado ? ` · espera ${textoDiasEspera(dias).toLowerCase()}` : ""}</Dato>
           <Dato etiqueta="Proforma" vacio={!pase.proformaEntregadaEn}>{pase.proformaEntregadaEn ? `Entregada el ${fechaLegible(pase.proformaEntregadaEn)}${pase.proformaTotal ? ` · ${dinero(Number(pase.proformaTotal))}` : ""}` : "No se ha entregado"}</Dato>
           {descartado && <Dato etiqueta="No compró">{etiquetaMotivo(pase.motivoDescarte, pase.detalleDescarte) || "Sin motivo indicado"}</Dato>}
           {largo && <Dato etiqueta="Qué hacer">Contactarlo por WhatsApp o cerrarlo con «No compró». No se cierra solo.</Dato>}

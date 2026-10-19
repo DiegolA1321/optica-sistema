@@ -127,3 +127,31 @@
     @apply bg-background text-foreground;
   }
 }
+/* ── Portal del paciente (diseño aprobado, docs/portal-propuesta/) ──
+   Colores: azul #1D5FD6 (o el de la óptica, `--portal-acento`), azul marino #0F2340 y fondo #F4F7FB. Títulos y números en Sora, texto en Public Sans.
+   La rejilla va por el ancho de la propia zona de contenido (no de la ventana): el menú lateral le quita 232 px, así que un `lg:` de la ventana dejaba tarjetas angostas. */
+@theme {
+  --color-pt-azul: var(--portal-acento, #1D5FD6);
+  --color-pt-marino: #0F2340;
+  --color-pt-fondo: #F4F7FB;
+  --color-pt-borde: #E3EAF4;
+  --color-pt-suave: #E6EEFB;
+  --color-pt-texto: #475569;
+  --color-pt-ambar: #92400E;
+}
+.pt-zona { container-type: inline-size; container-name: portal; width: 100%; }
+.pt-fila { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: stretch; }
+.pt-fila > * { min-width: 0; }
+.pt-fila--arriba { align-items: start; }
+@container portal (min-width: 640px) { .pt-fila--dos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container portal (min-width: 900px) {
+  .pt-fila--8-4 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .pt-fila--7-5 { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+}
+@container portal (min-width: 1000px) { .pt-fila--cuatro { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; } }
+@container portal (min-width: 600px) and (max-width: 999px) { .pt-fila--cuatro { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Tarjeta o fila que se pulsa para abrir su detalle: el botón transparente (.pt-abrir) cubre todo y lo que se puede tocar adentro queda por encima. */
+.pt-abrible a, .pt-abrible button:not(.pt-abrir) { position: relative; z-index: 10; }
+.pt-abrir:focus-visible { outline: 2px solid var(--portal-acento, #1D5FD6); outline-offset: 2px; }
+.pt-fila--solo { grid-template-columns: minmax(0, 1fr); }
+@container portal (min-width: 600px) { .pt-fila { gap: 24px; } }

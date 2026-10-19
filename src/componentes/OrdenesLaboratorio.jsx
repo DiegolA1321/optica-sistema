@@ -13,8 +13,10 @@ import { ContenedorLista, EncabezadoLista, Insignia, Vacio } from "./ventas/List
 import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, TONO_ESTADO_ORDEN, plural } from "./ventas/estilos"
 import { useOrdenesLab } from "./ventas/useOrdenesLab"
 
-const COLUMNAS_MODULO = "lg:grid-cols-[4.5rem_minmax(0,1fr)_6.5rem_8.5rem_14rem_11.5rem]"
-const COLUMNAS_PERFIL = COLUMNAS_MODULO
+// Las columnas se reparten el ancho (fr con mínimos): en una pantalla grande el contenido se reparte y el centro de la fila no queda vacío.
+// Los mínimos suman 40 rem (640 px): caben en los 707 px de lista que deja un perfil o el módulo con el menú abierto en una laptop de 1093 px.
+const COLUMNAS_MODULO = "lg:grid-cols-[4.5rem_minmax(9rem,1.6fr)_6.5rem_7.5rem_minmax(8.5rem,1fr)_minmax(8.5rem,auto)]"
+const COLUMNAS_PERFIL = "lg:grid-cols-[4.5rem_minmax(7rem,1.2fr)_6rem_7.5rem_minmax(6.5rem,1fr)_minmax(8.5rem,auto)]"
 const ADJETIVO = { abiertas: ["abierta", "abiertas"], enviadas: ["enviada", "enviadas"], atrasadas: ["atrasada", "atrasadas"], listas: ["lista", "listas"], sinavisar: ["lista sin avisar", "listas sin avisar"], entregadas: ["entregada", "entregadas"], canceladas: ["cancelada", "canceladas"], todas: ["", ""] }
 
 // Órdenes de laboratorio: lista con filtros por estado y por laboratorio. Cada fila lleva la siguiente acción del proceso (marcar lista,
@@ -100,14 +102,14 @@ function ListaOrdenes({ api, ordenes, pacientes = [], pacienteFijo = null, filtr
             const ocupado = api.trabajando === o.id
             const faltaAvisar = o.estado === "lista" && !o.pacienteAvisadoEn
             return (
-              <li key={o.id} className={"relative grid grid-cols-1 gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-slate-50/70 lg:items-center " + columnas}>
+              <li key={o.id} data-fila className={"relative grid grid-cols-1 gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-slate-50/70 lg:items-center " + columnas}>
                 <button type="button" onClick={() => api.verDetalle(o)} aria-label={`Ver la orden ${numeroOrden(o.numero)}`} className="text-left font-mono text-sm font-bold after:absolute after:inset-0 hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{numeroOrden(o.numero)}</button>
                 <div className="min-w-0">
                   {!pacienteFijo && <button type="button" onClick={() => p && onVerPerfil?.(p)} title={p?.nombre} className="relative z-10 block max-w-full truncate text-left text-sm font-bold transition-colors hover:text-blue-700 cursor-pointer" style={{ color: INK }}>{p?.nombre || "Paciente"}</button>}
                   <p className={"truncate " + (pacienteFijo ? "text-sm text-slate-700" : "text-xs text-slate-500")} title={o.laboratorio || "Sin laboratorio"}>{o.laboratorio || "Sin laboratorio"}</p>
                 </div>
                 <p className={"text-sm " + (visible === "atrasada" ? "font-semibold text-red-700" : "text-slate-600")}>{fechaLegible(o.fechaPrometida) || "—"}</p>
-                <div className="min-w-0"><Insignia tono={TONO_ESTADO_ORDEN[visible]}>{textoEstadoOrden(o, dias)}</Insignia></div>
+                <div data-col="estado" className="min-w-0"><Insignia tono={TONO_ESTADO_ORDEN[visible]}>{textoEstadoOrden(o, dias)}</Insignia></div>
                 <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
                   {faltaAvisar && <Insignia tono="ambar">Falta avisar</Insignia>}
                   {saldo > 0 && <Insignia tono="ambar" title="La venta tiene saldo por cobrar">Saldo {dinero(saldo)}</Insignia>}

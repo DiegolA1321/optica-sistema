@@ -85,9 +85,12 @@ export default function ResolutionGuard({
   minHeight = ALTO_MINIMO,
   zoomMin = ZOOM_MINIMO,
   zoomMax = ZOOM_MAXIMO,
+  desactivado = false,
 }) {
   const { width, height, zoomLevel } = useDimensionesVentana()
-  const bloqueado = zoomLevel < zoomMin || zoomLevel > zoomMax || width < minWidth || height < minHeight
+  // Las pantallas del paciente (portal, página pública, inicio de sesión, reserva) nunca se bloquean: se usan desde el celular y con letra grande o zoom
+  // alto (regla 48 de docs/principios-diseno.md); esas pantallas se adaptan en vez de bloquearse. El resto del sistema sigue protegido.
+  const bloqueado = !desactivado && (zoomLevel < zoomMin || zoomLevel > zoomMax || width < minWidth || height < minHeight)
 
   if (!bloqueado) return children
 

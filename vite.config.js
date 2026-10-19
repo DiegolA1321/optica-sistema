@@ -16,7 +16,7 @@ function cspEnBuild() {
       // connect-src incluye *.sentry.io (todas las regiones de ingesta,
       // recomendación oficial de Sentry para CSP) — sin esto, el navegador
       // bloquea en silencio el envío de errores al monitoreo de Sentry.
-      const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';"
+      const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io; frame-src https://www.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';"
       return html.replace(
         '<head>',
         `<head>\n    <meta http-equiv="Content-Security-Policy" content="${csp}" />`

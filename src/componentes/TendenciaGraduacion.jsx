@@ -63,7 +63,8 @@ function ListaCompacta({ puntos }) {
   )
 }
 
-function GraficoPequeno({ puntos }) {
+// `onElegir(fecha)`: cada punto se pulsa y lleva a esa receta; `fechaActiva`: la receta que se está viendo (queda marcada).
+function GraficoPequeno({ puntos, onElegir, fechaActiva }) {
   const ref = useRef(null)
   const ancho = useAncho(ref)
   const [activo, setActivo] = useState(null)
@@ -102,6 +103,7 @@ function GraficoPequeno({ puntos }) {
           {puntos.map((q, i) => (
             <text key={i} x={i === puntos.length - 1 && puntos.length > 1 ? x(i) + 6 : x(i)} y={ALTO - 6} textAnchor={i === puntos.length - 1 && puntos.length > 1 ? "end" : "middle"} className="fill-slate-400" style={{ fontSize: 12, fontFamily: "inherit" }}>{etiquetaX(q.fecha)}</text>
           ))}
+          {fechaActiva && puntos.map((q, i) => q.fecha === fechaActiva && <line key={"act" + i} x1={x(i)} x2={x(i)} y1={MARGEN.arriba} y2={ALTO - MARGEN.abajo} stroke="#2563eb" strokeWidth="2" strokeOpacity="0.35" />)}
           {activo !== null && <line x1={x(activo)} x2={x(activo)} y1={MARGEN.arriba} y2={ALTO - MARGEN.abajo} stroke="#94a3b8" strokeWidth="1" />}
           <path d={trazo("od")} fill="none" stroke={OD_COLOR} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           <path d={trazo("oi")} fill="none" stroke={OI_COLOR} strokeWidth="2" strokeDasharray="5 4" strokeLinecap="round" strokeLinejoin="round" />
@@ -121,6 +123,7 @@ function GraficoPequeno({ puntos }) {
               fill="transparent"
               onMouseEnter={() => setActivo(i)}
               onMouseLeave={() => setActivo(null)}
+              {...(onElegir ? { role: "button", tabIndex: 0, "aria-label": `Ver la receta del ${fechaLegible(q.fecha)}`, style: { cursor: "pointer" }, onClick: () => onElegir(q.fecha), onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onElegir(q.fecha) } }, onFocus: () => setActivo(i), onBlur: () => setActivo(null) } : {})}
             />
           ))}
         </svg>
@@ -139,8 +142,8 @@ function GraficoPequeno({ puntos }) {
   )
 }
 
-// consultas: de la más antigua a la más reciente.
-export default function TendenciaGraduacion({ consultas }) {
+// consultas: de la más antigua a la más reciente. `siempreGrafico`: también con menos de 3 consultas medidas (la pestaña «Graduación» del perfil siempre dibuja la gráfica).
+export default function TendenciaGraduacion({ consultas, onElegir, fechaActiva, siempreGrafico = false }) {
   const puntos = puntosMedidos(consultas)
   if (puntos.length === 0) {
     return <p className="py-4 text-sm text-slate-500">Todavía no hay graduación medida en las consultas de este paciente.</p>
@@ -148,7 +151,7 @@ export default function TendenciaGraduacion({ consultas }) {
   return (
     <div className="space-y-3">
       <Leyenda />
-      {puntos.length < 3 ? <ListaCompacta puntos={puntos} /> : <GraficoPequeno puntos={puntos} />}
+      {puntos.length < 3 && !siempreGrafico ? <ListaCompacta puntos={puntos} /> : <GraficoPequeno puntos={puntos} onElegir={onElegir} fechaActiva={fechaActiva} />}
     </div>
   )
 }

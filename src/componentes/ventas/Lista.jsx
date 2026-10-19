@@ -4,7 +4,7 @@
 // mensaje de una lista vacía con su acción y el encabezado de las columnas.
 
 // El color solo comunica estado (regla 14): verde = en orden o terminado, ámbar = falta algo, rojo = urgente, azul = en curso, gris = cerrado.
-const TONOS = {
+export const TONOS = {
   azul: "border-blue-200/60 bg-blue-50 text-blue-700",
   verde: "border-emerald-200/60 bg-emerald-50 text-emerald-700",
   ambar: "border-amber-200/60 bg-amber-50 text-amber-700",
@@ -42,7 +42,7 @@ export function ContenedorLista({ etiqueta, encabezado = null, children }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
       {encabezado}
-      <ul role="list" aria-label={etiqueta} className="divide-y divide-slate-100">{children}</ul>
+      <ul role="list" aria-label={etiqueta} data-lista={etiqueta} className="divide-y divide-slate-100">{children}</ul>
     </div>
   )
 }

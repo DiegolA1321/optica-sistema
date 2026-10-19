@@ -10,6 +10,7 @@ import { edadEnAnios } from "../utilidades/edad"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
 import PermisosMensajes from "./PermisosMensajes"
+import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -33,23 +34,23 @@ export function SinInformacion({ Icono = Sparkles, titulo, texto, children }) {
 }
 
 // Ventana del sistema: cabecera blanca con el ícono de marca. `marca` reemplaza el ícono (la fecha del día, las iniciales del paciente); `sinAnimarFondo` evita volver a animar el fondo cuando se abre sobre otra ventana.
-export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie, Icono = Stethoscope, capa = "z-50", formulario = null, marca = null, sinAnimarFondo = false, etiqueta = null }) {
+export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-3xl", children, pie, Icono = Stethoscope, capa = "z-50", formulario = null, marca = null, sinAnimarFondo = false, etiqueta = null, pantallaCompletaEnCelular = false }) {
   const Raiz = formulario ? "form" : "div"
   const refModal = useModalAccesible(true, onCerrar)
   return createPortal(
-    <div className={"fixed inset-0 flex items-center justify-center p-4 backdrop-blur-sm " + capa} style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: sinAnimarFondo ? "none" : "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <Raiz ref={refModal} role="dialog" aria-modal="true" aria-label={etiqueta || titulo} {...(formulario ? { onSubmit: formulario.onSubmit, ...(formulario.autoComplete ? { autoComplete: formulario.autoComplete } : {}) } : {})} className={"flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl " + ancho} style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
+    <div className={"fixed inset-0 flex items-center justify-center backdrop-blur-sm " + (pantallaCompletaEnCelular ? "p-0 sm:p-4 " : "p-4 ") + capa} style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: sinAnimarFondo ? "none" : "overlay-in 150ms ease-out" }} onClick={onCerrar}>
+      <Raiz ref={refModal} role="dialog" aria-modal="true" aria-label={etiqueta || titulo} {...(formulario ? { onSubmit: formulario.onSubmit, ...(formulario.autoComplete ? { autoComplete: formulario.autoComplete } : {}) } : {})} className={"flex w-full flex-col overflow-hidden border border-slate-200/60 bg-white shadow-2xl " + (pantallaCompletaEnCelular ? "h-[100dvh] max-h-none rounded-none sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl " : "max-h-[calc(100dvh-2rem)] rounded-2xl ") + ancho} style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
             {marca || <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Icono size={21} aria-hidden="true" /></div>}
             <div className="min-w-0">
               <h2 className="text-lg font-bold leading-tight" style={{ color: INK }}>{titulo}</h2>
-              <p className="text-xs text-slate-500">{subtitulo}</p>
+              <p className={pantallaCompletaEnCelular ? "text-base text-slate-600" : "text-xs text-slate-500"}>{subtitulo}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {derecha}
-            <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"><X size={20} /></button>
+            <button type="button" onClick={onCerrar} aria-label="Cerrar" className={(pantallaCompletaEnCelular ? "grid h-12 w-12 place-items-center rounded-lg " : "rounded-lg p-1.5 ") + "text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"}><X size={pantallaCompletaEnCelular ? 24 : 20} /></button>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
@@ -251,53 +252,14 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
   )
 }
 
-function Receta({ consulta, paciente, usuario }) {
-  const marca = usuario?.opticaMarca
-  const numero = "RX-" + String(consulta.fecha || "").replace(/-/g, "") + "-" + String(consulta.id || "").replace(/[^a-z0-9]/gi, "").slice(0, 4).toUpperCase()
-  const fila = (etiqueta, valor) => valor ? <p style={{ margin: "0 0 4px" }}><b>{etiqueta}:</b> {valor}</p> : null
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: INK, padding: "32px 40px", maxWidth: 780, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 24, borderBottom: `3px solid ${GOLD}`, paddingBottom: 14 }}>
-        <div>
-          <h1 style={{ margin: 0, fontFamily: "Georgia, serif", fontSize: 24 }}>{usuario?.opticaNombre || "Tu óptica"}</h1>
-          <p style={{ margin: "4px 0 0", fontSize: 11, color: "#64748b" }}>{[marca?.direccion, marca?.telefono, marca?.correo].filter(Boolean).join(" · ")}</p>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: GOLD }}>Receta óptica</p>
-          <p style={{ margin: "4px 0 0", fontFamily: "monospace", fontSize: 12 }}>N.º {numero}</p>
-          <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>{formatoFecha(consulta.fecha, "largoSinDia") || consulta.fecha}</p>
-        </div>
-      </div>
-      <div style={{ margin: "18px 0", padding: "12px 16px", background: "#f8fafc", borderRadius: 10, display: "flex", gap: 32, flexWrap: "wrap", fontSize: 13 }}>
-        <span><b>Paciente:</b> {paciente?.nombre || consulta.paciente || "—"}</span>
-        {paciente?.cedula && <span><b>Cédula:</b> {paciente.cedula}</span>}
-      </div>
-      <div style={{ fontSize: 14, lineHeight: 1.5 }}>
-        {fila("Diagnóstico", textoDiagnostico(consulta))}
-        {fila("Lente recomendado", consulta.lenteRecomendado)}
-        {fila("Indicaciones y cuidados", consulta.indicaciones)}
-      </div>
-      <div style={{ margin: "18px 0", padding: "12px 16px", border: "1px solid #e2e8f0", borderRadius: 10, display: "flex", gap: 40, fontSize: 14 }}>
-        <span><b>OD (derecho):</b> {textoMedida(consulta.od)}</span>
-        <span><b>OI (izquierdo):</b> {textoMedida(consulta.oi)}</span>
-      </div>
-      {consulta.profesionalNombre && <p style={{ marginTop: 40, fontSize: 12, color: "#475569" }}>{consulta.profesionalNombre}{consulta.profesionalRegistro ? ` · Reg. ${consulta.profesionalRegistro}` : ""}</p>}
-    </div>
-  )
-}
-
-export function ModalAtencion({ cita, consulta, paciente, usuario, adjuntos, onCerrar }) {
-  const [imprimiendo, setImprimiendo] = useState(false)
-
-  // Imprime una capa pegada al <body> y oculta todo lo demás solo mientras dura la impresión.
-  useEffect(() => {
-    if (!imprimiendo) return undefined
-    document.body.classList.add("printing-atencion")
-    const limpiar = () => { document.body.classList.remove("printing-atencion"); setImprimiendo(false) }
-    window.addEventListener("afterprint", limpiar, { once: true })
-    const t = setTimeout(() => window.print(), 50)
-    return () => { clearTimeout(t); window.removeEventListener("afterprint", limpiar); document.body.classList.remove("printing-atencion") }
-  }, [imprimiendo])
+// `onVerReceta` y `onVerCompra` (opcionales): llevan a la receta de esa atención (pestaña Graduación) y a su compra (pestaña Compras); cada uno solo se ofrece si existe.
+export function ModalAtencion({ cita, consulta, paciente, usuario, adjuntos, onCerrar, onVerReceta, onVerCompra }) {
+  // La hoja de la receta es la misma que imprime el optómetra al terminar la consulta (HojaReceta) y la que el paciente guarda como PDF desde su portal.
+  const imprimirReceta = () => imprimirHojaReceta({
+    optica: { nombre: usuario?.opticaNombre, direccion: usuario?.opticaMarca?.direccion, telefono: usuario?.opticaMarca?.telefono, correo: usuario?.opticaMarca?.correo, logoUrl: usuario?.opticaLogoUrl },
+    paciente: { nombre: paciente?.nombre || consulta.paciente, cedula: paciente?.cedula, edad: edadEnAnios(paciente?.fecha_nacimiento || paciente?.fechaNacimiento) },
+    receta: consulta,
+  })
 
   return (
     <>
@@ -308,20 +270,15 @@ export function ModalAtencion({ cita, consulta, paciente, usuario, adjuntos, onC
         onCerrar={onCerrar}
         pie={<>
           <div className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={() => setImprimiendo(true)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Printer size={15} aria-hidden="true" /> Imprimir receta</button>
+            <button type="button" onClick={imprimirReceta} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Printer size={15} aria-hidden="true" /> Imprimir receta</button>
+            {onVerReceta && <button type="button" onClick={onVerReceta} className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-1.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">Ver su receta</button>}
+            {onVerCompra && <button type="button" onClick={onVerCompra} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">Ver su compra</button>}
           </div>
           <BotonCerrar onCerrar={onCerrar} />
         </>}
       >
         <DetalleAtencion consulta={consulta} adjuntos={adjuntos} />
       </Cascaron>
-      {imprimiendo && createPortal(
-        <div id="print-atencion">
-          <style>{`#print-atencion{display:none}@media print{body.printing-atencion>*:not(#print-atencion){display:none!important}body.printing-atencion #print-atencion{display:block!important}}`}</style>
-          <Receta consulta={consulta} paciente={paciente} usuario={usuario} />
-        </div>,
-        document.body,
-      )}
     </>
   )
 }

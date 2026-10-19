@@ -22,8 +22,11 @@ async function abrirPerfil(page, nombre, prefijo = 'OPTOMETRA') {
   await iniciarSesion(page, prefijo, 'E2E')
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
   await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
-  await page.getByText(nombre).first().click()
-  await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 30_000 })
+  // La lista se vuelve a dibujar cuando llegan los datos y un clic dado justo en ese momento se pierde: si el perfil no abre, se vuelve a pulsar (pasa en cuanto abre, sin esperas fijas).
+  await expect(async () => {
+    await page.getByText(nombre).first().click()
+    await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 8_000 })
+  }).toPass({ timeout: 60_000 })
 }
 
 test('cabecera, alertas arriba de las pestañas, Citas y Resumen', async ({ page }) => {
@@ -39,11 +42,16 @@ test('cabecera, alertas arriba de las pestañas, Citas y Resumen', async ({ page
   await expect(botonAgendar(page)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Enviar mensaje' }), 'el optómetra no tiene CRM: crear').toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Crear acceso' })).toBeVisible()
-  // Pestañas en orden: Citas, Resumen, Productos y servicios...
+  // Pestañas en orden: Resumen, Citas, Graduación, Compras y Órdenes de laboratorio; el perfil abre en el Resumen.
   const pestanas = page.getByRole('tablist', { name: 'Secciones del paciente' }).getByRole('tab')
-  await expect(pestanas.nth(0)).toContainText('Citas')
-  await expect(pestanas.nth(1)).toContainText('Resumen')
-  await expect(pestanas.nth(2)).toContainText('Productos y servicios')
+  await expect(pestanas.nth(0)).toContainText('Resumen')
+  await expect(pestanas.nth(1)).toContainText('Citas')
+  await expect(pestanas.nth(2)).toContainText('Graduación')
+  await expect(pestanas.nth(3)).toContainText('Compras')
+  await expect(pestanas.nth(4)).toContainText('Órdenes de laboratorio')
+  await expect(pestanas.nth(0)).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByText('Productos y servicios')).toHaveCount(0)
+  await pestanas.nth(1).click()
   // Citas: la próxima con "Ingresar", y nada clínico mezclado
   await expect(page.getByRole('region', { name: 'Próxima cita' }).getByRole('button', { name: 'Ingresar' })).toBeVisible()
   await expect(page.getByText('Tendencia de graduación medida')).toHaveCount(0)
@@ -142,10 +150,14 @@ test('Resumen de un paciente con historial (Demo, solo lectura)', async ({ page 
   await page.getByRole('tab', { name: /Resumen/ }).click()
   await expect(page.getByRole('region', { name: 'Citas del paciente' })).toBeVisible()
   await expect(page.getByText('Estado de corrección')).toBeVisible()
-  await expect(page.getByText('Tendencia de graduación medida')).toBeVisible()
+  // La graduación (con su tendencia) ya no está en el Resumen: tiene su pestaña.
+  await expect(page.getByText('Tendencia de graduación medida')).toHaveCount(0)
   await foto(page, 'reorganizado-8-resumen-demo')
   await page.getByRole('img', { name: /^Citas por mes:/ }).scrollIntoViewIfNeeded().catch(() => {})
   await foto(page, 'reorganizado-8b-resumen-demo-abajo')
+  await page.getByRole('tab', { name: /Graduación/ }).click()
+  await expect(page.getByRole('heading', { name: 'Graduación', exact: true })).toBeVisible()
+  await expect(page.getByText('Tendencia de graduación medida')).toHaveCount(0) // ya no está: la cubren «Comparar» y la historia de cada ojo
 })
 
 // El menú ⋮ de la lista de Pacientes: "Atender ahora" abre el mismo modal del perfil (toda atención pasa por una cita).

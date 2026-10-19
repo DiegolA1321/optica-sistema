@@ -1,114 +1,110 @@
 "use client"
 
 import { ahoraEcuador } from "../utilidades/horaEcuador"
-
+import { descargarMisDatosPaciente } from "../utilidades/portalDatos"
+import { fechaAISO } from "../utilidades/disponibilidad"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
-import {
-  LayoutDashboard,
-  Calendar,
-  Clock,
-  Plus,
-  User,
-  CheckCircle2,
-  AlertCircle,
-  FileText,
-  LogOut,
-  Stethoscope,
-  ChevronRight,
-  ChevronDown,
-  X,
-  CalendarDays,
-  CalendarClock,
-  Glasses,
-  KeyRound,
-  Lock,
-  Download,
-  Printer,
-  Menu,
-  Cake,
-  IdCard,
-  ChevronsLeft,
-  ChevronsRight,
-  Activity,
-  ShieldAlert,
-  Receipt,
-} from "lucide-react"
+import { Eye, Home, CalendarDays, Glasses, ReceiptText, UserRound, CheckCircle2, AlertCircle, Stethoscope, CalendarClock, KeyRound, Lock, X } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
+import SelectorLista from "../componentes/SelectorLista"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
-import { minutosDesdeMedianoche, etiquetaFecha, hoyISO } from "../utilidades/disponibilidad"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { minutosHastaCita } from "../utilidades/agendaCitas"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import MisCompras from "../componentes/MisCompras"
-import { misCompras } from "../utilidades/facturaElectronicaApi"
-import { dinero } from "../utilidades/formatoMoneda"
-import PermisosMensajes from "../componentes/PermisosMensajes"
-import { cambiarMisPermisos, leerMisPermisos } from "../utilidades/permisosMensajes"
+import ResumenPortal from "../componentes/portal/ResumenPortal"
+import MisCitasPortal from "../componentes/portal/MisCitasPortal"
+import MiRecetaPortal from "../componentes/portal/MiRecetaPortal"
+import VentanaDetalle from "../componentes/portal/DetallesPortal"
+import VentanaPagarPorTransferencia from "../componentes/portal/PagarPorTransferencia"
+import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
+import { descargarHojaReceta } from "../utilidades/descargarHojaReceta"
+import { edadEnAnios } from "../utilidades/edad"
+import { contarConsultas, resumenDePuntos, PUNTOS_POR_CONSULTA, PUNTOS_POR_REFERIDO } from "../utilidades/fidelizacion"
+import { recetasDe } from "../utilidades/graduacion"
+import CabeceraPortal, { Campanita } from "../componentes/portal/CabeceraPortal"
+import MisDatosPortal from "../componentes/portal/MisDatosPortal"
+import { usePortalDatos } from "../componentes/portal/usePortalDatos"
+import { useConsulta } from "../componentes/portal/useAncho"
+import { IconoLentes, BotonCalendario } from "../componentes/portal/piezas"
+import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "../componentes/portal/estilos"
+import { numeroComprobante } from "../utilidades/comprobantes"
+import { identidadDeLaOptica, citasProximas, citasHistorial, ordenesAbiertasDelPaciente, proximoControlDelPaciente, saldoDelPaciente, contactoDeLaOptica, tieneContacto, pendientesDelPaciente } from "../utilidades/portalPaciente"
+import { avisosDelPaciente, descargarIcs } from "../utilidades/portalVistas"
+
 import { supabase } from "../lib/supabaseClient"
-import { INK, GOLD } from "@/lib/tema"
-import { validarClaveNueva, esTelefonoValido, esEmailValido } from "../utilidades/validaciones"
+import { validarClaveNueva } from "../utilidades/validaciones"
 import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 
-// ─── Paleta de firma (consistente con todo el sistema) ───
-const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
-const OD_COLOR = "#2563EB"
-const OI_COLOR = "#06b6d4"
-
 const OPCIONES = [
-  { id: "resumen", nombre: "Resumen", icono: LayoutDashboard },
-  { id: "citas", nombre: "Mis citas", icono: Calendar },
-  { id: "receta", nombre: "Mi receta", icono: Glasses },
-  { id: "compras", nombre: "Mis compras", icono: Receipt },
-  { id: "datos", nombre: "Mis datos", icono: User },
+  { id: "resumen", nombre: "Inicio", corto: "Inicio", icono: Home },
+  { id: "citas", nombre: "Mis citas", corto: "Citas", icono: CalendarDays },
+  { id: "receta", nombre: "Mi receta", corto: "Receta", icono: IconoLentes, iconoMenu: Eye },
+  { id: "compras", nombre: "Mis compras", corto: "Compras", icono: ReceiptText },
+  { id: "datos", nombre: "Mis datos", corto: "Datos", icono: UserRound },
 ]
 
-export default function PortalPaciente({ usuario, citas = [], setCitas, consultas = [], disponibilidad, opticaId, opticaPublica, parametrizacion, motivosConsulta = [], onCerrarSesion, alActualizarUsuario }) {
+// Portal del paciente (portal v2, 17 oct. 2026). Pensado para pacientes de una óptica —muchos mayores, casi todos desde el celular—: texto de 16 px o más,
+// botones de 48 px, una tarea por pantalla y lenguaje sencillo. En laptop y tablet ancha, menú lateral claro como el del personal; en celular y tablet,
+// una barra de navegación abajo (más cómoda al pulgar que un menú escondido). Lo que el paciente hace queda en el sistema del personal (Citas, Inicio, CRM).
+export default function PortalPaciente({ usuario, citas = [], setCitas, consultas = [], disponibilidad, opticaId, opticaPublica, parametrizacion, motivosConsulta = [], cargandoDatos = false, onCerrarSesion, alActualizarUsuario }) {
   const nombreOptica = opticaPublica?.marca?.nombreMarca || opticaPublica?.nombre || "tu óptica"
+  const identidad = identidadDeLaOptica(opticaPublica)
+  const logoUrl = identidad.logoUrl
+  // El color de la óptica llega a todo el portal por variables de CSS (el menú, los botones principales y la tarjeta destacada).
+  const estiloRaiz = { "--portal-acento": identidad.acento, "--portal-texto-boton": identidad.textoBoton }
+  // Las ventanas (Cascaron) se dibujan fuera de esta raíz, en el body: las variables también van en el documento mientras el portal está abierto.
+  useEffect(() => {
+    const raiz = document.documentElement
+    Object.entries(estiloRaiz).forEach(([k, v]) => raiz.style.setProperty(k, v))
+    return () => Object.keys(estiloRaiz).forEach((k) => raiz.style.removeProperty(k))
+  }, [identidad.acento, identidad.textoBoton]) // eslint-disable-line react-hooks/exhaustive-deps
   // Política de la óptica (configurable en Configuración > Políticas hacia el paciente)
   const mostrarMedidas = parametrizacion?.mostrarMedidasPaciente === true
   const [seccion, setSeccion] = useState("resumen")
-  const [menuAbierto, setMenuAbierto] = useState(false)
-  const [colapsado, setColapsado] = useState(false)
-  const [userMenu, setUserMenu] = useState(false)
-  const userRef = useRef(null)
+  const pacienteId = typeof usuario?.id === "string" ? usuario.id : null
+
+  // Aviso que confirma lo que acaba de hacer el paciente (agendar, cambiar, cancelar): se queda a la vista hasta que lo cierra o pasan 8 segundos.
+  // Si el aviso es de una cita (agendada o confirmada), trae la cita para ofrecer ahí «Agregar a mi calendario», que es cuando tiene sentido.
+  const [aviso, setAviso] = useState(null)
+  const avisar = (texto, cita = null) => { const a = { texto, cita }; setAviso(a); setTimeout(() => setAviso((x) => (x === a ? null : x)), cita ? 20000 : 8000) }
 
   // Agendar
   const [modalAgendar, setModalAgendar] = useState(false)
   const [fecha, setFecha] = useState("")
   const [hora, setHora] = useState("")
   const [motivo, setMotivo] = useState(motivosConsulta[0] || "")
-  const [exito, setExito] = useState(false)
   const [error, setError] = useState("")
   const [confirmandoCita, setConfirmandoCita] = useState(false)
   const [guardandoCita, setGuardandoCita] = useState(false)
   const [errorCita, setErrorCita] = useState("")
+  // «Agendar mi control» abre la misma ventana con el motivo de control ya elegido.
+  const [compraRelacionada, setCompraRelacionada] = useState("")
+  const abrirAgendar = (para) => {
+    const control = motivosConsulta.find((m) => /control/i.test(m))
+    const garantia = motivosConsulta.find((m) => /garant/i.test(m))
+    setCompraRelacionada("")
+    setMotivo(para === "control" && control ? control : para === "garantia" && garantia ? garantia : motivosConsulta[0] || "")
+    setFecha(""); setHora(""); setError(""); setErrorCita("")
+    setModalAgendar(true)
+  }
 
-  // Reagendar — solo si el admin lo habilitó en Configuración, y solo dentro
-  // de la ventana de anticipación que él mismo define (feedback del ing).
+  // Reagendar — solo si el admin lo habilitó en Configuración, y solo dentro de la ventana de anticipación que él mismo define.
   const [reagendando, setReagendando] = useState(null)
   const [fechaReagenda, setFechaReagenda] = useState(null)
   const [horaReagenda, setHoraReagenda] = useState("")
   const [guardandoReagenda, setGuardandoReagenda] = useState(false)
   const [errorReagenda, setErrorReagenda] = useState("")
 
-  // Hallazgo E7: `citas` acá solo trae las citas DE ESTE paciente
-  // (mis_citas_paciente, ver App.jsx), no las de otros pacientes de la
-  // misma óptica — el calendario de agendar/reagendar necesita saber qué
-  // horarios ya están ocupados por CUALQUIERA, no solo por este paciente.
-  // horas_ocupadas_publicas() expone solo fecha/hora (sin datos de otros
-  // pacientes) para calcular disponibilidad real.
+  // `citas` acá solo trae las citas DE ESTE paciente (mis_citas_paciente): el calendario de agendar/reagendar necesita saber qué horarios ya están
+  // ocupados por CUALQUIERA. horas_ocupadas_publicas() expone solo fecha/hora (sin datos de otros pacientes) para calcular la disponibilidad real.
   const [horasOcupadas, setHorasOcupadas] = useState([])
-  useEffect(() => {
-    if (!supabase || !opticaId) return
-    supabase.rpc("horas_ocupadas_publicas", { p_optica_id: opticaId }).then(({ data }) => {
-      if (data) setHorasOcupadas(data)
-    })
-  }, [opticaId])
   const refrescarHorasOcupadas = () => {
     if (!supabase || !opticaId) return
     supabase.rpc("horas_ocupadas_publicas", { p_optica_id: opticaId }).then(({ data }) => { if (data) setHorasOcupadas(data) })
   }
+  useEffect(() => { refrescarHorasOcupadas() }, [opticaId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const horasAntesPermitidas = parametrizacion?.horasAntesReagendar ?? 2
   // Una cita se puede cambiar o cancelar si la óptica lo permite, sigue pendiente y faltan al menos N horas (hora de Ecuador).
@@ -123,16 +119,9 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     if (minutosHastaCita(cita) >= horasAntesPermitidas * 60) return null
     return `Faltan menos de ${horasAntesPermitidas} hora${horasAntesPermitidas === 1 ? "" : "s"}: para cambiarla, comunícate con la óptica.`
   }
-  const abrirReagendar = (cita) => {
-    setReagendando(cita)
-    setFechaReagenda(null)
-    setHoraReagenda("")
-    setErrorReagenda("")
-  }
+  const abrirReagendar = (cita) => { setReagendando(cita); setFechaReagenda(null); setHoraReagenda(""); setErrorReagenda("") }
 
-  // Cancelar — misma ventana de anticipación y permiso que reagendar (feedback
-  // de Diego: "el paciente podía cambiar el horario de la cita o hasta
-  // cancelarla hasta con 2 horas de anticipación").
+  // Cancelar — misma ventana de anticipación y permiso que reagendar.
   const [cancelando, setCancelando] = useState(null)
   const [guardandoCancelar, setGuardandoCancelar] = useState(false)
   const [errorCancelar, setErrorCancelar] = useState("")
@@ -143,11 +132,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setGuardandoCancelar(true)
     setErrorCancelar("")
     if (supabase && opticaId) {
-      const { data, error: errorRpc } = await supabase.rpc("cancelar_cita_publica", {
-        p_cita_id: cancelando.id,
-        p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
-        p_token: usuario?.token,
-      })
+      const { data, error: errorRpc } = await supabase.rpc("cancelar_cita_publica", { p_cita_id: cancelando.id, p_paciente_id: pacienteId, p_token: usuario?.token })
       if (errorRpc || data !== true) {
         setGuardandoCancelar(false)
         setErrorCancelar(mensajeDelServidor(errorRpc) || "No pudimos cancelar tu cita. Intenta de nuevo en un momento.")
@@ -157,53 +142,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setCitas(citas.map((c) => (c.id === cancelando.id ? { ...c, estado: "Cancelada" } : c)))
     refrescarHorasOcupadas()
     setGuardandoCancelar(false)
+    avisar(`Cancelaste tu cita del ${formatoFecha(cancelando.fecha, "medio")} a las ${cancelando.hora}.`)
     setCancelando(null)
-  }
-  // Privacidad y datos — exportar (autoservicio, sin riesgo) y solicitar
-  // eliminación (deja una solicitud para que la óptica la resuelva, ver
-  // migración 0045: un historial clínico puede tener obligaciones de
-  // retención que el propio paciente no puede saltarse borrando solo).
-  const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false)
-  const [motivoEliminar, setMotivoEliminar] = useState("")
-  const [enviandoEliminar, setEnviandoEliminar] = useState(false)
-  const [solicitudEliminarEnviada, setSolicitudEliminarEnviada] = useState(false)
-  const [errorPrivacidad, setErrorPrivacidad] = useState("")
-  const [descargando, setDescargando] = useState(false)
-
-  // Derecho de acceso: el servidor arma el archivo con los datos personales y clínicos del paciente, sin campos internos.
-  const descargarMisDatos = async () => {
-    if (descargando) return
-    setErrorPrivacidad("")
-    setDescargando(true)
-    let datos = null
-    if (supabase) {
-      const { data, error } = await supabase.rpc("exportar_mis_datos_paciente", { p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null, p_token: usuario?.token })
-      if (error || !data) { setDescargando(false); setErrorPrivacidad("No pudimos preparar tus datos. Intenta de nuevo en un momento."); return }
-      datos = data
-    } else {
-      datos = { perfil: { nombre: usuario?.nombre, cedula: usuario?.cedula }, citas, consultas, exportado_en: new Date().toISOString() }
-    }
-    const url = URL.createObjectURL(new Blob([JSON.stringify(datos, null, 2)], { type: "application/json" }))
-    const enlace = document.createElement("a")
-    enlace.href = url
-    enlace.download = "mis-datos-" + hoyISO() + ".json"
-    enlace.click()
-    URL.revokeObjectURL(url)
-    setDescargando(false)
-  }
-
-  const confirmarSolicitudEliminar = async () => {
-    if (!supabase || enviandoEliminar) return
-    setEnviandoEliminar(true)
-    setErrorPrivacidad("")
-    const { data, error } = await supabase.rpc("solicitar_eliminacion_paciente", {
-      p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
-      p_token: usuario?.token,
-      p_motivo: motivoEliminar.trim() || null,
-    })
-    setEnviandoEliminar(false)
-    if (error || !data) { setErrorPrivacidad("No pudimos enviar tu solicitud. Intenta de nuevo."); return }
-    setSolicitudEliminarEnviada(true)
   }
 
   const confirmarReagenda = async () => {
@@ -211,13 +151,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setGuardandoReagenda(true)
     setErrorReagenda("")
     if (supabase && opticaId) {
-      const { data, error: errorRpc } = await supabase.rpc("reagendar_cita_publica", {
-        p_cita_id: reagendando.id,
-        p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
-        p_fecha: fechaReagenda,
-        p_hora: horaReagenda,
-        p_token: usuario?.token,
-      })
+      const { data, error: errorRpc } = await supabase.rpc("reagendar_cita_publica", { p_cita_id: reagendando.id, p_paciente_id: pacienteId, p_fecha: fechaReagenda, p_hora: horaReagenda, p_token: usuario?.token })
       if (errorRpc || data !== true) {
         setGuardandoReagenda(false)
         const delServidor = mensajeDelServidor(errorRpc)
@@ -240,6 +174,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, fecha: fechaReagenda, hora: horaReagenda, estado: "Pendiente" } : c)))
     refrescarHorasOcupadas()
     setGuardandoReagenda(false)
+    avisar(`Listo: tu cita quedó para el ${formatoFecha(fechaReagenda, "medio")} a las ${horaReagenda}.`, { ...reagendando, fecha: fechaReagenda, hora: horaReagenda })
     setReagendando(null)
   }
 
@@ -250,32 +185,17 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const [confirmarClave, setConfirmarClave] = useState("")
   const [errorClave, setErrorClave] = useState("")
   const [guardandoClave, setGuardandoClave] = useState(false)
-
-  useEffect(() => {
-    const onDown = (e) => { if (userRef.current && !userRef.current.contains(e.target)) setUserMenu(false) }
-    document.addEventListener("mousedown", onDown)
-    return () => document.removeEventListener("mousedown", onDown)
-  }, [])
+  const abrirClave = () => { setClaveActual(""); setNuevaClave(""); setConfirmarClave(""); setErrorClave(""); setModalClave(true) }
 
   // Recetas del paciente
   const misConsultas = useMemo(
-    () =>
-      consultas
-        .filter((c) => (usuario?.id != null && c.pacienteId === usuario.id) || c.paciente === usuario?.nombre)
-        .sort(ordenarPorFechaYCreacion),
+    () => consultas.filter((c) => (usuario?.id != null && c.pacienteId === usuario.id) || c.paciente === usuario?.nombre).sort(ordenarPorFechaYCreacion),
     [consultas, usuario],
   )
-  const ultimaReceta = misConsultas[0] || null
-  // Antes solo cambiaba este estado local (setMedidasSolicitadas(true)) sin
-  // avisar a nadie — el botón mostraba "Solicitud enviada" pero la óptica
-  // nunca se enteraba. Ahora llama de verdad a solicitar_medidas_paciente
-  // (migración 0080), que marca pacientes.medidas_solicitadas_en y eso
-  // alimenta un banner en el perfil del paciente (Pacientes.jsx) y la
-  // campana de notificaciones (Dashboard.jsx) del lado de la óptica. La
-  // confirmación en sí sigue siendo de esta sesión (verificar_login_paciente/
-  // obtener_paciente_por_id no devuelven este campo, a propósito, para no
-  // ampliar su firma) — un recargo del portal vuelve a mostrar el botón,
-  // pero re-enviar la solicitud no duplica nada ni hace daño.
+  // Una receta es una consulta con medidas (la misma regla del perfil del paciente del personal: `recetasDe`).
+  const recetas = useMemo(() => recetasDe(misConsultas), [misConsultas])
+  const ultimaReceta = recetas[0] || null
+  // Pedir las medidas completas llama de verdad a solicitar_medidas_paciente (migración 0080): el perfil del paciente y la campana de la óptica lo avisan.
   const [medidasSolicitadas, setMedidasSolicitadas] = useState(false)
   const [errorMedidas, setErrorMedidas] = useState("")
   const [enviandoMedidas, setEnviandoMedidas] = useState(false)
@@ -283,94 +203,86 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setErrorMedidas("")
     setEnviandoMedidas(true)
     if (supabase) {
-      const { data, error } = await supabase.rpc("solicitar_medidas_paciente", {
-        p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
-        p_token: usuario?.token,
-      })
+      const { data, error: errorRpc } = await supabase.rpc("solicitar_medidas_paciente", { p_paciente_id: pacienteId, p_token: usuario?.token })
       setEnviandoMedidas(false)
-      if (error || data !== true) {
-        setErrorMedidas("No pudimos enviar tu solicitud. Intenta de nuevo en un momento.")
-        return
-      }
+      if (errorRpc || data !== true) { setErrorMedidas("No pudimos enviar tu solicitud. Intenta de nuevo en un momento."); return }
     } else {
       setEnviandoMedidas(false)
     }
     setMedidasSolicitadas(true)
   }
 
+  // «Descargar mis datos» desde el menú de la cuenta (derecho de acceso del paciente).
+  const descargandoDatos = useRef(false)
+  const descargarDatos = async () => {
+    if (descargandoDatos.current) return
+    descargandoDatos.current = true
+    const r = await descargarMisDatosPaciente({ usuario, citas: misCitas, consultas: misConsultas, hoy: fechaAISO(ahoraEcuador()) })
+    descargandoDatos.current = false
+    avisar(r.ok ? "Descargamos tus datos en un archivo." : r.error)
+  }
+
   const misCitas = useMemo(() => {
     if (!usuario?.id && !usuario?.cedula) return citas
     return citas.filter((c) => c.pacienteId === usuario.id || c.cedula === usuario.cedula || c.paciente === usuario.nombre)
   }, [citas, usuario])
-
-  // Ordenadas por fecha+hora — antes "próxima cita" tomaba la primera que
-  // encontraba en el array, no la cronológicamente más cercana.
-  const citasPendientes = useMemo(
-    () =>
-      misCitas
-        .filter((c) => c.estado !== "Atendida" && c.estado !== "No Asistió" && c.estado !== "Cancelada")
-        .sort((a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))),
-    [misCitas],
-  )
-  const citasPasadas = useMemo(
-    () =>
-      misCitas
-        .filter((c) => c.estado === "Atendida" || c.estado === "No Asistió" || c.estado === "Cancelada")
-        .sort((a, b) => (a.fecha !== b.fecha ? (a.fecha > b.fecha ? -1 : 1) : minutosDesdeMedianoche(b.hora) - minutosDesdeMedianoche(a.hora))),
-    [misCitas],
-  )
-  const proximaCita = citasPendientes[0] || null
-  // Lo que el paciente debe se avisa también en el Resumen, no solo en Mis compras (R21).
-  const [saldoPortal, setSaldoPortal] = useState(0)
-  useEffect(() => {
-    let vivo = true
-    misCompras(typeof usuario?.id === "string" ? usuario.id : null, usuario?.token).then(({ compras }) => {
-      if (vivo) setSaldoPortal((compras || []).filter((c) => c.estado === "pendiente_pago").reduce((s, c) => s + Math.max(0, (Number(c.total) || 0) - (Number(c.abonado) || 0)), 0))
-    })
-    return () => { vivo = false }
-  }, [usuario?.id, usuario?.token])
+  const datos = usePortalDatos(usuario, misCitas)
+  // «Pagar por transferencia»: se abre desde el detalle del saldo y desde «Pendiente para ti».
+  const [pagandoTransferencia, setPagandoTransferencia] = useState(false)
+  const proximas = useMemo(() => citasProximas(misCitas), [misCitas])
+  const historial = useMemo(() => citasHistorial(misCitas), [misCitas])
+  const proximaCita = proximas[0] || null
+  const comprasConSaldo = datos.compras.filter((c) => c.estado === "pendiente_pago" && Number(c.saldo) > 0).map((c) => ({ ...c, comprobante: numeroComprobante(c.numero) }))
+  const saldo = saldoDelPaciente(datos.compras)
+  const saldoInfo = saldo > 0 ? { saldo, total: comprasConSaldo.reduce((s, c) => s + Number(c.total), 0), abonado: comprasConSaldo.reduce((s, c) => s + Number(c.abonado), 0) } : null
+  const control = useMemo(() => proximoControlDelPaciente(datos.control), [datos.control])
+  const contacto = contactoDeLaOptica({ parametrizacion, disponibilidad, nombre: nombreOptica, paciente: usuario?.nombre })
+  const esNuevo = misCitas.length === 0 && misConsultas.length === 0 && datos.compras.length === 0 && datos.ordenes.length === 0
+  // La ventana de detalle abierta: { tipo: "cita" | "pedido" | "receta" | "saldo" | "control" | "optica", id }. Cada tarjeta del portal abre la suya.
+  const [abierto, setAbierto] = useState(null)
+  const verReceta = (id) => setAbierto({ tipo: "receta", id })
+  // «Descargar receta»: baja el PDF directamente (sin el diálogo de impresión) con la misma hoja que imprime el optómetra (HojaReceta). Si el navegador no puede dibujarla, cae al diálogo de
+  // impresión (ahí se elige «Guardar como PDF»).
+  const descargarReceta = async (r) => {
+    const datosHoja = {
+      optica: { nombre: nombreOptica, direccion: contacto.direccion, telefono: contacto.telefono, logoUrl },
+      paciente: { nombre: usuario?.nombre, cedula: usuario?.cedula, edad: edadEnAnios(usuario?.fecha_nacimiento || usuario?.fechaNacimiento) },
+      receta: r, mostrarMedidas,
+    }
+    if (await descargarHojaReceta(datosHoja)) avisar(`Descargamos tu receta del ${formatoFecha(r.fecha, "largoSinDia")}.`)
+    else imprimirHojaReceta(datosHoja)
+  }
+  // «Solicitar ajuste o garantía»: abre «Agendar cita» con el motivo ya elegido y dice de qué compra viene (la más reciente).
+  const pedirGarantia = (compra) => { abrirAgendar("garantia"); const c = compra || datos.compras[0]; setCompraRelacionada(c ? numeroComprobante(c.numero) : "") }
+  // La fecha del «Pedido» es la de la compra a la que pertenece la orden.
+  const ordenesConPedido = datos.ordenes.map((o) => {
+    const compra = datos.compras.find((c) => c.id === o.facturaId)
+    const debe = compra?.estado === "pendiente_pago"
+    return { ...o, pedidoEl: compra?.fecha || o.creadaEn, comprobante: compra ? numeroComprobante(compra.numero) : "", total: compra ? Number(compra.total) : 0, abonado: compra ? Number(compra.abonado) : 0, saldo: debe ? Number(compra.saldo) : 0 }
+  })
+  const avisos = avisosDelPaciente({ ordenes: datos.ordenes, proximaCita, control })
+  // El menú lateral se puede ocultar (el botón «Ocultar el menú» de la cabecera); se recuerda en este navegador.
+  const [menuOculto, setMenuOculto] = useState(() => { try { return localStorage.getItem("portal-menu-oculto") === "1" } catch { return false } })
+  const alternarMenu = () => setMenuOculto((v) => { try { localStorage.setItem("portal-menu-oculto", v ? "0" : "1") } catch { /* sin almacenamiento: solo dura esta visita */ } return !v })
 
   const validarYPedirConfirmacion = (e) => {
     e.preventDefault()
+    if (!motivo) { setError("Elige el motivo de tu cita."); return }
     if (!fecha || !hora) { setError("Por favor selecciona fecha y hora."); return }
     setError("")
     setConfirmandoCita(true)
   }
 
   const handleAgendar = async () => {
-    const nuevaCita = {
-      pacienteId: usuario?.id,
-      paciente: usuario?.nombre || "Paciente Registrado",
-      cedula: usuario?.cedula || "",
-      telefono: usuario?.telefono || "",
-      fecha, hora, motivo, estado: "Pendiente",
-    }
-
+    const nuevaCita = { pacienteId: usuario?.id, paciente: usuario?.nombre || "Paciente Registrado", cedula: usuario?.cedula || "", telefono: usuario?.telefono || "", fecha, hora, motivo, estado: "Pendiente" }
     setErrorCita("")
     setGuardandoCita(true)
     if (supabase && opticaId) {
-      // crear_cita_publica devuelve una tabla (id, codigo) desde la migración
-      // 0058 — antes devolvía un uuid solo; sin .single()/data[0] el cliente
-      // recibía el arreglo completo como "id" (bug real encontrado al
-      // auditar E7, nunca se corrigió acá cuando se cambió el tipo de
-      // retorno para AgendarCitaPublica.jsx).
-      //
-      // La migración 0067 (esta misma sesión) cambió la firma de esta
-      // función: ya no recibe p_paciente_id (ahora resuelve/crea el
-      // paciente por cédula) y exige p_fecha_nacimiento. Este llamador
-      // se quedó con la firma vieja y se rompía para cualquier paciente ya
-      // autenticado intentando agendar una cita nueva — encontrado al
-      // revisar el sistema conectado tras ese cambio, no algo que se haya
-      // probado en vivo desde el portal en ese momento.
+      // crear_cita_publica devuelve una tabla (id, codigo) desde la migración 0058 y, desde la 0067, resuelve o crea al paciente por cédula y exige la
+      // fecha de nacimiento: la cita entra al sistema del personal con origen «Web» y enlazada a este mismo paciente.
       const { data, error: errorRpc } = await supabase.rpc("crear_cita_publica", {
-        p_optica_id: opticaId,
-        p_paciente: nuevaCita.paciente,
-        p_fecha: nuevaCita.fecha,
-        p_hora: nuevaCita.hora,
-        p_cedula: nuevaCita.cedula || null,
-        p_fecha_nacimiento: usuario?.fecha_nacimiento || usuario?.fechaNacimiento || null,
-        p_telefono: nuevaCita.telefono || null,
-        p_motivo: nuevaCita.motivo,
+        p_optica_id: opticaId, p_paciente: nuevaCita.paciente, p_fecha: nuevaCita.fecha, p_hora: nuevaCita.hora, p_cedula: nuevaCita.cedula || null,
+        p_fecha_nacimiento: usuario?.fecha_nacimiento || usuario?.fechaNacimiento || null, p_telefono: nuevaCita.telefono || null, p_motivo: nuevaCita.motivo,
       })
       if (errorRpc || !data?.[0]) {
         setGuardandoCita(false)
@@ -393,13 +305,13 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     } else {
       nuevaCita.id = Date.now()
     }
-
     setCitas([nuevaCita, ...citas])
     refrescarHorasOcupadas()
     setGuardandoCita(false)
     setConfirmandoCita(false)
-    setModalAgendar(false); setFecha(""); setHora(""); setMotivo(motivosConsulta[0] || ""); setError("")
-    setExito(true); setTimeout(() => setExito(false), 4000)
+    setModalAgendar(false); setFecha(""); setHora(""); setError("")
+    setSeccion("citas")
+    avisar(`Tu cita quedó agendada para el ${formatoFecha(nuevaCita.fecha, "medio")} a las ${nuevaCita.hora}. ¡Te esperamos!${parametrizacion?.permitirReagendarPaciente ? ` Puedes cambiarla o cancelarla hasta con ${horasAntesPermitidas} hora${horasAntesPermitidas === 1 ? "" : "s"} de anticipación, desde «Mis citas».` : ""}`, nuevaCita)
   }
 
   const handleCambiarClave = async (e) => {
@@ -409,868 +321,254 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     if (errorClaveSegura) { setErrorClave(errorClaveSegura); return }
     if (nuevaClave === usuario?.cedula) { setErrorClave("La nueva contraseña no puede ser tu número de cédula."); return }
     if (nuevaClave !== confirmarClave) { setErrorClave("Las contraseñas no coinciden."); return }
-
-    // Ciberseguridad: el RPC ahora exige y verifica la contraseña actual
-    // server-side (crypt()) antes de aceptar la nueva — antes bastaba con
-    // conocer el id del paciente, sin probar que quien llama es dueño de la
-    // cuenta. También repite ahí la política de contraseña (longitud,
-    // distinta de la cédula) por si alguien salta esta validación de cliente
-    // llamando al RPC directo.
+    // El RPC exige y verifica la contraseña actual en el servidor (crypt()) antes de aceptar la nueva, y repite ahí la política de contraseña.
     setGuardandoClave(true)
     if (supabase) {
-      const { data: mensajeError, error } = await supabase.rpc("cambiar_clave_paciente", {
-        p_paciente_id: usuario?.id,
-        p_clave_actual: claveActual,
-        p_clave_nueva: nuevaClave,
-      })
-      if (error || mensajeError) {
+      const { data: mensajeError, error: errorRpc } = await supabase.rpc("cambiar_clave_paciente", { p_paciente_id: usuario?.id, p_clave_actual: claveActual, p_clave_nueva: nuevaClave })
+      if (errorRpc || mensajeError) {
         setGuardandoClave(false)
         setErrorClave(mensajeError || "No pudimos guardar tu nueva contraseña. Intenta de nuevo en un momento.")
         return
       }
     }
-    // El RPC invalida el token de sesión actual al cambiar la clave (fuerza
-    // a re-loguearse en todos los dispositivos) — así que este también deja
-    // de ser válido: no tiene sentido quedarse en el portal con un token
-    // muerto, mejor cerrar sesión ya mismo y que vuelva a entrar con la
-    // contraseña nueva.
+    // El RPC invalida el token de sesión actual al cambiar la clave (fuerza a volver a entrar en todos los dispositivos): se cierra la sesión ya mismo.
     setGuardandoClave(false)
     setModalClave(false); setClaveActual(""); setNuevaClave(""); setConfirmarClave(""); setErrorClave("")
     onCerrarSesion("Contraseña actualizada. Vuelve a iniciar sesión con tu nueva contraseña.")
   }
 
-  // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
-
-  const navegar = (id) => { setSeccion(id); setMenuAbierto(false) }
+  const navegar = (id) => setSeccion(id)
   const primerNombre = usuario?.nombre?.split(" ")[0] || "Paciente"
   const hora24 = ahoraEcuador().getHours()
   const saludo = hora24 < 12 ? "Buenos días" : hora24 < 19 ? "Buenas tardes" : "Buenas noches"
-  const hoyFecha = formatoFecha(ahoraEcuador(), "largo")
-
+  const hoyFecha = formatoFecha(ahoraEcuador(), "largo").replace(/^./, (c) => c.toUpperCase())
+  // «Agregar a mi calendario» baja el archivo de la cita y deja anotado en la base, por cita, que ya se agregó: vale en todos sus aparatos.
+  const alCalendario = (cita) => {
+    descargarIcs({ cita, optica: nombreOptica, direccion: contacto.direccion })
+    datos.agregarAlCalendario(cita.id)
+  }
+  const citaProps = { puedeReagendar, avisoNoReagendable: textoNoReagendable, onReagendar: abrirReagendar, onCancelar: setCancelando, cambiosPermitidos: Boolean(parametrizacion?.permitirReagendarPaciente), whatsappUrl: contacto.whatsappUrl, onCalendario: alCalendario, calendarioAgregada: (id) => Boolean(datos.detalle.porCita[id]?.enCalendarioAt) }
+  // Confirmar la asistencia es el otro momento en que tiene sentido ofrecer el calendario.
+  const confirmarAsistencia = async (citaId) => {
+    const r = await datos.confirmar(citaId)
+    if (r.ok) { const c = misCitas.find((x) => String(x.id) === String(citaId)); avisar("Confirmaste tu asistencia. ¡Te esperamos!", c || null) }
+    return r
+  }
+  const cargandoPortal = cargandoDatos || datos.cargando
+  // Los puntos: los mismos y con la misma regla que el CRM (consultas × 10 + pacientes referidos × 15).
+  const puntos = resumenDePuntos(contarConsultas({ id: usuario?.id, nombre: usuario?.nombre }, misConsultas), datos.referidos)
+  // El historial de puntos: una línea por consulta (+10) y, si refirió a alguien, una por los referidos (+15 cada uno); el mismo total del CRM.
+  const historialPuntos = [
+    ...misConsultas.map((c) => ({ fecha: c.fecha, concepto: "Consulta", puntos: PUNTOS_POR_CONSULTA })),
+    ...(datos.referidos > 0 ? [{ fecha: "", concepto: `${datos.referidos} ${datos.referidos === 1 ? "paciente referido" : "pacientes referidos"}`, puntos: datos.referidos * PUNTOS_POR_REFERIDO }] : []),
+  ]
+  const pendientes = pendientesDelPaciente({ ordenes: datos.ordenes, proximaCita, detalleCita: datos.detalle.porCita[proximaCita?.id], detalleDisponible: datos.detalle.disponible, saldoInfo, historial, detalle: datos.detalle.porCita })
+  const recetaActualId = recetas[0]?.id ?? null
+  const primeraRecetaId = recetas.length > 1 ? recetas[recetas.length - 1].id : null
+  // Con 1024 px o más el portal lleva el menú a la izquierda; con menos (tablet y celular), una barra de navegación abajo. Se dibuja una sola versión.
+  const laptop = useConsulta("(min-width: 1024px)", true)
+  const nombreMostrado = opticaPublica?.nombre || "Mi Óptica"
+  const marca = () => (
+    <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl lg:h-9 lg:w-9 lg:rounded-[10px]" style={{ background: logoUrl ? "#fff" : "var(--portal-acento)", color: logoUrl ? undefined : identidad.textoBoton, boxShadow: logoUrl ? "inset 0 0 0 1px rgb(226 232 240)" : undefined }}>
+      {logoUrl ? <img src={logoUrl} alt="" className="h-full w-full object-contain p-1" /> : <Glasses size={22} aria-hidden="true" />}
+    </div>
+  )
   return (
-    <div className="flex h-screen font-sans text-slate-800" style={{ backgroundColor: "#F7F5F0" }}>
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #receta-paciente, #receta-paciente * { visibility: visible; }
-          #receta-paciente { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; }
-          .no-print { display: none !important; }
-        }
-      `}</style>
-
-      {menuAbierto && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMenuAbierto(false)} />}
-
-      {/* ─── SIDEBAR ─── */}
-      <aside
-        className={"fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden border-r border-white/[0.07] transition-all duration-300 lg:static lg:translate-x-0 " + (colapsado ? "lg:w-20 " : "lg:w-72 ") + (menuAbierto ? "translate-x-0" : "-translate-x-full")}
-        style={{ background: `linear-gradient(180deg, #16404D 0%, ${INK} 55%)` }}
-      >
-        <svg aria-hidden="true" className="pointer-events-none absolute -bottom-20 -right-20 h-80 w-80" viewBox="0 0 400 400" fill="none" stroke="#ffffff" style={{ opacity: 0.05 }}>
-          {[70, 130, 190].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
-        </svg>
-
-        <div className="relative z-10 min-h-0 flex-1 overflow-y-auto">
-          <div className={"flex items-center justify-between border-b border-white/10 px-6 py-5 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
-            <div className="flex items-center gap-3">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD, boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
-                <Glasses size={22} />
+    <div style={estiloRaiz} className="flex h-[100dvh] overflow-hidden bg-pt-fondo font-sans text-pt-marino">
+      {/* ─── MENÚ LATERAL (laptop): la marca de la óptica y las cinco pantallas ─── */}
+      {laptop && (
+        <aside className={"flex shrink-0 flex-col border-r border-pt-borde bg-white " + (menuOculto ? "w-20" : "w-[232px]")}>
+          <div className={"flex min-w-0 pb-6 pt-6 " + (menuOculto ? "justify-center px-0" : "items-start gap-2.5 px-[18px]")} title={menuOculto ? nombreMostrado : undefined}>
+            {marca()}
+            {!menuOculto && (
+              <div className="min-w-0 leading-tight">
+                <p className="font-heading text-base font-bold leading-snug text-pt-marino">{nombreMostrado}</p>
+                <p className="mt-0.5 whitespace-nowrap text-base tracking-tight text-pt-texto">Portal del paciente</p>
               </div>
-              <div className={"leading-tight " + (colapsado ? "lg:hidden" : "")}>
-                <p className="text-lg font-bold tracking-tight text-white">{opticaPublica?.nombre || "Mi Óptica"}</p>
-                <p className="text-xs font-medium tracking-wide text-white/55">PORTAL DEL PACIENTE</p>
-              </div>
-            </div>
-            <button type="button" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white lg:hidden cursor-pointer"><X size={20} /></button>
+            )}
           </div>
-
-          <nav className="space-y-1.5 px-4 py-6">
-            <p className={"mb-2 px-3 text-xs font-bold uppercase tracking-[0.16em] text-white/45 " + (colapsado ? "lg:hidden" : "")}>Mi cuenta</p>
+          <nav aria-label="Menú del portal" className={"min-h-0 flex-1 space-y-1 overflow-y-auto " + (menuOculto ? "px-3" : "px-4")}>
             {OPCIONES.map((o) => {
-              const Icono = o.icono
+              const Icono = o.iconoMenu || o.icono
               const activo = seccion === o.id
               return (
-                <button key={o.id} type="button" onClick={() => navegar(o.id)}
-                  title={colapsado ? o.nombre : undefined}
-                  aria-label={o.nombre}
-                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all cursor-pointer " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white" : "text-white/75 hover:bg-white/5 hover:text-white")}
-                  style={activo ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(34,211,238,0.55)" } : undefined}>
-                  <Icono size={20} className={activo ? "text-white" : "text-white/75 group-hover:text-white"} />
-                  <span className={colapsado ? "lg:hidden" : ""}>{o.nombre}</span>
-                  {activo && <span className={"ml-auto h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
+                <button key={o.id} type="button" onClick={() => navegar(o.id)} aria-current={activo ? "page" : undefined} aria-label={menuOculto ? o.nombre : undefined} title={menuOculto ? o.nombre : undefined}
+                  className={"flex h-12 w-full items-center rounded-xl text-base transition-colors cursor-pointer " + (menuOculto ? "justify-center " : "gap-3.5 px-3.5 ") + (activo ? "bg-pt-suave font-semibold text-pt-azul" : "font-medium text-slate-700 hover:bg-slate-50 hover:text-pt-marino")}>
+                  <Icono size={22} aria-hidden="true" />
+                  {!menuOculto && <span>{o.nombre}</span>}
                 </button>
               )
             })}
           </nav>
-        </div>
+        </aside>
+      )}
 
-        <div className="relative z-10 border-t border-white/10 p-4">
-          {proximaCita ? (
-            <div className={"rounded-xl bg-white/5 p-3 " + (colapsado ? "lg:flex lg:justify-center lg:bg-transparent lg:p-0" : "")}>
-              <div className={"flex items-center gap-2 " + (colapsado ? "lg:hidden" : "")}>
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: GOLD }}>Próxima cita</span>
+            {/* ─── CONTENIDO ─── */}
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {laptop && <CabeceraPortal menuOculto={menuOculto} onAlternarMenu={alternarMenu} saludo={`${saludo}, ${primerNombre}`} fecha={hoyFecha} avisos={avisos} onIr={navegar} nombre={usuario?.nombre || primerNombre} onDescargarDatos={descargarDatos} onCerrarSesion={onCerrarSesion} />}
+        {/* Celular y tablet: una barra arriba con la marca, el saludo y los avisos */}
+        {!laptop && (
+          <header className="relative z-30 flex shrink-0 items-center gap-3 border-b border-pt-borde bg-white px-4 py-3">
+            {marca()}
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate font-heading text-lg font-bold text-pt-marino">Hola, {primerNombre}</p>
+              <p className="truncate text-base text-pt-texto">{nombreMostrado}</p>
+            </div>
+            <Campanita avisos={avisos} onIr={navegar} />
+          </header>
+        )}
+
+        <div data-portal-scroll className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-28 pt-4 sm:px-8 lg:pb-12 lg:pt-8">
+          <div className="pt-zona">
+            {aviso && (
+              <div role="status" className="mb-5 flex items-start gap-3 rounded-2xl bg-[#E3F4EA] p-4 text-[#166534]">
+                <CheckCircle2 className="mt-0.5 shrink-0" size={22} aria-hidden="true" />
+                <div className="min-w-0 flex-1 space-y-3">
+                  <p className="text-lg font-semibold">{aviso.texto}</p>
+                  {aviso.cita && !datos.detalle.porCita[aviso.cita.id]?.enCalendarioAt && <BotonCalendario cita={aviso.cita} citaProps={citaProps} className="w-full sm:w-auto" />}
+                </div>
+                <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="-m-2 grid h-12 w-12 shrink-0 place-items-center rounded-xl transition-colors hover:bg-emerald-100 cursor-pointer"><X size={20} aria-hidden="true" /></button>
               </div>
-              <p className={"mt-1 flex items-center gap-2 text-sm font-semibold text-white " + (colapsado ? "lg:hidden" : "")}>
-                <Calendar size={14} style={{ color: "#22D3EE" }} /> {etiquetaFecha(proximaCita.fecha)} · {proximaCita.hora}
-              </p>
-              <span className="hidden lg:hidden" />
-              {colapsado && <Calendar size={18} className="hidden text-white/60 lg:block" />}
-            </div>
-          ) : (
-            <div className={"flex items-center gap-2 px-2 text-xs font-medium text-white/55 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              <span className={colapsado ? "lg:hidden" : ""}>Portal seguro</span>
-            </div>
-          )}
-        </div>
-      </aside>
+            )}
 
-      {/* ─── CONTENIDO ─── */}
-      <main className="flex flex-1 flex-col overflow-hidden">
-        {/* Barra superior */}
-        <header className="relative z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <button type="button" onClick={() => setMenuAbierto(true)} aria-label="Abrir menú" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden cursor-pointer"><Menu size={22} /></button>
-            <button type="button" onClick={() => setColapsado((v) => !v)} className="hidden rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 lg:inline-flex cursor-pointer" title={colapsado ? "Expandir menú" : "Colapsar menú"} aria-label={colapsado ? "Expandir menú" : "Colapsar menú"}>
-              {colapsado ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
-            </button>
-            <div className="min-w-0">
-              <p className="truncate text-base font-bold tracking-tight" style={{ color: INK }}>{saludo}, {primerNombre}</p>
-              <p className="truncate text-xs text-slate-500">{hoyFecha}</p>
-            </div>
+            {seccion === "resumen" && (
+              <ResumenPortal onPagarTransferencia={datos.transferencia.disponible && comprasConSaldo.length > 0 ? () => setPagandoTransferencia(true) : undefined} cargando={cargandoPortal} esNuevo={esNuevo} proximaCita={proximaCita} detalleCita={datos.detalle.porCita[proximaCita?.id]} detalleDisponible={datos.detalle.disponible} ordenesAbiertas={ordenesAbiertasDelPaciente(ordenesConPedido)} pendientes={pendientes}
+                control={control} tieneCitaPendiente={proximas.length > 0} puntos={puntos} contacto={contacto} hayContacto={tieneContacto(contacto)} ultimaReceta={ultimaReceta} consultas={recetas} nombreOptica={nombreOptica} direccion={contacto.direccion}
+                citaProps={citaProps} onConfirmar={confirmarAsistencia} onAbrir={setAbierto} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} onVerReceta={() => navegar("receta")} />
+            )}
+            {seccion === "citas" && <MisCitasPortal cargando={cargandoDatos} proximas={proximas} historial={historial} citaProps={citaProps} onAgendar={abrirAgendar} detalle={datos.detalle} direccion={contacto.direccion} onConfirmar={confirmarAsistencia} onAbrir={setAbierto} recetaActualId={recetaActualId} primeraRecetaId={primeraRecetaId} consultas={misConsultas} compras={datos.compras} />}
+            {seccion === "receta" && (
+              <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} todasLasRecetas={recetas} onAbrirReceta={verReceta} descargar={descargarReceta} mostrarMedidas={mostrarMedidas} control={control}
+                medidasSolicitadas={medidasSolicitadas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />
+            )}
+            {seccion === "compras" && <MisCompras usuario={usuario} transferencia={datos.transferencia} solicitudes={datos.solicitudes} onSolicitarLentes={datos.solicitar} recetaVigente={ultimaReceta} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} puntos={puntos} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} onAbrir={setAbierto} />}
+            {seccion === "datos" && <MisDatosPortal usuario={usuario} nombreOptica={nombreOptica} citas={misCitas} consultas={misConsultas} visitas={historial.length} compras={datos.compras.length} puntos={puntos} alActualizarUsuario={alActualizarUsuario} onCambiarClave={abrirClave} onCerrarSesion={onCerrarSesion} />}
           </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={() => setModalAgendar(true)}
-              className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer sm:px-4"
-              style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(34,211,238,0.6)" }}
-            >
-              <Plus size={18} />
-              <span className="hidden sm:inline">Pedir cita</span>
-            </button>
-
-            <div className="relative" ref={userRef}>
-              <button type="button" onClick={() => setUserMenu((v) => !v)} className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white py-1.5 pl-1.5 pr-2.5 transition-colors hover:bg-slate-50 cursor-pointer">
-                <div className="grid h-7 w-7 place-items-center rounded-lg text-xs font-bold text-white" style={{ background: GRAD }}>{primerNombre[0]?.toUpperCase()}</div>
-                <div className="hidden text-left leading-tight sm:block">
-                  <p className="text-sm font-semibold" style={{ color: INK }}>{primerNombre}</p>
-                  <p className="text-xs text-slate-500">Paciente</p>
-                </div>
-                <ChevronDown size={16} className={"text-slate-500 transition-transform " + (userMenu ? "rotate-180" : "")} />
-              </button>
-
-              {userMenu && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-                  <div className="border-b border-slate-100 p-3">
-                    <p className="truncate text-sm font-bold" style={{ color: INK }}>{usuario?.nombre || "Paciente"}</p>
-                    <p className="truncate text-xs text-slate-500">{usuario?.correo || usuario?.cedula || ""}</p>
-                  </div>
-                  <div className="p-2">
-                    <button type="button" onClick={() => { setUserMenu(false); setClaveActual(""); setNuevaClave(""); setConfirmarClave(""); setErrorClave(""); setModalClave(true) }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">
-                      <KeyRound size={16} /> Cambiar contraseña
-                    </button>
-                    {onCerrarSesion && (
-                      <button type="button" onClick={() => onCerrarSesion()} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer">
-                        <LogOut size={16} /> Cerrar sesión
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
-        {/* Espacio de trabajo */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          {/* Alertas */}
-          {exito && (
-            <div role="status" className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-              <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={20} />
-              <div>
-                <p className="text-sm font-semibold">Tu cita ha sido agendada con éxito. ¡Te esperamos!</p>
-                {parametrizacion?.permitirReagendarPaciente && (
-                  <p className="mt-0.5 text-xs text-emerald-800">
-                    Puedes cambiar el horario o cancelarla hasta con {horasAntesPermitidas} hora{horasAntesPermitidas === 1 ? "" : "s"} de anticipación, desde "Mis citas".
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── RESUMEN ── */}
-          {seccion === "resumen" && (
-            <div className="space-y-6">
-              <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-                <div className="pointer-events-none absolute -right-8 -top-8 h-48 w-48 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.14), transparent 70%)" }} />
-                <span className="inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} /> Portal del paciente
-                </span>
-                <h1 className="mt-2 font-serif text-2xl font-semibold italic tracking-tight sm:text-3xl" style={{ color: INK }}>¡Hola, {primerNombre}!</h1>
-                <p className="mt-1 max-w-xl text-sm text-slate-500">
-                  {proximaCita
-                    ? (() => {
-                        const et = etiquetaFecha(proximaCita.fecha)
-                        const dia = ["Hoy", "Mañana", "Ayer"].includes(et) ? et : `el ${et}`
-                        return `Tu próxima cita es ${dia} a las ${proximaCita.hora}.`
-                      })()
-                    : "No tienes citas pendientes. ¿Quieres agendar una?"}
-                </p>
-              </div>
-
-              <div className={"grid grid-cols-1 gap-4 sm:grid-cols-2 " + (saldoPortal > 0 ? "lg:grid-cols-3" : "")}>
-                <TarjetaResumen label="Próxima visita" valor={proximaCita ? etiquetaFecha(proximaCita.fecha) : "Sin citas"} sub={proximaCita ? proximaCita.hora : "Agenda una cita"} icon={Clock} tile={GRAD} tileText="#fff" />
-                <TarjetaResumen label="Total de citas" valor={String(misCitas.length)} sub={misCitas.length === 1 ? "cita" : "citas"} icon={CalendarDays} tile="#eef2ff" tileText="#2563eb" />
-                {saldoPortal > 0 && (
-                  <button type="button" onClick={() => setSeccion("compras")} className="text-left cursor-pointer" aria-label={`Tienes un saldo por pagar de ${dinero(saldoPortal)}. Ver mis compras`}>
-                    <TarjetaResumen label="Saldo por pagar" valor={dinero(saldoPortal)} sub="Ver mis compras" icon={Receipt} tile="#fef3c7" tileText="#b45309" />
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h2 className="text-base font-bold" style={{ color: INK }}>Próximas citas</h2>
-                    <button onClick={() => setSeccion("citas")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Ver todas <ChevronRight size={14} /></button>
-                  </div>
-                  {citasPendientes.length === 0 ? (
-                    <div className="py-6 text-center"><button type="button" onClick={() => setModalAgendar(true)} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Pedir una cita</button></div>
-                  ) : (
-                    <div className="divide-y divide-slate-100">
-                      {citasPendientes.slice(0, 3).map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} avisoNoReagendable={textoNoReagendable} onReagendar={abrirReagendar} onCancelar={setCancelando} />)}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h2 className="text-base font-bold" style={{ color: INK }}>Mi última receta</h2>
-                    <button onClick={() => setSeccion("receta")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">Ver receta <ChevronRight size={14} /></button>
-                  </div>
-                  {!ultimaReceta ? (
-                    <p className="py-6 text-center text-sm text-slate-500">Todavía no tienes una receta registrada.</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                      <OjoReceta sigla="OD" titulo="Ojo derecho" ojo={ultimaReceta.od} color={OD_COLOR} />
-                      <OjoReceta sigla="OI" titulo="Ojo izquierdo" ojo={ultimaReceta.oi} color={OI_COLOR} />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── MIS CITAS ── */}
-          {seccion === "citas" && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Mis citas</h1>
-                <p className="text-sm text-slate-500">Consulta tus citas y agenda nuevas desde el botón "Pedir cita".</p>
-              </div>
-
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">Pendientes</h2>
-                {citasPendientes.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center">
-                    <p className="text-sm font-medium text-slate-500">No tienes citas pendientes.</p>
-                    <button onClick={() => setModalAgendar(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:underline cursor-pointer">Agendar ahora <ChevronRight size={15} /></button>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-100">{citasPendientes.map((c) => <FilaCita key={c.id} cita={c} puedeReagendar={puedeReagendar} avisoNoReagendable={textoNoReagendable} onReagendar={abrirReagendar} onCancelar={setCancelando} />)}</div>
-                )}
-              </div>
-
-              {citasPasadas.length > 0 && (
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">Historial</h2>
-                  <div className="divide-y divide-slate-100">{citasPasadas.map((c) => <FilaCita key={c.id} cita={c} />)}</div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── MI RECETA ── */}
-          {seccion === "receta" && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Mi receta visual</h1>
-                <p className="text-sm text-slate-500">Tu graduación actual y tratamientos indicados.</p>
-              </div>
-
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm" id="receta-paciente">
-                <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Glasses size={18} /></div>
-                    <div>
-                      <h2 className="text-base font-bold" style={{ color: INK }}>Receta óptica</h2>
-                      <p className="text-xs text-slate-500">{ultimaReceta ? `Última actualización · ${etiquetaFecha(ultimaReceta.fecha)}` : "Se genera tras tu consulta"}</p>
-                    </div>
-                  </div>
-                  {ultimaReceta && (
-                    <button onClick={() => window.print()} className="no-print flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"><Printer size={14} /> Imprimir</button>
-                  )}
-                </div>
-
-                {!ultimaReceta ? (
-                  <div className="flex flex-col items-center gap-2 py-8 text-center">
-                    <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><FileText size={24} /></div>
-                    <p className="text-sm font-medium text-slate-500">Todavía no tienes una receta registrada.</p>
-                    <p className="text-xs text-slate-500">Aparecerá aquí después de tu primer examen visual.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <OjoReceta sigla="OD" titulo="Ojo derecho" ojo={ultimaReceta.od} color={OD_COLOR} />
-                      <OjoReceta sigla="OI" titulo="Ojo izquierdo" ojo={ultimaReceta.oi} color={OI_COLOR} />
-                    </div>
-                    {ultimaReceta.medidas?.adicion && (
-                      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-center">
-                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Adición</p>
-                        <p className="mt-0.5 font-mono text-sm font-bold" style={{ color: INK }}>{ultimaReceta.medidas.adicion}</p>
-                      </div>
-                    )}
-                    {mostrarMedidas ? (
-                      <MedidasMontaje medidas={ultimaReceta.medidas} />
-                    ) : (
-                      <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-3.5 sm:flex-row sm:items-center">
-                        <div className="flex-1">
-                          <p className="text-xs leading-relaxed text-slate-500">
-                            La distancia pupilar y las medidas de montaje las toma la óptica al armar tus lentes. Puedes solicitarlas aquí.
-                          </p>
-                          {errorMedidas && <p className="mt-1.5 text-xs font-semibold text-red-600">{errorMedidas}</p>}
-                        </div>
-                        {medidasSolicitadas ? (
-                          <span className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"><CheckCircle2 size={14} /> Solicitud enviada</span>
-                        ) : (
-                          <button type="button" onClick={solicitarMedidasCompletas} disabled={enviandoMedidas} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
-                            {enviandoMedidas ? "Enviando..." : "Solicitar distancia pupilar y medidas de montaje"}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {ultimaReceta.lenteRecomendado && (
-                      <div className="flex items-center gap-3 rounded-xl border p-3" style={{ borderColor: "rgba(200,162,78,0.35)", backgroundColor: "rgba(200,162,78,0.08)" }}>
-                        <Glasses size={18} style={{ color: GOLD }} className="shrink-0" />
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "#7c5e14" }}>Lente recomendado</p>
-                          <p className="text-sm font-semibold text-slate-800">{ultimaReceta.lenteRecomendado}</p>
-                        </div>
-                      </div>
-                    )}
-                    {(ultimaReceta.diagnostico || ultimaReceta.indicaciones || ultimaReceta.usaLentes) && (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {ultimaReceta.diagnostico && (<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Diagnóstico</p><p className="mt-0.5 text-sm font-semibold text-slate-700">{ultimaReceta.diagnostico}</p></div>)}
-                        {ultimaReceta.indicaciones && (<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Indicaciones</p><p className="mt-0.5 text-sm text-slate-600">{ultimaReceta.indicaciones}</p></div>)}
-                        {ultimaReceta.usaLentes && (<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">¿Usa lentes?</p><p className="mt-0.5 text-sm font-semibold text-slate-700">{ultimaReceta.usaLentes === "si" ? "Sí" : "No"}</p></div>)}
-                      </div>
-                    )}
-                    <p className="flex items-center gap-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500">
-                      <Stethoscope size={13} /> Emitida por {ultimaReceta.profesionalNombre || "el equipo"}{ultimaReceta.profesionalRegistro ? ` · Reg. Prof. ${ultimaReceta.profesionalRegistro}` : ""} · {nombreOptica}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {misConsultas.length > 1 && (
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">Recetas anteriores</h2>
-                  <div className="divide-y divide-slate-100">
-                    {misConsultas.slice(1).map((c) => (
-                      <div key={c.id} className="flex items-center justify-between gap-3 py-3 text-sm">
-                        <div className="min-w-0">
-                          <span className="text-xs text-slate-500">{formatoFecha(c.fecha, "medio")}</span>
-                          <p className="truncate font-medium text-slate-700">{c.diagnostico || "Consulta registrada"}</p>
-                        </div>
-                        <span className="shrink-0 text-right font-mono text-xs text-slate-600">OD {textoGraduacion(c.od)}<br />OI {textoGraduacion(c.oi)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── MI PERFIL ── */}
-          {/* ── MIS COMPRAS ── */}
-          {seccion === "compras" && <MisCompras usuario={usuario} onPedirCita={() => setModalAgendar(true)} />}
-
-          {seccion === "datos" && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Mis datos</h1>
-                <p className="text-sm text-slate-500">Tus datos personales y de contacto.</p>
-              </div>
-
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
-                  <div className="grid h-16 w-16 place-items-center rounded-2xl text-2xl font-bold text-white" style={{ background: GRAD }}>{primerNombre[0]?.toUpperCase()}</div>
-                  <div>
-                    <h2 className="text-lg font-bold" style={{ color: INK }}>{usuario?.nombre || "Paciente"}</h2>
-                    <p className="text-sm text-slate-500">Paciente de {nombreOptica}</p>
-                  </div>
-                </div>
-
-                <MisDatosContacto usuario={usuario} onActualizado={alActualizarUsuario} />
-                <MisPermisosMensajes usuario={usuario} />
-
-                <div className="mt-6 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: INK }}>Contraseña</p>
-                    <p className="text-xs text-slate-500">Cámbiala cuando quieras por seguridad.</p>
-                  </div>
-                  <button onClick={() => { setClaveActual(""); setNuevaClave(""); setConfirmarClave(""); setErrorClave(""); setModalClave(true) }} className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><KeyRound size={16} /> Cambiar contraseña</button>
-                </div>
-              </div>
-
-              {/* ─── PRIVACIDAD Y DATOS ─── */}
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-lg font-bold" style={{ color: INK }}>Privacidad y tus datos</h2>
-                <p className="mt-1 text-sm text-slate-500">Tus datos son tuyos — puedes descargarlos o pedirnos que los eliminemos cuando quieras.</p>
-
-                {errorPrivacidad && (
-                  <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                    <AlertCircle size={14} className="shrink-0" /> {errorPrivacidad}
-                  </div>
-                )}
-
-                <div className="mt-4 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: INK }}>Una copia de tus datos</p>
-                    <p className="text-xs text-slate-500">Un archivo con tus datos personales, tus citas y tu historial clínico, incluidos tus antecedentes y alergias.</p>
-                  </div>
-                  <button type="button" onClick={descargarMisDatos} disabled={descargando} className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
-                    <Download size={16} aria-hidden="true" /> {descargando ? "Preparando…" : "Descargar mis datos"}
-                  </button>
-                </div>
-
-                <div className="mt-4 flex flex-col items-start justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
-                  <div>
-                    <p className="text-sm font-semibold text-red-600">Eliminar mi cuenta</p>
-                    <p className="text-xs text-slate-500">Le pedimos a {nombreOptica} que elimine tu cuenta y tus datos.</p>
-                  </div>
-                  <button onClick={() => { setMotivoEliminar(""); setSolicitudEliminarEnviada(false); setErrorPrivacidad(""); setModalEliminarAbierto(true) }} className="flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer">
-                    <ShieldAlert size={16} /> Solicitar eliminación
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </main>
 
-      {/* ─── MODAL SOLICITAR ELIMINACIÓN ─── */}
-      {modalEliminarAbierto && (
-        <Cascaron
-          titulo={solicitudEliminarEnviada ? "Solicitud enviada" : "¿Eliminar tu cuenta?"}
-          subtitulo={solicitudEliminarEnviada ? nombreOptica + " revisará tu pedido." : "Tus datos y tu cuenta"}
-          Icono={solicitudEliminarEnviada ? CheckCircle2 : ShieldAlert}
-          ancho="max-w-md"
-          onCerrar={() => !enviandoEliminar && setModalEliminarAbierto(false)}
-          pie={solicitudEliminarEnviada ? (<>
-            <span />
-            <button type="button" onClick={() => setModalEliminarAbierto(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
-          </>) : (<>
+      {/* ─── BARRA DE NAVEGACIÓN (celular y tablet): abajo, al alcance del pulgar ─── */}
+      {!laptop && (
+        <nav aria-label="Menú del portal" className="fixed inset-x-0 bottom-0 z-40 border-t border-pt-borde bg-white pb-[env(safe-area-inset-bottom)]">
+          <ul className="mx-auto grid max-w-3xl grid-cols-5">
+            {OPCIONES.map((o) => {
+              const Icono = o.icono
+              const activo = seccion === o.id
+              return (
+                <li key={o.id}>
+                  <button type="button" onClick={() => navegar(o.id)} aria-current={activo ? "page" : undefined} aria-label={o.nombre}
+                    className={"flex min-h-[68px] w-full flex-col items-center justify-center gap-1 px-0.5 py-2 text-base leading-tight tracking-tight whitespace-nowrap transition-colors cursor-pointer " + (activo ? "font-bold text-pt-azul" : "font-medium text-slate-600 hover:text-pt-marino")}>
+                    <Icono size={24} aria-hidden="true" />
+                    <span>{o.corto}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
+      )}
+
+      {/* ─── DETALLE (cita, pedido de lentes, receta, saldo, control, óptica) ─── */}
+      {pagandoTransferencia && <VentanaPagarPorTransferencia datos={datos.transferencia.datos} compras={comprasConSaldo} pagos={datos.transferencia.pagos} onEnviar={datos.reportarPago} onCerrar={() => setPagandoTransferencia(false)} />}
+      <VentanaDetalle transferencia={datos.transferencia} onPagarTransferencia={() => setPagandoTransferencia(true)} abierto={abierto} onCerrar={() => setAbierto(null)} citas={misCitas} ordenes={ordenesConPedido} comprasConSaldo={comprasConSaldo} saldoInfo={saldoInfo} recetas={recetas} control={control} tieneCitaPendiente={proximas.length > 0}
+        contacto={contacto} nombreOptica={nombreOptica} detalle={datos.detalle} citaProps={citaProps} onConfirmar={confirmarAsistencia} onCalificar={datos.calificar} onVerReceta={verReceta} onDescargarReceta={descargarReceta} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} puntos={puntos} historialPuntos={historialPuntos} />
+
+      {/* ─── AGENDAR CITA ─── */}
+      {modalAgendar && (
+        <Cascaron pantallaCompletaEnCelular titulo="Agendar cita" subtitulo="Elige el motivo y un horario disponible." Icono={Stethoscope} ancho="max-w-3xl" onCerrar={() => setModalAgendar(false)} formulario={{ onSubmit: validarYPedirConfirmacion }}
+          pie={<>
             <span />
             <div className="ml-auto flex items-center gap-2">
-              <button type="button" onClick={() => setModalEliminarAbierto(false)} disabled={enviandoEliminar} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
-              <button type="button" onClick={confirmarSolicitudEliminar} disabled={enviandoEliminar} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-60">
-                {enviandoEliminar ? "Enviando…" : "Sí, solicitar"}
-              </button>
+              <button type="button" onClick={() => setModalAgendar(false)} className={BOTON_SECUNDARIO}>Cancelar</button>
+              <button type="submit" className={BOTON_PRINCIPAL} style={ESTILO_PRINCIPAL}>Continuar</button>
             </div>
-          </>)}
+          </>}
         >
-          <div className="p-6">
-            {solicitudEliminarEnviada ? (
-              <p className="text-sm text-slate-600">{nombreOptica} revisará tu pedido y se pondrá en contacto contigo.</p>
-            ) : (
-              <>
-                <p className="text-sm text-slate-600">Le avisamos a {nombreOptica} para que elimine tu cuenta y tus datos. Esto no borra nada al instante — la óptica te contactará.</p>
-                {errorPrivacidad && (
-                  <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                    <AlertCircle size={14} className="shrink-0" /> {errorPrivacidad}
-                  </div>
-                )}
-                <textarea
-                  rows={2} value={motivoEliminar} onChange={(e) => setMotivoEliminar(e.target.value)}
-                  placeholder="¿Por qué quieres eliminar tu cuenta? (opcional)"
-                  className="mt-4 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus-visible:border-red-400 focus-visible:bg-white"
-                />
-              </>
-            )}
+          <div className="space-y-5 p-3 sm:p-5">
+            {error && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} aria-hidden="true" /> {error}</div>}
+            {compraRelacionada && <p className="rounded-xl bg-violet-50 px-4 py-3 text-lg text-violet-900">Ajuste o garantía de tu compra <span className="font-bold">{compraRelacionada}</span>. Cuéntale a tu optómetra qué necesitas cuando llegues.</p>}
+            <div>
+              <label htmlFor="portal-motivo" className="mb-1.5 block text-base font-semibold text-slate-700">Motivo de la cita</label>
+              <SelectorLista id="portal-motivo" etiqueta="Motivo de la cita" valor={motivo} onChange={setMotivo} options={motivosConsulta} placeholder="Elige el motivo" requerido />
+            </div>
+            <SelectorFechaHora publico grande disponibilidad={disponibilidad} citas={horasOcupadas} fecha={fecha} hora={hora} onCambiarFecha={setFecha} onCambiarHora={setHora} />
           </div>
         </Cascaron>
       )}
 
-      {/* ─── MODAL AGENDAR ─── */}
-      {modalAgendar && (
-        <Cascaron titulo="Agendar cita" subtitulo="Elige el motivo y un horario disponible." Icono={Stethoscope} ancho="max-w-xl" onCerrar={() => setModalAgendar(false)} formulario={{ onSubmit: validarYPedirConfirmacion }}
-          pie={<>
-          <span />
-          <div className="ml-auto flex items-center gap-2">
-            <button type="button" onClick={() => setModalAgendar(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
-            <button type="submit" className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>Confirmar cita <ChevronRight size={16} /></button>
-          </div>
-        </>}
-        >
-          <div className="space-y-4 p-5">
-          {error && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {error}</div>}
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-600">Paciente</label>
-            <input type="text" disabled value={usuario?.nombre || "Paciente autenticado"} className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm font-medium text-slate-500" />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-600">Motivo de consulta</label>
-            <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50">
-              {motivosConsulta.map((m) => (<option key={m} value={m}>{m}</option>))}
-            </select>
-          </div>
-          <SelectorFechaHora
-            publico
-            disponibilidad={disponibilidad}
-            citas={horasOcupadas}
-            fecha={fecha}
-            hora={hora}
-            onCambiarFecha={setFecha}
-            onCambiarHora={setHora}
-          />
-        
-          </div>
-        </Cascaron>
-      )}
-
-      {/* ─── MODAL REAGENDAR ─── */}
+      {/* ─── REAGENDAR ─── */}
       {reagendando && (
-        <Cascaron titulo="Reagendar cita" subtitulo={"Tenías: " + etiquetaFecha(reagendando.fecha) + " · " + reagendando.hora} Icono={CalendarClock} ancho="max-w-xl" onCerrar={() => !guardandoReagenda && setReagendando(null)}
+        <Cascaron pantallaCompletaEnCelular titulo="Reagendar cita" subtitulo={"Tenías: " + formatoFecha(reagendando.fecha, "medio") + " · " + reagendando.hora} Icono={CalendarClock} ancho="max-w-3xl" onCerrar={() => !guardandoReagenda && setReagendando(null)}
           pie={<>
-          <span />
-          <div className="ml-auto flex items-center gap-2">
-            <button type="button" disabled={guardandoReagenda} onClick={() => setReagendando(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
-            <button
-              type="button"
-              disabled={guardandoReagenda || !fechaReagenda || !horaReagenda}
-              onClick={confirmarReagenda}
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-              style={{ background: GRAD }}
-            >
-              {guardandoReagenda ? "Guardando..." : "Confirmar nuevo horario"}
-            </button>
-          </div>
-        </>}
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" disabled={guardandoReagenda} onClick={() => setReagendando(null)} className={BOTON_SECUNDARIO}>Cancelar</button>
+              <button type="button" disabled={guardandoReagenda || !fechaReagenda || !horaReagenda} onClick={confirmarReagenda} className={BOTON_PRINCIPAL} style={ESTILO_PRINCIPAL}>{guardandoReagenda ? "Guardando..." : "Confirmar nuevo horario"}</button>
+            </div>
+          </>}
         >
-          <div className="space-y-4 p-5">
-          {errorReagenda && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorReagenda}</div>}
-          <SelectorFechaHora
-            disponibilidad={disponibilidad}
-            citas={horasOcupadas.filter((c) => !(c.fecha === reagendando.fecha && c.hora === reagendando.hora))}
-            fecha={fechaReagenda}
-            hora={horaReagenda}
-            onCambiarFecha={setFechaReagenda}
-            onCambiarHora={setHoraReagenda}
-          />
-        
+          <div className="space-y-4 p-3 sm:p-5">
+            {errorReagenda && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} aria-hidden="true" /> {errorReagenda}</div>}
+            <SelectorFechaHora grande disponibilidad={disponibilidad} citas={horasOcupadas.filter((c) => !(c.fecha === reagendando.fecha && c.hora === reagendando.hora))} fecha={fechaReagenda} hora={horaReagenda} onCambiarFecha={setFechaReagenda} onCambiarHora={setHoraReagenda} />
           </div>
         </Cascaron>
       )}
 
-      {/* ─── MODAL CANCELAR CITA ─── */}
+      {/* ─── CANCELAR ─── */}
       {cancelando && (
-        <Cascaron titulo="¿Cancelar esta cita?" subtitulo={etiquetaFecha(cancelando.fecha) + " · " + cancelando.hora} Icono={AlertCircle} ancho="max-w-md" onCerrar={() => !guardandoCancelar && setCancelando(null)}
+        <Cascaron titulo="¿Cancelar esta cita?" subtitulo={formatoFecha(cancelando.fecha, "medio") + " · " + cancelando.hora} Icono={AlertCircle} ancho="max-w-md" onCerrar={() => !guardandoCancelar && setCancelando(null)}
           pie={<>
-          <span />
-          <div className="ml-auto flex items-center gap-2">
-            <button type="button" disabled={guardandoCancelar} onClick={() => setCancelando(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Volver</button>
-            <button type="button" disabled={guardandoCancelar} onClick={confirmarCancelar} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-50">
-              {guardandoCancelar ? "Cancelando..." : "Sí, cancelar cita"}
-            </button>
-          </div>
-        </>}
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" disabled={guardandoCancelar} onClick={() => setCancelando(null)} className={BOTON_SECUNDARIO}>Volver</button>
+              <button type="button" disabled={guardandoCancelar} onClick={confirmarCancelar} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-red-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-50">{guardandoCancelar ? "Cancelando..." : "Sí, cancelar cita"}</button>
+            </div>
+          </>}
         >
-          <div className="p-6">
-            <p className="text-sm text-slate-600">Esta acción no se puede deshacer — si cambias de opinión tendrás que agendar una cita nueva.</p>
-            {errorCancelar && <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{errorCancelar}</p>}
+          <div className="p-5">
+            <p className="text-lg text-slate-700">Esta acción no se puede deshacer — si cambias de opinión tendrás que agendar una cita nueva.</p>
+            {errorCancelar && <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base font-medium text-red-700">{errorCancelar}</p>}
           </div>
         </Cascaron>
       )}
 
       {/* ─── CONFIRMACIÓN DE AGENDAMIENTO ─── */}
       {confirmandoCita && (
-        <ConfirmarCitaModal
-          paciente={usuario?.nombre || "Paciente Registrado"}
-          motivo={motivo}
-          fecha={fecha ? formatoFecha(fecha, "largoSinDia") : ""}
-          hora={hora}
-          onCancelar={() => setConfirmandoCita(false)}
-          onConfirmar={handleAgendar}
-          guardando={guardandoCita}
-          error={errorCita}
-        />
+        <ConfirmarCitaModal paciente={usuario?.nombre || "Paciente Registrado"} motivo={motivo} fecha={fecha ? formatoFecha(fecha, "largoSinDia") : ""} hora={hora}
+          onCancelar={() => setConfirmandoCita(false)} onConfirmar={handleAgendar} guardando={guardandoCita} error={errorCita} />
       )}
 
-      {/* ─── MODAL CAMBIAR CONTRASEÑA ─── */}
+      {/* ─── CAMBIAR CONTRASEÑA ─── */}
       {modalClave && (
-        <Cascaron titulo="Cambiar contraseña" subtitulo="Usa una que no hayas usado antes." Icono={KeyRound} ancho="max-w-md" onCerrar={() => setModalClave(false)} formulario={{ onSubmit: handleCambiarClave }}
+        <Cascaron pantallaCompletaEnCelular titulo="Cambiar contraseña" subtitulo="Usa una que no hayas usado antes." Icono={KeyRound} ancho="max-w-md" onCerrar={() => setModalClave(false)} formulario={{ onSubmit: handleCambiarClave, autoComplete: "off" }}
           pie={<>
-          <span />
-          <div className="ml-auto flex items-center gap-2">
-            <button type="button" disabled={guardandoClave} onClick={() => setModalClave(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
-            <button type="submit" disabled={guardandoClave} className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60" style={{ background: GRAD }}>{guardandoClave ? "Guardando..." : "Guardar contraseña"}</button>
-          </div>
-        </>}
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" disabled={guardandoClave} onClick={() => setModalClave(false)} className={BOTON_SECUNDARIO}>Cancelar</button>
+              <button type="submit" disabled={guardandoClave} className={BOTON_PRINCIPAL} style={ESTILO_PRINCIPAL}>{guardandoClave ? "Guardando..." : "Guardar contraseña"}</button>
+            </div>
+          </>}
         >
           <div className="space-y-4 p-5">
-        <p className="text-sm text-slate-500">Elige una contraseña nueva para reemplazar la temporal.</p>
-        {errorClave && <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertCircle size={16} /> {errorClave}</div>}
-        <div>
-          <label className="mb-1.5 block text-sm font-semibold text-slate-600">Contraseña actual</label>
-          <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={claveActual} onChange={(e) => setClaveActual(e.target.value)} placeholder="Tu contraseña actual" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-semibold text-slate-600">Nueva contraseña</label>
-          <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={nuevaClave} onChange={(e) => setNuevaClave(e.target.value)} placeholder="8 o más, con letra y número" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-semibold text-slate-600">Confirmar contraseña</label>
-          <div className="relative"><Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="password" value={confirmarClave} onChange={(e) => setConfirmarClave(e.target.value)} placeholder="Repite la contraseña" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" /></div>
-        </div>
+            <p className="text-base text-slate-600">Elige una contraseña nueva para reemplazar la actual.</p>
+            {errorClave && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} aria-hidden="true" /> {errorClave}</div>}
+            {[
+              ["Contraseña actual", claveActual, setClaveActual, "Tu contraseña actual", "current-password"],
+              ["Nueva contraseña", nuevaClave, setNuevaClave, "8 o más, con letra y número", "new-password"],
+              ["Confirmar contraseña", confirmarClave, setConfirmarClave, "Repite la contraseña", "new-password"],
+            ].map(([etiqueta, valor, poner, ejemplo, completar]) => (
+              <div key={etiqueta}>
+                <label className="mb-1.5 block text-base font-semibold text-slate-700">{etiqueta}
+                  <span className="relative mt-1.5 block">
+                    <Lock size={18} aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input type="password" value={valor} onChange={(e) => poner(e.target.value)} placeholder={ejemplo} autoComplete={completar} className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-3 text-base font-normal text-slate-800 outline-none transition focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50" />
+                  </span>
+                </label>
+              </div>
+            ))}
           </div>
         </Cascaron>
       )}
     </div>
   )
 }
-
-/* ── Subcomponentes ── */
-function TarjetaResumen({ label, valor, sub, icon: Icon, tile, tileText }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span>
-        <div className="grid h-9 w-9 place-items-center rounded-xl" style={{ background: tile, color: tileText }}><Icon size={18} /></div>
-      </div>
-      <p className="mt-2 truncate font-serif text-2xl font-semibold" style={{ color: INK }}>{valor}</p>
-      {sub && <p className="text-xs text-slate-500">{sub}</p>}
-    </div>
-  )
-}
-
-function FilaCita({ cita, puedeReagendar, avisoNoReagendable, onReagendar, onCancelar }) {
-  const atendida = cita.estado === "Atendida"
-  const noAsistio = cita.estado === "No Asistió"
-  const cancelada = cita.estado === "Cancelada"
-  const enAtencion = cita.estado === "En Atención"
-  const resuelta = atendida || noAsistio || cancelada
-  const reagendable = puedeReagendar?.(cita)
-  const avisoTiempo = !reagendable ? avisoNoReagendable?.(cita) : null
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 py-3.5">
-      <div className="flex items-center gap-3.5">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: resuelta ? "#f1f5f9" : "#eef2ff", color: resuelta ? "#64748b" : "#2563eb" }}><Calendar size={18} /></div>
-        <div className="space-y-1">
-          <span className="inline-block rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">{cita.motivo}</span>
-          <div className="flex items-center gap-3 text-sm font-semibold text-slate-800">
-            <span className="flex items-center gap-1"><Calendar size={13} className="text-slate-500" /> {etiquetaFecha(cita.fecha)}</span>
-            <span className="flex items-center gap-1"><Clock size={13} className="text-slate-500" /> {cita.hora}</span>
-          </div>
-          {avisoTiempo && <p className="text-xs font-normal text-slate-500">{avisoTiempo}</p>}
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {reagendable && (
-          <button
-            type="button"
-            onClick={() => onReagendar?.(cita)}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer"
-          >
-            <CalendarClock size={13} /> Reagendar
-          </button>
-        )}
-        {reagendable && (
-          <button
-            type="button"
-            onClick={() => onCancelar?.(cita)}
-            className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 cursor-pointer"
-          >
-            <X size={13} /> Cancelar
-          </button>
-        )}
-        {atendida ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600"><CheckCircle2 size={12} /> Atendida</span>
-        ) : noAsistio ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600"><AlertCircle size={12} /> No asistió</span>
-        ) : cancelada ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500"><X size={12} /> Cancelada</span>
-        ) : enAtencion ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600"><Activity size={12} /> Te están atendiendo</span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Pendiente</span>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function OjoReceta({ sigla, titulo, ojo = {}, color }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="grid h-6 w-6 place-items-center rounded-md font-mono text-xs font-bold text-white" style={{ backgroundColor: color }}>{sigla}</span>
-        <span className="text-xs font-semibold text-slate-600">{titulo}</span>
-      </div>
-      <div className="rounded-lg border border-slate-200 bg-white py-3.5 text-center">
-        <p className="font-mono text-sm font-bold" style={{ color: INK }}>{textoGraduacion(ojo)}</p>
-        <p className="mt-0.5 text-xs text-slate-500">Esfera · Cilindro · Eje</p>
-      </div>
-      <p className="mt-2 border-t border-slate-200 pt-2 text-center text-xs text-slate-500">Agudeza: <span className="font-semibold text-slate-600">{ojo.avCc || ojo.avSc || "—"}</span></p>
-    </div>
-  )
-}
-
-// "-1.50 -0.50 x90" o "No registrada" (esfera, cilindro y eje del ojo).
-const textoGraduacion = (ojo = {}) => (ojo.esfera || ojo.cilindro || ojo.eje ? [ojo.esfera || "—", ojo.cilindro, ojo.eje ? `x${ojo.eje}` : ""].filter(Boolean).join(" ") : "No registrada")
-
-// Lo que la óptica toma para armar los lentes (distancia pupilar y altura): solo si la política de la óptica lo permite.
-function MedidasMontaje({ medidas = {} }) {
-  const filas = [["Distancia pupilar", medidas.dp], ["Altura", medidas.alt]].filter(([, v]) => v)
-  if (filas.length === 0) return null
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {filas.map(([etiqueta, valor]) => (
-        <div key={etiqueta} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-center">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{etiqueta}</p>
-          <p className="mt-0.5 font-mono text-sm font-bold" style={{ color: INK }}>{valor}</p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// Los dos permisos para recibir mensajes: el paciente los ve y los cambia aquí, y la óptica los respeta (el servidor lo exige).
-function MisPermisosMensajes({ usuario }) {
-  const [permisos, setPermisos] = useState(null)
-  const [error, setError] = useState("")
-  useEffect(() => {
-    let vivo = true
-    leerMisPermisos(typeof usuario?.id === "string" ? usuario.id : null, usuario?.token).then((r) => { if (!vivo) return; if (r.ok) setPermisos(r); else setError(r.error) })
-    return () => { vivo = false }
-  }, [usuario?.id, usuario?.token])
-  const cambiar = async (cambios) => {
-    const r = await cambiarMisPermisos(typeof usuario?.id === "string" ? usuario.id : null, usuario?.token, cambios)
-    if (r.ok) setPermisos((p) => ({ ...p, ...(r.recordatorios !== undefined ? { recordatorios: r.recordatorios, promociones: r.promociones, actualizadoEn: r.actualizadoEn } : cambios) }))
-    return r
-  }
-  return (
-    <section aria-label="Permisos para recibir mensajes" className="mt-6 border-t border-slate-100 pt-5">
-      <h3 className="text-base font-bold" style={{ color: INK }}>Mensajes que quieres recibir</h3>
-      <p className="mb-3 mt-0.5 text-sm text-slate-500">Tú decides. Puedes cambiarlo cuando quieras.</p>
-      {error ? <p role="alert" className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700"><AlertCircle size={14} className="shrink-0" /> {error}</p>
-        : !permisos ? <div className="h-24 animate-pulse rounded-xl bg-slate-100" aria-hidden="true" />
-        : <PermisosMensajes recordatorios={permisos.recordatorios} promociones={permisos.promociones} actualizadoEn={permisos.actualizadoEn} onCambiar={cambiar} quien="yo" />}
-    </section>
-  )
-}
-
-// Teléfono y correo se pueden cambiar desde el portal; el resto (nombre, cédula, nacimiento) solo lo corrige la óptica.
-// El portal inicia sesión con la cédula (o el usuario), no con el correo: cambiar el correo no cambia cómo entra el paciente.
-const sinDato = (v) => !v || /^sin /i.test(String(v).trim())
-function MisDatosContacto({ usuario, onActualizado }) {
-  const [editando, setEditando] = useState(false)
-  const [telefono, setTelefono] = useState("")
-  const [correo, setCorreo] = useState("")
-  const [errores, setErrores] = useState({})
-  const [guardando, setGuardando] = useState(false)
-  const [aviso, setAviso] = useState("")
-  const [errorGeneral, setErrorGeneral] = useState("")
-  const telActual = sinDato(usuario?.telefono) ? "" : usuario.telefono
-  const corActual = sinDato(usuario?.correo) ? "" : usuario.correo
-  const nacimiento = usuario?.fecha_nacimiento || usuario?.fechaNacimiento
-  const empezar = () => { setTelefono(telActual); setCorreo(corActual); setErrores({}); setErrorGeneral(""); setAviso(""); setEditando(true) }
-  const cancelar = () => { setEditando(false); setErrores({}); setErrorGeneral("") }
-
-  const guardar = async (e) => {
-    e?.preventDefault()
-    const tel = telefono.trim()
-    const cor = correo.trim()
-    const errs = {}
-    if (!tel) errs.telefono = "Ingresa tu teléfono."
-    else if (!esTelefonoValido(tel, false)) errs.telefono = "El teléfono debe tener entre 7 y 10 dígitos, sin espacios ni guiones."
-    if (!cor) errs.correo = "Ingresa tu correo."
-    else if (!esEmailValido(cor, false)) errs.correo = "Ingresa un correo válido (ej. nombre@dominio.com)."
-    setErrores(errs)
-    if (Object.keys(errs).length > 0) return
-    const cambiaTel = tel !== telActual
-    const cambiaCor = cor.toLowerCase() !== corActual.toLowerCase()
-    if (!cambiaTel && !cambiaCor) { setEditando(false); return }
-    setGuardando(true)
-    setErrorGeneral("")
-    let nuevoTel = tel
-    let nuevoCor = cor
-    if (supabase) {
-      const { data, error } = await supabase.rpc("actualizar_contacto_paciente", {
-        p_paciente_id: typeof usuario?.id === "string" ? usuario.id : null,
-        p_token: usuario?.token,
-        p_telefono: cambiaTel ? tel : null,
-        p_correo: cambiaCor ? cor : null,
-      })
-      setGuardando(false)
-      if (error || !data) { setErrorGeneral("No pudimos guardar tus cambios. Revisa tu conexión e intenta de nuevo."); return }
-      if (data.ok !== true) {
-        setErrorGeneral(data.error === "sesion" ? "Tu sesión venció. Cierra sesión y vuelve a entrar para cambiar tus datos." : data.error || "No pudimos guardar tus cambios.")
-        return
-      }
-      nuevoTel = data.telefono
-      nuevoCor = data.correo
-    } else {
-      setGuardando(false)
-    }
-    onActualizado?.({ telefono: nuevoTel, correo: nuevoCor })
-    setEditando(false)
-    setAviso(cambiaTel && cambiaCor ? "Listo: actualizamos tu teléfono y tu correo." : cambiaTel ? "Listo: actualizamos tu teléfono." : "Listo: actualizamos tu correo.")
-    setTimeout(() => setAviso(""), 6000)
-  }
-
-  const fijo = (icon, label, valor) => (
-    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5">
-      <p className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-slate-400">{label} <Lock size={11} aria-label="Solo la óptica puede cambiarlo" /></p>
-      <p className="mt-1 break-words text-sm font-semibold text-slate-700">{valor || "No registrado"}</p>
-    </div>
-  )
-  const campo = (id, label, valor, setValor, error, props) => (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
-      <label htmlFor={id} className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-slate-400">{label}</label>
-      <input id={id} value={valor} onChange={(e) => setValor(e.target.value)} aria-invalid={!!error} aria-describedby={error ? id + "-error" : undefined} className={"mt-1 w-full rounded-lg border px-2.5 py-2 text-sm font-semibold outline-none transition-colors focus-visible:ring-2 " + (error ? "border-red-300 focus-visible:ring-red-100" : "border-blue-300 focus-visible:ring-blue-100")} style={{ color: INK }} {...props} />
-      {error && <p id={id + "-error"} role="alert" className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={12} /> {error}</p>}
-    </div>
-  )
-  const editable = (label, valor) => (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
-      <p className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-slate-400">{label}
-        <button type="button" onClick={empezar} className="text-xs font-bold normal-case tracking-normal text-blue-700 hover:underline cursor-pointer">Editar</button>
-      </p>
-      <p className={"mt-1 break-all text-sm " + (valor ? "font-semibold" : "text-slate-400")} style={valor ? { color: INK } : undefined}>{valor || "Sin registrar"}</p>
-    </div>
-  )
-  return (
-    <form onSubmit={guardar} noValidate className="mt-5">
-      {aviso && <div role="status" className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700"><CheckCircle2 size={16} /> {aviso}</div>}
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-        {fijo(IdCard, "Nombre", usuario?.nombre)}
-        {fijo(IdCard, "Cédula", usuario?.cedula)}
-        {fijo(Cake, "Fecha de nacimiento", nacimiento ? formatoFecha(nacimiento, "largoSinDia") || nacimiento : "")}
-        {fijo(Calendar, "Paciente desde", usuario?.fechaRegistro ? formatoFecha(usuario.fechaRegistro, "largoSinDia") : "")}
-        {editando ? campo("mis-datos-telefono", "Teléfono", telefono, setTelefono, errores.telefono, { type: "tel", inputMode: "numeric", maxLength: 10, autoComplete: "tel" }) : editable("Teléfono", telActual)}
-        {editando ? campo("mis-datos-correo", "Correo", correo, setCorreo, errores.correo, { type: "email", autoComplete: "email" }) : editable("Correo", corActual)}
-      </div>
-      <p className="mt-3.5 flex items-start gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-500"><Lock size={13} className="mt-0.5 shrink-0" aria-hidden="true" /> Para corregir tu nombre, cédula o fecha de nacimiento, comunícate con la óptica. Tu teléfono y tu correo son donde te enviamos recordatorios y avisos.</p>
-      {errorGeneral && <p role="alert" className="mt-3 flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs font-medium text-red-700"><AlertCircle size={14} className="shrink-0" /> {errorGeneral}</p>}
-      {editando && (
-        <div className="mt-3.5 flex justify-end gap-2">
-          <button type="button" onClick={cancelar} disabled={guardando} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
-          <button type="submit" disabled={guardando} className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>{guardando ? "Guardando…" : "Guardar cambios"}</button>
-        </div>
-      )}
-    </form>
-  )
-}
-

@@ -34,7 +34,7 @@ export default function Ventas({
   usuario, cargaInicial = false, parametrizacion, pacientes = [], consultas = [], inventario = [], setInventario,
   categoriasInventario = [], setCategoriasInventario, ventas = [], facturasVenta = [], setFacturasVenta,
   pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], abonosAnulados = [], equipo = [],
-  accionInicial, onAccionInicialConsumida, onVerPaciente, onAviso, avisosDelModulo = null,
+  accionInicial, onAccionInicialConsumida, onVerPaciente, onAviso, avisosDelModulo = null, pagosPorVerificar = [], recargarPagos,
 }) {
   const puedeVender = puede(usuario, "ventas", "crear")
   const puedeEditar = puede(usuario, "ventas", "editar")
@@ -156,6 +156,13 @@ export default function Ventas({
             )}
             {tab === "cobros" && (
               <PestanaCobros
+                pagosPorVerificar={pagosPorVerificar}
+                onPagoConfirmado={(p, r) => {
+                  setFacturasVenta?.((prev) => prev.map((f) => (f.id === p.facturaId ? { ...f, estado: r.estado || f.estado, cuotasPagadas: r.cuotasPagadas ?? f.cuotasPagadas } : f)))
+                  notificar(r.estado === "pagada" ? `Pago confirmado: la venta de ${p.pacienteNombre || "el paciente"} quedó pagada.` : "Pago confirmado: quedó registrado como abono por transferencia.")
+                  recargarPagos?.()
+                }}
+                onPagoRechazado={() => { notificar("Pago rechazado: el paciente verá el motivo en su portal."); recargarPagos?.() }}
                 facturas={facturasVenta} abonos={abonos} abonosAnulados={abonosAnulados} pacientes={pacientes} ventas={ventas} ordenes={ordenesLab}
                 puedeEditar={puedeEditar}
                 onCobrar={abonar}
