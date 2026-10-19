@@ -156,7 +156,8 @@ test('Resumen de un paciente con historial (Demo, solo lectura)', async ({ page 
   await page.getByRole('img', { name: /^Citas por mes:/ }).scrollIntoViewIfNeeded().catch(() => {})
   await foto(page, 'reorganizado-8b-resumen-demo-abajo')
   await page.getByRole('tab', { name: /Graduación/ }).click()
-  await expect(page.getByText('Tendencia de graduación medida')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Graduación', exact: true })).toBeVisible()
+  await expect(page.getByText('Tendencia de graduación medida')).toHaveCount(0) // ya no está: la cubren «Comparar» y la historia de cada ojo
 })
 
 // El menú ⋮ de la lista de Pacientes: "Atender ahora" abre el mismo modal del perfil (toda atención pasa por una cita).
