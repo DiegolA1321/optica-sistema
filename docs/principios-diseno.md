@@ -185,7 +185,7 @@ El saludo no adivina el nombre: mientras el nombre y el apellido estén en un so
 Ocultar algo solo al dibujar la pantalla no lo oculta: el dato igual llega al navegador. Lo que una persona no debe ver no se envía. Las funciones que el portal usa entregan solo lo que el portal muestra (`mis_consultas_paciente`, `mis_citas_paciente`), y "Descargar mis datos" (`exportar_mis_datos_paciente`) entrega todos los datos personales y clínicos del paciente (antecedentes y alergias incluidos) pero nunca campos internos: ids del personal, intentos de inicio de sesión, montos, tokens ni campos de control.
 - **Portal:** la distancia pupilar y la altura solo viajan si la óptica lo permite (`opticas.settings.mostrarMedidasPaciente`; la clave se conserva). Migración 0107.
 - **Textos:** ninguna pantalla menciona costos o cobros adicionales por entregar datos de salud; si la óptica los cobra, lo hace fuera del sistema.
-- **Cómo aplicarlo:** al ocultar un dato por rol, política o paciente, comprueba qué responde la función o la consulta, no qué dibuja el componente. Se verifica con una llamada real con el token del paciente (`scripts/ensayo-0107.mjs`).
+- **Cómo aplicarlo:** al ocultar un dato por rol, política o paciente, comprueba qué responde la función o la consulta, no qué dibuja el componente. Se verifica con una llamada real con el token del paciente (`scripts/historial/ensayo-0107.mjs`).
 
 ---
 
@@ -258,7 +258,7 @@ Con `MODO_SAAS_VISIBLE` apagado el sistema es para una sola óptica (Óptica Sol
 ### 48. Todo el sistema funciona y se ve bien en celular (390 px), tablet (768 px) y laptop (1366×768)
 Vale para el personal, el superadmin, el portal del paciente y las páginas públicas, sin excepción. En los tres tamaños: **sin desplazamiento horizontal**, nada cortado ni fuera de la pantalla, **menús adaptados** (en el celular el menú lateral se abre con un botón o pasa a una barra inferior), las tarjetas se apilan, las tablas se convierten en listas legibles, las ventanas caben en la pantalla (en el celular ocupan todo el alto, con desplazamiento interno) y **todo lo que se toca mide al menos 44 px** de alto y de ancho. El portal lo usan pacientes mayores desde el celular: su texto es de 16 px como mínimo.
 - **Cómo aplicarlo:** al terminar una pantalla se mira en los tres tamaños; una prueba de Playwright comprueba que `document.documentElement.scrollWidth` no supera el ancho de la ventana a 390, 768 y 1366 px (`e2e/portal-adaptable.spec.js` es el modelo).
-- **Estado:** la revisión del resto del sistema en los tres tamaños está en `docs/revision-adaptable.md`.
+- **Estado:** la revisión del resto del sistema en los tres tamaños está en `docs/historial/revision-adaptable.md`.
 
 ### 49. Lo que el paciente y el personal ven del mismo hecho es un solo componente con dos versiones, y el documento que se entrega es una sola hoja
 La graduación se explica al paciente en el portal y se le enseña en la consulta: es el mismo componente (`componentes/graduacion/Graduacion.jsx`) con la versión del paciente (palabras simples, explicación por rangos de valores en `utilidades/graduacion.js`) y la del personal (OD y OI, esfera, cilindro, eje, adición, agudeza visual y distancia pupilar). «Explicar al paciente» muestra la primera dentro del perfil. Los puntos de fidelidad salen de una sola fórmula (`puntosFidelidad`, la del CRM) y la receta que se imprime al terminar la consulta, la que se ve en «Imprimir receta» del perfil y la que el paciente guarda como PDF desde su portal son la misma hoja (`HojaReceta`, impresa con `imprimirHojaReceta`).

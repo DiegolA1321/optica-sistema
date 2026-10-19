@@ -64,7 +64,7 @@ La marca visible en este alcance es la de la óptica cliente real registrada en 
 
 - `Anteproyecto-Diego-Alarcon.pdf` en la raíz del repo: documento académico fuente de los compromisos que el sistema debe poder defender.
 - Despliegue público real (Vercel), no solo entorno local.
-- `src/assets/hero.png` es una imagen genérica de placeholder, no fotografía real de marca de "Óptica Visión" — no fabricar testimonios, casos de estudio ni fotografía de marca real que no exista.
+- las imágenes genéricas de placeholder (el antiguo `src/assets/hero.png`, ya eliminado) no eran fotografía real de marca de "Óptica Visión" — no fabricar testimonios, casos de estudio ni fotografía de marca real que no exista.
 - Credenciales de prueba (superadmin/óptica/paciente) ya compartidas para QA — no volver a pedirlas.
 
 ## Product Principles
