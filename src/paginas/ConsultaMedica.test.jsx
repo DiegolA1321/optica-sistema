@@ -412,7 +412,7 @@ describe("ConsultaMedica — correcciones de la revisión", () => {
     renderFicha()
     empezar()
     irAPaso(4, "Salud ocular")
-    expect(screen.getByLabelText(/Resultado \(láminas acertadas\)/)).toBeInTheDocument()
+    expect(screen.getByLabelText("Resultado")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Alterado" }))
     expect(screen.getByRole("button", { name: "Alterado" })).toHaveAttribute("aria-pressed", "true")
     expect(screen.getByRole("button", { name: "Normal" })).toHaveAttribute("aria-pressed", "false")

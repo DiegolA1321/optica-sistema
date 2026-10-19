@@ -86,7 +86,7 @@ export default function MisDatosPortal({ usuario, nombreOptica, citas, consultas
           </dl>
         </Seccion>
 
-        <Seccion id="mensajes" titulo="Mensajes que quieres recibir" Icono={Bell}>
+        <Seccion id="mensajes" titulo="Mensajes que recibes" Icono={Bell}>
           <MisPermisosMensajes usuario={usuario} />
         </Seccion>
 

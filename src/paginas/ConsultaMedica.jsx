@@ -800,7 +800,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                       : <p className="text-xs text-slate-500">Guarda la ficha clínica para habilitar la impresión.</p>}
                   </div>
                   <button type="button" onClick={imprimirReceta} disabled={!fichaGuardada} title={fichaGuardada ? "Imprimir o descargar como PDF" : "Primero guarda la ficha clínica"}
-                    className={"flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors " + (fichaGuardada ? "text-white cursor-pointer" : "cursor-not-allowed text-slate-400")}
+                    className={"flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors " + (fichaGuardada ? "text-white cursor-pointer" : "cursor-not-allowed text-slate-400")}
                     style={fichaGuardada ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" } : { backgroundColor: "#e2e8f0" }}>
                     <Printer size={15} /> Imprimir / Descargar PDF
                   </button>

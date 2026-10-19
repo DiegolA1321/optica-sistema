@@ -60,7 +60,7 @@ export default function PasoSalud({ f, set, setVarios }) {
       <Tarjeta titulo="Test de color" icono={Palette}>
         <div className="flex flex-wrap items-end gap-3">
           <Lista id="colorPrueba" etiqueta="Prueba" valor={f.colorPrueba} onCambiar={(v) => set("colorPrueba", v)} opciones={PRUEBAS_COLOR} ancho="w-44" />
-          <Texto id="colorResultado" etiqueta="Resultado (láminas acertadas)" valor={f.colorResultado} onCambiar={(v) => set("colorResultado", v)} placeholder="Ej. 14 de 14" ancho="w-40" />
+          <Texto id="colorResultado" etiqueta="Resultado" valor={f.colorResultado} onCambiar={(v) => set("colorResultado", v)} placeholder="Ej. 14 de 14" ancho="w-40" />
           <div><p className="mb-1 text-xs font-semibold text-slate-500">Interpretación</p><Opciones etiqueta="Interpretación" opciones={INTERPRETACIONES_COLOR} valor={f.colorInterpretacion} onCambiar={(v) => set("colorInterpretacion", v)} /></div>
         </div>
       </Tarjeta>

@@ -81,6 +81,11 @@ export const puedeCancelarCita = (cita) => ["Pendiente", "En Espera"].includes(c
 // Qué acciones ofrece cada estado. Atender solo tiene sentido en lo que sigue abierto; una cita ya atendida o
 // cancelada no se edita; una que no asistió solo muestra su estado y ofrece agendar otra.
 export const puedeAtenderCita = (cita) => ["Pendiente", "En Espera", "En Atención"].includes(cita.estado)
+// «Ingresar» (o «Atender») solo aparece si la cita es de HOY o es una pendiente de un día anterior que no se atendió (y retomar una atención abierta). Una cita futura no se atiende: muestra «Próxima cita: [fecha]».
+// La misma regla en la Agenda, el perfil del paciente (cabecera y pestaña Citas) y el detalle de la cita.
+export const puedeIngresarCita = (cita, hoy) => puedeAtenderCita(cita) && (cita.estado === "En Atención" || !cita.fecha || cita.fecha <= hoy)
+// Una cita abierta que todavía es futura: se avisa, sin botón.
+export const esCitaFuturaPendiente = (cita, hoy) => puedeAtenderCita(cita) && cita.estado !== "En Atención" && Boolean(cita.fecha) && cita.fecha > hoy
 // Una cita de otro día (la de mañana que se atiende hoy, o una de ayer) pide una confirmación liviana antes de entrar a la
 // ficha: se atiende hoy y su fecha agendada no cambia. Las de hoy entran directo, y retomar una atención abierta no pregunta.
 export const requiereConfirmarOtroDia = (cita, hoy) => cita.estado !== "En Atención" && Boolean(cita.fecha) && cita.fecha !== hoy

@@ -209,14 +209,16 @@ export function SelectorReceta({ recetas, valorId, onElegir, version = "paciente
   }, [abierto])
   const anios = useMemo(() => aniosDeRecetas(recetas), [recetas])
   const actual = recetas.find((r) => String(r.id) === String(valorId)) || recetas[0]
-  const rotulo = (r) => `Receta del ${formatoFecha(r.fecha, "largoSinDia")}${r.id === recetas[0]?.id ? " · vigente" : ""}`
+  // El rótulo corto cabe en una línea: «19 oct 2026 · vigente». La fecha completa va en la etiqueta para lector de pantalla y en cada opción del menú.
+  const rotulo = (r) => `${formatoFecha(r.fecha, "medio")}${r.id === recetas[0]?.id ? " · vigente" : ""}`
+  const rotuloLargo = (r) => `Receta del ${formatoFecha(r.fecha, "largoSinDia")}${r.id === recetas[0]?.id ? " · vigente" : ""}`
   if (recetas.length < 2) return <p className={paciente ? "text-lg font-semibold text-pt-marino" : "text-sm font-semibold text-slate-800"}>{rotulo(actual)}</p>
   const visibles = filtrarRecetasPorAnio(recetas, anio)
   return (
     <div className="relative" ref={raiz}>
-      <button type="button" onClick={() => setAbierto((v) => !v)} aria-haspopup="listbox" aria-expanded={abierto} aria-label={`Elegir otra receta. Se muestra: ${rotulo(actual)}`}
-        className={"inline-flex w-full items-center justify-between gap-3 border bg-white text-left font-semibold transition-colors cursor-pointer " + (paciente ? "@[40rem]:w-[22.5rem] min-h-12 rounded-xl border-[1.5px] border-slate-300/80 px-4 text-base text-pt-marino hover:bg-slate-50" : "min-h-10 rounded-lg border-slate-300 px-3 text-sm text-slate-800 hover:bg-slate-50")}>
-        <span>{rotulo(actual)}</span>
+      <button type="button" onClick={() => setAbierto((v) => !v)} aria-haspopup="listbox" aria-expanded={abierto} aria-label={`Elegir otra receta. Se muestra: ${rotuloLargo(actual)}`}
+        className={"inline-flex w-full items-center justify-between gap-3 border bg-white text-left font-semibold transition-colors cursor-pointer " + (paciente ? "@[40rem]:w-[15.5rem] min-h-12 rounded-xl border-[1.5px] border-slate-300/80 px-4 text-base text-pt-marino hover:bg-slate-50" : "min-h-10 rounded-lg border-slate-300 px-3 text-sm text-slate-800 hover:bg-slate-50")}>
+        <span className="whitespace-nowrap">{rotulo(actual)}</span>
         <ChevronDown size={paciente ? 20 : 16} className={"shrink-0 text-slate-500 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
       </button>
       {abierto && (
@@ -277,7 +279,7 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
   const compararCon = anterior || recetas.find((r) => r !== receta)
   const elegirPorFecha = (fecha) => { const r = recetas.find((x) => x.fecha === fecha); if (r) setId(r.id) }
   const boton = portal
-    ? "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-[1.5px] border-slate-300/80 bg-white px-5 text-base font-semibold leading-snug text-pt-marino transition-colors hover:bg-slate-50 cursor-pointer"
+    ? "inline-flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-[1.5px] border-slate-300/80 bg-white px-5 text-base font-semibold leading-snug text-pt-marino transition-colors hover:bg-slate-50 cursor-pointer"
     : "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
   const cambio = portal && anterior && <CambioGraduacion consultas={[receta, anterior]} version={v} onElegir={() => setComparando(true)} />
   const bloqueIndicaciones = indicaciones.length > 0 && (
@@ -291,10 +293,10 @@ export function VistaGraduacion({ recetas = [], version = "paciente", titulo = "
     <div className={"@container space-y-5 sm:space-y-6 " + className}>
       <div className="flex flex-col gap-4 @[56rem]:flex-row @[56rem]:items-start @[56rem]:justify-between @[56rem]:gap-6">
         <div className="min-w-0">
-          <h1 className={portal ? "font-heading text-2xl font-bold tracking-tight text-pt-marino sm:text-[28px] sm:leading-tight" : "text-lg font-bold text-slate-900"}>{titulo}</h1>
+          <h1 className={"whitespace-nowrap " + (portal ? "font-heading text-2xl font-bold tracking-tight text-pt-marino sm:text-[28px] sm:leading-tight" : "text-lg font-bold text-slate-900")}>{titulo}</h1>
           {subtitulo && <p className={"mt-1 " + (portal ? "text-base text-pt-texto" : "text-sm text-slate-500")}>{subtitulo(receta)}</p>}
         </div>
-        <div className={"flex items-center gap-3 @[56rem]:justify-end " + (portal ? "flex-wrap @[40rem]:flex-nowrap" : "flex-nowrap gap-2 [&>button]:whitespace-nowrap")}>
+        <div className={"flex items-center gap-3 @[56rem]:justify-end " + (portal ? "flex-wrap @[40rem]:flex-nowrap [&>button]:whitespace-nowrap" : "flex-nowrap gap-2 [&>button]:whitespace-nowrap")}>
           <SelectorReceta recetas={recetas} valorId={receta.id} onElegir={setId} version={portal ? "paciente" : "personal"} />
           {recetas.length > 1 && <button type="button" onClick={() => setComparando(true)} aria-label="Comparar dos recetas" className={boton + " shrink-0"}><GitCompare size={portal ? 20 : 15} aria-hidden="true" /> {portal ? <><span className="@[48rem]:hidden">Comparar</span><span className="hidden @[48rem]:inline">Comparar dos recetas</span></> : "Comparar dos recetas"}</button>}
           {explicable && <button type="button" onClick={() => setSimple((x) => !x)} aria-pressed={simple} className={boton}><MessageSquareText size={15} aria-hidden="true" /> {simple ? "Volver a la vista técnica" : "Explicar al paciente"}</button>}

@@ -1,13 +1,33 @@
-// "Atender" una cita de OTRO día (ajuste del 8 oct. a C16) en la óptica de pruebas (E2E): ESCRIBE datos (un paciente y una
-// cita de mañana para Paula, que termina "En atención"). Las citas de hoy entran directo a la ficha (lo cubre
-// llego-en-espera.spec.js); la de otro día abre su detalle con "¿Atenderla hoy?" y un clic más.
+// "Atender" una cita de OTRO día en la óptica de pruebas (E2E): ESCRIBE datos (un paciente y una cita para Paula).
+// Regla del 19 oct.: «Ingresar» (o «Atender») solo aparece si la cita es de hoy o una pendiente de un día ANTERIOR que no se atendió; una cita FUTURA muestra «Próxima cita: [fecha]» sin botón, en la Agenda y en el perfil.
+// Las citas de hoy entran directo a la ficha (lo cubre llego-en-espera.spec.js); la de un día anterior abre su detalle con "¿Atenderla hoy?" y un clic más.
 import { test, expect } from '@playwright/test'
 import { iniciarSesion, crearCitaDeHoyParaPaula } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
-test('una cita de otro día pregunta "¿Atenderla hoy?" antes de entrar a la ficha', async ({ page }) => {
-  const nombre = await crearCitaDeHoyParaPaula('E2E', { diasDespues: 1 })
+test('una cita futura no se atiende: dice «Próxima cita» y no ofrece Atender ni Ingresar, ni en la Agenda ni en el perfil', async ({ page }) => {
+  const nombre = await crearCitaDeHoyParaPaula('E2E', { diasDespues: 3 })
+  await iniciarSesion(page, 'OPTOMETRA', 'E2E')
+  await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
+  await page.getByLabel('Buscar cita: paciente o código').fill(nombre)
+  const tarjeta = page.locator('main .rounded-2xl').filter({ has: page.getByRole('button', { name: nombre }) }).first()
+  await expect(tarjeta).toContainText('Próxima cita:')
+  await expect(tarjeta.getByRole('button', { name: 'Atender', exact: true })).toHaveCount(0)
+  await tarjeta.getByRole('button', { name: nombre }).click()
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Atender', exact: true })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
+  await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
+  await expect(page.getByText(nombre).first()).toBeVisible({ timeout: 45_000 })
+  await page.getByText(nombre).first().click()
+  await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 45_000 })
+  await expect(page.getByRole('button', { name: 'Ingresar' })).toHaveCount(0)
+  await expect(page.getByText(/Próxima cita:/).first()).toBeVisible()
+})
+
+test('una cita de un día anterior pregunta "¿Atenderla hoy?" antes de entrar a la ficha', async ({ page }) => {
+  const nombre = await crearCitaDeHoyParaPaula('E2E', { diasDespues: -1 })
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
   await page.getByLabel('Buscar cita: paciente o código').fill(nombre)
@@ -30,10 +50,10 @@ test('una cita de otro día pregunta "¿Atenderla hoy?" antes de entrar a la fic
   await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 20_000 })
 })
 
-test('al atender una cita de otro día se mueve al día de hoy (con la hora real)', async ({ page }) => {
+test('al atender una cita pendiente de un día anterior se mueve al día de hoy (con la hora real)', async ({ page }) => {
   const { createClient } = await import('@supabase/supabase-js')
   const { credencial } = await import('./ayudas.js')
-  const nombre = await crearCitaDeHoyParaPaula('E2E', { diasDespues: 3 })
+  const nombre = await crearCitaDeHoyParaPaula('E2E', { diasDespues: -3 })
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
   await page.getByLabel('Buscar cita: paciente o código').fill(nombre)

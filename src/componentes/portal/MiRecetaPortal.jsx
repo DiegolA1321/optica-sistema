@@ -80,7 +80,7 @@ export default function MiRecetaPortal({ cargando, ultimaReceta, todasLasRecetas
         {errorMedidas && <p role="alert" className="mt-2 text-lg font-semibold text-red-600">{errorMedidas}</p>}
         {abierta
           ? <span className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#E3F4EA] px-4 text-lg font-semibold text-[#166534]"><CheckCircle2 size={20} aria-hidden="true" /> Solicitud enviada</span>
-          : <button type="button" onClick={() => setConfirmando(true)} disabled={enviandoMedidas} className={BOTON_SECUNDARIO + " mt-3 w-full"}>{enviandoMedidas ? "Enviando..." : "Solicitar distancia pupilar y medidas de montaje"}</button>}
+          : <button type="button" onClick={() => setConfirmando(true)} disabled={enviandoMedidas} className={BOTON_SECUNDARIO + " mt-3 w-full"}>{enviandoMedidas ? "Enviando..." : "Solicitar mis medidas"}</button>}
         {confirmando && (
           <Cascaron pantallaCompletaEnCelular titulo="Solicitar tus medidas" subtitulo="Distancia pupilar y medidas de montaje" Icono={Ruler} ancho="max-w-md" onCerrar={() => setConfirmando(false)}
             pie={<><button type="button" onClick={() => setConfirmando(false)} className={BOTON_SECUNDARIO}>Cancelar</button><button type="button" onClick={() => { setConfirmando(false); onSolicitarMedidas() }} className={BOTON_PRINCIPAL} style={ESTILO_PRINCIPAL}>Enviar solicitud</button></>}>

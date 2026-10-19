@@ -57,7 +57,7 @@ import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiqueta
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
 import { citasParaReagendar } from "../utilidades/controles"
-import { ESTADOS_FILTRO, ALTA_FILTRO, periodosFiltro, tareasFiltro, proximoDiaDeAtencion, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeAtenderCita, requiereConfirmarOtroDia, esPrimeraVez } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, ALTA_FILTRO, periodosFiltro, tareasFiltro, proximoDiaDeAtencion, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeIngresarCita, esCitaFuturaPendiente, requiereConfirmarOtroDia, esPrimeraVez } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -106,7 +106,9 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
   // minutos tarde) o de otro día (la de mañana que se atiende hoy). La fecha
   // agendada no cambia — la fecha real queda en la consulta (cita_id).
   // Sin onAtender (rol sin permiso para crear fichas clínicas) no se ofrece el botón.
-  const puedeAtender = puedeAtenderCita(cita) && !!onAtender
+  const puedeAtender = puedeIngresarCita(cita, hoyISO()) && !!onAtender
+  // Una cita futura no se atiende todavía: se dice cuándo es, sin botón.
+  const citaFutura = esCitaFuturaPendiente(cita, hoyISO()) && !!onAtender
   // Fecha real de atención (punto 3, reunión 29 sept.) —
   // solo se muestra cuando difiere de la fecha agendada,
   // para no repetir el mismo dato en el caso común.
@@ -205,6 +207,8 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
             >
               <Receipt size={14} /> Cobrar
             </button>
+          ) : !cobroPendiente && citaFutura ? (
+            <span className="whitespace-nowrap text-xs font-semibold text-slate-500">Próxima cita: {fechaLegible(cita.fecha)}</span>
           ) : !cobroPendiente && puedeAtender && (
             <button
               type="button"

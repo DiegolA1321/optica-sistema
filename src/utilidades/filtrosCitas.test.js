@@ -245,3 +245,21 @@ describe('filtro "Agendada": las citas dadas de alta este mes', () => {
     expect(citas.filter((c) => citaPasaFiltros(c, { ...base, alta: 'todas' })).map((c) => c.id)).toEqual(['a', 'b'])
   })
 })
+
+describe("«Ingresar» solo para hoy o una pendiente de un día anterior", () => {
+  const hoy = "2026-10-19"
+  const c = (estado, fecha) => ({ estado, fecha })
+  it("hoy y días anteriores sí; una cita futura no", async () => {
+    const { puedeIngresarCita, esCitaFuturaPendiente } = await import("./filtrosCitas")
+    expect(puedeIngresarCita(c("Pendiente", hoy), hoy)).toBe(true)
+    expect(puedeIngresarCita(c("Pendiente", "2026-10-17"), hoy)).toBe(true)
+    expect(puedeIngresarCita(c("En Espera", hoy), hoy)).toBe(true)
+    expect(puedeIngresarCita(c("Pendiente", "2027-04-17"), hoy)).toBe(false)
+    expect(esCitaFuturaPendiente(c("Pendiente", "2027-04-17"), hoy)).toBe(true)
+  })
+  it("retomar una atención abierta siempre se puede; una cita ya atendida o cancelada nunca", async () => {
+    const { puedeIngresarCita } = await import("./filtrosCitas")
+    expect(puedeIngresarCita(c("En Atención", "2026-10-17"), hoy)).toBe(true)
+    for (const e of ["Atendida", "Cancelada", "No Asistió"]) expect(puedeIngresarCita(c(e, hoy), hoy)).toBe(false)
+  })
+})

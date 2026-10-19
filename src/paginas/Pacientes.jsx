@@ -73,6 +73,7 @@ import { minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilid
 import { linkWhatsApp, abrirWhatsApp } from "../utilidades/whatsapp"
 import { medidasDelPaciente, mensajeMedidas } from "../utilidades/medidasMontaje"
 import { agudezaConLentes } from "../utilidades/agudeza"
+import { puedeIngresarCita } from "../utilidades/filtrosCitas"
 import AvisoMedidasPedidas from "../componentes/AvisoMedidasPedidas"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import GraduacionPerfil from "../componentes/graduacion/GraduacionPerfil"
@@ -1419,7 +1420,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                                 </span>
                               )}
                               {tienePagoPendiente && (
-                                <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                                <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
                                   <CreditCard size={11} /> Pago pendiente
                                 </span>
                               )}
@@ -1867,19 +1868,19 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
             <div className="px-4 pb-6 pt-3 sm:px-8 sm:pb-8 sm:pt-4">
               {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
               <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-              <div className={"grid gap-x-6 gap-y-5 " + (puedeVerFichas ? "lg:grid-cols-[minmax(0,1fr)_minmax(360px,42%)]" : "")}>
+              <div className={"grid gap-x-6 gap-y-5 " + (puedeVerFichas ? "lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start" : "")}>
                 <div className="flex min-w-0 flex-col gap-5">
-                <div className="flex min-w-0 flex-wrap items-start gap-4">
-                  <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white" style={{ background: GRAD }}>
+                <div className="flex min-w-0 flex-wrap items-start gap-3">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-lg font-bold text-white" style={{ background: GRAD }}>
                     {pacienteHistorial.nombre.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h1 className="font-serif text-2xl font-bold" style={{ color: INK }}>
+                    <h1 className="font-serif text-xl font-bold leading-tight sm:text-2xl" style={{ color: INK }}>
                       {pacienteHistorial.nombre}
                     </h1>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
-                      {pacienteHistorial.cedula && <span className="flex items-center gap-1.5 font-mono"><IdCard size={14} /> {pacienteHistorial.cedula}</span>}
-                      {pacienteHistorial.telefono && <span className="flex items-center gap-1.5"><Phone size={14} /> {pacienteHistorial.telefono}</span>}
+                      {pacienteHistorial.cedula && <span className="flex items-center gap-1.5 whitespace-nowrap font-mono"><IdCard size={14} /> {pacienteHistorial.cedula}</span>}
+                      {pacienteHistorial.telefono && <span className="flex items-center gap-1.5 whitespace-nowrap"><Phone size={14} /> {pacienteHistorial.telefono}</span>}
                       {pacienteHistorial.correo && <span className="flex min-w-0 max-w-full items-center gap-1.5"><Mail size={14} className="shrink-0" /> <span className="truncate" title={pacienteHistorial.correo}>{pacienteHistorial.correo}</span></span>}
                     </div>
                     <div className="mt-2.5 flex flex-wrap items-center gap-2">
@@ -1958,6 +1959,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                     .sort((x, y) => (x.estado === "En Atención" ? -1 : y.estado === "En Atención" ? 1 : x.fecha !== y.fecha ? (x.fecha < y.fecha ? -1 : 1) : minutosDesdeMedianoche(x.hora) - minutosDesdeMedianoche(y.hora)))[0]
                   if (!cita) return null
                   const esHoy = cita.fecha === hoyCita
+                  // Una cita futura no se atiende todavía: «Próxima cita: [fecha]» sin botón (el botón es para hoy o para una pendiente de un día anterior).
+                  if (!puedeIngresarCita(cita, hoyCita)) return <p className="text-sm text-slate-500">Próxima cita: <span className="font-semibold text-slate-700">{fechaLegible(cita.fecha) || ""}</span> · {cita.hora} · {cita.motivo || "Consulta general"}</p>
                   return (
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                       <button type="button" onClick={() => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-5 py-2.5 text-base font-bold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
@@ -2090,7 +2093,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       antes. role="tablist"/"tab"/aria-selected para que un
                       lector de pantalla las anuncie como pestañas, no como
                       4 botones sueltos. */}
-                  <div role="tablist" aria-label="Secciones del paciente" className="mt-5 flex w-fit max-w-full flex-wrap items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
+                  <div role="tablist" aria-label="Secciones del paciente" className="mt-5 flex w-fit max-w-full flex-nowrap items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
                     <button
                       type="button"
                       role="tab"
@@ -2098,7 +2101,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       aria-selected={tabHistorial === "resumen"}
                       aria-controls="panel-paciente"
                       onClick={() => setTabHistorial("resumen")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "resumen" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                      className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "resumen" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
                       style={tabHistorial === "resumen" ? { background: GRAD } : undefined}
                     >
                       <BarChart3 size={14} /> Resumen
@@ -2114,7 +2117,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         aria-selected={tabHistorial === id}
                         aria-controls="panel-paciente"
                         onClick={() => setTabHistorial(id)}
-                        className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === id ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                        className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === id ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
                         style={tabHistorial === id ? { background: GRAD } : undefined}
                       >
                         {/* El ing pidió dos secciones en vez de un historial único (29 sept.,
@@ -2132,7 +2135,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         aria-selected={tabHistorial === "graduacion"}
                         aria-controls="panel-paciente"
                         onClick={() => setTabHistorial("graduacion")}
-                        className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "graduacion" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                        className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "graduacion" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
                         style={tabHistorial === "graduacion" ? { background: GRAD } : undefined}
                       >
                         <Eye size={14} /> Graduación
@@ -2146,7 +2149,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       aria-selected={tabHistorial === "pagos"}
                       aria-controls="panel-paciente"
                       onClick={() => setTabHistorial("pagos")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                      className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
                       style={tabHistorial === "pagos" ? { background: GRAD } : undefined}
                     >
                       {/* El ing rechazó tanto "Pagos" como "Ventas" para esta
@@ -2167,7 +2170,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       aria-selected={tabHistorial === "ordenes"}
                       aria-controls="panel-paciente"
                       onClick={() => setTabHistorial("ordenes")}
-                      className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "ordenes" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700")}
+                      className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "ordenes" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700")}
                       style={tabHistorial === "ordenes" ? { background: GRAD } : undefined}
                     >
                       <FlaskConical size={14} /> Órdenes de laboratorio
@@ -2703,7 +2706,7 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
           Ver atención <ChevronRight size={14} aria-hidden="true" />
         </button>
       )}
-      {conIngresar && onIngresar && (
+      {conIngresar && onIngresar && puedeIngresarCita(c, hoyISO()) && (
         <button type="button" onClick={() => onIngresar(c)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
           <Stethoscope size={13} aria-hidden="true" /> Ingresar
         </button>
@@ -2728,7 +2731,7 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
               {diasAtencionAbierta(proxima) !== null && onDejarDeAtender && (
                 <button type="button" onClick={() => onDejarDeAtender(proxima)} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-50 cursor-pointer">Dejar de atender</button>
               )}
-              {onIngresar && (
+              {onIngresar && puedeIngresarCita(proxima, hoyISO()) && (
                 <button type="button" onClick={() => onIngresar(proxima)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
                   <Stethoscope size={14} aria-hidden="true" /> Ingresar
                 </button>

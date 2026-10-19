@@ -29,7 +29,7 @@ function Ojo({ lado, o = {}, noEvaluado = "" }) {
 
 // `activa`: ya se está en la pestaña Graduación; el panel sigue a la vista pero deja de ser un botón (no tendría adónde llevar).
 export default function GraduacionDeCabecera({ receta, onAbrir, activa = false }) {
-  const base = "@container group flex h-full min-h-[132px] w-full flex-col justify-center gap-3 rounded-xl border border-slate-200/70 bg-slate-50/70 px-5 py-4 text-left " + (activa ? "" : "transition-colors hover:border-blue-200 hover:bg-blue-50/50 cursor-pointer")
+  const base = "@container group flex h-auto w-full flex-col justify-center gap-3 rounded-xl border border-slate-200/70 bg-slate-50/70 px-5 py-4 text-left " + (activa ? "" : "transition-colors hover:border-blue-200 hover:bg-blue-50/50 cursor-pointer")
   const Raiz = activa ? "div" : "button"
   const propsRaiz = activa ? {} : { type: "button", "data-resumen": true, onClick: onAbrir }
   if (!receta) {
@@ -42,11 +42,11 @@ export default function GraduacionDeCabecera({ receta, onAbrir, activa = false }
   }
   return (
     <Raiz {...propsRaiz} aria-label={activa ? undefined : `Graduación vigente del ${formatoFecha(receta.fecha, "medio")}: ojo derecho ${valorD(receta.od?.esfera) || "sin registrar"}, ojo izquierdo ${valorD(receta.oi?.esfera) || "sin registrar"}. Abrir la pestaña Graduación`} className={base}>
-      <span className="flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Graduación vigente · receta del {formatoFecha(receta.fecha, "medio")}</span>
-        {!activa && <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-blue-600" aria-hidden="true">Ver graduación <ChevronRight size={16} /></span>}
+      <span className="flex items-center justify-between gap-2 whitespace-nowrap">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Graduación vigente</span>
+        <span className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-slate-500">{formatoFecha(receta.fecha, "medio")}{!activa && <ChevronRight size={16} className="text-blue-600" aria-hidden="true" />}</span>
       </span>
-      <span className="grid grid-cols-2 gap-x-6">
+      <span className="grid grid-cols-2 gap-x-3">
         <Ojo lado="oi" o={receta.oi} noEvaluado={receta.ojoNoEvaluado?.oi} />
         <Ojo lado="od" o={receta.od} noEvaluado={receta.ojoNoEvaluado?.od} />
       </span>

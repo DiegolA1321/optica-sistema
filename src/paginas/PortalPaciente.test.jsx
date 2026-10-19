@@ -451,7 +451,7 @@ describe("Mi receta", () => {
     await resumen()
     irA("Mi receta")
     expect(screen.queryByText("Distancia pupilar")).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Solicitar distancia pupilar y medidas de montaje/ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Solicitar mis medidas/ })).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/costo adicional/i)
     unmount()
     render(<PortalPaciente {...base} parametrizacion={{ mostrarMedidasPaciente: true }} />)
@@ -459,7 +459,7 @@ describe("Mi receta", () => {
     irA("Mi receta")
     expect(screen.getByText("Distancia pupilar")).toBeInTheDocument()
     expect(screen.getByText("62 mm")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /Solicitar distancia pupilar/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Solicitar mis medidas/ })).not.toBeInTheDocument()
   })
   it("cuando la óptica le envía las medidas, el paciente las ve; si lo cita para tomarlas, ve cuándo lo esperan; con la solicitud abierta lo dice", async () => {
     datos.misMedidas.mockResolvedValue({ abiertaDesde: null, ultima: { resultado: "enviadas", cerrada: "2026-10-19T15:00:00Z", dp: "62", altura: "18", citaFecha: null, citaHora: "" } })
@@ -501,7 +501,7 @@ describe("Mi receta", () => {
     irA("Mi receta")
     // la vigente
     const selector = screen.getByRole("button", { name: /Elegir otra receta/ })
-    expect(selector).toHaveTextContent("Receta del 1 de octubre de 2026 · vigente")
+    expect(selector).toHaveTextContent("1 oct 2026 · vigente")
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("−1.50")
     expect(screen.getByRole("region", { name: "Cómo cambió desde tu examen anterior" })).toHaveTextContent("Mar 2026")
     expect(screen.getByRole("region", { name: "Cómo cambió desde tu examen anterior" })).toHaveTextContent("0.50 más de miopía")
@@ -511,7 +511,7 @@ describe("Mi receta", () => {
     const lista = screen.getByRole("listbox", { name: "Recetas del paciente" })
     expect(within(lista).getAllByRole("option")).toHaveLength(3)
     fireEvent.click(within(lista).getByRole("option", { name: /1 de marzo de 2026/ }))
-    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("Receta del 1 de marzo de 2026")
+    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("1 mar 2026")
     expect(screen.getByRole("button", { name: /Elegir otra receta/ })).not.toHaveTextContent("vigente")
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("−1.00")
     expect(screen.getByRole("region", { name: "Ojo derecho" })).not.toHaveTextContent("−1.50")
@@ -549,7 +549,7 @@ describe("Mi receta", () => {
     await resumen()
     irA("Mi receta")
     expect(screen.queryByRole("button", { name: /Elegir otra receta/ })).not.toBeInTheDocument()
-    expect(screen.getByText("Receta del 1 de octubre de 2026 · vigente")).toBeInTheDocument()
+    expect(screen.getByText("1 oct 2026 · vigente")).toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Cómo cambió desde tu examen anterior" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Comparar dos recetas" })).not.toBeInTheDocument()
   })
@@ -756,7 +756,7 @@ describe("Detalle de cada tarjeta, calendario y cambios de la cita (ronda 5)", (
     irA("Mi receta")
     fireEvent.click(await screen.findByRole("button", { name: /Elegir otra receta/ }))
     fireEvent.click(within(screen.getByRole("listbox", { name: "Recetas del paciente" })).getByRole("option", { name: /1 de abril de 2025/ }))
-    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("Receta del 1 de abril de 2025")
+    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("1 abr 2025")
   })
 
   it("la campanita y la cuenta del paciente están en la cabecera de todas las pantallas (laptop)", async () => {

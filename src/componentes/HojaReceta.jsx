@@ -28,7 +28,7 @@ export default function HojaReceta({ optica = {}, paciente = {}, receta = {}, mo
   const cab = { ...celda, borderTop: "none", background: "#f1f5f9", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: GRIS }
   const ojo = (sigla, nombre, o = {}) => (
     <tr>
-      <td style={{ ...celda, textAlign: "left", fontWeight: 700 }}>{sigla} <span style={{ fontWeight: 400, color: GRIS, fontSize: 12 }}>· {nombre}</span></td>
+      <td style={{ ...celda, textAlign: "left", fontWeight: 700, whiteSpace: "nowrap" }}>{sigla} <span style={{ fontWeight: 400, color: GRIS, fontSize: 12 }}>· {nombre}</span></td>
       {receta.ojoNoEvaluado?.[sigla.toLowerCase()] ? <td colSpan={conReceta ? 6 : 5} style={{ ...celda, textAlign: "left", color: GRIS }}>Ojo no evaluado: {receta.ojoNoEvaluado[sigla.toLowerCase()]}</td> : <>
       <td style={celda}>{dato(dioptriaTexto(o.esfera))}</td><td style={celda}>{dato(dioptriaTexto(o.cilindro))}</td><td style={celda}>{o.eje ? `${o.eje}°` : "—"}</td>
       <td style={celda}>{dato(textoAgudeza(o.avSc, o.avScF))}</td><td style={celda}>{dato(textoAgudeza(o.avCc, o.avCcF))}</td>{conReceta && <td style={celda}>{dato(textoAgudeza(o.avRx, o.avRxF))}</td>}</>}

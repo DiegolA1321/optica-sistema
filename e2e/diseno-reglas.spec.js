@@ -3,9 +3,11 @@
 //   1. Ancho: el contenido ocupa el ancho disponible menos 32 px de margen a cada lado (sin tope), con el menú abierto y con el menú plegado.
 //   2. Filas en columnas, sin el centro vacío: ninguna fila de lista deja más del 40 % de su ancho vacío en el centro.
 //   3. Alineación: en una lista, los montos (a la derecha) y los estados (a la izquierda) quedan en el mismo borde en todas las filas (1 px de tolerancia). Se mide el texto, no la caja.
+//   5. Nada se parte ni se corta: ningún botón, pestaña, título, etiqueta, insignia o selector ocupa varias líneas donde no corresponde, ni queda cortado, ni se sale de su tarjeta (`revisarPartidos`).
+//      Lo que sí puede ocupar varias líneas (un texto largo, el encabezado de una columna de una tabla) se marca con `data-multilinea` o es un texto largo.
 //   4. Todo se puede pulsar: toda tarjeta o fila que resume algo (`.pt-abrible`, o `data-resumen` en el personal) abre una ventana (o lleva a su pestaña) al pulsarla.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, escribirSecreto, SLUG_DEMO } from './ayudas.js'
+import { iniciarSesion, escribirSecreto, SLUG_DEMO, crearCitaDeHoyParaPaula, irAPasoFicha, llenarFichaObligatoria } from './ayudas.js'
 import { protegerDemo } from './guardia-demo.js'
 
 const MARGEN = 32
@@ -82,6 +84,66 @@ async function revisarListas(page, donde) {
   }, donde)
 }
 
+// 5. Nada se parte ni se corta. Mide cada botón, pestaña, título, etiqueta, insignia y selector: su texto en UNA línea (salvo `data-multilinea` y los textos largos, de más de 70 caracteres), nada cortado por su propio borde
+// (puntos suspensivos, recorte) y nada fuera de la tarjeta que lo contiene. Devuelve la lista de problemas.
+async function revisarPartidos(page, donde) {
+  return page.evaluate((donde) => {
+    const problemas = []
+    const visible = (e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0' }
+    const exento = (e) => e.closest('[data-multilinea], [role="listbox"], [role="menu"], [aria-hidden="true"], [data-hoja-receta] [data-multilinea], .sr-only, script, style')
+    const nombre = (e) => (e.getAttribute('aria-label') || e.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40)
+    const lineasDeTexto = (e) => {
+      const tops = []
+      const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT)
+      for (let n = w.nextNode(); n; n = w.nextNode()) {
+        if (!n.textContent.trim() || !n.parentElement || !visible(n.parentElement)) continue
+        const rango = document.createRange(); rango.selectNodeContents(n)
+        for (const q of rango.getClientRects()) if (q.width > 1 && !tops.some((t) => Math.abs(t - q.top) < 4)) tops.push(q.top)
+      }
+      return tops.length
+    }
+    const SELECTORES = 'button, [role="tab"], label, h1, h2, h3, legend, [class*="rounded-full"]'
+    for (const e of document.querySelectorAll(SELECTORES)) {
+      if (!visible(e) || exento(e)) continue
+      const texto = e.textContent.replace(/\s+/g, ' ').trim()
+      if (!texto || texto.length > 70) continue
+      // un botón o etiqueta que envuelve varios bloques (una tarjeta pulsable, un campo con su ayuda) no es una etiqueta corta
+      if (e.querySelector('p, ul, li, table, h1, h2, h3, h4, section, input, select, textarea')) continue
+      // los encabezados de una tabla pueden envolver su texto; el resto, no
+      // Un botón con dos renglones a propósito (el nombre de un paso y su estado) se mide renglón por renglón: cada bloque con texto propio, en una línea.
+      const bloques = [...e.querySelectorAll('*')].filter((c) => ['block', 'flex', 'grid', 'list-item'].includes(getComputedStyle(c).display) && [...c.childNodes].some((x) => x.nodeType === 3 && x.textContent.trim()))
+      for (const unidad of (bloques.length ? bloques : [e])) {
+        const n = lineasDeTexto(unidad)
+        if (n > 1) problemas.push(`${donde}: «${nombre(unidad)}» se parte en ${n} líneas (${e.tagName.toLowerCase()})`)
+      }
+      const cs = getComputedStyle(e)
+      if ((cs.overflow === 'hidden' || cs.textOverflow === 'ellipsis') && e.scrollWidth > e.clientWidth + 1) problemas.push(`${donde}: «${nombre(e)}» queda cortado por su borde`)
+    }
+    // Selectores: el texto elegido cabe completo (se mide con la misma letra) y el selector cabe en su tarjeta.
+    const lienzo = document.createElement('canvas').getContext('2d')
+    for (const s of document.querySelectorAll('select')) {
+      if (!visible(s) || exento(s)) continue
+      const cs = getComputedStyle(s)
+      lienzo.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
+      const texto = s.options[s.selectedIndex]?.text || ''
+      const disponible = s.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 22
+      if (texto && lienzo.measureText(texto).width > disponible + 8) problemas.push(`${donde}: el selector muestra «${texto.slice(0, 40)}» cortado`)
+    }
+    for (const e of document.querySelectorAll('select, input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]), button, [role="tab"]')) {
+      if (!visible(e) || exento(e)) continue
+      const tarjeta = e.parentElement && e.parentElement.closest('section, [role="group"], fieldset, [role="tablist"], nav')
+      if (!tarjeta || tarjeta === e || !visible(tarjeta)) continue
+      const a = e.getBoundingClientRect(), b = tarjeta.getBoundingClientRect()
+      const cs = getComputedStyle(tarjeta)
+      if (cs.overflowX === 'auto' || cs.overflowX === 'scroll') continue
+      if (a.right > b.right + 1 || a.left < b.left - 1) problemas.push(`${donde}: «${nombre(e)}» se sale de su tarjeta (${Math.round(a.right - b.right)} px)`)
+    }
+    // Nada hace desplazar la página de lado.
+    if (document.documentElement.scrollWidth > window.innerWidth + 1) problemas.push(`${donde}: la página se desplaza de lado (${document.documentElement.scrollWidth} px en una ventana de ${window.innerWidth})`)
+    return problemas
+  }, donde)
+}
+
 // Pulsa cada tarjeta o fila que resume algo: abre una ventana o lleva a otra pestaña. Devuelve los que no hicieron nada.
 async function pulsarTodo(page, selector, donde, volver) {
   const fallos = []
@@ -144,9 +206,54 @@ for (const t of TAMANOS) {
           if (Math.abs(m.zona - m.disponible) > 1) problemas.push(`${donde}: el contenido mide ${Math.round(m.zona)} px y el ancho disponible menos márgenes es ${Math.round(m.disponible)}`)
           // 2 y 3. columnas y alineación
           problemas.push(...(await revisarListas(page, donde)))
+          problemas.push(...(await revisarPartidos(page, donde)))
           // 4. todo se pulsa
           problemas.push(...(await pulsarTodo(page, '[data-portal-scroll] .pt-abrible', donde, () => irAPantalla(page, pantalla))))
         }
+        expect(problemas, problemas.join('\n')).toEqual([])
+      })
+
+      // La ficha clínica (los cinco pasos, con datos escritos) y la receta (vista previa y hoja), en la óptica de pruebas (escribe solo ahí; la ficha NO se termina).
+      test(`ficha clínica y receta · ${menu}: nada se parte ni se corta`, async ({ page }) => {
+        test.setTimeout(420_000)
+        const nombre = await crearCitaDeHoyParaPaula('E2E')
+        await iniciarSesion(page, 'OPTOMETRA', 'E2E')
+        await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
+        await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
+        await expect(page.getByText(nombre).first()).toBeVisible({ timeout: 45_000 })
+        await page.getByText(nombre).first().click()
+        await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 45_000 })
+        await page.getByRole('button', { name: 'Ingresar' }).first().click()
+        await expect(page.getByText('Paso 1 de 5')).toBeVisible({ timeout: 20_000 })
+        const primera = page.getByRole('button', { name: 'Entendido, completar antecedentes' })
+        if (await primera.waitFor({ timeout: 6_000 }).then(() => true, () => false)) await primera.click()
+        if (plegado) await page.getByRole('button', { name: 'Colapsar menú' }).click()
+        await page.waitForTimeout(600)
+        const problemas = []
+        const donde = (p) => `Ficha ${t.nombre} ${menu} · ${p}`
+        problemas.push(...(await revisarPartidos(page, donde('paso 1'))))
+        await llenarFichaObligatoria(page) // deja los datos escritos en los pasos 2 y 3 y termina en el 5
+        await irAPasoFicha(page, 2, 'Agudeza visual')
+        await page.locator('#coverTipo').selectOption('Endotropia'); await page.locator('#coverDistancia').selectOption('ambas')
+        problemas.push(...(await revisarPartidos(page, donde('paso 2'))))
+        await irAPasoFicha(page, 3, 'Refracción')
+        await page.locator('#adicionOd').fill('1.50'); await page.locator('#prismaOdCant').fill('2'); await page.locator('#prismaOdBase').selectOption('Nasal')
+        await page.locator('#avOdRx').selectOption('20/20')
+        problemas.push(...(await revisarPartidos(page, donde('paso 3'))))
+        await irAPasoFicha(page, 4, 'Salud ocular')
+        await page.locator('#pioMetodo').selectOption({ index: 1 }); await page.locator('#colorPrueba').selectOption('Farnsworth D-15')
+        problemas.push(...(await revisarPartidos(page, donde('paso 4'))))
+        await irAPasoFicha(page, 5, 'Diagnóstico y receta')
+        await page.getByRole('button', { name: /^Miop[ií]a( y astigmatismo)?$/ }).first().click()
+        await page.getByLabel(/Añadir recomendación de lente/).check()
+        await page.getByLabel('Lente a recomendar').fill('Progresivo, policarbonato, antirreflejo')
+        problemas.push(...(await revisarPartidos(page, donde('paso 5'))))
+        await page.getByRole('button', { name: /Ver la hoja completa/ }).click()
+        await expect(page.locator('[data-hoja-receta]')).toBeVisible()
+        problemas.push(...(await revisarPartidos(page, donde('receta'))))
+        // la receta: «OD · derecho» y el resto de las celdas cortas, en una línea
+        const celdas = await page.evaluate(() => [...document.querySelectorAll('[data-hoja-receta] td, [data-hoja-receta] th')].filter((c) => c.textContent.trim().length > 0 && c.textContent.trim().length <= 24 && !c.closest('[data-multilinea]') && c.tagName === 'TD').filter((c) => { const tops = []; const w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT); for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.textContent.trim()) continue; const rg = document.createRange(); rg.selectNodeContents(n); for (const q of rg.getClientRects()) if (!tops.some((x) => Math.abs(x - q.top) < 4)) tops.push(q.top) } return tops.length > 1 }).map((c) => c.textContent.trim()))
+        for (const c of celdas) problemas.push(`${donde('receta')}: la celda «${c}» se parte en varias líneas`)
         expect(problemas, problemas.join('\n')).toEqual([])
       })
 
@@ -181,6 +288,7 @@ for (const t of TAMANOS) {
           if (m.pad !== MARGEN) problemas.push(`${donde}: el margen es de ${m.pad} px y debe ser de ${MARGEN}`)
           if (Math.abs(m.cabecera - m.disponible) > 1) problemas.push(`${donde}: el contenido mide ${Math.round(m.cabecera)} px y el ancho disponible menos márgenes es ${Math.round(m.disponible)}`)
           problemas.push(...(await revisarListas(page, donde)))
+          problemas.push(...(await revisarPartidos(page, donde)))
           problemas.push(...(await pulsarTodo(page, '.pt-abrible, [data-resumen]', donde, () => page.getByRole('tab', { name: new RegExp('^' + pestana) }).click())))
         }
         expect(problemas, problemas.join('\n')).toEqual([])

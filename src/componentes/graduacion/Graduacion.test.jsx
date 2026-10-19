@@ -121,7 +121,7 @@ describe("La vista completa de una receta (selector, antes → ahora, indicacion
   it("sin más de una receta, el selector es un rótulo y no aparecen comparar ni el antes → ahora", () => {
     render(<VistaGraduacion recetas={[receta()]} titulo="Mi receta" />)
     expect(screen.queryByRole("button", { name: /Elegir otra receta/ })).not.toBeInTheDocument()
-    expect(screen.getByText("Receta del 20 de abril de 2026 · vigente")).toBeInTheDocument()
+    expect(screen.getByText("20 abr 2026 · vigente")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Comparar dos recetas" })).not.toBeInTheDocument()
     expect(screen.queryByRole("region", { name: /Cómo cambió/ })).not.toBeInTheDocument()
   })
@@ -172,7 +172,7 @@ describe("La pestaña «Graduación» del perfil del personal", () => {
   it("es la misma vista del portal, en versión técnica, con comparar, imprimir y «Explicar al paciente» (sin «Cambio» ni «Tendencia»: los cubren comparar y la historia de cada ojo)", () => {
     render(<GraduacionPerfil {...props} />)
     expect(screen.getByRole("heading", { name: "Graduación" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("Receta del 20 de abril de 2026 · vigente")
+    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("20 abr 2026 · vigente")
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("OD · Ojo derecho")
     expect(screen.queryByRole("region", { name: "Cambio desde la consulta anterior" })).not.toBeInTheDocument()
     expect(screen.queryByText("Tendencia de graduación medida")).not.toBeInTheDocument()

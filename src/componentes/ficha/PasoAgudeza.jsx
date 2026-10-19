@@ -63,7 +63,7 @@ export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta
           <table className="w-full min-w-[26rem] border-collapse text-xs">
             <thead>
               <tr className="text-slate-500">
-                <th className="w-20 border border-slate-200 bg-slate-50 p-1.5 text-left font-semibold" />
+                <th className="border border-slate-200 bg-slate-50 p-1.5 text-left font-semibold" />
                 <th className="border border-slate-200 bg-slate-50 p-1.5 font-semibold">Sin corrección</th>
                 <th className="border border-slate-200 bg-slate-50 p-1.5 font-semibold">Con su corrección actual</th>
                 <th className="border border-slate-200 bg-slate-50 p-1.5 font-semibold">Con la receta nueva</th>
@@ -72,7 +72,7 @@ export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta
             <tbody>
               {filas.map(([P, nombre]) => (
                 <tr key={P}>
-                  <th scope="row" className="border border-slate-200 bg-slate-50 p-1.5 text-left font-semibold text-slate-700">{nombre}</th>
+                  <th scope="row" className="whitespace-nowrap border border-slate-200 bg-slate-50 p-1.5 text-left font-semibold text-slate-700">{nombre}</th>
                   <td className="border border-slate-200 p-1.5"><CeldaAv id={`av${P}Sc`} etiqueta={`${nombre}, sin corrección`} valor={f[`av${P}Sc`]} falladas={f[`av${P}ScF`]} onValor={(v) => set(`av${P}Sc`, v)} onFalladas={(v) => set(`av${P}ScF`, v)} error={errores[`av${P}Sc`]} /></td>
                   <td className="border border-slate-200 p-1.5"><CeldaAv id={`av${P}Cc`} etiqueta={`${nombre}, con su corrección actual`} valor={f[`av${P}Cc`]} falladas={f[`av${P}CcF`]} onValor={(v) => set(`av${P}Cc`, v)} onFalladas={(v) => set(`av${P}CcF`, v)} /></td>
                   <td className="border border-slate-200 p-1.5 text-center" data-av-rx={P}>
@@ -81,7 +81,7 @@ export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta
                 </tr>
               ))}
               <tr>
-                <th scope="row" className="border border-slate-200 bg-slate-50 p-1.5 text-left font-semibold text-slate-700">De cerca (Jaeger)</th>
+                <th scope="row" className="whitespace-nowrap border border-slate-200 bg-slate-50 p-1.5 text-left font-semibold text-slate-700">De cerca (Jaeger)</th>
                 {["Sc", "Cc"].map((c) => (
                   <td key={c} className="border border-slate-200 p-1.5">
                     <select aria-label={`De cerca, ${c === "Sc" ? "sin corrección" : "con su corrección actual"}`} value={f[`cerca${c}`]} onChange={(e) => set(`cerca${c}`, e.target.value)} className={CLASE_INPUT + "mx-auto block w-full max-w-[9rem] border-slate-300 px-1.5 text-xs font-semibold"}>

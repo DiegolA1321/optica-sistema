@@ -11,7 +11,7 @@ import { Cascaron } from "./AtencionPaciente"
 import { urlPerfilPaciente } from "./calendarioComun"
 import { profesionalDeCita, mostrarProfesional, esReasignable, esTomable } from "../utilidades/profesionalCita"
 import { edadEnAnios } from "../utilidades/edad"
-import { puedeCancelarCita, puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, requiereConfirmarOtroDia } from "../utilidades/filtrosCitas"
+import { puedeCancelarCita, puedeIngresarCita, puedeEditarCita, puedeAgendarOtraCita, requiereConfirmarOtroDia } from "../utilidades/filtrosCitas"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -71,7 +71,7 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
   const otroDia = requiereConfirmarOtroDia(cita, hoyISO())
   const diaDeLaCita = cita.fecha ? formatoFecha(cita.fecha, "calendario", { enFrase: true }) : ""
   const alAtender = () => { if (otroDia && !confirmandoOtroDia) setConfirmandoOtroDia(true); else onIngresar(cita) }
-  const puedeIngresar = puedeAtenderCita(cita) && !!onIngresar
+  const puedeIngresar = puedeIngresarCita(cita, hoyISO()) && !!onIngresar
   const puedeAgendarOtra = puedeAgendarOtraCita(cita) && !!onAgendarOtra
   const agendada = fechaHoraAgendada(cita.creadoEn)
   const triage = cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle)
