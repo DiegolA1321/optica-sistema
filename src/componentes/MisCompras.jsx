@@ -21,7 +21,7 @@ const CHIP = (activo) => "inline-flex min-h-11 items-center rounded-full px-5 te
 // camino (con lo que compró, lo abonado y lo que debe, y el estado de sus lentes); y el historial de todas las compras con filtros (con saldo, pagadas y por año). Cada compra se pulsa y abre su
 // detalle: lo que compró, los pagos y el historial de abonos, el estado de sus lentes y las facturas para descargar. Solo ve lo suyo: la base valida su sesión, y los archivos salen por una función
 // que la vuelve a validar. Los datos los pide el portal una sola vez (los comparte con el Inicio).
-export default function MisCompras({ usuario, compras = [], ordenes = [], cargando = false, error = "", contacto = null, puntos = null, solicitudes = null, onSolicitarLentes, recetaVigente = null, onPedirCita, onGarantia, onAbrir }) {
+export default function MisCompras({ usuario, compras = [], ordenes = [], cargando = false, error = "", contacto = null, puntos = null, transferencia = null, solicitudes = null, onSolicitarLentes, recetaVigente = null, onPedirCita, onGarantia, onAbrir }) {
   const [bajando, setBajando] = useState("")
   const [errorDescarga, setErrorDescarga] = useState("")
   const [abiertaId, setAbiertaId] = useState(null)
@@ -117,6 +117,7 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                           <h2 className="font-heading text-xl font-bold leading-tight text-pt-marino">{titulo}</h2>
                           {debe && <Insignia tono="ambar">Con saldo</Insignia>}
+                          {(transferencia?.pagos || []).some((p) => p.facturaId === c.id && p.estado === "por_verificar") && <Insignia tono="azul">Pago en verificación</Insignia>}
                         </div>
                         <p className="text-base text-pt-texto">Comprobante {numeroComprobante(c.numero)} · {formatoFecha(diaDeRegistro(c.fecha), "largoSinDia")}</p>
                         <ul aria-label="Lo que compraste" className="space-y-2 pt-1 text-base text-pt-marino">

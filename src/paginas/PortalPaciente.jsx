@@ -17,6 +17,7 @@ import ResumenPortal from "../componentes/portal/ResumenPortal"
 import MisCitasPortal from "../componentes/portal/MisCitasPortal"
 import MiRecetaPortal from "../componentes/portal/MiRecetaPortal"
 import VentanaDetalle from "../componentes/portal/DetallesPortal"
+import VentanaPagarPorTransferencia from "../componentes/portal/PagarPorTransferencia"
 import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
 import { descargarHojaReceta } from "../utilidades/descargarHojaReceta"
 import { edadEnAnios } from "../utilidades/edad"
@@ -226,6 +227,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     return citas.filter((c) => c.pacienteId === usuario.id || c.cedula === usuario.cedula || c.paciente === usuario.nombre)
   }, [citas, usuario])
   const datos = usePortalDatos(usuario, misCitas)
+  // «Pagar por transferencia»: se abre desde el detalle del saldo y desde «Pendiente para ti».
+  const [pagandoTransferencia, setPagandoTransferencia] = useState(false)
   const proximas = useMemo(() => citasProximas(misCitas), [misCitas])
   const historial = useMemo(() => citasHistorial(misCitas), [misCitas])
   const proximaCita = proximas[0] || null
@@ -429,7 +432,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             )}
 
             {seccion === "resumen" && (
-              <ResumenPortal cargando={cargandoPortal} esNuevo={esNuevo} proximaCita={proximaCita} detalleCita={datos.detalle.porCita[proximaCita?.id]} detalleDisponible={datos.detalle.disponible} ordenesAbiertas={ordenesAbiertasDelPaciente(ordenesConPedido)} pendientes={pendientes}
+              <ResumenPortal onPagarTransferencia={datos.transferencia.disponible && comprasConSaldo.length > 0 ? () => setPagandoTransferencia(true) : undefined} cargando={cargandoPortal} esNuevo={esNuevo} proximaCita={proximaCita} detalleCita={datos.detalle.porCita[proximaCita?.id]} detalleDisponible={datos.detalle.disponible} ordenesAbiertas={ordenesAbiertasDelPaciente(ordenesConPedido)} pendientes={pendientes}
                 control={control} tieneCitaPendiente={proximas.length > 0} puntos={puntos} contacto={contacto} hayContacto={tieneContacto(contacto)} ultimaReceta={ultimaReceta} consultas={recetas} nombreOptica={nombreOptica} direccion={contacto.direccion}
                 citaProps={citaProps} onConfirmar={confirmarAsistencia} onAbrir={setAbierto} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} onVerReceta={() => navegar("receta")} />
             )}
@@ -438,7 +441,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               <MiRecetaPortal cargando={cargandoDatos} ultimaReceta={ultimaReceta} todasLasRecetas={recetas} onAbrirReceta={verReceta} descargar={descargarReceta} mostrarMedidas={mostrarMedidas} control={control}
                 medidasSolicitadas={medidasSolicitadas} enviandoMedidas={enviandoMedidas} errorMedidas={errorMedidas} onSolicitarMedidas={solicitarMedidasCompletas} onAgendar={abrirAgendar} />
             )}
-            {seccion === "compras" && <MisCompras usuario={usuario} solicitudes={datos.solicitudes} onSolicitarLentes={datos.solicitar} recetaVigente={ultimaReceta} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} puntos={puntos} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} onAbrir={setAbierto} />}
+            {seccion === "compras" && <MisCompras usuario={usuario} transferencia={datos.transferencia} solicitudes={datos.solicitudes} onSolicitarLentes={datos.solicitar} recetaVigente={ultimaReceta} compras={datos.compras} ordenes={ordenesConPedido} cargando={datos.cargando} error={datos.errorCompras} contacto={contacto} puntos={puntos} onPedirCita={abrirAgendar} onGarantia={pedirGarantia} onAbrir={setAbierto} />}
             {seccion === "datos" && <MisDatosPortal usuario={usuario} nombreOptica={nombreOptica} citas={misCitas} consultas={misConsultas} visitas={historial.length} compras={datos.compras.length} puntos={puntos} alActualizarUsuario={alActualizarUsuario} onCambiarClave={abrirClave} onCerrarSesion={onCerrarSesion} />}
           </div>
         </div>
@@ -466,7 +469,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       )}
 
       {/* ─── DETALLE (cita, pedido de lentes, receta, saldo, control, óptica) ─── */}
-      <VentanaDetalle abierto={abierto} onCerrar={() => setAbierto(null)} citas={misCitas} ordenes={ordenesConPedido} comprasConSaldo={comprasConSaldo} saldoInfo={saldoInfo} recetas={recetas} control={control} tieneCitaPendiente={proximas.length > 0}
+      {pagandoTransferencia && <VentanaPagarPorTransferencia datos={datos.transferencia.datos} compras={comprasConSaldo} pagos={datos.transferencia.pagos} onEnviar={datos.reportarPago} onCerrar={() => setPagandoTransferencia(false)} />}
+      <VentanaDetalle transferencia={datos.transferencia} onPagarTransferencia={() => setPagandoTransferencia(true)} abierto={abierto} onCerrar={() => setAbierto(null)} citas={misCitas} ordenes={ordenesConPedido} comprasConSaldo={comprasConSaldo} saldoInfo={saldoInfo} recetas={recetas} control={control} tieneCitaPendiente={proximas.length > 0}
         contacto={contacto} nombreOptica={nombreOptica} detalle={datos.detalle} citaProps={citaProps} onConfirmar={confirmarAsistencia} onCalificar={datos.calificar} onVerReceta={verReceta} onDescargarReceta={descargarReceta} onAgendar={abrirAgendar} onVerCompras={() => navegar("compras")} puntos={puntos} historialPuntos={historialPuntos} />
 
       {/* ─── AGENDAR CITA ─── */}

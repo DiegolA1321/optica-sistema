@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Star, Stethoscope, UserRound, FileText, Glasses, Wallet, Eye, Store, MapPin, Phone, MessageCircle, Navigation, Clock, CalendarClock, X, CalendarPlus } from "lucide-react"
+import { Star, Stethoscope, UserRound, FileText, Glasses, Wallet, Eye, Store, MapPin, Phone, MessageCircle, Navigation, Clock, CalendarClock, X, CalendarPlus, Landmark } from "lucide-react"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { dinero } from "../../utilidades/formatoMoneda"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
@@ -12,6 +12,7 @@ import { EstadoCita, Estrellas, PasosLentes, CambiosDeCita, BotonCalendario } fr
 import { DetalleReceta } from "../graduacion/Graduacion"
 import { PUNTOS_POR_CONSULTA, PUNTOS_POR_REFERIDO, MINIMO_CLIENTE_FRECUENTE } from "../../utilidades/fidelizacion"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, BOTON_PELIGRO, ESTILO_PRINCIPAL } from "./estilos"
+import { PagosReportados } from "./PagarPorTransferencia"
 
 // Las ventanas de detalle del portal (la ventana estándar del sistema, pantalla completa en el celular). Cada tarjeta del portal abre la suya: la cita, el pedido de los lentes, la receta,
 // el saldo, el próximo control y la óptica. Todas leen los mismos datos que las pantallas; el portal decide cuál está abierta (abierto = { tipo, id }).
@@ -143,7 +144,7 @@ function DetallePedido({ orden, contacto, onCerrar }) {
 }
 
 // El saldo: cada compra con saldo (lo abonado, lo que falta y su barra) y el historial de abonos (fecha y monto) de cada una.
-function DetalleSaldo({ comprasConSaldo, saldoInfo, contacto, onVerCompras, onCerrar }) {
+function DetalleSaldo({ comprasConSaldo, saldoInfo, contacto, transferencia = null, onPagarTransferencia, onVerCompras, onCerrar }) {
   return (
     <Cascaron pantallaCompletaEnCelular titulo="Tu saldo por pagar" subtitulo={saldoInfo ? (comprasConSaldo.length === 1 ? "En una compra" : `En ${comprasConSaldo.length} compras: ${dinero(saldoInfo.saldo)}`) : "Sin saldo pendiente"} Icono={Wallet} ancho="max-w-xl" onCerrar={onCerrar}
       pie={<><button type="button" onClick={() => { onCerrar(); onVerCompras() }} className={BOTON_SECUNDARIO}>Ver mis compras</button><button type="button" onClick={onCerrar} className={BOTON_SECUNDARIO}>Cerrar</button></>}>
@@ -173,7 +174,9 @@ function DetalleSaldo({ comprasConSaldo, saldoInfo, contacto, onVerCompras, onCe
             </section>
           )
         })}
+        {transferencia?.pagos?.length > 0 && <section aria-label="Tus pagos por transferencia"><h3 className="mb-2 text-base font-semibold text-pt-texto">Tus pagos por transferencia</h3><PagosReportados pagos={transferencia.pagos} /></section>}
         <p className="text-base text-pt-texto">Puedes pagar en la óptica, en efectivo, con tarjeta o por transferencia.</p>
+        {transferencia?.disponible && comprasConSaldo.length > 0 && <button type="button" onClick={() => onPagarTransferencia?.()} className={BOTON_PRINCIPAL + " w-full"} style={ESTILO_PRINCIPAL}><Landmark size={20} aria-hidden="true" /> Pagar por transferencia</button>}
         <BotonesContacto contacto={contacto} />
       </div>
     </Cascaron>
@@ -271,7 +274,7 @@ function DetalleLentes({ ordenes, onCerrar }) {
 }
 
 // Decide cuál ventana mostrar según lo que pulsó el paciente.
-export default function VentanaDetalle({ abierto, onCerrar, citas, ordenes, comprasConSaldo, saldoInfo, recetas, control, tieneCitaPendiente, contacto, nombreOptica, detalle, citaProps, onConfirmar, onCalificar, onVerReceta, onDescargarReceta, onAgendar, onVerCompras, puntos, historialPuntos = [] }) {
+export default function VentanaDetalle({ abierto, onCerrar, citas, ordenes, comprasConSaldo, saldoInfo, recetas, control, tieneCitaPendiente, contacto, nombreOptica, detalle, citaProps, onConfirmar, onCalificar, onVerReceta, onDescargarReceta, onAgendar, onVerCompras, transferencia = null, onPagarTransferencia, puntos, historialPuntos = [] }) {
   if (!abierto) return null
   if (abierto.tipo === "cita") {
     const cita = citas.find((c) => String(c.id) === String(abierto.id))
@@ -285,7 +288,7 @@ export default function VentanaDetalle({ abierto, onCerrar, citas, ordenes, comp
     const receta = recetas.find((r) => String(r.id) === String(abierto.id))
     return receta ? <DetalleReceta receta={receta} version="paciente" onCerrar={onCerrar} onImprimir={() => onDescargarReceta(receta)} /> : null
   }
-  if (abierto.tipo === "saldo") return <DetalleSaldo comprasConSaldo={comprasConSaldo} saldoInfo={saldoInfo} contacto={contacto} onVerCompras={onVerCompras} onCerrar={onCerrar} />
+  if (abierto.tipo === "saldo") return <DetalleSaldo comprasConSaldo={comprasConSaldo} saldoInfo={saldoInfo} contacto={contacto} transferencia={transferencia} onPagarTransferencia={onPagarTransferencia} onVerCompras={onVerCompras} onCerrar={onCerrar} />
   if (abierto.tipo === "control") return control ? <DetalleControl control={control} tieneCitaPendiente={tieneCitaPendiente} onAgendar={onAgendar} onCerrar={onCerrar} /> : null
   if (abierto.tipo === "puntos") return puntos ? <DetallePuntos puntos={puntos} historial={historialPuntos} onCerrar={onCerrar} /> : null
   if (abierto.tipo === "lentes") return <DetalleLentes ordenes={ordenes.filter((o) => o.estado === "enviada" || o.estado === "lista")} onCerrar={onCerrar} />

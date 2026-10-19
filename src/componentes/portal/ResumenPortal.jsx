@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CalendarPlus, Phone, MessageCircle, Navigation, Eye, ChevronRight, Glasses, CalendarCheck, DollarSign, Star } from "lucide-react"
+import { CalendarPlus, Phone, MessageCircle, Navigation, Eye, ChevronRight, Glasses, CalendarCheck, DollarSign, Star, Landmark } from "lucide-react"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { nombreDeLosLentes, textoControl, tipoDeLentes } from "../../utilidades/portalPaciente"
 import { enCuantoTiempo, valorD } from "../../utilidades/portalVistas"
@@ -18,7 +18,7 @@ const diaMes = (iso) => formatoFecha(iso, "largoSinDia").replace(/ de \d{4}$/, "
 const ICONO_PENDIENTE = { lentes: Glasses, cita: CalendarCheck, saldo: DollarSign, calificar: Star }
 
 // «Pendiente para ti»: lo que el paciente debe hacer, por prioridad (retirar lentes, confirmar la cita, pagar el saldo, calificar una visita). Solo se dibuja si hay algo.
-function PendienteParaTi({ pendientes, onAbrir, onConfirmar }) {
+function PendienteParaTi({ pendientes, onAbrir, onConfirmar, onPagarTransferencia }) {
   const [confirmando, setConfirmando] = useState("")
   const [error, setError] = useState("")
   const confirmar = async (p) => {
@@ -43,6 +43,7 @@ function PendienteParaTi({ pendientes, onAbrir, onConfirmar }) {
                 <span className="block text-base text-pt-texto">{p.texto}</span>
                 {!p.confirmar && <span className={"mt-1 block text-base font-semibold " + (ambar ? "text-pt-ambar" : "text-pt-azul")}>{p.accion} ›</span>}
               </span>
+              {p.tipo === "saldo" && onPagarTransferencia && <button type="button" onClick={() => onPagarTransferencia()} className={BOTON_SECUNDARIO + " shrink-0 bg-white"}><Landmark size={20} aria-hidden="true" /> Pagar por transferencia</button>}
               {p.confirmar && <button type="button" onClick={() => confirmar(p)} disabled={Boolean(confirmando)} className={BOTON_PRINCIPAL + " shrink-0"} style={ESTILO_PRINCIPAL}>{confirmando === p.id ? "Confirmando…" : p.accion}</button>}
             </li>
           )
@@ -178,7 +179,7 @@ const PASOS_NUEVO = [["Agenda tu cita", "Elige el día y la hora que más te con
 
 // Inicio del portal (diseño aprobado). Arriba, «Pendiente para ti» (solo si hay algo). Después: tu próxima cita en estilo boleto y tus lentes; tu graduación con los ojos ilustrados y, a la
 // derecha, el próximo control y tus puntos; y abajo, la franja oscura de la óptica. La rejilla va por el ancho de la zona de contenido, no de la ventana.
-export default function ResumenPortal({ cargando, esNuevo, proximaCita, detalleCita, detalleDisponible, ordenesAbiertas, pendientes = [], control, tieneCitaPendiente, puntos, contacto, hayContacto, ultimaReceta, consultas = [], nombreOptica, direccion, citaProps, onConfirmar, onAbrir, onAgendar, onVerReceta }) {
+export default function ResumenPortal({ cargando, esNuevo, proximaCita, detalleCita, detalleDisponible, ordenesAbiertas, pendientes = [], control, tieneCitaPendiente, puntos, contacto, hayContacto, ultimaReceta, consultas = [], nombreOptica, direccion, citaProps, onConfirmar, onAbrir, onAgendar, onVerReceta, onPagarTransferencia }) {
   const celular = useCelular()
   if (cargando) {
     return (
@@ -220,7 +221,7 @@ export default function ResumenPortal({ cargando, esNuevo, proximaCita, detalleC
   return (
     <div className="space-y-5 sm:space-y-6">
       <h1 className="sr-only">Inicio</h1>
-      {pendientes.length > 0 && <PendienteParaTi pendientes={pendientes} onAbrir={onAbrir} onConfirmar={onConfirmar} />}
+      {pendientes.length > 0 && <PendienteParaTi pendientes={pendientes} onAbrir={onAbrir} onConfirmar={onConfirmar} onPagarTransferencia={onPagarTransferencia} />}
       <div className={"pt-fila " + (hayLentes ? "pt-fila--8-4" : "pt-fila--solo")}>
         <BoletoCita cita={proximaCita} detalle={detalleCita} detalleDisponible={detalleDisponible} direccion={direccion} citaProps={citaProps} onConfirmar={onConfirmar} onAbrir={(c) => onAbrir({ tipo: "cita", id: c.id })} onAgendar={onAgendar} ocultarConfirmar />
         {hayLentes && <TarjetaLentes ordenes={ordenesAbiertas} horarioHoy={contacto.hoy?.texto} celular={celular} onAbrir={onAbrir} />}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { misCompras } from "../../utilidades/facturaElectronicaApi"
-import { misOrdenes, miControl, misCitasDetalle, confirmarAsistencia, calificarAtencion, misReferidos, marcarCitaEnCalendario, misSolicitudesLentes, solicitarLentes } from "../../utilidades/portalDatos"
+import { misOrdenes, miControl, misCitasDetalle, confirmarAsistencia, calificarAtencion, misReferidos, marcarCitaEnCalendario, misSolicitudesLentes, solicitarLentes, misDatosTransferencia, reportarPagoTransferencia } from "../../utilidades/portalDatos"
 
 // Compras (con su saldo), órdenes de laboratorio, control y detalle de las citas del paciente, pedidos una sola vez para todo el portal (Resumen, Mis citas y Mis compras
 // leen lo mismo). `citas` son las citas del paciente: el detalle se pide cuando cambian. confirmar y calificar actualizan la pantalla al instante.
@@ -10,12 +10,14 @@ export function usePortalDatos(usuario, citas = []) {
   const [estado, setEstado] = useState({ cargando: true, compras: [], errorCompras: "", ordenes: [], control: null, referidos: 0 })
   const [detalle, setDetalle] = useState({ disponible: false, porCita: {} })
   const [solicitudes, setSolicitudes] = useState({ disponible: false, lista: [] })
+  const [transferencia, setTransferencia] = useState({ disponible: false, datos: null, pagos: [] })
   useEffect(() => {
     let vivo = true
-    Promise.all([misCompras(pacienteId, token), misOrdenes(pacienteId, token), miControl(pacienteId, token), misReferidos(pacienteId, token), misSolicitudesLentes(pacienteId, token)]).then(([c, o, k, r, s]) => {
+    Promise.all([misCompras(pacienteId, token), misOrdenes(pacienteId, token), miControl(pacienteId, token), misReferidos(pacienteId, token), misSolicitudesLentes(pacienteId, token), misDatosTransferencia(pacienteId, token)]).then(([c, o, k, r, s, t]) => {
       if (!vivo) return
       setEstado({ cargando: false, compras: c.compras, errorCompras: c.error || "", ordenes: o.ordenes, control: k, referidos: r })
       setSolicitudes(s)
+      setTransferencia(t)
     })
     return () => { vivo = false }
   }, [pacienteId, token])
@@ -51,5 +53,12 @@ export function usePortalDatos(usuario, citas = []) {
     return r
   }, [pacienteId, token])
 
-  return { ...estado, detalle, solicitudes, solicitar, confirmar, calificar, agregarAlCalendario }
+  // «Pagar por transferencia»: se envía el comprobante y se vuelve a pedir la lista (así aparece «Pago en verificación»).
+  const reportarPago = useCallback(async (datos) => {
+    const r = await reportarPagoTransferencia(pacienteId, token, datos)
+    if (r.ok) setTransferencia(await misDatosTransferencia(pacienteId, token))
+    return r
+  }, [pacienteId, token])
+
+  return { ...estado, detalle, solicitudes, solicitar, transferencia, reportarPago, confirmar, calificar, agregarAlCalendario }
 }

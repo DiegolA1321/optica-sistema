@@ -16,9 +16,11 @@ const datos = vi.hoisted(() => ({
   misSolicitudesLentes: vi.fn(async () => ({ disponible: true, lista: [] })),
   solicitarLentes: vi.fn(async () => ({ ok: true })),
   descargarMisDatosPaciente: vi.fn(async () => ({ ok: true })),
+  misDatosTransferencia: vi.fn(async () => ({ disponible: false, datos: null, pagos: [] })),
+  reportarPagoTransferencia: vi.fn(async () => ({ ok: true })),
 }))
 vi.mock("../utilidades/facturaElectronicaApi", () => ({ misCompras: datos.misCompras, urlDeDescargaPaciente: vi.fn() }))
-vi.mock("../utilidades/portalDatos", () => ({ misOrdenes: datos.misOrdenes, miControl: datos.miControl, misCitasDetalle: datos.misCitasDetalle, confirmarAsistencia: datos.confirmarAsistencia, calificarAtencion: datos.calificarAtencion, misReferidos: datos.misReferidos, marcarCitaEnCalendario: datos.marcarCitaEnCalendario, misSolicitudesLentes: datos.misSolicitudesLentes, solicitarLentes: datos.solicitarLentes, descargarMisDatosPaciente: datos.descargarMisDatosPaciente }))
+vi.mock("../utilidades/portalDatos", () => ({ misOrdenes: datos.misOrdenes, miControl: datos.miControl, misCitasDetalle: datos.misCitasDetalle, confirmarAsistencia: datos.confirmarAsistencia, calificarAtencion: datos.calificarAtencion, misReferidos: datos.misReferidos, marcarCitaEnCalendario: datos.marcarCitaEnCalendario, misSolicitudesLentes: datos.misSolicitudesLentes, solicitarLentes: datos.solicitarLentes, descargarMisDatosPaciente: datos.descargarMisDatosPaciente, misDatosTransferencia: datos.misDatosTransferencia, reportarPagoTransferencia: datos.reportarPagoTransferencia }))
 
 const descarga = vi.hoisted(() => ({ descargarHojaReceta: vi.fn(async () => true) }))
 vi.mock("../utilidades/descargarHojaReceta", () => ({ descargarHojaReceta: descarga.descargarHojaReceta }))
@@ -830,5 +832,62 @@ describe("Descargar mis datos está en el menú de la cuenta", () => {
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Descargar mis datos" }))
     await waitFor(() => expect(datos.descargarMisDatosPaciente).toHaveBeenCalledWith(expect.objectContaining({ usuario: expect.objectContaining({ id: "p1", token: "tok" }) })))
     expect(await screen.findByText("Descargamos tus datos en un archivo.")).toBeInTheDocument()
+  })
+})
+
+describe("Pagar por transferencia", () => {
+  const banco = { banco: "Banco Pruebas", tipo_cuenta: "Ahorros", numero: "1234567890", titular: "Óptica de pruebas", documento: "0999999999" }
+  const conBanco = (pagos = []) => datos.misDatosTransferencia.mockImplementation(async () => ({ disponible: true, datos: banco, pagos }))
+  afterEach(() => { datos.misDatosTransferencia.mockImplementation(async () => ({ disponible: false, datos: null, pagos: [] })); datos.reportarPagoTransferencia.mockClear() })
+
+  it("el paciente ve los datos bancarios, sube su comprobante con el monto y queda «en verificación»", async () => {
+    datos.misCompras.mockResolvedValue({ compras: [compraConSaldo], error: null })
+    conBanco()
+    render(<PortalPaciente {...base} />)
+    await resumen()
+    // desde «Pendiente para ti»
+    fireEvent.click(await screen.findByRole("button", { name: "Pagar por transferencia" }))
+    const ventana = await screen.findByRole("dialog", { name: "Pagar por transferencia" })
+    expect(ventana).toHaveTextContent("Banco Pruebas")
+    expect(ventana).toHaveTextContent("1234567890")
+    // sin archivo no deja enviar
+    fireEvent.click(within(ventana).getByRole("button", { name: "Enviar comprobante" }))
+    expect(await within(ventana).findByRole("alert")).toHaveTextContent("Elige la foto o el PDF")
+    // un monto mayor a lo que debe tampoco
+    const monto = within(ventana).getByLabelText(/¿Cuánto transferiste\?/)
+    fireEvent.change(monto, { target: { value: "500" } })
+    fireEvent.click(within(ventana).getByRole("button", { name: "Enviar comprobante" }))
+    expect(await within(ventana).findByRole("alert")).toHaveTextContent("no puede ser mayor a lo que debes")
+    fireEvent.change(monto, { target: { value: "100" } })
+    fireEvent.change(within(ventana).getByLabelText(/Elegir la foto o el PDF/), { target: { files: [new File(["%PDF-1.4 contenido de prueba"], "comprobante.pdf", { type: "application/pdf" })] } })
+    fireEvent.click(within(ventana).getByRole("button", { name: "Enviar comprobante" }))
+    await waitFor(() => expect(datos.reportarPagoTransferencia).toHaveBeenCalledWith("p1", "tok", expect.objectContaining({ facturaId: "f1", monto: 100, archivo: expect.objectContaining({ nombre: "comprobante.pdf", tipo: "application/pdf" }) })))
+    expect(await within(ventana).findByRole("status")).toHaveTextContent("Recibimos tu comprobante")
+  })
+
+  it("el detalle del saldo muestra «Pago en verificación», «Pago confirmado» o el motivo del rechazo", async () => {
+    datos.misCompras.mockResolvedValue({ compras: [compraConSaldo], error: null })
+    conBanco([
+      { id: "t1", facturaId: "f1", monto: 20, estado: "por_verificar", motivoRechazo: "", creadoEn: "2026-10-17T15:00:00Z", revisadoEn: null },
+      { id: "t2", facturaId: "f1", monto: 30, estado: "rechazado", motivoRechazo: "No aparece en el banco", creadoEn: "2026-10-15T15:00:00Z", revisadoEn: "2026-10-16T15:00:00Z" },
+      { id: "t3", facturaId: "f1", monto: 40, estado: "confirmado", motivoRechazo: "", creadoEn: "2026-10-10T15:00:00Z", revisadoEn: "2026-10-11T15:00:00Z" },
+    ])
+    render(<PortalPaciente {...base} />)
+    await resumen()
+    irA("Mis compras")
+    fireEvent.click(await screen.findByRole("button", { name: /Por pagar.*|Ver tus compras con saldo/ }))
+    const detalle = await screen.findByRole("dialog", { name: "Tu saldo por pagar" })
+    const lista = within(detalle).getByRole("list", { name: "Pagos que reportaste por transferencia" })
+    expect(lista).toHaveTextContent("Pago en verificación")
+    expect(lista).toHaveTextContent("Pago confirmado")
+    expect(lista).toHaveTextContent("Pago rechazado")
+    expect(lista).toHaveTextContent("Motivo: No aparece en el banco")
+  })
+
+  it("sin datos bancarios de la óptica no se ofrece", async () => {
+    datos.misCompras.mockResolvedValue({ compras: [compraConSaldo], error: null })
+    render(<PortalPaciente {...base} />)
+    await resumen()
+    expect(screen.queryByRole("button", { name: "Pagar por transferencia" })).not.toBeInTheDocument()
   })
 })

@@ -89,6 +89,20 @@ export async function descargarMisDatosPaciente({ usuario, citas = [], consultas
   return { ok: true }
 }
 
+// Pagar por transferencia (migración 0131): los datos bancarios de la óptica y los pagos que el paciente ya reportó. Sin la función (o sin datos bancarios), no se ofrece.
+export async function misDatosTransferencia(pacienteId, token) {
+  if (!supabase) return { disponible: false, datos: null, pagos: [] }
+  const { data, error } = await supabase.rpc("datos_transferencia_paciente", { p_paciente_id: pacienteId, p_token: token })
+  if (error || !data) return { disponible: false, datos: null, pagos: [] }
+  return { disponible: Boolean(data.datos_bancarios), datos: data.datos_bancarios || null, pagos: Array.isArray(data.pagos) ? data.pagos.map((p) => ({ id: p.id, facturaId: p.factura_id, monto: Number(p.monto), estado: p.estado, motivoRechazo: p.motivo_rechazo || "", creadoEn: p.creado_en, revisadoEn: p.revisado_en || null })) : [] }
+}
+export async function reportarPagoTransferencia(pacienteId, token, { facturaId, monto, archivo }) {
+  if (!supabase) return { ok: false, error: "Sin conexión." }
+  const { error } = await supabase.rpc("reportar_pago_transferencia", { p_paciente_id: pacienteId, p_token: token, p_factura_id: facturaId, p_monto: monto, p_archivo_nombre: archivo.nombre, p_archivo_tipo: archivo.tipo, p_archivo_base64: archivo.base64 })
+  if (!error) return { ok: true }
+  return { ok: false, error: error.code === "P0001" ? error.message : "No pudimos enviar tu comprobante. Revisa tu conexión e intenta de nuevo." }
+}
+
 // Marca en la base que el paciente agregó la cita a su calendario (migración 0127): así vale en todos sus aparatos. Devuelve { ok }.
 export async function marcarCitaEnCalendario(pacienteId, token, citaId) {
   if (!supabase) return { ok: false }
