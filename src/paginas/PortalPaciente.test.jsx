@@ -2,6 +2,8 @@ import React from "react"
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { render, screen, fireEvent, within, waitFor } from "@testing-library/react"
 import PortalPaciente from "./PortalPaciente"
+import { ahoraEcuador } from "../utilidades/horaEcuador"
+import { fechaAISO } from "../utilidades/disponibilidad"
 
 // Lo que el portal pide a la base (compras, lentes, control y detalle de las citas): cada prueba lo fija a su gusto.
 const datos = vi.hoisted(() => ({
@@ -71,8 +73,9 @@ describe("Cabecera", () => {
     expect(document.documentElement.style.getPropertyValue("--portal-acento")).toBe("#7C3AED")
   })
   it("la campanita avisa de los lentes listos y de la cita de mañana, y cada aviso lleva a su pantalla", async () => {
-    const manana = new Date(); manana.setDate(manana.getDate() + 1)
-    const fecha = `${manana.getFullYear()}-${String(manana.getMonth() + 1).padStart(2, "0")}-${String(manana.getDate()).padStart(2, "0")}`
+    // «Mañana» según el reloj de Ecuador (como la app), no el del equipo: en el CI (UTC) entre las 19:00 y las 24:00 de Ecuador ya es otro día.
+    const manana = ahoraEcuador(); manana.setDate(manana.getDate() + 1)
+    const fecha = fechaAISO(manana)
     datos.misOrdenes.mockResolvedValue({ ordenes: [orden({ estado: "lista", listaEl: "2026-10-16T14:00:00Z" })], disponible: true })
     datos.misCompras.mockResolvedValue({ compras: [compraConSaldo], error: null })
     render(<PortalPaciente {...base} citas={[cita({ fecha })]} />)
