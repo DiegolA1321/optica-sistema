@@ -38,41 +38,36 @@ describe("cambio y textos", () => {
     expect(cambio(-1, -1.5)).toBe(-0.5)
     expect(cambio(null, 1)).toBeNull()
   })
-  it("dioptrías con signo y coma", () => {
-    expect(textoDioptrias(1.25)).toBe("+1,25 D")
-    expect(textoDioptrias(-0.5)).toBe("−0,50 D")
-    expect(textoDioptrias(0)).toBe("0,00 D")
+  it("dioptrías con signo y punto decimal", () => {
+    expect(textoDioptrias(1.25)).toBe("+1.25 D")
+    expect(textoDioptrias(-0.5)).toBe("−0.50 D")
+    expect(textoDioptrias(0)).toBe("0.00 D")
     expect(textoDioptrias(null)).toBe("—")
   })
   it("un cambio pequeño es sin cambios; uno mayor muestra la diferencia", () => {
     expect(textoCambio(0)).toBe("sin cambios")
     expect(textoCambio(0.1)).toBe("sin cambios")
-    expect(textoCambio(0.5)).toBe("+0,50 D")
-    expect(textoCambio(-0.75)).toBe("−0,75 D")
+    expect(textoCambio(0.5)).toBe("+0.50 D")
+    expect(textoCambio(-0.75)).toBe("−0.75 D")
     expect(textoCambio(null)).toBe("—")
   })
 })
 
-import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas } from "./tendenciaGraduacion"
+import { tendenciaEntreConsultas } from "./tendenciaGraduacion"
 
-describe("tendencia compartida (perfil, lista y ficha)", () => {
+describe("tendencia compartida (perfil, lista, ficha y portal)", () => {
   const ojo = (esfera, cilindro = "0") => ({ esfera, cilindro })
   const consulta = (fecha, od, oi = od) => ({ fecha, od, oi })
-  it("0,25 D exacto ya es un cambio: aumentó, no 'disminuyó'", () => {
-    expect(verdictoPorVariacion(0.25)).toBe("Aumentó")
-    expect(verdictoPorVariacion(-0.25)).toBe("Disminuyó")
-    expect(verdictoPorVariacion(0.2)).toBe("Sin cambios")
-  })
-  it("compara |EE| entre las dos consultas más recientes", () => {
+  it("compara la esfera de cada ojo: de +2.00 a +2.50 es 0.50 más de hipermetropía", () => {
     const t = tendenciaEntreConsultas([consulta("2026-09-19", ojo("2.50", "-0.50")), consulta("2026-05-28", ojo("2.00"))])
     expect(t.verdicto).toBe("Aumentó")
-    expect(t.variacion).toBeCloseTo(0.25)
+    expect(t.cambio.od.texto).toBe("0.50 más de hipermetropía")
   })
   it("miopía que baja de −3,00 a −2,50 disminuyó", () => {
     expect(tendenciaEntreConsultas([consulta("b", ojo("-2.50")), consulta("a", ojo("-3.00"))]).verdicto).toBe("Disminuyó")
   })
   it("sin dos consultas comparables no hay tendencia", () => {
     expect(tendenciaEntreConsultas([consulta("a", ojo("-1"))])).toBeNull()
-    expect(variacionEntre({ od: {}, oi: {} }, consulta("a", ojo("-1")))).toBeNull()
+    expect(tendenciaEntreConsultas([consulta("b", {}), consulta("a", ojo("-1"))])).toBeNull()
   })
 })

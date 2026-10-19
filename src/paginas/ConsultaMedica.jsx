@@ -24,7 +24,8 @@ import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
-import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas, textoDioptrias } from "../utilidades/tendenciaGraduacion"
+import { tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
+import { cambioEntre, lineaDeCambio } from "../utilidades/cambioGraduacion"
 import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
 import HojaReceta from "../componentes/HojaReceta"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
@@ -245,14 +246,14 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const refraccionHoy = useMemo(() => ({ od: { esfera: f.odEsfera, cilindro: f.odCilindro }, oi: { esfera: f.oiEsfera, cilindro: f.oiCilindro } }), [f.odEsfera, f.odCilindro, f.oiEsfera, f.oiCilindro])
   const calcularEvolucionIA = useMemo(() => {
     if (!ultimaConsultaPaciente) return "Primera consulta"
-    const variacionPromedio = variacionEntre(refraccionHoy, ultimaConsultaPaciente)
-    return variacionPromedio === null ? "Sin evaluación" : verdictoPorVariacion(variacionPromedio)
+    const c = cambioEntre(refraccionHoy, ultimaConsultaPaciente)
+    return c ? c.verdicto : "Sin evaluación"
   }, [refraccionHoy, ultimaConsultaPaciente])
   const estadoCorreccionActual = useMemo(() => estadoCorreccionDeForm(f), [f])
   const analisisEvolucion = useMemo(() => {
     if (!ultimaConsultaPaciente) return { primera: true, variacion: null }
-    const variacion = variacionEntre(refraccionHoy, ultimaConsultaPaciente)
-    return { primera: false, variacion, fechaPrev: ultimaConsultaPaciente.fecha, verdicto: calcularEvolucionIA }
+    const cambio = cambioEntre(refraccionHoy, ultimaConsultaPaciente)
+    return { primera: false, cambio, fechaPrev: ultimaConsultaPaciente.fecha, verdicto: calcularEvolucionIA }
   }, [refraccionHoy, ultimaConsultaPaciente, calcularEvolucionIA])
   const tendenciaHistorica = useMemo(() => tendenciaEntreConsultas(historialPaciente), [historialPaciente])
 
@@ -774,10 +775,10 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
             {paso === "refraccion" && (
               <>
                 <PasoRefraccion f={f} set={set} setVarios={setVarios} errores={erroresDe("refraccion")} edad={edadPaciente} manejaProgresion={manejaProgresion} ultimaConsulta={ultimaConsultaPaciente} />
-                {analisisEvolucion && !analisisEvolucion.primera && analisisEvolucion.variacion != null && (() => {
+                {analisisEvolucion && !analisisEvolucion.primera && analisisEvolucion.cambio && (() => {
                   const t = TENDENCIA[analisisEvolucion.verdicto] || TENDENCIA["Sin cambios"]
                   const IconoT = t.icon
-                  return <p className="flex items-center gap-1.5 text-xs text-slate-500"><IconoT size={13} style={{ color: t.fg }} aria-hidden="true" /> Variación frente al {fechaLegible(analisisEvolucion.fechaPrev)}: <span className="font-semibold" style={{ color: t.fg }}>{analisisEvolucion.verdicto.toLowerCase()}</span> ({textoDioptrias(analisisEvolucion.variacion)})</p>
+                  return <p className="flex items-center gap-1.5 text-xs text-slate-500"><IconoT size={13} style={{ color: t.fg }} aria-hidden="true" /> Cambio de la esfera frente al {fechaLegible(analisisEvolucion.fechaPrev)}: <span className="font-semibold" style={{ color: t.fg }}>{lineaDeCambio(analisisEvolucion.cambio, { siglas: true })}</span></p>
                 })()}
               </>
             )}
@@ -975,7 +976,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
               <PanelContexto paso={paso} paciente={pacienteInfo || { nombre: pacienteSeleccionado }} edad={edadPaciente} alergiaSignificativa={alergiaSignificativa} alergias={textoAlergias}
                 antecedentesAlerta={antecedentesAlerta.length ? textoAntecedentes(antecedentesAlerta) : ""} ultimaGraduacion={ultimaGraduacion}
                 visitas={historialPaciente.slice(0, 3)} totalVisitas={historialPaciente.length} onAbrirVisita={setVisitaAbierta} onVerHistorial={() => setMostrarHistorial(true)}
-                tendencia={tendenciaHistorica ? (() => { const t = TENDENCIA[tendenciaHistorica.verdicto] || TENDENCIA["Sin cambios"]; const IconoT = t.icon; return <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><IconoT size={12} style={{ color: t.fg }} aria-hidden="true" /> Tendencia: <span className="font-semibold" style={{ color: t.fg }}>{tendenciaHistorica.verdicto.toLowerCase()}</span> ({textoDioptrias(tendenciaHistorica.variacion)})</p> })() : null}
+                tendencia={tendenciaHistorica ? (() => { const t = TENDENCIA[tendenciaHistorica.verdicto] || TENDENCIA["Sin cambios"]; const IconoT = t.icon; return <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><IconoT size={12} style={{ color: t.fg }} aria-hidden="true" /> Entre sus dos últimas consultas: <span className="font-semibold" style={{ color: t.fg }}>{lineaDeCambio(tendenciaHistorica.cambio, { siglas: true })}</span></p> })() : null}
                 receta={recetaActual} onVerHoja={() => setMostrarHoja(true)} />
             </div>
           )}

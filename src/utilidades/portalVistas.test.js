@@ -1,16 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { serieDeGraduacion, porcentajeAbonado, enCuantoTiempo, agruparPorAnio, avisosDelPaciente, archivoIcs, estadoDeLaOpticaHoy, valorD, filtrarVisitas } from "./portalVistas"
-import { resumenCambioGraduacion } from "./portalPaciente"
 
 const c = (fecha, odEsf, oiEsf) => ({ fecha, od: { esfera: odEsf, cilindro: "" }, oi: { esfera: oiEsf, cilindro: "" } })
-
-describe("la frase de cambio por ojo", () => {
-  it("usa el mes del examen anterior", () => {
-    const r = resumenCambioGraduacion([c("2026-10-01", "-2.00", "-1.25"), c("2026-03-15", "-1.50", "-1.25")])
-    expect(r.frases).toEqual(["Tu ojo derecho necesita un poco más de corrección que en marzo.", "Tu ojo izquierdo se mantiene igual que en marzo."])
-    expect(resumenCambioGraduacion([c("2026-10-01", "-1.00", "-1.25"), c("2026-03-15", "-1.50", "-1.25")]).frases[0]).toBe("Tu ojo derecho necesita un poco menos de corrección que en marzo.")
-  })
-})
 
 describe("piezas de las pantallas", () => {
   it("la serie de la gráfica va de la receta más antigua a la más reciente, con los puntos de la tendencia del personal", () => {

@@ -2,7 +2,8 @@
 // antes → ahora, los años de las recetas y la comparación de dos recetas. Un solo lugar para las reglas: lo que el optómetra le explica al paciente en la consulta es
 // exactamente lo que el paciente lee en su portal (regla 2 y 18). Las recetas son las consultas del paciente ({ id, fecha, od, oi, medidas, ... }).
 import { nombreMes } from "./formatoFecha"
-import { variacionEntre, verdictoPorVariacion, tendenciaEntreConsultas, equivalenteEsferico } from "./tendenciaGraduacion"
+import { equivalenteEsferico } from "./tendenciaGraduacion"
+import { cambioEntre, lineaDeCambio } from "./cambioGraduacion"
 import { agudezaConLentes } from "./agudeza"
 
 export const numero = (v) => {
@@ -115,37 +116,29 @@ export function lecturaDeOjo(receta, lado) {
 }
 
 // ── Antes → ahora ──
-const FRACCIONES = { 0.25: "un cuarto de dioptría", 0.5: "media dioptría", 0.75: "tres cuartos de dioptría", 1: "una dioptría" }
-export function textoMagnitud(d) {
-  const a = Math.round(Math.abs(d) * 100) / 100
-  const paso = Math.round(a * 4) / 4
-  if (FRACCIONES[paso] && Math.abs(a - paso) < 0.13) return FRACCIONES[paso]
-  return `${a.toFixed(2).replace(/\.?0+$/, "")} dioptrías`
-}
+// El cambio de cada ojo lo calcula la misma función en la ficha, el perfil y el portal (cambioGraduacion.js): la esfera de cada ojo en pasos de 0.25, dicha en palabras («0.50 más de miopía»).
 const mesAnio = (iso) => { const s = nombreMes(Number(String(iso).slice(5, 7)) - 1, "corto"); return s.charAt(0).toUpperCase() + s.slice(1) + " " + String(iso).slice(0, 4) }
 
-// El cambio de cada ojo entre la receta de ahora y la anterior: { antes: { fecha, valor }, ahora: { fecha, valor }, texto } con la misma resta y el mismo umbral que la tendencia del perfil.
+// El cambio de cada ojo entre la receta de ahora y la anterior: { antes: { fecha, valor }, ahora: { fecha, valor }, texto, variacion }. `variacion` es el cambio con signo (+ = más corrección que antes), null si el ojo no se puede comparar.
 export function cambioPorOjo(consultasRecientePrimero = []) {
   if (consultasRecientePrimero.length < 2) return null
   const [reciente, previa] = consultasRecientePrimero
+  const cambio = cambioEntre(reciente, previa)
   const ojo = (nombre, lado) => {
-    const v = variacionEntre({ od: reciente[lado] }, { od: previa[lado] })
-    const texto = v === null ? "" : verdictoPorVariacion(v) === "Sin cambios" ? "Sin cambios" : v > 0 ? `${textoMagnitud(v).charAt(0).toUpperCase() + textoMagnitud(v).slice(1)} más de corrección` : `${textoMagnitud(v).charAt(0).toUpperCase() + textoMagnitud(v).slice(1)} menos de corrección`
-    return { nombre, lado, antes: { fecha: mesAnio(previa.fecha), valor: previa[lado]?.esfera ?? "" }, ahora: { fecha: mesAnio(reciente.fecha), valor: reciente[lado]?.esfera ?? "" }, variacion: v, texto }
+    const c = cambio?.[lado]
+    return { nombre, lado, antes: { fecha: mesAnio(previa.fecha), valor: previa[lado]?.esfera ?? "" }, ahora: { fecha: mesAnio(reciente.fecha), valor: reciente[lado]?.esfera ?? "" }, variacion: c ? c.aumento : null, texto: c ? c.texto : "" }
   }
   return [ojo("Ojo derecho", "od"), ojo("Ojo izquierdo", "oi")]
 }
 
-// La frase del Inicio: «Tu miopía aumentó un poco desde noviembre: un cuarto de dioptría más.» Usa la tendencia del perfil (misma cuenta y mismo umbral).
+// La frase del Inicio: «Tu graduación cambió desde noviembre: Ojo derecho: 0.50 más de miopía · Ojo izquierdo: sin cambios.» Misma cuenta que la ficha y el perfil.
 export function fraseDeCambio(consultasRecientePrimero = []) {
-  const t2 = tendenciaEntreConsultas(consultasRecientePrimero)
-  if (!t2) return ""
-  const mes = nombreMes(Number(String(t2.fechaPrevia).slice(5, 7)) - 1)
-  if (t2.verdicto === "Sin cambios") return `Tu graduación se mantiene igual que en ${mes}.`
-  const c = clasificarEsfera(consultasRecientePrimero[0]?.od?.esfera ?? consultasRecientePrimero[0]?.oi?.esfera)
-  const que = c && c.tipo !== "neutra" ? NOMBRE_TIPO[c.tipo] : "graduación"
-  const m = textoMagnitud(t2.variacion)
-  return t2.verdicto === "Aumentó" ? `Tu ${que} aumentó un poco desde ${mes}: ${m} más.` : `Tu ${que} disminuyó desde ${mes}: ${m} menos.`
+  if (consultasRecientePrimero.length < 2) return ""
+  const [reciente, previa] = consultasRecientePrimero
+  const c = cambioEntre(reciente, previa)
+  if (!c) return ""
+  const mes = nombreMes(Number(String(previa.fecha).slice(5, 7)) - 1)
+  return c.verdicto === "Sin cambios" ? `Tu graduación se mantiene igual que en ${mes}.` : `Tu graduación cambió desde ${mes}. ${lineaDeCambio(c)}.`
 }
 
 // ── La lista de recetas ──

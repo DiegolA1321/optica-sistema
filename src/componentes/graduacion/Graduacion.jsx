@@ -105,8 +105,8 @@ function VigentePersonal({ receta, anterior, onOjo }) {
           const o = receta[lado] || {}
           const datos = [["Cilindro", valorD(o.cilindro)], ["Eje", o.eje ? `${o.eje}°` : ""], ["AV sin lentes", textoAgudeza(o.avSc, o.avScF)], [o.avRx ? "AV con la receta" : "AV con lentes", textoAgudeza(agudezaConLentes(o), o.avRx ? o.avRxF : o.avCcF)]]
           const l = lecturaDeOjo(receta, lado)
-          const v = cambios?.find((c) => c.lado === lado)?.variacion
-          const delta = v == null ? "" : Math.abs(v) < 0.25 ? `Sin cambios desde ${desde}` : `${textoDelta(v)} desde ${desde}`
+          const cambioOjo = cambios?.find((c) => c.lado === lado)
+          const delta = !cambioOjo?.texto ? "" : cambioOjo.texto === "Sin cambios" ? `Sin cambios desde ${desde}` : `${cambioOjo.texto} desde ${desde}`
           if (ojoSinDatos(o)) {
             return (
               <section key={lado} aria-label={nombre} data-lado={lado} className={"self-start rounded-2xl border border-slate-200/60 bg-white p-5 " + (lado === "od" ? "@[44rem]:order-2 " : "@[44rem]:order-1 ") + (onOjo ? "pt-abrible relative transition-colors hover:border-blue-300 hover:bg-blue-50/30" : "")}>
@@ -169,7 +169,7 @@ export function CambioGraduacion({ consultas, version = "paciente", onElegir }) 
                   <ArrowRight size={paciente ? 24 : 18} className={paciente ? "text-pt-azul" : "text-blue-600"} aria-label="a" />
                   {chip(o.ahora, paciente ? "bg-pt-suave text-[#1B4FB5]" : "bg-blue-50 text-blue-700")}
                 </div>
-                <p className={paciente ? "mt-1.5 text-lg text-pt-marino" : "mt-1 text-sm text-slate-600"}>{paciente ? o.texto : (o.variacion === null ? "No registrado" : o.texto === "Sin cambios" ? "Sin cambios" : (o.variacion > 0 ? "Aumentó " : "Disminuyó ") + Math.abs(o.variacion).toFixed(2) + " D (equivalente esférico)")}</p>
+                <p className={paciente ? "mt-1.5 text-lg text-pt-marino" : "mt-1 text-sm text-slate-600"}>{o.variacion === null ? (paciente ? "—" : "No registrado") : o.texto}</p>
               </div>
             </>
           )

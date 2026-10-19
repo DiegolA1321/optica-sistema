@@ -39,8 +39,8 @@ describe("La graduación, un solo componente con dos versiones", () => {
     expect(oi.querySelector("p.text-5xl")).toBeNull()
     unmount()
     render(<GraduacionVigente receta={receta()} anterior={anterior} version="personal" />)
-    expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("+0.25 desde noviembre")
-    expect(screen.getByRole("region", { name: "Ojo izquierdo" })).toHaveTextContent("+0.25 desde noviembre")
+    expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("0.25 más de miopía desde noviembre")
+    expect(screen.getByRole("region", { name: "Ojo izquierdo" })).toHaveTextContent("0.25 más de miopía desde noviembre")
   })
 
   it("en la versión del personal, donde un dato no se registró dice «No registrado», no un guion", () => {
@@ -106,12 +106,12 @@ describe("La graduación, un solo componente con dos versiones", () => {
 
   it("el antes → ahora dice lo mismo en las dos versiones: la misma cuenta, con palabras distintas", () => {
     const { unmount } = render(<CambioGraduacion consultas={[receta(), anterior]} version="paciente" />)
-    expect(screen.getByRole("region", { name: "Cómo cambió desde tu examen anterior" })).toHaveTextContent("Un cuarto de dioptría más de corrección")
+    expect(screen.getByRole("region", { name: "Cómo cambió desde tu examen anterior" })).toHaveTextContent("0.25 más de miopía")
     unmount()
     render(<CambioGraduacion consultas={[receta(), anterior]} version="personal" />)
     const s = screen.getByRole("region", { name: "Cambio desde la consulta anterior" })
     expect(s).toHaveTextContent("OD · Ojo derecho")
-    expect(s).toHaveTextContent("Aumentó 0.25 D")
+    expect(s).toHaveTextContent("0.25 más de miopía")
   })
 })
 

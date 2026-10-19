@@ -3,7 +3,6 @@
 import { ahoraEcuador } from "./horaEcuador"
 import { fechaAISO, resumenHorarioSemanal, minutosDesdeMedianoche } from "./disponibilidad"
 import { estadoDeLaOpticaHoy } from "./portalVistas"
-import { tendenciaEntreConsultas, variacionEntre, verdictoPorVariacion, textoDioptrias } from "./tendenciaGraduacion"
 import { fechaLegible, nombreMes, formatoFecha } from "./formatoFecha"
 import { dinero } from "./formatoMoneda"
 import { diaDeRegistro } from "./periodoLista"
@@ -139,38 +138,6 @@ export function contactoDeLaOptica({ parametrizacion, disponibilidad, nombre = "
   }
 }
 export const tieneContacto = (c) => Boolean(c.direccion || c.telefono || c.horario.length)
-
-// ── Historial de recetas ──
-// Cómo cambió la graduación desde el examen anterior, en palabras simples. Usa las MISMAS cuentas que la tendencia del perfil del paciente en el sistema del personal
-// (`tendenciaEntreConsultas`: promedio del equivalente esférico, y menos de 0,25 D es «sin cambios»), así que los dos lados dicen siempre lo mismo.
-// `consultasRecientePrimero`: las consultas del paciente de la más reciente a la más antigua.
-export function resumenCambioGraduacion(consultasRecientePrimero = []) {
-  const t = tendenciaEntreConsultas(consultasRecientePrimero)
-  if (!t) return null
-  const desde = fechaLegible(t.fechaPrevia)
-  const mide = textoDioptrias(Math.abs(t.variacion)).replace(/^[+−]/, "")
-  const frase = t.verdicto === "Sin cambios"
-    ? `Tu graduación se mantiene igual que en tu examen del ${desde}.`
-    : t.verdicto === "Aumentó"
-      ? `Tu graduación aumentó un poco desde tu examen del ${desde}: en promedio ${mide} más.`
-      : `Tu graduación disminuyó desde tu examen del ${desde}: en promedio ${mide} menos.`
-  // Por ojo, con la misma resta y el mismo umbral de la tendencia (|equivalente esférico| de ahora menos el de antes; el ojo sin medida en alguno de los dos no se compara).
-  const [reciente, previa] = consultasRecientePrimero
-  const ojo = (nombre, clave) => {
-    const v = variacionEntre({ od: reciente[clave] }, { od: previa[clave] })
-    const tam = v === null ? "" : textoDioptrias(Math.abs(v)).replace(/^[+−]/, "")
-    return { nombre, texto: v === null ? "—" : verdictoPorVariacion(v) === "Sin cambios" ? "sin cambios" : v > 0 ? `aumentó ${tam}` : `disminuyó ${tam}` }
-  }
-  // Una frase por ojo, en palabras de todos los días: «Tu ojo derecho necesita un poco más de corrección que en marzo».
-  const mes = nombreMes(Number(String(t.fechaPrevia).slice(5, 7)) - 1)
-  const frasePorOjo = (nombre, clave) => {
-    const v = variacionEntre({ od: reciente[clave] }, { od: previa[clave] })
-    if (v === null) return null
-    if (verdictoPorVariacion(v) === "Sin cambios") return `Tu ${nombre} se mantiene igual que en ${mes}.`
-    return v > 0 ? `Tu ${nombre} necesita un poco más de corrección que en ${mes}.` : `Tu ${nombre} necesita un poco menos de corrección que en ${mes}.`
-  }
-  return { verdicto: t.verdicto, frase, desde, porOjo: [ojo("Ojo derecho", "od"), ojo("Ojo izquierdo", "oi")], frases: [frasePorOjo("ojo derecho", "od"), frasePorOjo("ojo izquierdo", "oi")].filter(Boolean) }
-}
 
 // ── Receta ──
 // Qué significa cada valor, en palabras de todos los días (se muestra al pasar el cursor o tocar el dato).

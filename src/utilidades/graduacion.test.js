@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { clasificarEsfera, clasificarCilindro, clasificarAgudeza, explicarEsfera, lecturaDeOjo, cambioPorOjo, fraseDeCambio, textoMagnitud, aniosDeRecetas, filtrarRecetasPorAnio, compararRecetas } from "./graduacion"
+import { clasificarEsfera, clasificarCilindro, clasificarAgudeza, explicarEsfera, lecturaDeOjo, cambioPorOjo, fraseDeCambio, aniosDeRecetas, filtrarRecetasPorAnio, compararRecetas } from "./graduacion"
 
 const texto = (partes) => partes.map((p) => p.t).join("")
 
@@ -56,20 +56,15 @@ describe("antes → ahora", () => {
   ]
   it("por ojo, con la magnitud en palabras", () => {
     const [od, oi] = cambioPorOjo(lista)
-    expect(od.texto).toBe("Un cuarto de dioptría más de corrección")
+    expect(od.texto).toBe("0.25 más de miopía")
     expect(od.antes.valor).toBe("-1.50")
     expect(od.antes.fecha).toBe("Nov 2025")
     expect(oi.ahora.fecha).toBe("Abr 2026")
     expect(cambioPorOjo([lista[0]])).toBeNull()
   })
   it("la frase del Inicio usa la misma tendencia", () => {
-    expect(fraseDeCambio(lista)).toBe("Tu miopía aumentó un poco desde noviembre: un cuarto de dioptría más.")
+    expect(fraseDeCambio(lista)).toBe("Tu graduación cambió desde noviembre. Ojo derecho: 0.25 más de miopía · Ojo izquierdo: 0.25 más de miopía.")
     expect(fraseDeCambio([lista[0]])).toBe("")
-  })
-  it("magnitudes", () => {
-    expect(textoMagnitud(0.5)).toBe("media dioptría")
-    expect(textoMagnitud(-1)).toBe("una dioptría")
-    expect(textoMagnitud(1.5)).toBe("1.5 dioptrías")
   })
 })
 

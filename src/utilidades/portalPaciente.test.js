@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   citasProximas, citasHistorial, NOTA_ESTADO_CITA, mapOrdenPaciente, ordenesAbiertasDelPaciente, nombreDeLosLentes,
-  textoOrdenPaciente, proximoPasoLentes, identidadDeLaOptica, pasosDeLosLentes, resumenCambioGraduacion, proximoControlDelPaciente, textoControl, saldoDelPaciente, contactoDeLaOptica, tieneContacto, AYUDA_RECETA,
+  textoOrdenPaciente, proximoPasoLentes, identidadDeLaOptica, pasosDeLosLentes, proximoControlDelPaciente, textoControl, saldoDelPaciente, contactoDeLaOptica, tieneContacto, AYUDA_RECETA,
 } from "./portalPaciente"
 
 // "Hoy" fijo: 17 de octubre de 2026, mediodía (hora de Ecuador ya convertida: la función recibe un Date local).
@@ -132,25 +132,6 @@ describe("línea de pasos de los lentes", () => {
   it("lista y entregada avanzan el paso", () => {
     expect(pasosDeLosLentes(o("lista"), HOY)).toMatchObject({ actual: 2, tono: "verde" })
     expect(nombres(pasosDeLosLentes(o("entregada"), HOY))).toBe("Pedido:hecho En el laboratorio:hecho Listos para retirar:hecho Entregados:hecho")
-  })
-})
-
-describe("cómo cambió la graduación", () => {
-  const c = (fecha, odEsf, oiEsf) => ({ fecha, od: { esfera: odEsf, cilindro: "" }, oi: { esfera: oiEsf, cilindro: "" } })
-  it("dice lo mismo que la tendencia del perfil del personal (mismo veredicto y mismo umbral)", () => {
-    expect(resumenCambioGraduacion([c("2026-10-01", "-1.50", "-1.25"), c("2026-04-01", "-1.50", "-1.25")]).verdicto).toBe("Sin cambios")
-    expect(resumenCambioGraduacion([c("2026-10-01", "-2.00", "-1.75"), c("2026-04-01", "-1.50", "-1.25")]).verdicto).toBe("Aumentó")
-    expect(resumenCambioGraduacion([c("2026-10-01", "-1.00", "-1.00"), c("2026-04-01", "-1.50", "-1.50")]).verdicto).toBe("Disminuyó")
-  })
-  it("lo cuenta en palabras simples, con la fecha del examen anterior y cada ojo", () => {
-    const r = resumenCambioGraduacion([c("2026-10-01", "-2.00", "-1.25"), c("2026-04-01", "-1.50", "-1.25")])
-    expect(r.frase).toBe("Tu graduación aumentó un poco desde tu examen del 1 abr 2026: en promedio 0,25 D más.")
-    expect(r.porOjo).toEqual([{ nombre: "Ojo derecho", texto: "aumentó 0,50 D" }, { nombre: "Ojo izquierdo", texto: "sin cambios" }])
-    expect(resumenCambioGraduacion([c("2026-10-01", "-1.25", "-1.25"), c("2026-04-01", "-1.25", "-1.25")]).frase).toBe("Tu graduación se mantiene igual que en tu examen del 1 abr 2026.")
-  })
-  it("con una sola receta no hay nada que comparar", () => {
-    expect(resumenCambioGraduacion([c("2026-10-01", "-1.50", "-1.25")])).toBeNull()
-    expect(resumenCambioGraduacion([])).toBeNull()
   })
 })
 
