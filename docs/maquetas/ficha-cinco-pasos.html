@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maqueta: ficha clínica en cinco pasos</title>
+<style>
+  :root{--ink:#0E2B33;--azul:#2563EB;--grad:linear-gradient(135deg,#22D3EE,#2563EB);--b:#e2e8f0;--t:#64748b;--ok:#059669;--am:#b45309}
+  *{box-sizing:border-box}
+  body{margin:0;background:#f4f7fb;font:14px/1.45 "Public Sans",system-ui,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+  .app{display:grid;grid-template-columns:288px 1fr;min-height:100vh}
+  aside{background:#fff;border-right:1px solid var(--b);padding:20px 16px}
+  .logo{display:flex;gap:12px;align-items:center;margin-bottom:28px}.logo i{width:44px;height:44px;border-radius:12px;background:var(--grad)}
+  .logo b{display:block;font-size:17px}.logo small{color:var(--t);font-size:11px;letter-spacing:.06em}
+  aside .m{font-size:11px;letter-spacing:.12em;color:#94a3b8;margin:0 0 10px 10px}
+  aside a{display:block;padding:11px 12px;border-radius:10px;color:#334155;font-size:15px}aside a.on{background:#eff6ff;color:#1d4ed8;font-weight:600}
+  main{min-width:0}
+  .top{height:64px;background:#fff;border-bottom:1px solid var(--b);display:flex;align-items:center;padding:0 24px;font-weight:700;font-size:16px}
+  .top small{display:block;color:var(--t);font-weight:400;font-size:12px}
+  .pac{margin:16px 24px 0;background:#fff;border:1px solid var(--b);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:12px}
+  .av{width:36px;height:36px;border-radius:10px;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:700}
+  .pac b{font-size:15px}.pac small{color:var(--t);display:block;font-size:12px}.pac .f{margin-left:auto;color:var(--t);font-size:12px}
+  .pasos{margin:12px 24px 0;display:flex;gap:6px;background:#fff;border:1px solid var(--b);border-radius:14px;padding:6px}
+  .paso{flex:1;min-width:0;border-radius:10px;padding:8px 10px;display:flex;gap:8px;align-items:center;border:1px solid transparent}
+  .paso .n{width:24px;height:24px;border-radius:99px;background:#e2e8f0;color:#475569;font-size:12px;font-weight:700;display:grid;place-items:center;flex:none}
+  .paso b{display:block;font-size:12.5px;line-height:1.15}
+  .paso small{font-size:11px;color:var(--t)}
+  .paso.act{background:var(--grad);color:#fff}.paso.act .n{background:rgba(255,255,255,.28);color:#fff}.paso.act small,.paso.act.inc small,.paso.act.op small,.paso.act.ok small{color:#fff}
+  .paso.ok .n{background:#d1fae5;color:#047857}.paso.ok small{color:var(--ok)}.paso.inc small{color:var(--am)}
+  .cuerpo{margin:14px 24px 0;display:grid;grid-template-columns:minmax(0,1fr) 252px;gap:18px;align-items:start}
+  .card{background:#fff;border:1px solid var(--b);border-radius:14px;padding:16px 18px;margin-bottom:12px}
+  .card h3{margin:0 0 2px;font-size:15px;display:flex;align-items:center;gap:8px}.card .s{color:var(--t);font-size:12px;margin:0 0 12px}
+  .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;border:1px solid var(--b);color:#475569;background:#f8fafc}.tag.r{color:#b91c1c;border-color:#fecaca;background:#fef2f2}.tag.o{color:#047857;border-color:#a7f3d0;background:#ecfdf5}
+  label{display:block;font-size:12px;font-weight:600;color:#475569;margin:0 0 4px}
+  .in{border:1px solid var(--b);background:#fff;border-radius:9px;padding:8px 10px;min-height:36px;color:#0f172a}.in.ph{color:#94a3b8}.in.foco{border-color:var(--azul);box-shadow:0 0 0 3px #dbeafe}
+  .w-num{width:60px;padding-left:6px;padding-right:6px}.w-med{width:132px}.w-sel{width:210px}.w-txt{width:100%}.alto{min-height:62px}
+  .fila{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}.fila:last-child{margin-bottom:0}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.chip{border:1px solid var(--b);border-radius:99px;padding:4px 11px;font-size:12.5px;background:#fff;color:#334155}.chip.on{background:#dbeafe;border-color:#93c5fd;color:#1e40af;font-weight:600}
+  table{border-collapse:collapse;width:100%}th,td{border:1px solid var(--b);padding:6px 7px;text-align:center;font-size:12.5px}th{background:#f8fafc;color:#475569;font-weight:600}td.l,th.l{text-align:left;font-weight:600;background:#f8fafc}
+  td .in{min-height:32px;padding:5px 8px;text-align:center;margin:0 auto;width:96px}
+  .ojos{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.ojo{border:1px solid var(--b);border-radius:12px;padding:10px;background:#fafcff;min-width:0}
+  .ojo h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:6px}.od{background:#2563eb}.oi{background:#06b6d4}.bd{color:#fff;font-size:11px;border-radius:6px;padding:2px 6px}
+  .g3{display:flex;gap:6px}.g3>div{flex:none}
+  .btn{display:inline-flex;gap:6px;align-items:center;border-radius:9px;padding:7px 12px;font-weight:600;font-size:12.5px;border:1px solid var(--b);background:#fff;color:#334155}.btn.p{background:var(--grad);color:#fff;border-color:transparent}
+  .link{color:#1d4ed8;font-size:12px;font-weight:600}
+  .aviso{border-radius:10px;padding:8px 11px;font-size:12px;margin-top:8px}.aviso.am{background:#fffbeb;border:1px solid #fde68a;color:#92400e}.aviso.az{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+  .adic{border:2px solid #fbbf24;background:#fffbeb}.adic h3{color:#92400e}
+  .pie{margin:4px 24px 28px;display:flex;gap:10px;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--b);border-radius:14px;padding:10px 14px}
+  .pie small{color:var(--t)}
+  .panel{position:sticky;top:12px;background:#fff;border:1px solid var(--b);border-radius:14px;padding:14px;font-size:12.5px}
+  .panel h4{margin:0 0 6px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--t)}.panel section{padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid #f1f5f9}.panel section:last-child{border:0;margin:0;padding:0}
+  .alerg{display:inline-block;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-weight:700;border-radius:8px;padding:3px 9px}
+  .rx{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-variant-numeric:tabular-nums}.rx b{color:#2563eb}
+  .vis{list-style:none;margin:0;padding:0}.vis li{display:flex;justify-content:space-between;gap:8px;padding:3px 0}.vis span{color:var(--t)}
+  .hoja{border:1px solid #cbd5e1;border-radius:10px;padding:12px;background:#fff;font-size:12px}
+  .hoja h5{margin:0;font-size:13px}.hoja hr{border:0;border-top:1px solid #e2e8f0;margin:8px 0}
+  .hoja table th,.hoja table td{font-size:11.5px;padding:4px}
+  .oculto{display:none}
+</style></head>
+<body>
+<div class="app">
+<aside>
+  <div class="logo"><i></i><div><b>QA Test Claude</b><small>PANEL DE CONTROL</small></div></div>
+  <p class="m">MENÚ PRINCIPAL</p>
+  <a>Inicio</a><a class="on">Citas médicas</a><a>Pacientes</a><a>Inventario</a><a>CRM y fidelización</a><a>Mi horario</a><a>Reportes</a><a>Soporte</a>
+</aside>
+<main>
+  <div class="top"><div>Buenas tardes, Paula Optómetra Pruebas<small>Lunes, 19 de octubre de 2026</small></div></div>
+  <div class="pac"><div class="av">R</div><div><b>Rosa Bravo · 52 años</b><small>Cita 03:00 PM · Consulta General · Hoy</small></div><span class="f">Borrador guardado hace un momento</span></div>
+  <div class="pasos" id="barra"></div>
+  <div class="cuerpo"><div id="form"></div><div id="panel"></div></div>
+  <div class="pie" id="pie"></div>
+</main>
+</div>
+
+<template id="p1">
+  <div class="card"><h3>Motivo de la consulta <span class="tag r">Obligatorio</span></h3><p class="s">Lo que el paciente cuenta con sus palabras.</p>
+    <div class="fila"><div><label>Motivo</label><div class="in w-sel">Visión borrosa de cerca</div></div></div>
+    <div><label>Detalle</label><div class="in w-txt alto">Desde hace unos meses le cuesta leer el celular sin alejarlo. Termina el día con dolor de cabeza.</div></div></div>
+  <div class="card"><h3>Síntomas</h3><p class="s">Marca los que refiere.</p>
+    <div class="chips"><span class="chip">Borrosidad de lejos</span><span class="chip on">Borrosidad de cerca</span><span class="chip on">Dolor de cabeza</span><span class="chip">Ardor</span><span class="chip">Lagrimeo</span><span class="chip on">Fatiga visual</span><span class="chip">Destellos</span><span class="chip">Moscas volantes</span></div>
+    <div><label>Otros síntomas</label><div class="in w-txt ph">Escribe aquí si hay otro…</div></div></div>
+  <div class="card"><h3>Antecedentes</h3>
+    <label>Médicos</label><div class="chips"><span class="chip on">Hipertensión</span><span class="chip">Diabetes</span><span class="chip">Tiroides</span><span class="chip">Cirugía ocular</span></div>
+    <div class="fila"><div style="flex:1"><label>Detalle médico</label><div class="in w-txt ph">Ej.: hipertensión controlada con losartán</div></div></div>
+    <label>Familiares</label><div class="chips"><span class="chip">Glaucoma</span><span class="chip on">Diabetes</span><span class="chip">Miopía alta</span><span class="chip">Ceguera</span></div></div>
+  <div class="card"><h3>Alergias y medicamentos</h3>
+    <div class="fila"><div style="flex:1"><label>Alergias (se destacan en el panel)</label><div class="in w-txt">Penicilina</div></div></div>
+    <div class="fila"><div style="flex:1"><label>Medicamentos que toma</label><div class="in w-txt">Losartán 50 mg</div></div></div></div>
+  <div class="card"><h3>Uso de lentes</h3>
+    <div class="fila"><div><label>¿Usa lentes?</label><div class="chips" style="margin:0"><span class="chip on">Sí</span><span class="chip">No</span></div></div>
+    <div><label>Desde cuándo</label><div class="in w-med">3 años</div></div>
+    <div><label>Tipo</label><div class="in w-med">Monofocal</div></div></div></div>
+</template>
+
+<template id="p2">
+  <div class="card"><h3>Agudeza visual <span class="tag r">Obligatorio: sin corrección de cada ojo</span></h3><p class="s">Prueba de las letras. Línea leída y letras falladas: «20/25 −2».</p>
+    <table><tr><th class="l"></th><th>Sin corrección</th><th>Con su corrección actual</th><th>Con la receta nueva<br><small style="font-weight:400;color:#64748b">se llena en el paso 3</small></th></tr>
+      <tr><td class="l">Ojo derecho</td><td><div class="in foco">20/50 −1</div></td><td><div class="in">20/25</div></td><td><div class="in ph">—</div></td></tr>
+      <tr><td class="l">Ojo izquierdo</td><td><div class="in">20/40</div></td><td><div class="in">20/25 −2</div></td><td><div class="in ph">—</div></td></tr>
+      <tr><td class="l">Ambos ojos</td><td><div class="in">20/40</div></td><td><div class="in">20/25</div></td><td><div class="in ph">—</div></td></tr></table>
+    <div class="fila" style="margin-top:12px"><div><label>De cerca (Jaeger)</label><div class="in w-num">J3</div></div><div><label>Con corrección</label><div class="in w-num">J1</div></div></div></div>
+  <div class="card"><h3>Lentes actuales</h3><p class="s">Lo que el paciente usa hoy. <span class="link">Copiar de la última receta</span></p>
+    <div class="ojos"><div class="ojo"><h4><span class="bd od">OD</span> Derecho</h4><div class="g3"><div><label>Esf.</label><div class="in w-num">−1.25</div></div><div><label>Cil.</label><div class="in w-num">−0.50</div></div><div><label>Eje</label><div class="in w-num">90</div></div></div></div>
+    <div class="ojo"><h4><span class="bd oi">OI</span> Izquierdo</h4><div class="g3"><div><label>Esf.</label><div class="in w-num">−1.00</div></div><div><label>Cil.</label><div class="in w-num">−0.75</div></div><div><label>Eje</label><div class="in w-num">85</div></div></div></div></div>
+    <div class="fila" style="margin-top:12px"><div><label>Adición actual</label><div class="in w-num">+1.00</div></div></div></div>
+  <div class="card"><h3>Distancia pupilar</h3>
+    <div class="fila"><div><label>Total (mm)</label><div class="in w-num">62</div></div><div><label>OD (mm)</label><div class="in w-num">31</div></div><div><label>OI (mm)</label><div class="in w-num">31</div></div></div></div>
+  <div class="card"><h3>Cover test y motilidad</h3>
+    <div class="fila"><div><label>Cover test — tipo</label><div class="in w-sel">Exoforia</div></div><div><label>Magnitud (Δ)</label><div class="in w-num">4</div></div><div><label>Distancia</label><div class="in w-med">Lejos y cerca</div></div></div>
+    <div class="aviso az" style="margin:0 0 12px">Opciones del tipo: ortoforia · endoforia · exoforia · hiperforia · endotropia · exotropia · hipertropia.</div>
+    <div><label>Motilidad ocular</label><div class="in w-txt">Movimientos suaves y completos en las nueve posiciones</div></div></div>
+</template>
+
+<template id="p3">
+  <div class="card"><h3>Refracción objetiva <span class="tag">Retinoscopía o autorrefractómetro</span></h3>
+    <div class="ojos"><div class="ojo"><h4><span class="bd od">OD</span> Derecho</h4><div class="g3"><div><label>Esf.</label><div class="in w-num">−1.50</div></div><div><label>Cil.</label><div class="in w-num">−0.75</div></div><div><label>Eje</label><div class="in w-num">90</div></div></div></div>
+    <div class="ojo"><h4><span class="bd oi">OI</span> Izquierdo</h4><div class="g3"><div><label>Esf.</label><div class="in w-num">−1.25</div></div><div><label>Cil.</label><div class="in w-num">−0.75</div></div><div><label>Eje</label><div class="in w-num">85</div></div></div></div></div>
+    <div style="margin-top:10px"><span class="btn">Usar como punto de partida</span></div></div>
+  <div class="card"><h3>Queratometría <span class="tag">Opcional</span></h3>
+    <div class="ojos"><div class="ojo"><h4><span class="bd od">OD</span></h4><div class="g3"><div><label>K1</label><div class="in w-num">43.25</div></div><div><label>K2</label><div class="in w-num">44.00</div></div><div><label>Eje</label><div class="in w-num">90</div></div></div></div>
+    <div class="ojo"><h4><span class="bd oi">OI</span></h4><div class="g3"><div><label>K1</label><div class="in ph w-num">—</div></div><div><label>K2</label><div class="in ph w-num">—</div></div><div><label>Eje</label><div class="in ph w-num">—</div></div></div></div></div></div>
+  <div class="card"><h3>Refracción final <span class="tag r">Obligatorio: los dos ojos</span></h3><p class="s">Esfera −30 a +30 · cilindro negativo · eje 1–180 · pasos de 0,25.</p>
+    <div class="ojos"><div class="ojo"><h4><span class="bd od">OD</span> Derecho</h4><div class="g3"><div><label>Esf.</label><div class="in w-num">−1.75</div></div><div><label>Cil.</label><div class="in w-num">−0.75</div></div><div><label>Eje</label><div class="in w-num">10</div></div></div><p style="margin:8px 0 0;font-size:12px;color:#64748b">☐ Ojo no evaluado</p></div>
+    <div class="ojo"><h4><span class="bd oi">OI</span> Izquierdo</h4><div class="g3"><div><label>Esf.</label><div class="in w-num">−1.50</div></div><div><label>Cil.</label><div class="in w-num" style="border-color:#f59e0b">+0.50</div></div><div><label>Eje</label><div class="in w-num">90</div></div></div><div class="aviso am">El cilindro va en negativo. <span class="link">Transponer: −1.00 −0.50 × 180</span></div></div></div></div>
+  <div class="card adic"><h3>Adición <span class="tag o">Paciente de 52 años</span></h3><p class="s">A partir de los 40 años se destaca; antes aparece discreta.</p>
+    <div class="fila"><div><label>Adición (+0.50 a +4.00)</label><div class="in w-num">+1.50</div></div></div></div>
+  <div class="card"><h3>Prisma <span class="tag">Opcional</span></h3>
+    <div class="fila"><div><label>Cantidad (Δ)</label><div class="in ph w-num">—</div></div><div><label>Base</label><div class="in ph w-med">Elegir…</div></div></div></div>
+  <div class="card"><h3>Agudeza con la receta nueva</h3><p class="s">Se copia a la tabla del paso 2.</p>
+    <div class="fila"><div><label>Ojo derecho</label><div class="in w-med">20/20</div></div><div><label>Ojo izquierdo</label><div class="in w-med">20/20</div></div><div><label>Ambos ojos</label><div class="in w-med">20/20</div></div></div></div>
+</template>
+
+<template id="p4">
+  <div class="aviso az" style="margin:0 0 12px">Este paso es opcional: se puede saltar con «Siguiente».</div>
+  <div class="card"><h3>Biomicroscopía <span class="tag">Lámpara de hendidura</span></h3>
+    <div class="fila"><div style="flex:1"><label>Párpados y pestañas</label><div class="in w-txt">Sin hallazgos</div></div></div>
+    <div class="fila"><div style="flex:1"><label>Córnea</label><div class="in w-txt">Transparente, sin tinción</div></div></div>
+    <div class="fila"><div style="flex:1"><label>Cámara anterior y cristalino</label><div class="in w-txt">Profunda y limpia; cristalino con esclerosis nuclear leve</div></div></div></div>
+  <div class="card"><h3>Fondo de ojo</h3>
+    <div class="fila"><div style="flex:1"><label>Hallazgos</label><div class="in w-txt alto">Papila de bordes definidos, relación copa/disco 0.3 en ambos ojos. Mácula con reflejo foveal presente.</div></div></div></div>
+  <div class="card"><h3>Presión intraocular</h3>
+    <div class="fila"><div><label>OD (mmHg)</label><div class="in w-num">14</div></div><div><label>OI (mmHg)</label><div class="in w-num">15</div></div><div><label>Método</label><div class="in w-sel">Tonómetro de aire (no contacto)</div></div></div></div>
+  <div class="card"><h3>Test de color</h3>
+    <div class="fila"><div><label>Prueba</label><div class="in w-med">Ishihara</div></div><div><label>Resultado</label><div class="in w-sel">14 de 14 · visión normal</div></div></div></div>
+</template>
+
+<template id="p5">
+  <div class="card"><h3>Diagnóstico <span class="tag r">Obligatorio</span></h3>
+    <div class="chips"><span class="chip on">Miopía</span><span class="chip on">Astigmatismo</span><span class="chip on">Presbicia</span><span class="chip">Hipermetropía</span><span class="chip">Ojo seco</span><span class="chip">Otro</span></div>
+    <div><label>Detalle</label><div class="in w-txt">Miopía leve con astigmatismo y presbicia incipiente.</div></div></div>
+  <div class="card"><h3>Lente recomendado</h3>
+    <div class="fila"><div><label>Tipo</label><div class="in w-sel">Progresivo</div></div><div><label>Material y tratamiento</label><div class="in w-sel">Policarbonato · antirreflejo</div></div></div></div>
+  <div class="card"><h3>Indicaciones</h3>
+    <div class="in w-txt alto">Uso permanente. Pausa visual cada 20 minutos frente a pantallas.</div></div>
+  <div class="card"><h3>Próximo control</h3>
+    <div class="fila"><div><label>Control en</label><div class="in w-med">12 meses</div></div><div><label>Fecha</label><div class="in w-med">19 oct 2027</div></div></div></div>
+</template>
+
+<script>
+const paso = Number(new URLSearchParams(location.search).get('paso') || 1)
+const PASOS = [
+  ['Anamnesis', 'ok', 'Completo'], ['Agudeza visual', 'ok', 'Completo'], ['Refracción', 'inc', 'Incompleto'], ['Salud ocular', 'op', 'Opcional'], ['Diagnóstico y receta', 'inc', 'Incompleto']
+]
+const estados = { 1: ['ok','Completo'], 2: ['ok','Completo'], 3: ['ok','Completo'], 4: ['op','Opcional'], 5: ['inc','Incompleto'] }
+// Estado de cada paso según el paso mostrado: los anteriores completos, los siguientes sin tocar.
+const estadoDe = (n) => n < paso ? (n === 4 ? ['ok','Visto'] : ['ok','Completo']) : n === paso ? (n === 4 ? ['op','Opcional'] : ['inc','Incompleto']) : (n === 4 ? ['op','Opcional'] : ['','Pendiente'])
+document.getElementById('barra').innerHTML = PASOS.map((p, i) => { const n = i + 1; const [c, t] = estadoDe(n); return `<div class="paso ${n === paso ? 'act' : ''} ${c}"><span class="n">${n === paso || c === '' ? n : (c === 'ok' ? '✓' : n)}</span><div style="min-width:0"><b>${p[0]}</b><small>${t}</small></div></div>` }).join('')
+document.getElementById('form').innerHTML = document.getElementById('p' + paso).innerHTML
+const contexto = `
+  <section><h4>Paciente</h4><b style="font-size:14px">Rosa Bravo</b><div style="color:#64748b">52 años · Cédula 0900000011</div></section>
+  <section><h4>Alergias</h4><span class="alerg">⚠ Penicilina</span></section>
+  <section><h4>Última graduación · 20 abr 2026</h4><div class="rx"><b>OD</b><span>−1.25 −0.50 × 90</span><b>OI</b><span>−1.00 −0.75 × 85</span><b>Add</b><span>+1.00</span></div></section>
+  <section><h4>Últimas visitas</h4><ul class="vis"><li>Control <span>20 abr 2026</span></li><li>Consulta general <span>11 mar 2025</span></li><li>Garantía / ajuste <span>02 sept 2024</span></li></ul></section>`
+const receta = `
+  <section><h4>Vista previa de la receta</h4><div class="hoja"><h5>Óptica Solna Vision</h5><span style="color:#64748b">Rosa Bravo · 52 años · 19 oct 2026</span><hr>
+   <table><tr><th></th><th>Esf</th><th>Cil</th><th>Eje</th><th>AV</th></tr><tr><td class="l">OD</td><td>−1.75</td><td>−0.75</td><td>10</td><td>20/20</td></tr><tr><td class="l">OI</td><td>−1.50</td><td>−0.50</td><td>180</td><td>20/20</td></tr></table>
+   <div style="margin-top:8px"><b>Adición:</b> +1.50 · <b>DP:</b> 62 mm<br><b>Prisma:</b> sin prisma<br><b>Lente recomendado:</b> Progresivo, policarbonato, antirreflejo</div>
+   <hr><span style="color:#64748b">Uso permanente. Pausa visual cada 20 min.</span></div></section>
+  <section><h4>Paciente</h4><b>Rosa Bravo</b> · 52 años<br><span class="alerg" style="margin-top:6px">⚠ Penicilina</span></section>`
+document.getElementById('panel').innerHTML = `<div class="panel">${paso === 5 ? receta : contexto}</div>`
+document.getElementById('pie').innerHTML = `<span class="btn" style="${paso === 1 ? 'opacity:.4' : ''}">← Atrás</span><small>${paso === 4 ? 'Se puede saltar este paso' : 'Puedes ir a cualquier paso desde la barra'}</small>` + (paso < 5 ? `<span class="btn p">Siguiente →</span>` : `<span class="btn p">Guardar ficha y generar receta</span>`)
+</script>
+</body></html>
