@@ -59,8 +59,8 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
       {abrir && <button type="button" onClick={() => onAbrir?.(abrir)} aria-label={etiqueta} className="pt-abrir absolute inset-0 rounded-[20px] cursor-pointer" />}
       <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-pt-fondo text-pt-azul"><Icono size={22} /></span>
       <div className="min-w-0 flex-1">
-        <p className="text-base leading-snug text-pt-texto">{titulo}</p>
-        <p className="flex flex-wrap items-baseline gap-x-2.5"><span className={"font-heading text-[26px] font-bold leading-tight tabular-nums " + clase}>{valor}</span><span className="text-base leading-snug text-pt-texto">{texto}</span></p>
+        <p className="flex items-baseline gap-x-2.5" title={texto}><span className={"shrink-0 font-heading text-[28px] font-bold leading-tight tabular-nums " + clase}>{valor}</span><span className="min-w-0 text-base font-semibold leading-snug text-pt-marino">{titulo}</span></p>
+        <p className="sr-only">{texto}</p>
       </div>
       {abrir && <ChevronRight size={22} className="shrink-0 text-slate-500" aria-hidden="true" />}
     </div>
@@ -95,8 +95,8 @@ export default function MisCompras({ usuario, compras = [], ordenes = [], cargan
       {!cargando && !error && compras.length > 0 && (
         <>
           <section aria-label="Resumen de tus compras" className="grid gap-4 @[760px]/portal:grid-cols-3 @[760px]/portal:gap-5">
-            {resumen("Por pagar", dinero(saldoTotal), saldoTotal > 0 ? "Págalo en la óptica: efectivo, tarjeta o transferencia." : "No tienes saldo pendiente.", saldoTotal > 0 ? "text-pt-ambar" : "text-pt-marino", saldoTotal > 0 && onAbrir ? { tipo: "saldo" } : null, "Ver tus compras con saldo y el historial de tus abonos", Wallet)}
-            {resumen("Lentes en proceso", enProceso.length, enProceso.length === 0 ? "No tienes lentes en camino." : listos > 0 ? `${listos === 1 ? "1 listo" : listos + " listos"} para retirar.` : proxima ? `Listos aprox. el ${formatoFecha(proxima, "largoSinDia").replace(/ de \d{4}$/, "")}.` : "Te avisaremos cuando estén listos.", "text-pt-marino", onAbrir ? abrirLentes : null, "Ver el estado de tus lentes en proceso", FlaskConical)}
+            {resumen("Por pagar", dinero(saldoTotal), saldoTotal > 0 ? "Págalo en la óptica." : "No tienes saldo pendiente.", saldoTotal > 0 ? "text-pt-ambar" : "text-pt-marino", saldoTotal > 0 && onAbrir ? { tipo: "saldo" } : null, "Ver tus compras con saldo y el historial de tus abonos", Wallet)}
+            {resumen("Lentes en proceso", enProceso.length, enProceso.length === 0 ? "No tienes lentes en camino." : listos > 0 ? `${listos === 1 ? "1 listo" : listos + " listos"} para retirar.` : proxima ? `Listos aprox. el ${formatoFecha(proxima, "medioSinAnio")}.` : "Te avisaremos cuando estén listos.", "text-pt-marino", onAbrir ? abrirLentes : null, "Ver el estado de tus lentes en proceso", FlaskConical)}
             {puntos && resumen("Tus puntos", puntos.puntos, puntos.texto + ".", "text-[#15803D]", onAbrir ? { tipo: "puntos" } : null, "Ver cómo sumas tus puntos", Star)}
           </section>
 

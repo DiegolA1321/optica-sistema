@@ -19,9 +19,9 @@ describe("Portal: Mis compras", () => {
     render(<MisCompras usuario={usuario} puntos={{ puntos: 35, texto: "Te falta 1 consulta para ser cliente frecuente" }} ordenes={[orden({ facturaId: "f2" })]} compras={[compra(), compra({ id: "f2", numero: 18, estado: "pendiente_pago", total: 200, abonado: 60, saldo: 140 })]} />)
     fireEvent.click(screen.getByRole("button", { name: /Historial de compras/ }))
     const resumen = screen.getByRole("region", { name: "Resumen de tus compras" })
-    expect(resumen).toHaveTextContent("Por pagar$140.00")
-    expect(resumen).toHaveTextContent("Lentes en proceso1")
-    expect(resumen).toHaveTextContent("Tus puntos35")
+    expect(resumen).toHaveTextContent("$140.00Por pagar")
+    expect(resumen).toHaveTextContent("1Lentes en proceso")
+    expect(resumen).toHaveTextContent("35Tus puntos")
     const historial = within(screen.getByRole("region", { name: "Historial de compras" })).getByRole("list", { name: "Historial de compras" })
     const filas = [...historial.children]
     expect(filas).toHaveLength(2)
