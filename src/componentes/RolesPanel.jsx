@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabaseClient"
 import { INK } from "@/lib/tema"
 import { Cascaron, PieFormulario } from "./AtencionPaciente"
 import { registrarLog } from "../utilidades/logs"
+import { mensajeDeError } from "../utilidades/permisos"
 import ConfirmarEliminarModal from "./ConfirmarEliminarModal"
 import { EtiquetaDeMuestra } from "./VistaPrevia"
 import {
@@ -41,7 +42,7 @@ export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onE
     const { error } = await supabase.from("roles").delete().eq("id", porEliminar.id)
     setEliminando(false)
     if (error) {
-      setErrorGlobal(/foreign key/i.test(error.message) ? "No se puede eliminar: hay personas con este rol. Cámbiales el rol primero." : error.message)
+      setErrorGlobal(/foreign key/i.test(error.message) ? "No se puede eliminar: hay personas con este rol. Cámbiales el rol primero." : mensajeDeError(error, "No se pudo eliminar el rol."))
       setPorEliminar(null)
       return
     }
@@ -55,7 +56,7 @@ export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onE
     setRestaurando(rol.id)
     const { error } = await supabase.rpc("restaurar_rol_predefinido", { p_rol_id: rol.id })
     setRestaurando(null)
-    if (error) { setErrorGlobal(error.message); return }
+    if (error) { setErrorGlobal(mensajeDeError(error, "No se pudo restaurar el rol.")); return }
     registrarLog(usuario, "usuarios", "Restauró un rol predefinido", rol.nombre)
     onExito(`Rol «${rol.nombre}» restaurado a sus valores originales.`)
     onCambio()
@@ -180,7 +181,7 @@ function EditorRol({ rol, roles, usuario, onCerrar, onGuardado }) {
       ? await supabase.from("roles").insert({ ...datos, optica_id: usuario.opticaId })
       : await supabase.from("roles").update(datos).eq("id", rol.id)
     setGuardando(false)
-    if (errorGuardar) { setError(/roles_nombre_unico|duplicate/i.test(errorGuardar.message) ? "Ya existe un rol con ese nombre." : errorGuardar.message); return }
+    if (errorGuardar) { setError(/roles_nombre_unico|duplicate/i.test(errorGuardar.message) ? "Ya existe un rol con ese nombre." : mensajeDeError(errorGuardar, "No se pudo guardar el rol.")); return }
     onGuardado(limpio, nuevo)
   }
 

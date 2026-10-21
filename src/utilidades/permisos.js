@@ -21,3 +21,15 @@ export function fueBloqueadoPorPermiso({ error, data }) {
   if (esErrorSinPermiso(error)) return true
   return !error && Array.isArray(data) && data.length === 0
 }
+
+// Texto para mostrar cuando una llamada a la base falla. Nunca deja pasar un error crudo de la base en inglés ("permission denied for
+// table roles"): un permiso negado se dice en español y cualquier otro error técnico cae al texto de la acción. Los mensajes que
+// escriben nuestras propias funciones (en español) sí se muestran, porque explican qué pasó.
+export function mensajeDeError(error, porDefecto = "No se pudo completar la acción. Intenta de nuevo.") {
+  if (!error) return porDefecto
+  if (esErrorSinPermiso(error)) return MENSAJE_SIN_PERMISO
+  const mensaje = String(error.message || "").trim()
+  if (!mensaje) return porDefecto
+  const tecnico = /^(permission|relation|function|column|violates|duplicate key|null value|invalid input|syntax error|new row|could not|operator|type|JWT|FetchError|Failed to fetch|NetworkError|TypeError)/i.test(mensaje) || /\b(violates|constraint|schema cache|PGRST\d+)\b/i.test(mensaje)
+  return tecnico ? porDefecto : mensaje
+}

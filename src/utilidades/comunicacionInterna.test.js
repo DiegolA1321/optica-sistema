@@ -89,3 +89,14 @@ describe("avisos internos", () => {
     expect(lista.find((a) => a.id === "s1")).toMatchObject({ origen: "sistema", titulo: "Mantenimiento" })
   })
 })
+
+describe("el administrador en la vista de un rol", () => {
+  it("ve Soporte como ese rol: sin las pestañas del administrador", async () => {
+    const { pestanasDeSoporte, esAdministrador } = await import("./comunicacionInterna")
+    const admin = { rol: "admin", id: "a1" }
+    expect(pestanasDeSoporte(admin)).toEqual(["personal", "sistema", "avisos", "ayuda"])
+    const enOptometra = { ...admin, enVistaDeRol: true }
+    expect(esAdministrador(enOptometra)).toBe(false)
+    expect(pestanasDeSoporte(enOptometra)).toEqual(["consultas", "avisos", "ayuda"])
+  })
+})

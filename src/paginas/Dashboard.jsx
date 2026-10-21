@@ -699,7 +699,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "reportes":
         return <Reportes usuario={usuario} inventario={inventario} equipo={equipo} onAviso={mostrarAviso} onAbrirModulo={abrirDesdeReportes} onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined} soloLoPropio={alcanceDeVista("reportes") === "propio"} cargaInicial={cargaInicialStaff} pacientes={pacientesReportes} consultas={consultasReportes} consultasCompletas={consultas} citas={citasReportes} ventas={ventas} facturasVenta={facturasVenta} pases={pasesReportes} abonos={abonos} ordenesLab={ordenesReportes} verMontos={verMontosReportes} />
       case "mensajes":
-        return <Mensajes usuario={usuario} pantallaOrigen={nombreDeSeccion(seccionPrevia.current)} moduloOrigen={moduloDeSoporte(seccionPrevia.current)} abrirConsultaId={consultaAAbrir} onAbrirConsultaConsumida={() => setConsultaAAbrir(null)} />
+        return <Mensajes usuario={vista?.tipo === "rol" ? { ...usuario, enVistaDeRol: true } : usuario} pantallaOrigen={nombreDeSeccion(seccionPrevia.current)} moduloOrigen={moduloDeSoporte(seccionPrevia.current)} abrirConsultaId={consultaAAbrir} onAbrirConsultaConsumida={() => setConsultaAAbrir(null)} />
       case "usuarios":
         return <Usuarios usuario={usuario} asistentes={asistentes} setAsistentes={setAsistentes} alActualizarUsuario={alActualizarUsuario} />
       case "configuracion":

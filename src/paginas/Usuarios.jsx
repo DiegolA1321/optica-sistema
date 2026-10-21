@@ -11,6 +11,7 @@ import CampoClaveTemporal from "../componentes/CampoClaveTemporal"
 import VistaPrevia, { EtiquetaDeMuestra } from "../componentes/VistaPrevia"
 import { filtrarSoloLetras, esNombreValido, esEmailValido, esCedulaValida, resolverClaveTemporal } from "../utilidades/validaciones"
 import { registrarLog } from "../utilidades/logs"
+import { mensajeDeError } from "../utilidades/permisos"
 import VentanaActividad from "../componentes/VentanaActividad"
 import { Cascaron, PieFormulario } from "../componentes/AtencionPaciente"
 import { unirPermisos, menuDePermisos, resumenPermisos } from "../utilidades/roles"
@@ -30,6 +31,8 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   const [roles, setRoles] = useState([])
   const [asignaciones, setAsignaciones] = useState([]) // { perfil_id, rol_id }
   const [cargando, setCargando] = useState(true)
+  // Si no se pudieron leer los roles o las personas, la pantalla lo dice y deja reintentar: nunca muestra "Sin rol" ni "0" como si fueran datos.
+  const [errorCarga, setErrorCarga] = useState(false)
   // Asignar roles predefinidos y desactivar solo se ofrecen si la base ya aplica los permisos por nivel (migración 0091).
   const [nivelesVigentes, setNivelesVigentes] = useState(false)
   // El administrador principal (el primero de la óptica) cambia sus propios roles desde aquí; un administrador
@@ -41,13 +44,15 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
 
   const cargar = useCallback(async () => {
     if (!supabase || !usuario?.opticaId) { setCargando(false); return }
-    const [{ data: r }, { data: a }, { data: v }, { data: perfiles }, { data: principal }] = await Promise.all([
+    const [{ data: r, error: errorRoles }, { data: a, error: errorAsignaciones }, { data: v }, { data: perfiles, error: errorPerfiles }, { data: principal }] = await Promise.all([
       supabase.from("roles").select("*").eq("optica_id", usuario.opticaId).order("es_predefinido", { ascending: false }).order("nombre"),
       supabase.from("perfil_roles").select("perfil_id, rol_id"),
       supabase.rpc("permisos_por_nivel_vigentes"),
       supabase.from("perfiles").select("id, nombre, email, etiqueta_rol, es_optometra, cedula, registro_profesional, activo, desactivado_en, motivo_desactivacion").eq("optica_id", usuario.opticaId).eq("rol", "asistente"),
       usuario.rol === "admin" ? supabase.rpc("soy_administrador_principal") : Promise.resolve({ data: null }),
     ])
+    if (errorRoles || errorAsignaciones || errorPerfiles) { setErrorCarga(true); setCargando(false); return }
+    setErrorCarga(false)
     // Sin la función (base sin la 0098) se asume principal: la base decide al guardar.
     if (principal === false) setEsPrincipal(false)
     setRoles(r || [])
@@ -57,6 +62,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
     setCargando(false)
   }, [usuario?.opticaId, setAsistentes])
   useEffect(() => { cargar() }, [cargar])
+  const reintentarCarga = () => { setErrorCarga(false); setCargando(true); cargar() }
 
   // Actividad (incluye los cambios de roles y permisos, que la base registra sola)
   const [mostrarActividad, setMostrarActividad] = useState(false)
@@ -113,7 +119,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   // "Mis roles" del administrador principal: guarda y refresca su sesión para que las vistas del menú se actualicen al instante.
   const guardarMisRoles = async (ids) => {
     const errorRoles = await guardarRoles(usuario.id, ids)
-    if (errorRoles) return /solo el administrador principal/i.test(errorRoles.message) ? "Solo el administrador principal puede cambiar sus propios roles." : errorRoles.message
+    if (errorRoles) return /solo el administrador principal/i.test(errorRoles.message) ? "Solo el administrador principal puede cambiar sus propios roles." : mensajeDeError(errorRoles, "No se pudieron guardar los roles.")
     const [extras, { data: yo }] = await Promise.all([cargarMisPermisos(supabase), supabase.from("perfiles").select("es_optometra").eq("id", usuario.id).maybeSingle()])
     alActualizarUsuario?.({ ...(extras || {}), esOptometra: !!yo?.es_optometra })
     registrarLog(usuario, "usuarios", "Cambió sus propios roles", roles.filter((r) => ids.includes(r.id)).map((r) => r.nombre).join(", ") || "Sin roles")
@@ -139,12 +145,12 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
       const { error: errorUpdate } = await supabase.from("perfiles").update({ nombre: nombre.trim(), etiqueta_rol: nombresRoles, cedula: cedulaLimpia || null, registro_profesional: registro.trim() || null }).eq("id", modal.id)
       if (errorUpdate) {
         setGuardando(false)
-        setError(errorUpdate.code === "23505" || /duplicate key|unique constraint/i.test(errorUpdate.message) ? "Esa cédula ya está registrada por otro usuario de esta óptica." : errorUpdate.message)
+        setError(errorUpdate.code === "23505" || /duplicate key|unique constraint/i.test(errorUpdate.message) ? "Esa cédula ya está registrada por otro usuario de esta óptica." : mensajeDeError(errorUpdate, "No se pudieron guardar los cambios del usuario."))
         return
       }
       const errorRoles = await guardarRoles(modal.id)
       setGuardando(false)
-      if (errorRoles) { setError(errorRoles.message); return }
+      if (errorRoles) { setError(mensajeDeError(errorRoles, "No se pudieron guardar los roles.")); return }
       registrarLog(usuario, "usuarios", "Editó a un usuario", nombre.trim())
       setModal(null)
       mostrarExito(`${nombre.trim()} actualizado correctamente.`)
@@ -164,7 +170,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
     if (errorAlta || !alta?.user) {
       setGuardando(false)
       const yaRegistrado = /already registered|already exists|already in use/i.test(errorAlta?.message || "")
-      setError(yaRegistrado ? "Ese correo ya tiene una cuenta en el sistema — usa un correo distinto o contacta soporte." : errorAlta?.message || "No se pudo crear la cuenta.")
+      setError(yaRegistrado ? "Ese correo ya tiene una cuenta en el sistema — usa un correo distinto o contacta soporte." : mensajeDeError(errorAlta, "No se pudo crear la cuenta."))
       return
     }
     // El perfil se inserta con la sesión del administrador (no con la de la cuenta recién creada).
@@ -173,12 +179,12 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
     if (errorPerfil) {
       setGuardando(false)
       const cedulaDuplicada = errorPerfil.code === "23505" || /duplicate key|unique constraint/i.test(errorPerfil.message)
-      setError((cedulaDuplicada ? "Esa cédula ya está registrada por otro usuario de esta óptica." : errorPerfil.message) + " — la cuenta de correo ya quedó creada, contacta soporte si esto se repite.")
+      setError((cedulaDuplicada ? "Esa cédula ya está registrada por otro usuario de esta óptica." : mensajeDeError(errorPerfil, "No se pudo guardar el perfil")) + " — la cuenta de correo ya quedó creada, contacta soporte si esto se repite.")
       return
     }
     const errorRoles = await guardarRoles(alta.user.id)
     setGuardando(false)
-    if (errorRoles) { setError(`La cuenta se creó, pero no se pudieron asignar los roles (${errorRoles.message}). Edita al usuario para asignárselos.`); cargar(); return }
+    if (errorRoles) { setError(`La cuenta se creó, pero no se pudieron asignar los roles (${mensajeDeError(errorRoles, "error al guardar")}). Edita al usuario para asignárselos.`); cargar(); return }
     registrarLog(usuario, "usuarios", "Creó un usuario nuevo", nombre.trim())
     setModal(null)
     mostrarExito(`Usuario ${nombre.trim()} creado correctamente.`)
@@ -191,7 +197,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
     setProcesando(true)
     const { data, error: errorRpc } = await supabase.rpc("desactivar_usuario", { p_perfil_id: aDesactivar.id, p_motivo: motivo.trim() || null })
     setProcesando(false)
-    if (errorRpc) { setError(errorRpc.message); setADesactivar(null); return }
+    if (errorRpc) { setError(mensajeDeError(errorRpc, "No se pudo desactivar al usuario.")); setADesactivar(null); return }
     registrarLog(usuario, "usuarios", "Desactivó a un usuario", aDesactivar.nombre)
     const n = data?.citas_futuras_asignadas || 0
     mostrarExito(`${aDesactivar.nombre} fue desactivado. Ya no puede entrar.${n > 0 ? ` Tiene ${n} cita${n === 1 ? "" : "s"} futura${n === 1 ? "" : "s"} asignada${n === 1 ? "" : "s"}: reasígnala${n === 1 ? "" : "s"} en Citas.` : ""}`)
@@ -201,7 +207,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   }
   const reactivar = async (a) => {
     const { error: errorRpc } = await supabase.rpc("reactivar_usuario", { p_perfil_id: a.id })
-    if (errorRpc) { setError(errorRpc.message); return }
+    if (errorRpc) { setError(mensajeDeError(errorRpc, "No se pudo reactivar al usuario.")); return }
     registrarLog(usuario, "usuarios", "Reactivó a un usuario", a.nombre)
     mostrarExito(`${a.nombre} fue reactivado.`)
     cargar()
@@ -222,12 +228,12 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
             <History size={17} /> Actividad
           </button>
           {pestana === "usuarios" && (
-            <button type="button" onClick={abrirCrear} disabled={cargando || roles.length === 0} className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
+            <button type="button" onClick={abrirCrear} disabled={cargando || errorCarga || roles.length === 0} className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
               <UserPlus size={18} /> Crear usuario
             </button>
           )}
           {pestana === "roles" && (
-            <button type="button" onClick={() => setPedidoNuevoRol((n) => n + 1)} disabled={cargando} className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
+            <button type="button" onClick={() => setPedidoNuevoRol((n) => n + 1)} disabled={cargando || errorCarga} className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
               <Plus size={18} aria-hidden="true" /> Nuevo rol
             </button>
           )}
@@ -235,9 +241,9 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
       </div>
 
       <div role="tablist" aria-label="Secciones" className="flex w-fit gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-        {[["usuarios", "Usuarios", Users, asistentes.length + (usuario?.rol === "admin" ? 1 : 0)], ["roles", "Roles", ShieldCheck, roles.length]].map(([id, etiqueta, Icono, n]) => (
+        {[["usuarios", "Usuarios", Users, errorCarga ? null : asistentes.length + (usuario?.rol === "admin" ? 1 : 0)], ["roles", "Roles", ShieldCheck, errorCarga ? null : roles.length]].map(([id, etiqueta, Icono, n]) => (
           <button key={id} type="button" role="tab" aria-selected={pestana === id} onClick={() => setPestana(id)} className={"flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors cursor-pointer " + (pestana === id ? "text-white" : "text-slate-500 hover:bg-slate-50")} style={pestana === id ? { background: GRAD } : undefined}>
-            <Icono size={14} aria-hidden="true" /> {etiqueta} <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (pestana === id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{n}</span>
+            <Icono size={14} aria-hidden="true" /> {etiqueta} {n !== null && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (pestana === id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{n}</span>}
           </button>
         ))}
       </div>
@@ -282,7 +288,14 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
         <p role="alert" className="flex items-center gap-2 rounded-xl border border-red-200/60 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"><AlertTriangle size={16} aria-hidden="true" /> {error}</p>
       )}
 
-      {cargando ? (
+      {errorCarga && !cargando ? (
+        <div role="alert" className="rounded-2xl border border-red-200/60 bg-red-50 p-8 text-center">
+          <AlertTriangle size={28} className="mx-auto text-red-500" aria-hidden="true" />
+          <p className="mt-3 text-base font-semibold text-red-800">No se pudo cargar los usuarios y roles</p>
+          <p className="mt-1 text-sm text-red-700">Revisa tu conexión e inténtalo de nuevo.</p>
+          <button type="button" onClick={reintentarCarga} className="mt-4 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer">Reintentar</button>
+        </div>
+      ) : cargando ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2" aria-busy="true" aria-label="Cargando usuarios">
           {[0, 1].map((i) => <div key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200/60 bg-slate-100/70" />)}
         </div>

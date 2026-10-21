@@ -6,7 +6,8 @@
 //   Nivel 4  Avisos del sistema     superadmin → ópticas
 // El servidor decide a quién va cada consulta (destino); aquí solo se muestra.
 
-export const esAdministrador = (usuario) => usuario?.rol === "admin"
+// En la vista de un rol (p. ej. Optómetra) el administrador ve Soporte como ese rol: sin las pestañas ni las acciones del administrador.
+export const esAdministrador = (usuario) => usuario?.rol === "admin" && !usuario.enVistaDeRol
 
 // Las pestañas de Soporte de cada persona, en el orden en que se ven. "Ayuda" va al final.
 export function pestanasDeSoporte(usuario) {
