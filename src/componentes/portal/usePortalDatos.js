@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react"
 import { misCompras } from "../../utilidades/facturaElectronicaApi"
-import { misOrdenes, miControl, misCitasDetalle, confirmarAsistencia, calificarAtencion, misReferidos, marcarCitaEnCalendario, misSolicitudesLentes, solicitarLentes, misMedidas, misDatosTransferencia, reportarPagoTransferencia } from "../../utilidades/portalDatos"
+import { misOrdenes, miControl, misCitasDetalle, calificarAtencion, misReferidos, marcarCitaEnCalendario, misSolicitudesLentes, solicitarLentes, misMedidas, misDatosTransferencia, reportarPagoTransferencia } from "../../utilidades/portalDatos"
 
 // Compras (con su saldo), órdenes de laboratorio, control y detalle de las citas del paciente, pedidos una sola vez para todo el portal (Resumen, Mis citas y Mis compras
-// leen lo mismo). `citas` son las citas del paciente: el detalle se pide cuando cambian. confirmar y calificar actualizan la pantalla al instante.
+// leen lo mismo). `citas` son las citas del paciente: el detalle se pide cuando cambian. calificar actualiza la pantalla al instante.
 export function usePortalDatos(usuario, citas = []) {
   const pacienteId = typeof usuario?.id === "string" ? usuario.id : null
   const token = usuario?.token
@@ -30,11 +30,6 @@ export function usePortalDatos(usuario, citas = []) {
     return () => { vivo = false }
   }, [pacienteId, token, clave]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const confirmar = useCallback(async (citaId) => {
-    const r = await confirmarAsistencia(pacienteId, token, citaId)
-    if (r.ok) setDetalle((d) => ({ ...d, porCita: { ...d.porCita, [citaId]: { ...(d.porCita[citaId] || {}), confirmadaAt: new Date().toISOString() } } }))
-    return r
-  }, [pacienteId, token])
   const calificar = useCallback(async (citaId, puntaje, comentario) => {
     const r = await calificarAtencion(pacienteId, token, citaId, puntaje, comentario)
     if (r.ok) setDetalle((d) => ({ ...d, porCita: { ...d.porCita, [citaId]: { ...(d.porCita[citaId] || {}), calificacion: { puntaje, comentario: comentario || null } } } }))
@@ -65,5 +60,5 @@ export function usePortalDatos(usuario, citas = []) {
   // «Solicitar medidas»: tras pedirlas se vuelve a preguntar (así «Solicitud enviada» sale de la base, no solo de la memoria).
   const recargarMedidas = useCallback(async () => setMedidas(await misMedidas(pacienteId, token)), [pacienteId, token])
 
-  return { ...estado, medidas, recargarMedidas, detalle, solicitudes, solicitar, transferencia, reportarPago, confirmar, calificar, agregarAlCalendario }
+  return { ...estado, medidas, recargarMedidas, detalle, solicitudes, solicitar, transferencia, reportarPago, calificar, agregarAlCalendario }
 }

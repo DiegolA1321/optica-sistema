@@ -21,17 +21,15 @@ const Dato = ({ titulo, children }) => <div><dt className="text-base font-semibo
 const PieCerrar = ({ onCerrar }) => <><span /><button type="button" onClick={onCerrar} className={BOTON_SECUNDARIO}>Cerrar</button></>
 const mayuscula = (t) => t.charAt(0).toUpperCase() + t.slice(1)
 
-// La cita, próxima o pasada: cuándo, para qué, con quién, dónde y si está confirmada, con todas sus acciones (confirmar, calendario, cambiar o cancelar) o, si ya pasó, la receta que salió
+// La cita, próxima o pasada: cuándo, para qué, con quién, dónde, con todas sus acciones (calendario, cambiar o cancelar) o, si ya pasó, la receta que salió
 // de ella y «¿Cómo te atendimos?» (una sola vez por cita).
-function DetalleCita({ cita, detalle, detalleDisponible, direccion, citaProps, onConfirmar, onVerReceta, onCalificar, onCerrar }) {
+function DetalleCita({ cita, detalle, detalleDisponible, direccion, citaProps, onVerReceta, onCalificar, onCerrar }) {
   const [puntaje, setPuntaje] = useState(0)
   const [comentario, setComentario] = useState("")
   const [enviando, setEnviando] = useState(false)
-  const [confirmando, setConfirmando] = useState(false)
   const [error, setError] = useState("")
   const cal = detalle?.calificacion
   const pendiente = cita.estado === "Pendiente"
-  const confirmada = Boolean(detalle?.confirmadaAt)
   const reagendable = citaProps.puedeReagendar?.(cita)
   const cerrarYHacer = (fn) => () => { onCerrar(); fn?.(cita) }
   const enviar = async () => {
@@ -41,16 +39,10 @@ function DetalleCita({ cita, detalle, detalleDisponible, direccion, citaProps, o
     setEnviando(false)
     if (!r.ok) setError(r.error)
   }
-  const confirmar = async () => {
-    setConfirmando(true); setError("")
-    const r = await onConfirmar(cita.id)
-    setConfirmando(false)
-    if (!r.ok) setError(r.error)
-  }
   return (
     <Cascaron pantallaCompletaEnCelular titulo="Tu cita" subtitulo={mayuscula(formatoFecha(cita.fecha, "largo")) + " · " + cita.hora} Icono={Stethoscope} ancho="max-w-xl" onCerrar={onCerrar} pie={<PieCerrar onCerrar={onCerrar} />}>
       <div className="space-y-3 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2"><EstadoCita estado={cita.estado} confirmada={confirmada} enCalendario={Boolean(citaProps.calendarioAgregada?.(cita.id))} />{!(confirmada && pendiente) && <span className="text-lg text-pt-texto">{NOTA_ESTADO_CITA[cita.estado]}</span>}</div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2"><EstadoCita estado={cita.estado} enCalendario={Boolean(citaProps.calendarioAgregada?.(cita.id))} /><span className="text-lg text-pt-texto">{NOTA_ESTADO_CITA[cita.estado]}</span></div>
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
           <Dato titulo="Motivo">{cita.motivo || "Consulta"}</Dato>
           {detalle?.profesional && <Dato titulo={cita.estado === "Atendida" ? "Te atendió" : "Profesional"}><span className="flex items-center gap-2"><UserRound size={20} className="text-slate-500" aria-hidden="true" /> {detalle.profesional}</span></Dato>}
@@ -59,7 +51,6 @@ function DetalleCita({ cita, detalle, detalleDisponible, direccion, citaProps, o
         {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base font-medium text-red-700">{error}</p>}
         {pendiente && (
           <div className="space-y-3">
-            {detalleDisponible && !confirmada && <button type="button" onClick={confirmar} disabled={confirmando} className={BOTON_PRINCIPAL + " w-full"} style={ESTILO_PRINCIPAL}>{confirmando ? "Confirmando…" : "Confirmar asistencia"}</button>}
             <div className="grid gap-3 sm:grid-cols-2"><BotonCalendario cita={cita} citaProps={citaProps} otraVez className="w-full" /></div>
             {reagendable && (
               <div className="grid gap-3 sm:grid-cols-2">
@@ -274,11 +265,11 @@ function DetalleLentes({ ordenes, onCerrar }) {
 }
 
 // Decide cuál ventana mostrar según lo que pulsó el paciente.
-export default function VentanaDetalle({ abierto, onCerrar, citas, ordenes, comprasConSaldo, saldoInfo, recetas, control, tieneCitaPendiente, contacto, nombreOptica, detalle, citaProps, onConfirmar, onCalificar, onVerReceta, onDescargarReceta, onAgendar, onVerCompras, transferencia = null, onPagarTransferencia, puntos, historialPuntos = [] }) {
+export default function VentanaDetalle({ abierto, onCerrar, citas, ordenes, comprasConSaldo, saldoInfo, recetas, control, tieneCitaPendiente, contacto, nombreOptica, detalle, citaProps, onCalificar, onVerReceta, onDescargarReceta, onAgendar, onVerCompras, transferencia = null, onPagarTransferencia, puntos, historialPuntos = [] }) {
   if (!abierto) return null
   if (abierto.tipo === "cita") {
     const cita = citas.find((c) => String(c.id) === String(abierto.id))
-    return cita ? <DetalleCita cita={cita} detalle={detalle.porCita[cita.id]} detalleDisponible={detalle.disponible} direccion={contacto.direccion} citaProps={citaProps} onConfirmar={onConfirmar} onVerReceta={onVerReceta} onCalificar={onCalificar} onCerrar={onCerrar} /> : null
+    return cita ? <DetalleCita cita={cita} detalle={detalle.porCita[cita.id]} detalleDisponible={detalle.disponible} direccion={contacto.direccion} citaProps={citaProps} onVerReceta={onVerReceta} onCalificar={onCalificar} onCerrar={onCerrar} /> : null
   }
   if (abierto.tipo === "pedido") {
     const orden = ordenes.find((o) => String(o.id) === String(abierto.id))

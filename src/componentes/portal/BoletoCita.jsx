@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef } from "react"
 import { CalendarDays, CalendarPlus, ChevronRight, Check } from "lucide-react"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
@@ -18,8 +18,8 @@ const cuando = (iso) => { const d = diasHasta(iso); return d === 0 ? "hoy" : d =
 // grande y el mes; a la derecha «Tu próxima cita · en 7 días», la hora, el motivo, con quién es y las acciones. En el celular el boleto responde a su propio ancho: una franja
 // oscura arriba con el día y la hora, y debajo el motivo, el estado y dos botones. `variante`: "resumen" (con la dirección; Cancelar como texto debajo) o "citas" (las acciones
 // en una columna a la derecha). Sin cita, una invitación a agendar con un solo botón. Todo el boleto se pulsa y abre el detalle de la cita (`onAbrir`). «Agregar a mi calendario» se ofrece
-// cuando tiene sentido —ya confirmada la asistencia— y cambia a «Agregada a tu calendario» cuando el paciente la agrega; antes de confirmar, la primera acción es «Confirmar asistencia».
-export default function BoletoCita({ cita, detalle = null, detalleDisponible = false, direccion = "", citaProps = {}, onConfirmar, onAbrir, onAgendar, variante = "resumen", conBoton = true, ocultarConfirmar = false }) {
+// siempre que la cita está pendiente y cambia a «Agregada a tu calendario» cuando el paciente la agrega. La asistencia ya no se confirma: quien agenda, viene; si no, cancela.
+export default function BoletoCita({ cita, detalle = null, direccion = "", citaProps = {}, onAbrir, onAgendar, variante = "resumen", conBoton = true }) {
   const caja = useRef(null)
   const ancho = useAnchoDe(caja)
   // Sin medida (pruebas) vale la versión ancha.
@@ -27,8 +27,6 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
   const dosColumnas = ancho === 0 || ancho >= 760
   // «Mis citas»: la próxima cita es una franja compacta (la pantalla es la lista de visitas, no la cita).
   const compacto = variante === "citas" && dosColumnas
-  const [confirmando, setConfirmando] = useState(false)
-  const [errorConfirmar, setErrorConfirmar] = useState("")
 
   if (!cita) {
     return (
@@ -47,31 +45,18 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
   }
 
   const reagendable = citaProps.puedeReagendar?.(cita)
-  const confirmada = Boolean(detalle?.confirmadaAt)
   const [, mes, dia] = cita.fecha.split("-").map(Number)
   const semana = formatoFecha(cita.fecha, "largo").split(",")[0]
-  const puedeConfirmar = detalleDisponible && !confirmada && cita.estado === "Pendiente"
   const enCalendario = Boolean(citaProps.calendarioAgregada?.(cita.id))
-  const estadoCita = (sinIcono) => <EstadoCita estado={cita.estado} confirmada={confirmada} enCalendario={enCalendario} sinIcono={sinIcono} />
-  const confirmar = async () => {
-    setConfirmando(true); setErrorConfirmar("")
-    const r = await onConfirmar(cita.id)
-    setConfirmando(false)
-    if (!r.ok) setErrorConfirmar(r.error)
-  }
+  const estadoCita = (sinIcono) => <EstadoCita estado={cita.estado} enCalendario={enCalendario} sinIcono={sinIcono} />
   const profesional = detalle?.profesional ? `Con ${detalle.profesional}` : ""
-  const pie = <>
-    {!ancha && <CambiosDeCita cita={cita} citaProps={citaProps} />}
-    {errorConfirmar && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base font-medium text-red-700">{errorConfirmar}</p>}
-  </>
-  const btnConfirmar = puedeConfirmar && !ocultarConfirmar && <button type="button" onClick={confirmar} disabled={confirmando} className={BOTON_PRINCIPAL} style={ESTILO_PRINCIPAL}>{confirmando ? "Confirmando…" : "Confirmar asistencia"}</button>
-  const verCalendario = confirmada || !puedeConfirmar
-  const btnCalendario = verCalendario && <BotonCalendario cita={cita} citaProps={citaProps} principal={!btnConfirmar} corto={!ancha} ocultaAgregada />
+  const pie = <>{!ancha && <CambiosDeCita cita={cita} citaProps={citaProps} />}</>
+  const btnCalendario = <BotonCalendario cita={cita} citaProps={citaProps} principal corto={!ancha} ocultaAgregada />
   const abrir = onAbrir && <button type="button" onClick={() => onAbrir(cita)} aria-label="Ver el detalle de tu próxima cita" className="pt-abrir absolute inset-0 cursor-pointer" />
   const clase = "overflow-hidden rounded-[20px] border border-pt-borde bg-white " + (onAbrir ? "pt-abrible relative transition-shadow hover:shadow-md" : "")
   const btnReagendar = reagendable && <button type="button" onClick={() => citaProps.onReagendar?.(cita)} className={BOTON_SECUNDARIO}>Reagendar</button>
   const btnCancelar = (clase) => reagendable && <button type="button" onClick={() => citaProps.onCancelar?.(cita)} aria-label="Cancelar cita" className={clase}>Cancelar</button>
-  const nota = !detalle?.confirmadaAt && cita.estado !== "Pendiente" ? NOTA_ESTADO_CITA[cita.estado] : ""
+  const nota = cita.estado !== "Pendiente" ? NOTA_ESTADO_CITA[cita.estado] : ""
 
   // «Qué llevar a tu cita»: en el espacio libre del boleto, para que el paciente llegue con lo que el optómetra necesita.
   const queLlevar = cita.estado === "Pendiente" && (
@@ -105,7 +90,7 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
           <div className="flex flex-wrap items-center gap-2">{estadoCita(true)}{nota && <span className="text-base text-pt-texto">{nota}</span>}</div>
           {pie}
           {queLlevar}
-          {(btnConfirmar || btnCalendario) && <div className="grid grid-cols-1 gap-3">{btnConfirmar}{btnCalendario}</div>}
+          {btnCalendario && <div className="grid grid-cols-1 gap-3">{btnCalendario}</div>}
           {reagendable && <div className="grid grid-cols-2 gap-3">{btnReagendar}{btnCancelar(BOTON_SECUNDARIO)}</div>}
         </div>
       </section>
@@ -123,8 +108,7 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
       {citaProps.whatsappUrl ? <a href={citaProps.whatsappUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-semibold text-pt-azul hover:underline">Escríbenos por WhatsApp</a> : citaProps.cambiosPermitidos === false ? "Comunícate con la óptica." : ""}
     </p>
   )
-  const error = errorConfirmar && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base font-medium text-red-700">{errorConfirmar}</p>
-  const acciones = (btnConfirmar || btnCalendario || reagendable) && <div className={"flex flex-wrap gap-3 " + (compacto ? "" : "pt-1.5")}>{btnConfirmar}{btnCalendario}{btnReagendar}{btnCancelar(BOTON_SECUNDARIO)}</div>
+  const acciones = <div className={"flex flex-wrap gap-3 " + (compacto ? "" : "pt-1.5")}>{btnCalendario}{btnReagendar}{btnCancelar(BOTON_SECUNDARIO)}</div>
   return (
     <section ref={caja} aria-label="Tu próxima cita" className={clase}>
       {abrir}
@@ -149,8 +133,7 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
               </div>
               <div className="flex min-w-0 flex-col items-stretch gap-2.5 sm:items-end">
                 {estadoCita(false)}
-                {error}
-                {(btnConfirmar || btnCalendario || reagendable) && <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[15rem]">{btnConfirmar}{btnCalendario}{btnReagendar}{btnCancelar(BOTON_SECUNDARIO)}</div>}
+                <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[15rem]">{btnCalendario}{btnReagendar}{btnCancelar(BOTON_SECUNDARIO)}</div>
                 {textoSinCambios && (citaProps.whatsappUrl
                   ? <a href={citaProps.whatsappUrl} target="_blank" rel="noopener noreferrer" className={BOTON_SECUNDARIO + " w-full sm:w-auto sm:min-w-[15rem]"}>Escribir por WhatsApp</a>
                   : aviso)}
@@ -166,7 +149,6 @@ export default function BoletoCita({ cita, detalle = null, detalleDisponible = f
                 <p className="text-base leading-snug text-pt-texto">{[profesional, variante === "resumen" ? direccion : ""].filter(Boolean).join(" · ")}</p>
                 {nota && <p className="text-base text-pt-texto">{nota}</p>}
                 {queLlevar}
-                {error}
                 {acciones}
               </div>
               <div className="mt-auto flex items-center justify-between gap-4 border-t border-pt-borde pt-3">

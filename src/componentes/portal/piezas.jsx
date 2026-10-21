@@ -54,12 +54,9 @@ export function Insignia({ tono = "gris", children, className = "" }) {
 
 // El estado de una cita, con el nombre y el color del módulo de Citas (Pendiente naranja, En atención azul, Atendida verde, No efectuada rojo, En espera violeta, Cancelada gris).
 const TONO_ESTADO = { Pendiente: "ambar", "En Espera": "violeta", "En Atención": "azul", Atendida: "verde", "No Asistió": "rojo", Cancelada: "gris" }
-// `enCalendario`: el paciente ya la agregó a su calendario; el estado lo dice una sola vez, en la misma etiqueta («Confirmada · en tu calendario»).
-export function EstadoCita({ estado, confirmada = false, sinIcono = false, enCalendario = false }) {
+// `enCalendario`: el paciente ya la agregó a su calendario; el estado lo dice una sola vez, en la misma etiqueta («Pendiente · en tu calendario»).
+export function EstadoCita({ estado, enCalendario = false }) {
   const calendario = enCalendario && estado === "Pendiente" ? " · en tu calendario" : ""
-  if (estado === "Pendiente" && confirmada) {
-    return <span role="status" aria-label={"Estado: Confirmada" + calendario}><Insignia tono="verde">{!sinIcono && <Check size={16} strokeWidth={2.5} aria-hidden="true" />}Confirmada{calendario}</Insignia></span>
-  }
   return <span role="status" aria-label={"Estado: " + etiquetaEstadoCita(estado) + calendario}><Insignia tono={TONO_ESTADO[estado] || "gris"}>{etiquetaEstadoCita(estado)}{calendario}</Insignia></span>
 }
 
@@ -114,7 +111,7 @@ export function FilaCita({ cita, onAbrir, ...citaProps }) {
         <p className="text-lg font-bold leading-snug text-pt-marino">{formatoFecha(cita.fecha, "corto")} · {cita.hora}</p>
         <p className="text-base text-pt-texto">{cita.motivo || "Consulta"}</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <EstadoCita estado={cita.estado} confirmada={Boolean(citaProps.confirmadaId?.(cita.id))} enCalendario={Boolean(citaProps.calendarioAgregada?.(cita.id))} />
+          <EstadoCita estado={cita.estado} enCalendario={Boolean(citaProps.calendarioAgregada?.(cita.id))} />
           <span className="text-base text-pt-texto">{NOTA_ESTADO_CITA[cita.estado]}</span>
         </div>
         <CambiosDeCita cita={cita} citaProps={citaProps} className="mt-2" />

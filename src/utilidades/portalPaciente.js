@@ -150,15 +150,12 @@ export const AYUDA_RECETA = {
 }
 
 // ── Pendiente para ti ──
-// Lo que el paciente debe hacer, en este orden de prioridad: retirar lentes listos, confirmar una cita próxima, pagar un saldo y calificar una visita atendida. Solo trae lo que hay;
+// Lo que el paciente debe hacer, en este orden de prioridad: retirar lentes listos, pagar un saldo y calificar una visita atendida. Solo trae lo que hay;
 // sin nada pendiente devuelve [] y el Inicio no dibuja el bloque. `abrir` es la ventana de detalle que abre la tarjeta.
-export function pendientesDelPaciente({ ordenes = [], proximaCita = null, detalleCita = null, detalleDisponible = false, saldoInfo = null, historial = [], detalle = {} } = {}) {
+export function pendientesDelPaciente({ ordenes = [], detalleDisponible = false, saldoInfo = null, historial = [], detalle = {} } = {}) {
   const lista = []
   for (const o of ordenes.filter((x) => x.estado === "lista")) {
     lista.push({ id: "lentes-" + o.id, tipo: "lentes", titulo: "Tus lentes están listos para retirar", texto: "Pasa por la óptica a recogerlos.", accion: "Ver detalle", abrir: { tipo: "pedido", id: o.id } })
-  }
-  if (proximaCita && proximaCita.estado === "Pendiente" && detalleDisponible && !detalleCita?.confirmadaAt) {
-    lista.push({ id: "cita-" + proximaCita.id, tipo: "cita", titulo: `Confirma tu cita del ${diaYMes(proximaCita.fecha)}`, texto: "Avísanos que vas a venir.", accion: "Confirmar", confirmar: proximaCita.id, abrir: { tipo: "cita", id: proximaCita.id } })
   }
   if (saldoInfo && saldoInfo.saldo > 0) {
     const retiro = ordenes.some((o) => o.estado === "enviada" || o.estado === "lista")

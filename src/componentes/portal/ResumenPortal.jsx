@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { CalendarPlus, Phone, MessageCircle, Navigation, Eye, ChevronRight, Glasses, CalendarCheck, DollarSign, Star, Landmark } from "lucide-react"
 import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { nombreDeLosLentes, textoControl, tipoDeLentes } from "../../utilidades/portalPaciente"
@@ -17,16 +16,8 @@ const diaMes = (iso) => formatoFecha(iso, "largoSinDia").replace(/ de \d{4}$/, "
 
 const ICONO_PENDIENTE = { lentes: Glasses, cita: CalendarCheck, saldo: DollarSign, calificar: Star }
 
-// «Pendiente para ti»: lo que el paciente debe hacer, por prioridad (retirar lentes, confirmar la cita, pagar el saldo, calificar una visita). Solo se dibuja si hay algo.
-function PendienteParaTi({ pendientes, onAbrir, onConfirmar, onPagarTransferencia }) {
-  const [confirmando, setConfirmando] = useState("")
-  const [error, setError] = useState("")
-  const confirmar = async (p) => {
-    setConfirmando(p.id); setError("")
-    const r = await onConfirmar(p.confirmar)
-    setConfirmando("")
-    if (!r.ok) setError(r.error)
-  }
+// «Pendiente para ti»: lo que el paciente debe hacer, por prioridad (retirar lentes, pagar el saldo, calificar una visita). Solo se dibuja si hay algo.
+function PendienteParaTi({ pendientes, onAbrir, onPagarTransferencia }) {
   return (
     <section aria-labelledby="pendiente" className="rounded-[20px] border border-pt-borde bg-white p-5 sm:px-[34px] sm:py-7">
       <h2 id="pendiente" className="font-heading text-xl font-bold text-pt-marino">Pendiente para ti</h2>
@@ -41,15 +32,13 @@ function PendienteParaTi({ pendientes, onAbrir, onConfirmar, onPagarTransferenci
               <span className="min-w-[12rem] flex-1">
                 <span className="block text-lg font-bold leading-snug text-pt-marino">{p.titulo}</span>
                 <span className="block text-base text-pt-texto">{p.texto}</span>
-                {!p.confirmar && <span className={"mt-1 block text-base font-semibold " + (ambar ? "text-pt-ambar" : "text-pt-azul")}>{p.accion} ›</span>}
+                <span className={"mt-1 block text-base font-semibold " + (ambar ? "text-pt-ambar" : "text-pt-azul")}>{p.accion} ›</span>
               </span>
               {p.tipo === "saldo" && onPagarTransferencia && <button type="button" onClick={() => onPagarTransferencia()} className={BOTON_SECUNDARIO + " shrink-0 bg-white"}><Landmark size={20} aria-hidden="true" /> Pagar por transferencia</button>}
-              {p.confirmar && <button type="button" onClick={() => confirmar(p)} disabled={Boolean(confirmando)} className={BOTON_PRINCIPAL + " shrink-0"} style={ESTILO_PRINCIPAL}>{confirmando === p.id ? "Confirmando…" : p.accion}</button>}
             </li>
           )
         })}
       </ul>
-      {error && <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base font-medium text-red-700">{error}</p>}
     </section>
   )
 }
@@ -179,7 +168,7 @@ const PASOS_NUEVO = [["Agenda tu cita", "Elige el día y la hora que más te con
 
 // Inicio del portal (diseño aprobado). Arriba, «Pendiente para ti» (solo si hay algo). Después: tu próxima cita en estilo boleto y tus lentes; tu graduación con los ojos ilustrados y, a la
 // derecha, el próximo control y tus puntos; y abajo, la franja oscura de la óptica. La rejilla va por el ancho de la zona de contenido, no de la ventana.
-export default function ResumenPortal({ cargando, esNuevo, proximaCita, detalleCita, detalleDisponible, ordenesAbiertas, pendientes = [], control, tieneCitaPendiente, puntos, contacto, hayContacto, ultimaReceta, consultas = [], nombreOptica, direccion, citaProps, onConfirmar, onAbrir, onAgendar, onVerReceta, onPagarTransferencia }) {
+export default function ResumenPortal({ cargando, esNuevo, proximaCita, detalleCita, ordenesAbiertas, pendientes = [], control, tieneCitaPendiente, puntos, contacto, hayContacto, ultimaReceta, consultas = [], nombreOptica, direccion, citaProps, onAbrir, onAgendar, onVerReceta, onPagarTransferencia }) {
   const celular = useCelular()
   if (cargando) {
     return (
@@ -221,9 +210,9 @@ export default function ResumenPortal({ cargando, esNuevo, proximaCita, detalleC
   return (
     <div className="space-y-5 sm:space-y-6">
       <h1 className="sr-only">Inicio</h1>
-      {pendientes.length > 0 && <PendienteParaTi pendientes={pendientes} onAbrir={onAbrir} onConfirmar={onConfirmar} onPagarTransferencia={onPagarTransferencia} />}
+      {pendientes.length > 0 && <PendienteParaTi pendientes={pendientes} onAbrir={onAbrir} onPagarTransferencia={onPagarTransferencia} />}
       <div className={"pt-fila " + (hayLentes ? "pt-fila--8-4" : "pt-fila--solo")}>
-        <BoletoCita cita={proximaCita} detalle={detalleCita} detalleDisponible={detalleDisponible} direccion={direccion} citaProps={citaProps} onConfirmar={onConfirmar} onAbrir={(c) => onAbrir({ tipo: "cita", id: c.id })} onAgendar={onAgendar} ocultarConfirmar />
+        <BoletoCita cita={proximaCita} detalle={detalleCita} direccion={direccion} citaProps={citaProps} onAbrir={(c) => onAbrir({ tipo: "cita", id: c.id })} onAgendar={onAgendar} />
         {hayLentes && <TarjetaLentes ordenes={ordenesAbiertas} horarioHoy={contacto.hoy?.texto} celular={celular} onAbrir={onAbrir} />}
       </div>
       {(ultimaReceta || derecha) && (

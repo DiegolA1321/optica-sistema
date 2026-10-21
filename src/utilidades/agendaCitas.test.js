@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { particionarAgenda, agruparPorDia, desplazarRango, yaPasoLaHora, minutosHastaCita } from "./agendaCitas"
+import { particionarAgenda, agruparPorDia, desplazarRango, yaPasoLaHora, minutosHastaCita, siguienteCitaQueChoca } from "./agendaCitas"
 
 const c = (id, fecha, hora) => ({ id, fecha, hora })
 
@@ -60,5 +60,40 @@ describe("yaPasoLaHora", () => {
   it("hoy compara la hora", () => {
     expect(yaPasoLaHora(c(1, "2026-09-30", "01:30 PM"), ahora)).toBe(true)
     expect(yaPasoLaHora(c(1, "2026-09-30", "05:00 PM"), ahora)).toBe(false)
+  })
+})
+
+describe("siguienteCitaQueChoca", () => {
+  const cita = (id, hora, extra = {}) => ({ id, fecha: "2026-10-21", hora, estado: "Pendiente", paciente: "P" + id, ...extra })
+  const ahora = (h, m) => new Date(2026, 9, 21, h, m)
+  it("a tiempo no avisa: la cita de las 4:00 abierta a las 3:55 o a las 4:00", () => {
+    const citas = [cita(1, "04:00 PM"), cita(2, "04:50 PM")]
+    expect(siguienteCitaQueChoca(citas[0], citas, ahora(15, 55), 50)).toBeNull()
+    expect(siguienteCitaQueChoca(citas[0], citas, ahora(16, 0), 50)).toBeNull()
+  })
+  it("llega a las 4:49 a la cita de las 4:00 y la de las 4:50 ya está agendada: avisa de la siguiente", () => {
+    const citas = [cita(1, "04:00 PM", { duracionMinutos: 50 }), cita(2, "04:50 PM")]
+    expect(siguienteCitaQueChoca(citas[0], citas, ahora(16, 49), 40)?.id).toBe(2)
+  })
+  it("sin otra cita después, se atiende sin avisar", () => {
+    const citas = [cita(1, "04:00 PM"), cita(2, "02:00 PM")]
+    expect(siguienteCitaQueChoca(citas[0], citas, ahora(16, 30), 50)).toBeNull()
+  })
+  it("una siguiente que empieza cuando ya habría terminado esta atención no choca", () => {
+    const citas = [cita(1, "04:00 PM"), cita(2, "06:00 PM")]
+    expect(siguienteCitaQueChoca(citas[0], citas, ahora(16, 10), 40)).toBeNull()
+  })
+  it("solo mira al mismo profesional y a las citas abiertas", () => {
+    const citas = [cita(1, "04:00 PM", { asignadoA: "u1" }), cita(2, "04:50 PM", { asignadoA: "u2" }), cita(3, "04:45 PM", { estado: "Cancelada" })]
+    expect(siguienteCitaQueChoca(citas[0], citas, ahora(16, 30), 40)).toBeNull()
+  })
+  it("una atención ya abierta no avisa", () => {
+    const citas = [cita(1, "04:00 PM", { estado: "En Atención" }), cita(2, "04:50 PM")]
+    expect(siguienteCitaQueChoca(citas[0], citas, ahora(16, 40), 40)).toBeNull()
+  })
+  it("una cita de otro día que se atiende hoy avisa si la siguiente de hoy llega antes de terminar", () => {
+    const otra = cita(1, "04:00 PM", { fecha: "2026-10-24" })
+    const citas = [otra, cita(2, "04:00 PM")]
+    expect(siguienteCitaQueChoca(otra, citas, ahora(15, 40), 40)?.id).toBe(2)
   })
 })

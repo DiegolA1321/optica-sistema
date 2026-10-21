@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Search, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { Search, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, X, List, Calendar, CalendarDays } from "lucide-react"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
 import { formatoFecha, nombreMes } from "../utilidades/formatoFecha"
@@ -181,25 +181,69 @@ function CalendarioRango({ rango }) {
   )
 }
 
-// Periodo de la Lista: Hoy · Semana · Mes. Con un rango de fechas elegido en el panel "Filtrar" ninguno queda marcado.
-export function PeriodoLista({ valor, onChange, opciones, sinActivo = false }) {
+// Periodo de la Lista: Hoy · Esta semana · Este mes · Todas · Rango. Es el ÚNICO lugar donde se elige el periodo de las fechas (el panel «Filtrar»
+// no lo repite). «Rango» abre un calendario para marcar el primer y el último día; mientras hay un rango elegido, es lo único que queda marcado.
+export function PeriodoLista({ valor, onChange, opciones, sinActivo = false, rango = null }) {
+  const [abierto, setAbierto] = useState(false)
+  const ref = useCierre(abierto, () => setAbierto(false))
+  const hayRango = Boolean(rango && (rango.desde || rango.hasta))
+  const base = "inline-flex items-center whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer "
+  const corta = (iso) => formatoFecha(iso, "medioSinAnio")
   return (
     <div role="group" aria-label="Periodo de las citas" className="flex h-9 shrink-0 items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
       {opciones.map((o) => {
         const activo = !sinActivo && valor === o.id
         return (
-          <button
-            key={o.id}
-            type="button"
-            onClick={() => onChange(o.id)}
-            aria-pressed={activo}
-            className={"inline-flex items-center whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-600 hover:bg-slate-50")}
-            style={activo ? ESTILO_ACTIVO : undefined}
-          >
+          <button key={o.id} type="button" onClick={() => onChange(o.id)} aria-pressed={activo} className={base + (activo ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={activo ? ESTILO_ACTIVO : undefined}>
             {o.etiqueta}
           </button>
         )
       })}
+      {rango && (
+        <div ref={ref} className="relative">
+          <button type="button" onClick={() => setAbierto((v) => !v)} aria-haspopup="dialog" aria-expanded={abierto} aria-pressed={hayRango} className={base + "gap-1 " + (hayRango ? "text-white" : abierto ? "bg-slate-100 text-slate-800" : "text-slate-600 hover:bg-slate-50")} style={hayRango ? ESTILO_ACTIVO : undefined}>
+            {hayRango && rango.desde && rango.hasta ? `${corta(rango.desde)} – ${corta(rango.hasta)}` : "Rango"}
+            <ChevronDown size={12} className={"transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
+          </button>
+          {abierto && (
+            <div role="dialog" aria-label="Elegir rango de fechas" data-popover-abierto className="absolute right-0 top-full z-30 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200/60 bg-white p-2.5 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
+              <CalendarioRango rango={{ ...rango, onHasta: (v) => { rango.onHasta(v); if (v) setAbierto(false) } }} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Vista de Citas: «Lista» y «Calendario»; «Calendario» se despliega para elegir «Semana» o «Mes». Siempre ocupa el mismo ancho: lo que cambia
+// (qué calendario está activo) se dice dentro del mismo botón, sin mover la barra de búsqueda (regla 1). La semana no se ofrece donde no cabe.
+export function SelectorVistaCitas({ vista, onChange, cabeSemana = true }) {
+  const [abierto, setAbierto] = useState(false)
+  const ref = useCierre(abierto, () => setAbierto(false))
+  const enCalendario = vista === "semana" || vista === "mes"
+  const opciones = [...(cabeSemana ? [{ key: "semana", label: "Semana", Icono: Calendar }] : []), { key: "mes", label: "Mes", Icono: CalendarDays }]
+  const base = "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer "
+  return (
+    <div className="flex h-[38px] shrink-0 items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
+      <button type="button" onClick={() => onChange("lista")} aria-pressed={vista === "lista"} className={base + (vista === "lista" ? "text-white" : "text-slate-500 hover:bg-slate-50")} style={vista === "lista" ? { background: GRAD_MARCA } : undefined}>
+        <List size={14} aria-hidden="true" /> Lista
+      </button>
+      <div ref={ref} className="relative">
+        <button type="button" onClick={() => setAbierto((v) => !v)} aria-haspopup="menu" aria-expanded={abierto} aria-pressed={enCalendario} className={base + "w-[8.75rem] justify-between " + (enCalendario ? "text-white" : abierto ? "bg-slate-100 text-slate-800" : "text-slate-500 hover:bg-slate-50")} style={enCalendario ? { background: GRAD_MARCA } : undefined}>
+          <span className="flex items-center gap-1.5 whitespace-nowrap"><CalendarDays size={14} aria-hidden="true" /> Calendario{enCalendario ? ` · ${vista === "semana" ? "Semana" : "Mes"}` : ""}</span>
+          <ChevronDown size={12} className={"shrink-0 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
+        </button>
+        {abierto && (
+          <div role="menu" aria-label="Calendario" className="absolute left-0 top-full z-30 mt-1.5 w-40 rounded-xl border border-slate-200/60 bg-white p-1 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>
+            {opciones.map((o) => (
+              <button key={o.key} type="button" role="menuitemradio" aria-checked={vista === o.key} onClick={() => { onChange(o.key); setAbierto(false) }} className={"flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors cursor-pointer " + (vista === o.key ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50")}>
+                <o.Icono size={14} aria-hidden="true" /> {o.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

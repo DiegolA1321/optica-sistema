@@ -2,7 +2,7 @@
 
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
-import { fechaLegible, fechaCorta, formatoFecha, tituloSemana } from "../utilidades/formatoFecha"
+import { fechaLegible, formatoFecha, tituloSemana } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabaseClient"
 import {
@@ -30,7 +30,6 @@ import {
   Cake,
   Loader2,
   Receipt,
-  List,
 } from "lucide-react"
 import CampoFecha from "../componentes/CampoFecha"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
@@ -42,7 +41,8 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import DiaCitasModal from "../componentes/DiaCitasModal"
-import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas } from "../componentes/FiltrosCitas"
+import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas, SelectorVistaCitas } from "../componentes/FiltrosCitas"
+import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
 import { colorDe } from "../componentes/calendarioComun"
 import { etiquetaMiembro, miembrosActivos } from "../utilidades/equipo"
 import { puedeReasignar, ausenteEnHorario } from "../utilidades/reasignacion"
@@ -57,7 +57,7 @@ import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiqueta
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
 import { citasParaReagendar } from "../utilidades/controles"
-import { ESTADOS_FILTRO, ALTA_FILTRO, periodosFiltro, tareasFiltro, proximoDiaDeAtencion, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeIngresarCita, esCitaFuturaPendiente, requiereConfirmarOtroDia, esPrimeraVez } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, periodosFiltro, tareasFiltro, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeIngresarCita, esPrimeraVez } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -106,9 +106,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
   // minutos tarde) o de otro día (la de mañana que se atiende hoy). La fecha
   // agendada no cambia — la fecha real queda en la consulta (cita_id).
   // Sin onAtender (rol sin permiso para crear fichas clínicas) no se ofrece el botón.
-  const puedeAtender = puedeIngresarCita(cita, hoyISO()) && !!onAtender
-  // Una cita futura no se atiende todavía: se dice cuándo es, sin botón.
-  const citaFutura = esCitaFuturaPendiente(cita, hoyISO()) && !!onAtender
+  const puedeAtender = puedeIngresarCita(cita) && !!onAtender
   // Fecha real de atención (punto 3, reunión 29 sept.) —
   // solo se muestra cuando difiere de la fecha agendada,
   // para no repetir el mismo dato en el caso común.
@@ -158,7 +156,6 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
         <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-slate-600">
           <Clock size={14} className="text-slate-500" />
           <span>{cita.hora}</span>
-          {cita.confirmadaAt && !resuelta && <span title="Asistencia confirmada (por el paciente o por recepción)" aria-label="Asistencia confirmada" className="text-emerald-600"><CheckCircle2 size={14} aria-hidden="true" /></span>}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {cita.estado === "Atendida" ? (
@@ -207,8 +204,6 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
             >
               <Receipt size={14} /> Cobrar
             </button>
-          ) : !cobroPendiente && citaFutura ? (
-            <span className="whitespace-nowrap text-xs font-semibold text-slate-500">Próxima cita: {fechaLegible(cita.fecha)}</span>
           ) : !cobroPendiente && puedeAtender && (
             <button
               type="button"
@@ -218,7 +213,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
               style={{ background: GRAD, boxShadow: "0 6px 14px -6px rgba(37,99,235,0.5)" }}
             >
               {marcandoEstadoId === cita.id ? <Loader2 size={14} className="animate-spin" /> : <Stethoscope size={14} />}
-              {cita.estado === "En Atención" ? "Retomar" : "Atender"}
+              {cita.estado === "En Atención" ? "Seguir atendiendo" : "Atender"}
             </button>
           )}
         </div>
@@ -230,7 +225,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
 const FILTRO_POR_DEFECTO = "hoy"
 const PAGINA_LISTA = 30
 
-export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDisponibilidad, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, equipo = [], vistaPropia = false, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDisponibilidad, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, editarCitaId = null, onEditarCitaConsumido, equipo = [], vistaPropia = false, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -330,6 +325,14 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     onAtenderCitaConsumido?.()
   }, [atenderCitaId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Desde el perfil del paciente ("Reagendar" cuando la siguiente cita ya está agendada): abre la edición de esa cita.
+  useEffect(() => {
+    if (!editarCitaId) return
+    const cita = citas.find((c) => c.id === editarCitaId)
+    if (cita) abrirReagendar(cita)
+    onEditarCitaConsumido?.()
+  }, [editarCitaId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const [busqueda, setBusqueda] = useState("")
   // Todos los roles abren en Lista, periodo "Hoy": recepción ve quién viene, el optómetra su agenda y el
   // administrador lo que pasa hoy. Si hoy no hay citas se avisa y se ofrece "Ver esta semana".
@@ -337,7 +340,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   const [limiteLista, setLimiteLista] = useState(PAGINA_LISTA)
   // Día que se está viendo en la Lista: el periodo (Hoy · Semana · Mes) se calcula a partir de él y las flechas lo mueven.
   const [refLista, setRefLista] = useState(() => hoyISO())
-  const [filtro, setFiltro] = useState(FILTRO_POR_DEFECTO) // hoy | semana | mes | confirmar | reagendar | todas
+  const [filtro, setFiltro] = useState(FILTRO_POR_DEFECTO) // hoy | semana | mes | reagendar | todas
   // Bloque de filtros (R3): estado, origen y primera vez/seguimiento. Se
   // combinan entre sí y con el indicador de arriba.
   const [estadoFiltro, setEstadoFiltro] = useState("todas")
@@ -385,10 +388,9 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   // Detalle de la cita (R12-R13): se abre al hacer clic en la cita. Se guarda
   // el id y no la cita, para que el modal refleje los cambios de estado.
   const [detalleCitaId, setDetalleCitaId] = useState(null)
-  const [preguntarOtroDia, setPreguntarOtroDia] = useState(false) // el detalle se abre con "¿Atenderla hoy?" ya planteado
   // Atención abierta de un día anterior que se quiere dejar de atender (desde el menú o el detalle).
   const [dejarCita, setDejarCita] = useState(null)
-  const abrirDetalle = (cita, sinAnimarFondo = false) => { setDetalleSinAnimar(sinAnimarFondo); setPreguntarOtroDia(false); setDetalleCitaId(cita.id) }
+  const abrirDetalle = (cita, sinAnimarFondo = false) => { setDetalleSinAnimar(sinAnimarFondo); setDetalleCitaId(cita.id) }
   const alCobrarCita = async (factura) => {
     const cita = cobrandoCita
     setFacturasVenta?.((prev) => [factura, ...prev])
@@ -664,31 +666,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     }
   }
 
-  // Recepción registra que el paciente confirmó su asistencia (por teléfono, WhatsApp o en persona); el paciente
-  // que usa el enlace del recordatorio por correo la confirma solo. Misma columna: confirmada_at.
-  const marcarConfirmada = async (citaId) => {
-    const confirmadaAt = new Date().toISOString()
-    try {
-      if (supabase && opticaId) {
-        const { data: actualizadas, error: errorConfirmar } = await supabase.from("citas").update({ confirmada_at: confirmadaAt }).eq("id", citaId).select()
-        if (fueBloqueadoPorPermiso({ error: errorConfirmar, data: actualizadas })) {
-          setBannerError(MENSAJE_SIN_PERMISO)
-          return
-        }
-        if (errorConfirmar) {
-          setBannerError("No se pudo marcar la cita como confirmada. Revisa tu conexión e intenta de nuevo.")
-          return
-        }
-      }
-      setBannerError("")
-      setCitas(citas.map((c) => (c.id === citaId ? { ...c, confirmadaAt } : c)))
-      if (detalleCitaId) onAviso?.("Cita marcada como confirmada."); else mostrarExito("Cita marcada como confirmada.")
-    } catch {
-      setBannerError("No se pudo marcar la cita como confirmada. Revisa tu conexión e intenta de nuevo.")
-    }
-  }
-
-  // ── "Atender" y "Retomar" van directo a la ficha clínica (reunión 7 oct., C16): el detalle de la cita ya
+  // ── "Atender" y "Seguir atendiendo" van directo a la ficha clínica (reunión 7 oct., C16): el detalle de la cita ya
   // reúne los datos, así que no hay un resumen intermedio. La lógica de entrar vive en ingresarAFicha. ──
   // Atender exige poder crear fichas clínicas (consultas: crear). Los botones ya no se muestran sin ese
   // permiso; esto es la red de seguridad para que ningún camino quede en un clic mudo.
@@ -696,9 +674,8 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   const avisarSinPermisoAtender = () => onAviso?.("No tienes permiso para atender pacientes.")
   const atenderCita = (cita) => {
     if (!puedeAtenderPacientes) { avisarSinPermisoAtender(); return }
-    // Una cita de otro día abre su detalle ya con la pregunta "¿Atenderla hoy?"; las de hoy entran directo a la ficha.
-    if (requiereConfirmarOtroDia(cita, hoyISO())) { setPreguntarOtroDia(true); setDetalleCitaId(cita.id); return }
-    ingresarAFicha(cita)
+    // Una cita de otro día pregunta "¿Atenderla hoy?"; si llegó tarde y la siguiente ya está agendada, avisa; las de hoy entran directo a la ficha.
+    pedirAtender(cita)
   }
 
   // ── Cambios de estado desde el detalle de la cita (la recepción). El detalle queda abierto y muestra el estado
@@ -896,6 +873,9 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     setErrorReagendar("")
   }
 
+  // «Atender» en cualquier cita abierta: otro día → "¿Atenderla hoy?"; llegó tarde y la siguiente ya está agendada → "Atender igual" o "Reagendar".
+  const { pedirAtender, dialogo: dialogoAtender } = useAtenderCita({ citas, duracionDefault: disponibilidad?.duracionCita || 40, alAtender: ingresarAFicha, alReagendar: puede(usuario, "citas", "editar") ? abrirReagendar : undefined })
+
   const confirmarReagendar = async (e) => {
     e.preventDefault()
     if (!nuevoMotivo) {
@@ -1056,10 +1036,9 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
       mes: { desde: fechaAISO(new Date(d.getFullYear(), d.getMonth(), 1)), hasta: fechaAISO(new Date(d.getFullYear(), d.getMonth() + 1, 0)) },
     }
   }, [refLista])
-  const diaConfirmar = useMemo(() => proximoDiaDeAtencion(disponibilidad, hoyISO()), [disponibilidad])
   const idsReagendar = useMemo(() => new Set(citasParaReagendar(citas).map((c) => c.id)), [citas])
   const periodos = useMemo(() => periodosFiltro(), [])
-  const tareaActiva = filtro === "confirmar" || filtro === "reagendar" ? filtro : "ninguna"
+  const tareaActiva = filtro === "reagendar" ? filtro : "ninguna"
   const ventana = useMemo(() => {
     if (vistaActiva === "semana") return { desde: semanaLunes, hasta: sumarDiasISO(semanaLunes, 6) }
     if (vistaActiva === "mes") {
@@ -1068,8 +1047,8 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     return null
   }, [vistaActiva, semanaLunes, mesVista])
   const filtros = useMemo(
-    () => ({ estado: estadoFiltro, alta: altaFiltro, origen: origenFiltro, seguimiento: seguimientoFiltro, responsable: responsableFiltro, motivo: motivoFiltro, texto: busqueda, periodo: { filtro, desde: rangoDesde, hasta: rangoHasta }, ventana, rangos, diaConfirmar, idsReagendar }),
-    [estadoFiltro, altaFiltro, origenFiltro, seguimientoFiltro, responsableFiltro, motivoFiltro, busqueda, filtro, rangoDesde, rangoHasta, ventana, rangos, diaConfirmar, idsReagendar],
+    () => ({ estado: estadoFiltro, alta: altaFiltro, origen: origenFiltro, seguimiento: seguimientoFiltro, responsable: responsableFiltro, motivo: motivoFiltro, texto: busqueda, periodo: { filtro, desde: rangoDesde, hasta: rangoHasta }, ventana, rangos, idsReagendar }),
+    [estadoFiltro, altaFiltro, origenFiltro, seguimientoFiltro, responsableFiltro, motivoFiltro, busqueda, filtro, rangoDesde, rangoHasta, ventana, rangos, idsReagendar],
   )
   const resultado = useMemo(() => citas.filter((c) => citaPasaFiltros(c, filtros, consultas)), [citas, filtros, consultas])
   const totalAlcance = useMemo(() => totalDelAlcance(citas, filtros), [citas, filtros])
@@ -1100,7 +1079,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   // un historial, así que va de la más reciente a la más antigua.
   const { grupos, gruposAnteriores } = useMemo(() => {
     const hoy = hoyISO()
-    if (hayRango || (["hoy", "semana", "mes", "confirmar", "reagendar"].includes(filtro) && !busqueda.trim())) return { grupos: agruparPorDia(ordenarCitas(resultado)), gruposAnteriores: [] }
+    if (hayRango || (["hoy", "semana", "mes", "reagendar"].includes(filtro) && !busqueda.trim())) return { grupos: agruparPorDia(ordenarCitas(resultado)), gruposAnteriores: [] }
     // Atendidas, canceladas y No efectuada son historial: de la más reciente a la
     // más antigua, todas a la vista, sin esconder lo pasado en "Anteriores".
     if (ESTADOS_DE_HISTORIAL.includes(estadoFiltro)) {
@@ -1243,6 +1222,13 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     abrirModal()
     setFecha(iso)
   }
+  // Pulsar un día de Semana o Mes: de hoy en adelante y con la óptica abierta, "Gestionar cita" se abre con ese día ya elegido y sus horarios disponibles.
+  // Un día pasado o cerrado abre la ventana "Citas del día" (que explica por qué y, a quien puede, ofrece abrirlo).
+  const alPulsarDia = (iso) => {
+    const agendable = iso >= hoyISO() && puede(usuario, "citas", "crear") && diaAbierto(horarioEfectivo(iso, disponibilidad))
+    if (agendable) agendarDesdeDia(iso, null)
+    else setDiaModal({ iso, minutos: null })
+  }
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c) — un hook por
   // modal, cada uno gateado por el mismo booleano/valor que ya controla su
@@ -1257,9 +1243,8 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     origenFiltro !== "todos" && { id: "origen", texto: `Origen: ${ORIGENES_FILTRO.find((o) => o.id === origenFiltro)?.etiqueta}`, quitar: () => setOrigenFiltro("todos") },
     seguimientoFiltro !== "todos" && { id: "visita", texto: `Visita: ${SEGUIMIENTO_FILTRO.find((o) => o.id === seguimientoFiltro)?.etiqueta}`, quitar: () => setSeguimientoFiltro("todos") },
     motivoFiltro && { id: "motivo", texto: `Motivo: ${motivoFiltro}`, quitar: () => setMotivoFiltro("") },
-    tareaActiva !== "ninguna" && { id: "tarea", texto: `Tarea: ${tareasFiltro(diaConfirmar).find((t) => t.id === tareaActiva)?.etiqueta}`, quitar: () => elegirPeriodo("hoy") },
+    tareaActiva !== "ninguna" && { id: "tarea", texto: `Tarea: ${tareasFiltro().find((t) => t.id === tareaActiva)?.etiqueta}`, quitar: () => elegirPeriodo("hoy") },
     responsableFiltro !== "todos" && { id: "responsable", texto: `Profesional: ${nombreResponsableFiltro(responsableFiltro)}`, quitar: () => setResponsableFiltro("todos") },
-    vistaActiva === "lista" && hayRango && { id: "fechas", texto: `Fechas: ${rangoDesde ? fechaCorta(rangoDesde) : "…"} – ${rangoHasta ? fechaCorta(rangoHasta) : "…"}`, quitar: () => { setRangoDesde(""); setRangoHasta("") } },
   ].filter(Boolean)
 
   // "89 citas" sin filtros; "Mostrando 5 de 89 citas" cuando hay menos que el total (en Semana y Mes, del periodo visible).
@@ -1276,16 +1261,10 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   const textoResumen = `${mostradas} ${mostradas === 1 ? "cita" : "citas"}${sufijoPeriodo}`
   const elegirPeriodo = (id) => { setFiltro(id); setRefLista(hoyISO()); setRangoDesde(""); setRangoHasta("") }
   const opcionesResponsable = [{ id: "todos", etiqueta: "Todos" }, { id: "ninguno", etiqueta: "Nadie" }, ...equipo.map((m) => ({ id: m.id, etiqueta: m.nombre }))]
-  // Un rango libre solo se puede mostrar como lista (Semana y Mes son una semana o un mes): al elegirlo desde otra vista, pasa a Lista.
-  // (El salto se hace cuando el rango está completo, para no cerrar el calendario después del primer clic.)
-  const elegirDesde = (v) => setRangoDesde(v)
-  const elegirHasta = (v) => { setRangoHasta(v); if (v && vistaActiva !== "lista") setVista("lista") }
   const seccionesFiltro = [
     { id: "estado", titulo: "Estado", valor: estadoFiltro, onChange: setEstadoFiltro, opciones: ESTADOS_FILTRO },
-    { id: "alta", titulo: "Agendada", valor: altaFiltro, onChange: setAltaFiltro, opciones: ALTA_FILTRO },
     { id: "origen", titulo: "Origen", valor: origenFiltro, onChange: setOrigenFiltro, opciones: ORIGENES_FILTRO },
     { id: "visita", titulo: "Visita", valor: seguimientoFiltro, onChange: setSeguimientoFiltro, opciones: SEGUIMIENTO_FILTRO.map((o) => (o.id === "todos" ? { ...o, etiqueta: "Todas" } : o)) },
-    { id: "fechas", titulo: "Fechas", tipo: "rango", rango: { desde: rangoDesde, hasta: rangoHasta, onDesde: elegirDesde, onHasta: elegirHasta } },
     ...(usuario?.rol === "admin" ? [
       { id: "responsable", titulo: "Profesional", tipo: "lista", valor: responsableFiltro, onChange: setResponsableFiltro, opciones: opcionesResponsable },
     ] : []),
@@ -1437,28 +1416,8 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
           A la derecha de la fila 2, cuántas citas se ven. ─── */}
       <div className="space-y-2.5">
         <div className="flex items-start gap-3">
-          {/* Selector de vista: la lista sirve para ejecutar el día (Atender,
-              Cobrar) y la semana/el mes para planificar. Conviven sobre los
-              mismos datos. La semana no se ofrece donde no cabe. */}
-          <div className="flex h-[38px] shrink-0 items-center gap-1 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm" role="group" aria-label="Vista de citas">
-            {[
-              { key: "lista", label: "Lista", Icono: List },
-              ...(cabeSemana ? [{ key: "semana", label: "Semana", Icono: Calendar }] : []),
-              { key: "mes", label: "Mes", Icono: CalendarDays },
-            ].map((op) => (
-              <button
-                key={op.key}
-                type="button"
-                onClick={() => setVista(op.key)}
-                aria-pressed={vistaActiva === op.key}
-                className={"flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (vistaActiva === op.key ? "text-white" : "text-slate-500 hover:bg-slate-50")}
-                style={vistaActiva === op.key ? { background: GRAD } : undefined}
-              >
-                <op.Icono size={14} aria-hidden="true" />
-                {op.label}
-              </button>
-            ))}
-          </div>
+          {/* Vista: «Lista» sirve para ejecutar el día (Atender, Cobrar); «Calendario» (Semana o Mes) para planificar. Conviven sobre los mismos datos. */}
+          <SelectorVistaCitas vista={vistaActiva} onChange={setVista} cabeSemana={cabeSemana} />
           <BarraBusquedaFiltros texto={busqueda} onTexto={setBusqueda} secciones={seccionesFiltro} etiquetas={etiquetasActivas} onLimpiar={limpiarFiltrosPanel} />
         </div>
 
@@ -1474,7 +1433,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
           {vistaActiva === "lista" ? (
             !buscando && (
               <div className="flex min-w-0 items-center gap-3">
-                <PeriodoLista valor={filtro} onChange={elegirPeriodo} opciones={periodos} sinActivo={hayRango} />
+                <PeriodoLista valor={filtro} onChange={elegirPeriodo} opciones={periodos} sinActivo={hayRango} rango={{ desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta }} />
                 {hayRango || ["hoy", "semana", "mes"].includes(filtro) ? (
                   <NavegadorPeriodo titulo={tituloLista} onAnterior={() => moverLista(-1)} onSiguiente={() => moverLista(1)} etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" selector={selectorPeriodo} />
                 ) : (
@@ -1521,7 +1480,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
           cobroPendienteIds={pendientesPorCita}
           citasVisibles={resultado}
           aviso={avisoBusquedaSemana}
-          onDiaClick={(iso) => setDiaModal({ iso, minutos: null })}
+          onDiaClick={alPulsarDia}
           onAbrirDetalle={abrirDetalle}
           onHuecoLibre={(iso, minutos) => setDiaModal({ iso, minutos })}
           onMover={pedirMovimiento}
@@ -1532,7 +1491,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
           mes={mesVista}
           disponibilidad={disponibilidad}
           citasPorFecha={gruposCalendario}
-          onDiaClick={(iso) => setDiaModal({ iso, minutos: null })}
+          onDiaClick={alPulsarDia}
           onAbrirDetalle={abrirDetalle}
           onAgendar={() => abrirModal()}
         />
@@ -2052,6 +2011,8 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
         </Cascaron>
       )}
 
+      {dialogoAtender}
+
       {dejarCita && (
         <ConfirmarDejarDeAtender
           cita={dejarCita}
@@ -2076,8 +2037,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
             fechaAtencionReal={fechaRealPorCitaId.get(cita.id)?.fecha}
             cobroPendiente={pendientesPorCita.has(cita.id)}
             onCerrar={() => { setDetalleCitaId(null); setDetalleSinAnimar(false) }}
-            onIngresar={puedeAtenderPacientes ? (c) => { setDetalleCitaId(null); ingresarAFicha(c) } : undefined}
-            preguntarOtroDia={preguntarOtroDia}
+            onIngresar={puedeAtenderPacientes ? (c) => { setDetalleCitaId(null); pedirAtender(c) } : undefined}
             onAgendarOtra={puede(usuario, "citas", "crear") ? (c) => { setDetalleCitaId(null); agendarOtraCita(c) } : undefined}
             onCobrar={puede(usuario, "ventas", "crear") ? (c) => { setDetalleCitaId(null); cobrarCita(c) } : undefined}
             onEditar={puede(usuario, "citas", "editar") ? (c) => { setDetalleCitaId(null); abrirReagendar(c) } : undefined}
@@ -2087,7 +2047,6 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
             onLlego={puede(usuario, "citas", "editar") ? marcarLlego : undefined}
             onNoLlego={puede(usuario, "citas", "editar") ? marcarNoLlego : undefined}
             onNoAsistio={puede(usuario, "citas", "editar") ? marcarNoAsistio : undefined}
-            onConfirmar={puede(usuario, "citas", "editar") ? (c) => marcarConfirmada(c.id) : undefined}
             personasAsignables={personasAsignables}
             ausenteEnLaHora={(id, c) => ausenteEnHorario(disponibilidad, id, c.fecha, c.hora)}
             onReasignar={puedeReasignar(usuario, vistaPropia ? "propio" : "todo") ? reasignarCita : undefined}

@@ -1223,7 +1223,7 @@ function App() {
   if (citaAConfirmar) {
     contenido = (
       <Suspense fallback={<PantallaCargando />}>
-        <ConfirmarCita citaId={citaAConfirmar} />
+        <ConfirmarCita />
       </Suspense>
     );
   } else if (citaAEncuestar) {

@@ -74,6 +74,7 @@ import { linkWhatsApp, abrirWhatsApp } from "../utilidades/whatsapp"
 import { medidasDelPaciente, mensajeMedidas } from "../utilidades/medidasMontaje"
 import { agudezaConLentes } from "../utilidades/agudeza"
 import { puedeIngresarCita } from "../utilidades/filtrosCitas"
+import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
 import AvisoMedidasPedidas from "../componentes/AvisoMedidasPedidas"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import GraduacionPerfil from "../componentes/graduacion/GraduacionPerfil"
@@ -198,7 +199,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ avisosDelModulo = null, alcancePropio = false, usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas }) {
+export default function Pacientes({ avisosDelModulo = null, alcancePropio = false, usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, onReagendarCita }) {
   const opticaId = usuario?.opticaId
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -849,6 +850,19 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     }
     onIrAFichaClinica?.(paciente, citaId, motivo)
   }
+
+  // «Atender» en toda cita abierta, igual que en la Agenda: otro día → "¿Atenderla hoy?"; llegó tarde y la siguiente ya está agendada → "Atender igual" o "Reagendar".
+  const { pedirAtender, dialogo: dialogoAtender } = useAtenderCita({
+    citas,
+    duracionDefault: disponibilidad?.duracionCita || 40,
+    alAtender: (cita) => {
+      const p = pacientes.find((x) => x.id === cita.pacienteId) || pacienteHistorial
+      if (!p) return
+      setPacienteHistorial(null)
+      irAFichaConfirmandoSiHaceFalta(p, cita.id, cita.motivo)
+    },
+    alReagendar: onReagendarCita && puede(usuario, "citas", "editar") ? (cita) => { setPacienteHistorial(null); onReagendarCita(cita) } : undefined,
+  })
 
   // Venta rápida desde la tabla — abre el perfil 360° directo en la pestaña
   // "Lentes/Productos" con el modal de cobro ya abierto, sin el paso
@@ -1959,12 +1973,10 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                     .sort((x, y) => (x.estado === "En Atención" ? -1 : y.estado === "En Atención" ? 1 : x.fecha !== y.fecha ? (x.fecha < y.fecha ? -1 : 1) : minutosDesdeMedianoche(x.hora) - minutosDesdeMedianoche(y.hora)))[0]
                   if (!cita) return null
                   const esHoy = cita.fecha === hoyCita
-                  // Una cita futura no se atiende todavía: «Próxima cita: [fecha]» sin botón (el botón es para hoy o para una pendiente de un día anterior).
-                  if (!puedeIngresarCita(cita, hoyCita)) return <p className="text-sm text-slate-500">Próxima cita: <span className="font-semibold text-slate-700">{fechaLegible(cita.fecha) || ""}</span> · {cita.hora} · {cita.motivo || "Consulta general"}</p>
                   return (
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                      <button type="button" onClick={() => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-5 py-2.5 text-base font-bold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
-                        <Stethoscope size={18} aria-hidden="true" /> {cita.estado === "En Atención" ? "Seguir atendiendo" : "Ingresar"}
+                      <button type="button" onClick={() => pedirAtender(cita)} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-5 py-2.5 text-base font-bold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+                        <Stethoscope size={18} aria-hidden="true" /> {cita.estado === "En Atención" ? "Seguir atendiendo" : "Atender"}
                       </button>
                       <p className="text-sm text-slate-500">{cita.estado === "En Atención" ? "Su ficha ya está abierta" : esHoy ? "Cita de hoy" : "Cita del " + (fechaLegible(cita.fecha) || "")} · {cita.hora} · {cita.motivo || "Consulta general"}</p>
                     </div>
@@ -2058,7 +2070,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       {abiertasPaciente.map(({ cita, dias }) => (
                         <span key={cita.id} className="inline-flex flex-wrap items-center gap-2 rounded-full border border-amber-300/70 bg-amber-50 py-1 pl-3 pr-1.5 text-xs font-bold text-amber-800">
                           <AlertTriangle size={13} aria-hidden="true" /> {textoAtencionAbierta(dias)}
-                          {puedeAtender && <button type="button" onClick={() => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) }} className="rounded-full bg-amber-600 px-2.5 py-1 text-white transition-colors hover:bg-amber-700 cursor-pointer">Ingresar</button>}
+                          {puedeAtender && <button type="button" onClick={() => pedirAtender(cita)} className="rounded-full bg-amber-600 px-2.5 py-1 text-white transition-colors hover:bg-amber-700 cursor-pointer">Seguir atendiendo</button>}
                           {puedeEditarCita && <button type="button" onClick={() => setDejarCita(cita)} className="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-amber-800 transition-colors hover:bg-amber-100 cursor-pointer">Dejar de atender</button>}
                         </span>
                       ))}
@@ -2218,7 +2230,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         onVerCompras={() => setTabHistorial("pagos")}
                         onDejarDeAtender={puedeEditarCita ? setDejarCita : undefined}
                         onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
-                        onIngresar={puedeAtender ? (cita) => { setPacienteHistorial(null); irAFichaConfirmandoSiHaceFalta(pacienteHistorial, cita.id) } : undefined}
+                        onIngresar={puedeAtender ? pedirAtender : undefined}
                         cobros={sinMontos ? [] : cobrosPendientes(consultasPaciente, facturasVenta, citas)}
                         onCobrar={puedeVender ? setCobrandoPendiente : undefined}
                         paciente={pacienteHistorial}
@@ -2530,6 +2542,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
         />
       )}
 
+      {dialogoAtender}
+
       {dejarCita && (
         <ConfirmarDejarDeAtender
           cita={dejarCita}
@@ -2706,9 +2720,9 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
           Ver atención <ChevronRight size={14} aria-hidden="true" />
         </button>
       )}
-      {conIngresar && onIngresar && puedeIngresarCita(c, hoyISO()) && (
+      {conIngresar && onIngresar && puedeIngresarCita(c) && (
         <button type="button" onClick={() => onIngresar(c)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
-          <Stethoscope size={13} aria-hidden="true" /> Ingresar
+          <Stethoscope size={13} aria-hidden="true" /> {c.estado === "En Atención" ? "Seguir atendiendo" : "Atender"}
         </button>
       )}
     </li>
@@ -2731,9 +2745,9 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
               {diasAtencionAbierta(proxima) !== null && onDejarDeAtender && (
                 <button type="button" onClick={() => onDejarDeAtender(proxima)} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-50 cursor-pointer">Dejar de atender</button>
               )}
-              {onIngresar && puedeIngresarCita(proxima, hoyISO()) && (
+              {onIngresar && puedeIngresarCita(proxima) && (
                 <button type="button" onClick={() => onIngresar(proxima)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
-                  <Stethoscope size={14} aria-hidden="true" /> Ingresar
+                  <Stethoscope size={14} aria-hidden="true" /> {proxima.estado === "En Atención" ? "Seguir atendiendo" : "Atender"}
                 </button>
               )}
             </section>

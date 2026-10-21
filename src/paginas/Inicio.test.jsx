@@ -79,7 +79,7 @@ describe("Inicio del administrador", () => {
     const citas = area("Citas")
     expect(within(citas).getAllByRole("listitem")).toHaveLength(1) // las 5 atenciones abiertas son UNA línea
     expect(citas).toHaveTextContent("5 atenciones abiertas de días anteriores · Abierta 1, Abierta 2, Abierta 3 y 2 más")
-    expect(within(citas).queryByRole("button", { name: "Ingresar" })).not.toBeInTheDocument()
+    expect(within(citas).queryByRole("button", { name: "Seguir atendiendo" })).not.toBeInTheDocument()
     expect(within(citas).getByRole("button", { name: "Ver todo en Citas" })).toHaveTextContent(/^Ver todo$/)
     expect(screen.getByRole("region", { name: "Requiere tu atención" })).not.toHaveTextContent(/Ver todo \(/)
   })
@@ -419,11 +419,11 @@ describe("Inicio del optómetra", () => {
     render(<Inicio {...base} citas={citas} {...rol("optometra", { citas: ["ver"], consultas: ["ver", "crear"] })} onAtenderEnCitas={(c) => atender.push(c.id)} onAtenderCita={(c) => retomar.push(c.id)} />)
     fireEvent.click(within(screen.getByLabelText("Siguiente paciente")).getByRole("button", { name: /^Atender/ }))
     expect(atender).toEqual(["c1"])
-    const retomarBtns = screen.getAllByRole("button", { name: "Retomar" })
+    const retomarBtns = screen.getAllByRole("button", { name: "Seguir atendiendo" })
     expect(retomarBtns).toHaveLength(2) // la tarjeta "Fichas sin terminar" y la fila de la agenda
     retomarBtns.forEach((b) => fireEvent.click(b))
     fireEvent.click(within(area("Citas")).getByRole("button", { name: /atención abierta de un día anterior/ }))
-    fireEvent.click(within(screen.getByRole("dialog", { name: "Citas · 1 aviso" })).getByRole("button", { name: "Ingresar" })) // la de un día anterior
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Citas · 1 aviso" })).getByRole("button", { name: "Seguir atendiendo" })) // la de un día anterior
     expect(retomar).toEqual(["c8", "c8", "c9"])
   })
 

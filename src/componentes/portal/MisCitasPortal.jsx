@@ -19,7 +19,7 @@ const ESTADOS = [["Atendida", "Atendidas"], ["No Asistió", "No efectuadas"], ["
 const CHIP = (activo) => "inline-flex min-h-11 items-center rounded-full px-5 text-base font-semibold transition-colors cursor-pointer " + (activo ? "bg-pt-azul text-white" : "border border-pt-borde bg-white text-pt-marino hover:bg-pt-fondo")
 
 // Mis citas (diseño aprobado): la próxima en estilo boleto, y «Tus visitas anteriores» agrupadas por año (cada fila abre su detalle) con los mismos estados y colores del módulo de Citas.
-export default function MisCitasPortal({ cargando, proximas, historial, citaProps, onAgendar, detalle, direccion, onConfirmar, onAbrir, recetaActualId = null, primeraRecetaId = null, consultas = [], compras = [] }) {
+export default function MisCitasPortal({ cargando, proximas, historial, citaProps, onAgendar, detalle, direccion, onAbrir, recetaActualId = null, primeraRecetaId = null, consultas = [], compras = [] }) {
   // Las compras de cada cita (el comprobante trae la cita de la que salió): con ellas se dice lo que compró en esa visita.
   const facturasPorCita = compras.map((f) => ({ citaId: f.cita_id ?? null, consultaId: null, estado: f.estado === "anulada" ? "anulada" : "vigente", lineas: f.lineas || [] }))
   const [vistas, setVistas] = useState(DE_A)
@@ -51,7 +51,7 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
     <div className="space-y-5 sm:space-y-6">
       <TituloPagina accion={<button type="button" onClick={() => onAgendar()} className={BOTON_PRINCIPAL + " w-full sm:w-auto"} style={ESTILO_PRINCIPAL}>Agendar cita</button>}>Mis citas</TituloPagina>
 
-      <BoletoCita variante="citas" conBoton={false} cita={proximas[0] || null} detalle={det(proximas[0]?.id)} detalleDisponible={detalle.disponible} direccion={direccion} citaProps={citaProps} onConfirmar={onConfirmar} onAbrir={setAbierta} onAgendar={onAgendar} />
+      <BoletoCita variante="citas" conBoton={false} cita={proximas[0] || null} detalle={det(proximas[0]?.id)} direccion={direccion} citaProps={citaProps} onAbrir={setAbierta} onAgendar={onAgendar} />
 
       {proximas.length > 1 && (
         <Tarjeta aria-labelledby="proximas">
@@ -129,7 +129,7 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
                           <p>{etiquetaApilada("Tu receta")}{dato("receta") || <span className="text-slate-500">—</span>}</p>
                           {dato("compra") && <p className="mt-0.5"><span className="font-semibold text-pt-marino">Compraste:</span> {dato("compra")}</p>}
                         </div>
-                        <div data-col="estado" className="justify-self-start"><EstadoCita estado={c.estado} confirmada={false} /></div>
+                        <div data-col="estado" className="justify-self-start"><EstadoCita estado={c.estado} /></div>
                         <ChevronRight size={22} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
                       </li>
                     )

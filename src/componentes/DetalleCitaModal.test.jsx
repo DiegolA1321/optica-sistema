@@ -30,7 +30,7 @@ describe("DetalleCitaModal: acciones según permisos", () => {
     const atendida = { ...cita, estado: "Atendida" }
     const { rerender } = render(<DetalleCitaModal cita={atendida} cobroPendiente onCerrar={f()} onIngresar={f()} />)
     expect(screen.queryByRole("button", { name: /Cobrar/ })).toBeNull()
-    expect(screen.queryByRole("button", { name: /Atender|Retomar/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /Atender|Seguir atendiendo/ })).toBeNull()
     rerender(<DetalleCitaModal cita={atendida} cobroPendiente onCerrar={f()} onCobrar={f()} />)
     expect(screen.getByRole("button", { name: /Cobrar/ })).toBeInTheDocument()
   })

@@ -534,7 +534,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
           <FilaParametro
             icon={parametrizacion.recordatoriosCitaActivo === false ? BellOff : BellRing}
             titulo="Recordatorio automático un día antes de la cita"
-            descripcion="Se envía por correo a cada paciente con cita al día siguiente (tenga o no cuenta en el portal), con un link para confirmar su asistencia. Reduce las citas no efectuadas por olvido."
+            descripcion="Se envía por correo a cada paciente con cita al día siguiente (tenga o no cuenta en el portal), para que no se les olvide. Reduce las citas no efectuadas."
             activo={parametrizacion.recordatoriosCitaActivo !== false}
             onClick={() => {
               const activar = parametrizacion.recordatoriosCitaActivo === false

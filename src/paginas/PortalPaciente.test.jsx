@@ -11,7 +11,6 @@ const datos = vi.hoisted(() => ({
   misOrdenes: vi.fn(async () => ({ ordenes: [], disponible: true })),
   miControl: vi.fn(async () => null),
   misCitasDetalle: vi.fn(async () => ({ disponible: false, porCita: {} })),
-  confirmarAsistencia: vi.fn(async () => ({ ok: true })),
   calificarAtencion: vi.fn(async () => ({ ok: true })),
   misReferidos: vi.fn(async () => 0),
   marcarCitaEnCalendario: vi.fn(async () => ({ ok: true })),
@@ -23,7 +22,7 @@ const datos = vi.hoisted(() => ({
   reportarPagoTransferencia: vi.fn(async () => ({ ok: true })),
 }))
 vi.mock("../utilidades/facturaElectronicaApi", () => ({ misCompras: datos.misCompras, urlDeDescargaPaciente: vi.fn() }))
-vi.mock("../utilidades/portalDatos", () => ({ misOrdenes: datos.misOrdenes, miControl: datos.miControl, misCitasDetalle: datos.misCitasDetalle, confirmarAsistencia: datos.confirmarAsistencia, calificarAtencion: datos.calificarAtencion, misReferidos: datos.misReferidos, marcarCitaEnCalendario: datos.marcarCitaEnCalendario, misMedidas: datos.misMedidas, misSolicitudesLentes: datos.misSolicitudesLentes, solicitarLentes: datos.solicitarLentes, descargarMisDatosPaciente: datos.descargarMisDatosPaciente, misDatosTransferencia: datos.misDatosTransferencia, reportarPagoTransferencia: datos.reportarPagoTransferencia }))
+vi.mock("../utilidades/portalDatos", () => ({ misOrdenes: datos.misOrdenes, miControl: datos.miControl, misCitasDetalle: datos.misCitasDetalle, calificarAtencion: datos.calificarAtencion, misReferidos: datos.misReferidos, marcarCitaEnCalendario: datos.marcarCitaEnCalendario, misMedidas: datos.misMedidas, misSolicitudesLentes: datos.misSolicitudesLentes, solicitarLentes: datos.solicitarLentes, descargarMisDatosPaciente: datos.descargarMisDatosPaciente, misDatosTransferencia: datos.misDatosTransferencia, reportarPagoTransferencia: datos.reportarPagoTransferencia }))
 
 const descarga = vi.hoisted(() => ({ descargarHojaReceta: vi.fn(async () => true) }))
 vi.mock("../utilidades/descargarHojaReceta", () => ({ descargarHojaReceta: descarga.descargarHojaReceta }))
@@ -54,7 +53,6 @@ beforeEach(() => {
   datos.misOrdenes.mockResolvedValue({ ordenes: [], disponible: true })
   datos.miControl.mockResolvedValue(null)
   datos.misCitasDetalle.mockResolvedValue({ disponible: false, porCita: {} })
-  datos.confirmarAsistencia.mockClear()
   datos.calificarAtencion.mockClear()
   document.documentElement.removeAttribute("style")
 })
@@ -188,20 +186,19 @@ describe("Resumen", () => {
     await resumen()
     expect(screen.queryByRole("region", { name: "Pendiente para ti" })).not.toBeInTheDocument()
   })
-  it("«Pendiente para ti» va por prioridad: lentes listos, confirmar la cita, pagar el saldo y calificar la visita", async () => {
+  it("«Pendiente para ti» va por prioridad: lentes listos, pagar el saldo y calificar la visita (la cita ya no se confirma)", async () => {
     datos.misOrdenes.mockResolvedValue({ ordenes: [orden({ estado: "lista", listaEl: "2026-10-16T14:00:00Z" })], disponible: true })
     datos.misCompras.mockResolvedValue({ compras: [compraConSaldo], error: null })
-    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { ci1: { profesional: "Dra. Prueba", confirmadaAt: null, consultaId: null, calificacion: null }, ci0: { profesional: "Dra. Prueba", confirmadaAt: null, consultaId: "c1", calificacion: null } } })
+    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { ci1: { profesional: "Dra. Prueba", consultaId: null, calificacion: null }, ci0: { profesional: "Dra. Prueba", consultaId: "c1", calificacion: null } } })
     render(<PortalPaciente {...base} citas={[cita(), cita({ id: "ci0", fecha: "2026-04-20", hora: "11:40 AM", estado: "Atendida" })]} />)
     const bloque = await screen.findByRole("region", { name: "Pendiente para ti" })
-    await waitFor(() => expect(within(bloque).getAllByRole("listitem")).toHaveLength(4))
+    await waitFor(() => expect(within(bloque).getAllByRole("listitem")).toHaveLength(3))
     const titulos = within(bloque).getAllByRole("listitem").map((li) => li.textContent)
     expect(titulos[0]).toContain("Tus lentes están listos para retirar")
-    expect(titulos[1]).toContain("Confirma tu cita del 10 de marzo")
-    expect(titulos[2]).toContain("Tienes $145.00 por pagar")
-    expect(titulos[3]).toContain("¿Cómo te atendimos el 20 de abril?")
-    fireEvent.click(within(bloque).getByRole("button", { name: "Confirmar" }))
-    await waitFor(() => expect(datos.confirmarAsistencia).toHaveBeenCalledWith("p1", "tok", "ci1"))
+    expect(titulos[1]).toContain("Tienes $145.00 por pagar")
+    expect(titulos[2]).toContain("¿Cómo te atendimos el 20 de abril?")
+    expect(within(bloque).queryByRole("button", { name: "Confirmar" })).not.toBeInTheDocument()
+    expect(bloque).not.toHaveTextContent(/Confirma tu cita/)
   })
   it("cada tarjeta del Inicio dice «Ver detalle» en texto", async () => {
     datos.misOrdenes.mockResolvedValue({ ordenes: [orden()], disponible: true })
@@ -337,27 +334,19 @@ describe("Mis citas", () => {
     irA("Mis citas")
     expect(screen.queryByRole("button", { name: "Reagendar" })).not.toBeInTheDocument()
   })
-  it("«Confirmar asistencia» aparece cuando la cita no está confirmada y la confirma", async () => {
-    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { a: { profesional: "Dra. Paula", confirmadaAt: null, consultaId: null, calificacion: null } } })
+  it("la asistencia ya no se confirma: ni botón «Confirmar asistencia» ni estado «Confirmada», y la cita ofrece agregarla al calendario", async () => {
+    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { a: { profesional: "Dra. Paula", consultaId: null, calificacion: null } } })
     render(<PortalPaciente {...base} citas={[citas[0]]} />)
     await resumen()
     irA("Mis citas")
     const boleto = screen.getByRole("region", { name: "Tu próxima cita" })
     expect(await within(boleto).findByText(/Dra\. Paula/)).toBeInTheDocument()
-    fireEvent.click(within(boleto).getByRole("button", { name: "Confirmar asistencia" }))
-    expect(await within(boleto).findByRole("status", { name: "Estado: Confirmada" })).toBeInTheDocument()
-    expect(datos.confirmarAsistencia).toHaveBeenCalledWith("p1", "tok", "a")
-    expect(within(boleto).queryByRole("button", { name: "Confirmar asistencia" })).not.toBeInTheDocument()
-  })
-  it("una cita ya confirmada no ofrece confirmar", async () => {
-    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { a: { profesional: "", confirmadaAt: "2026-10-16T10:00:00Z", consultaId: null, calificacion: null } } })
-    render(<PortalPaciente {...base} citas={[citas[0]]} />)
-    await resumen()
-    expect(await within(screen.getByRole("region", { name: "Tu próxima cita" })).findByRole("status", { name: "Estado: Confirmada" })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Confirmar asistencia" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Confirmar/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("status", { name: "Estado: Confirmada" })).not.toBeInTheDocument()
+    expect(within(boleto).getByRole("button", { name: /Agregar a mi calendario/ })).toBeInTheDocument()
   })
   it("cada fila del historial abre su detalle y, en una atendida, deja calificar una sola vez", async () => {
-    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { b: { profesional: "Dra. Paula", confirmadaAt: null, consultaId: "c1", calificacion: null } } })
+    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { b: { profesional: "Dra. Paula", consultaId: "c1", calificacion: null } } })
     render(<PortalPaciente {...base} citas={citas} />)
     await resumen()
     irA("Mis citas")
@@ -376,7 +365,7 @@ describe("Mis citas", () => {
     expect(within(ventana).queryByRole("button", { name: "Enviar mi calificación" })).not.toBeInTheDocument()
   })
   it("el enlace de la cita lleva a la receta que salió de ella", async () => {
-    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { b: { profesional: "", confirmadaAt: null, consultaId: "c1", calificacion: null } } })
+    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { b: { profesional: "", consultaId: "c1", calificacion: null } } })
     render(<PortalPaciente {...base} citas={citas} />)
     await resumen()
     irA("Mis citas")
@@ -624,7 +613,7 @@ describe("Mis datos y menú", () => {
 })
 
 describe("Detalle de cada tarjeta, calendario y cambios de la cita (ronda 5)", () => {
-  const detalleConfirmable = { disponible: true, porCita: { ci1: { profesional: "Dra. Prueba", confirmadaAt: null, consultaId: null, calificacion: null } } }
+  const detalleDeLaCita = { disponible: true, porCita: { ci1: { profesional: "Dra. Prueba", consultaId: null, calificacion: null } } }
   beforeEach(() => { try { localStorage.clear() } catch { /* sin almacenamiento */ } window.HTMLAnchorElement.prototype.click = vi.fn(); URL.createObjectURL = vi.fn(() => "blob:x"); URL.revokeObjectURL = vi.fn() })
 
   it("el contenido ocupa todo el ancho disponible (menos los márgenes): sin ningún tope de ancho", async () => {
@@ -634,24 +623,19 @@ describe("Detalle de cada tarjeta, calendario y cambios de la cita (ronda 5)", (
     expect(zona.className).not.toMatch(/max-w-/)
   })
 
-  it("antes de confirmar, el Inicio ofrece «Confirmar» y no el calendario; al confirmar, el aviso ofrece agregarla y se guarda en la base: el estado dice «en tu calendario»", async () => {
-    datos.misCitasDetalle.mockResolvedValue(detalleConfirmable)
+  it("el Inicio ofrece agregar la cita al calendario; al agregarla se guarda en la base y el estado dice «en tu calendario»", async () => {
+    datos.misCitasDetalle.mockResolvedValue(detalleDeLaCita)
     render(<PortalPaciente {...base} citas={[cita()]} />)
     const boleto = await screen.findByRole("region", { name: "Tu próxima cita" })
-    const pendiente = await screen.findByRole("region", { name: "Pendiente para ti" })
-    expect(within(boleto).queryByRole("button", { name: /Agregar a mi calendario/ })).not.toBeInTheDocument()
     expect(within(boleto).queryByRole("button", { name: "Confirmar asistencia" })).not.toBeInTheDocument()
-    fireEvent.click(within(pendiente).getByRole("button", { name: "Confirmar" }))
-    const aviso = await screen.findByText("Confirmaste tu asistencia. ¡Te esperamos!")
-    const botonAviso = within(aviso.closest("[role=status]")).getByRole("button", { name: "Agregar a mi calendario" })
-    fireEvent.click(botonAviso)
-    await waitFor(() => expect(within(screen.getByRole("region", { name: "Tu próxima cita" })).getByRole("status")).toHaveTextContent("Confirmada · en tu calendario"))
+    fireEvent.click(within(boleto).getByRole("button", { name: /Agregar a mi calendario/ }))
+    await waitFor(() => expect(within(screen.getByRole("region", { name: "Tu próxima cita" })).getByRole("status")).toHaveTextContent("Pendiente · en tu calendario"))
     expect(datos.marcarCitaEnCalendario).toHaveBeenCalledWith("p1", "tok", "ci1")
     expect(localStorage.getItem("portal-calendario-p1")).toBeNull()
   })
 
   it("lo agregado al calendario viene de la base (vale en todos sus aparatos) y en el detalle se ofrece volver a agregarla", async () => {
-    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { ci1: { profesional: "", confirmadaAt: null, consultaId: null, calificacion: null, enCalendarioAt: "2026-10-16T10:00:00Z" } } })
+    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { ci1: { profesional: "", consultaId: null, calificacion: null, enCalendarioAt: "2026-10-16T10:00:00Z" } } })
     render(<PortalPaciente {...base} citas={[cita()]} />)
     await resumen()
     fireEvent.click(await screen.findByRole("button", { name: "Ver el detalle de tu próxima cita" }))
@@ -684,13 +668,14 @@ describe("Detalle de cada tarjeta, calendario y cambios de la cita (ronda 5)", (
     expect(await screen.findByRole("dialog", { name: "¿Cancelar esta cita?" })).toBeInTheDocument()
   })
 
-  it("la próxima cita abre su detalle completo: fecha, hora, motivo, profesional, dirección y si está confirmada", async () => {
-    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { ci1: { profesional: "Dra. Prueba", confirmadaAt: "2099-03-01T10:00:00Z", consultaId: null, calificacion: null } } })
+  it("la próxima cita abre su detalle completo: fecha, hora, motivo, profesional y dirección", async () => {
+    datos.misCitasDetalle.mockResolvedValue({ disponible: true, porCita: { ci1: { profesional: "Dra. Prueba", consultaId: null, calificacion: null } } })
     render(<PortalPaciente {...base} citas={[cita()]} parametrizacion={{ opticaDireccion: "Av. Principal 123" }} />)
     await resumen()
     fireEvent.click(await screen.findByRole("button", { name: "Ver el detalle de tu próxima cita" }))
     const ventana = await screen.findByRole("dialog", { name: "Tu cita" })
-    for (const t of ["marzo de 2099", "03:00 PM", "Consulta General", "Dra. Prueba", "Av. Principal 123", "Confirmada"]) expect(ventana).toHaveTextContent(t)
+    for (const t of ["marzo de 2099", "03:00 PM", "Consulta General", "Dra. Prueba", "Av. Principal 123"]) expect(ventana).toHaveTextContent(t)
+    expect(ventana).not.toHaveTextContent("Confirmada")
   })
 
   it("«Tus lentes» abre el pedido: qué lentes, la montura, el comprobante, el saldo y cómo retirarlos", async () => {

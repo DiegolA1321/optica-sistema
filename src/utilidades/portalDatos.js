@@ -24,22 +24,15 @@ export async function miControl(pacienteId, token) {
   return error || !data ? null : data
 }
 
-// { [citaId]: { profesional, confirmadaAt, consultaId, calificacion } } y si la base ya lo entrega.
+// { [citaId]: { profesional, consultaId, calificacion } } y si la base ya lo entrega.
 export async function misCitasDetalle(pacienteId, token, citas = []) {
   if (modoMuestraPortal()) {
-    return { disponible: true, porCita: Object.fromEntries(citas.map((c, i) => [c.id, { profesional: "Paula Optómetra Demo", confirmadaAt: null, consultaId: c.estado === "Atendida" ? "muestra-" + i : null, calificacion: null }])) }
+    return { disponible: true, porCita: Object.fromEntries(citas.map((c, i) => [c.id, { profesional: "Paula Optómetra Demo", consultaId: c.estado === "Atendida" ? "muestra-" + i : null, calificacion: null }])) }
   }
   if (!supabase) return { disponible: false, porCita: {} }
   const { data, error } = await supabase.rpc("mis_citas_detalle_paciente", { p_paciente_id: pacienteId, p_token: token })
   if (error || !Array.isArray(data)) return { disponible: false, porCita: {} }
-  return { disponible: true, porCita: Object.fromEntries(data.map((d) => [d.cita_id, { profesional: d.profesional || "", confirmadaAt: d.confirmada_at, consultaId: d.consulta_id, calificacion: d.calificacion, enCalendarioAt: d.en_calendario_at || null }])) }
-}
-
-export async function confirmarAsistencia(pacienteId, token, citaId) {
-  if (modoMuestraPortal()) return { ok: true }
-  if (!supabase) return { ok: false, error: "Sin conexión." }
-  const { data, error } = await supabase.rpc("confirmar_asistencia_paciente", { p_paciente_id: pacienteId, p_token: token, p_cita_id: citaId })
-  return error || data !== true ? { ok: false, error: "No pudimos confirmar tu asistencia. Intenta de nuevo en un momento." } : { ok: true }
+  return { disponible: true, porCita: Object.fromEntries(data.map((d) => [d.cita_id, { profesional: d.profesional || "", consultaId: d.consulta_id, calificacion: d.calificacion, enCalendarioAt: d.en_calendario_at || null }])) }
 }
 
 export async function calificarAtencion(pacienteId, token, citaId, puntaje, comentario) {

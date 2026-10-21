@@ -1,8 +1,6 @@
 // Filtros de la agenda de Citas (reunión 29 sept., R3-R6): estado, origen y
 // primera vez/seguimiento. Lógica pura, sin React, para probarla aparte.
-import { esHoy, horarioEfectivo, diaAbierto } from "./disponibilidad"
-import { formatoFecha } from "./formatoFecha"
-import { sumarDiasISO } from "./controles"
+import { esHoy } from "./disponibilidad"
 import { esDeEsteMes } from "./inicio"
 
 export const ESTADOS_FILTRO = [
@@ -11,7 +9,7 @@ export const ESTADOS_FILTRO = [
   { id: "enEspera", etiqueta: "En espera" },
   { id: "enAtencion", etiqueta: "En atención" },
   { id: "atendida", etiqueta: "Atendidas" },
-  { id: "noAsistio", etiqueta: "No efectuada" },
+  { id: "noAsistio", etiqueta: "No efectuadas" },
   { id: "cancelada", etiqueta: "Canceladas" },
 ]
 
@@ -25,27 +23,12 @@ export const periodosFiltro = () => [
   { id: "todas", etiqueta: "Todas" },
 ]
 
-// Grupo "Tarea" del panel Filtrar: los atajos por tarea de recepción. "Por confirmar" = las citas abiertas del próximo día de
-// atención que aún no están confirmadas; "Para reagendar" = no efectuada o canceladas por el paciente, sin cita nueva.
-// Elegir una reemplaza al periodo de la Lista; "Todas" (la primera opción) vuelve al periodo.
-export const tareasFiltro = (diaConfirmar) => [
+// Grupo "Tarea" del panel Filtrar: el atajo por tarea de recepción. "Para reagendar" = las citas no efectuadas o canceladas por el paciente, sin cita nueva.
+// Elegirlo reemplaza al periodo de la Lista; "Todas" (la primera opción) vuelve al periodo. (La confirmación de la cita por el paciente ya no existe: no hay "por confirmar".)
+export const tareasFiltro = () => [
   { id: "ninguna", etiqueta: "Todas" },
-  { id: "confirmar", etiqueta: `${etiquetaDiaCorta(diaConfirmar)} · por confirmar` },
   { id: "reagendar", etiqueta: "Para reagendar" },
 ]
-
-// "Lun 12": el nombre corto del día y su número.
-export const etiquetaDiaCorta = (iso) => formatoFecha(iso, "diaNumero")
-
-// El próximo día en que la óptica atiende (según su horario semanal y sus excepciones), después de hoy: es el día
-// cuyas citas recepción necesita confirmar. Un viernes es el lunes. Sin horario cargado, mañana.
-export function proximoDiaDeAtencion(disponibilidad, hoy) {
-  for (let i = 1; i <= 14; i++) {
-    const iso = sumarDiasISO(hoy, i)
-    if (diaAbierto(horarioEfectivo(iso, disponibilidad))) return iso
-  }
-  return sumarDiasISO(hoy, 1)
-}
 
 export const ORIGENES_FILTRO = [
   { id: "todos", etiqueta: "Todos" },
@@ -81,13 +64,12 @@ export const puedeCancelarCita = (cita) => ["Pendiente", "En Espera"].includes(c
 // Qué acciones ofrece cada estado. Atender solo tiene sentido en lo que sigue abierto; una cita ya atendida o
 // cancelada no se edita; una no efectuada solo muestra su estado y ofrece agendar otra.
 export const puedeAtenderCita = (cita) => ["Pendiente", "En Espera", "En Atención"].includes(cita.estado)
-// «Ingresar» (o «Atender») solo aparece si la cita es de HOY o es una pendiente de un día anterior que no se atendió (y retomar una atención abierta). Una cita futura no se atiende: muestra «Próxima cita: [fecha]».
-// La misma regla en la Agenda, el perfil del paciente (cabecera y pestaña Citas) y el detalle de la cita.
-export const puedeIngresarCita = (cita, hoy) => puedeAtenderCita(cita) && (cita.estado === "En Atención" || !cita.fecha || cita.fecha <= hoy)
-// Una cita abierta que todavía es futura: se avisa, sin botón.
-export const esCitaFuturaPendiente = (cita, hoy) => puedeAtenderCita(cita) && cita.estado !== "En Atención" && Boolean(cita.fecha) && cita.fecha > hoy
-// Una cita de otro día (la de mañana que se atiende hoy, o una de ayer) pide una confirmación liviana antes de entrar a la
-// ficha: se atiende hoy y su fecha agendada no cambia. Las de hoy entran directo, y retomar una atención abierta no pregunta.
+// «Atender» (o «Seguir atendiendo») aparece en TODA cita abierta: la de hoy entra directo; la de otro día (el paciente llegó antes, o una pendiente de un día
+// anterior) pide confirmación y se mueve a hoy. La misma regla en la Agenda, el perfil del paciente (cabecera y pestaña Citas), el detalle de la cita y el Inicio.
+// El segundo parámetro (hoy) ya no cambia el resultado; se conserva para no tocar a quien llama.
+export const puedeIngresarCita = (cita) => puedeAtenderCita(cita)
+// Una cita de otro día (la de mañana que se atiende hoy, o una de ayer) pide una confirmación antes de entrar a la ficha: «Esta cita es del 24 de octubre.
+// ¿Atenderla hoy?» y, al confirmar, se mueve a hoy a la hora actual. Las de hoy entran directo, y seguir una atención abierta no pregunta.
 export const requiereConfirmarOtroDia = (cita, hoy) => cita.estado !== "En Atención" && Boolean(cita.fecha) && cita.fecha !== hoy
 export const puedeEditarCita = (cita) => !["Atendida", "Cancelada", "No Asistió"].includes(cita.estado)
 export const puedeAgendarOtraCita = (cita) => ["No Asistió", "Atendida"].includes(cita.estado)
@@ -136,7 +118,7 @@ export function coincideTexto(cita, texto) {
   return !t || (cita.paciente || "").toLowerCase().includes(t) || (cita.codigo || "").toLowerCase().includes(t)
 }
 
-// f = { estado, origen, seguimiento, responsable, texto, periodo, ventana, rangos, diaConfirmar, idsReagendar }
+// f = { estado, origen, seguimiento, responsable, texto, periodo, ventana, rangos, idsReagendar }
 //   rangos: { hoy, semana, mes } — cada uno { desde, hasta }: el día, la semana y el mes que se están viendo en la Lista.
 //   periodo: { filtro: "hoy" | "semana" | "mes" | "reagendar" | "todas", desde, hasta } — solo la Lista; un rango (desde/hasta) manda sobre `filtro`.
 //   ventana: { desde, hasta } — el periodo visible de Semana y Mes; en Lista es null.
@@ -165,7 +147,6 @@ export function citaPasaFiltros(cita, f, consultas = []) {
     if (desde || hasta) return (!desde || cita.fecha >= desde) && (!hasta || cita.fecha <= hasta)
     if (filtro === "hoy" && !f.rangos?.hoy) return esHoy(cita.fecha)
     if (filtro === "hoy" || filtro === "semana" || filtro === "mes") { const r = f.rangos?.[filtro]; return Boolean(r) && cita.fecha >= r.desde && cita.fecha <= r.hasta }
-    if (filtro === "confirmar") return cita.fecha === f.diaConfirmar && ["Pendiente", "En Espera"].includes(cita.estado) && !cita.confirmadaAt
     if (filtro === "reagendar") return Boolean(f.idsReagendar?.has(cita.id))
   }
   return true

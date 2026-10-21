@@ -56,6 +56,7 @@ const Configuracion = lazyConReintento(() => import("./Configuracion"), "Configu
 const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
 import { umbralStock } from "../utilidades/inventario"
 import { Cascaron } from "../componentes/AtencionPaciente"
+import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
 import { supabase } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
@@ -265,6 +266,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [estadoCitasInicial, setEstadoCitasInicial] = useState(null)
   // Cita que el Inicio manda a atender: Citas abre su resumen y de ahí la ficha (el mismo flujo de "Atender" de Citas).
   const [citaParaAtender, setCitaParaAtender] = useState(null)
+  // Cita que otra pantalla (el perfil del paciente) manda a reagendar: Citas abre su edición.
+  const [citaParaEditar, setCitaParaEditar] = useState(null)
   const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
   const [productoIdParaReabastecer, setProductoIdParaReabastecer] = useState(null)
   const [verStockBajoAlEntrar, setVerStockBajoAlEntrar] = useState(false)
@@ -391,6 +394,19 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     irADestino(destino)
   }
 
+  // «Atender» desde el Inicio pasa por la misma guardia que la Agenda y el perfil: otra fecha → «¿Atenderla hoy?»; llegó tarde y la siguiente ya está agendada → «Atender igual» o «Reagendar».
+  const { pedirAtender: pedirAtenderDesdeInicio, dialogo: dialogoAtenderInicio } = useAtenderCita({
+    citas,
+    duracionDefault: disponibilidad?.duracionCita || 40,
+    alAtender: (cita) => {
+      const paciente = pacientes.find((p) => p.id === cita.pacienteId)
+      if (paciente) irAFichaClinicaRef.current(paciente, { citaId: cita.id, origen: "citas", motivo: cita.motivo })
+      else navegar("citas")
+    },
+    alReagendar: puede(usuario, "citas", "editar") ? (cita) => { setCitaParaEditar(cita.id); navegar("citas") } : undefined,
+  })
+  const irAFichaClinicaRef = useRef(null)
+
   // Único punto de entrada a Ficha clínica, sea desde el perfil de un
   // paciente o desde "Atender" en Citas médicas — centraliza qué debe
   // recordar Dashboard para que "Volver" (a diferencia de "X", que siempre
@@ -418,6 +434,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     if (paciente?.id) escribirParam("ficha", String(paciente.id), { estado: { seccion: "consultas" } })
     if (citaId) escribirParam("fcita", String(citaId), { estado: { seccion: "consultas" } })
   }
+
+  irAFichaClinicaRef.current = irAFichaClinica
 
   // Recarga dentro de la ficha clínica: se vuelve a poner al paciente y la cita en cuanto cargan los datos.
   const fichaRestaurada = useRef(false)
@@ -542,6 +560,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             accionInicial={accionPacienteInicio}
             onAccionInicialConsumida={() => setAccionPacienteInicio(null)}
             onIrAFichaClinica={(paciente, citaId, motivo) => irAFichaClinica(paciente, { citaId, origen: "pacientes", motivo })}
+            onReagendarCita={(cita) => { setCitaParaEditar(cita.id); navegar("citas") }}
             onAviso={mostrarAviso}
             pases={pases}
             setPases={setPases}
@@ -670,6 +689,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onEstadoInicialConsumido={() => setEstadoCitasInicial(null)}
             atenderCitaId={citaParaAtender}
             onAtenderCitaConsumido={() => setCitaParaAtender(null)}
+            editarCitaId={citaParaEditar}
+            onEditarCitaConsumido={() => setCitaParaEditar(null)}
             motivosConsulta={motivosConsulta}
             inventario={inventario}
             setInventario={setInventario}
@@ -733,11 +754,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             equipo={equipo}
             setCitas={setCitas}
             onAviso={mostrarAviso}
-            onAtenderCita={(cita) => {
-              const paciente = pacientes.find((p) => p.id === cita.pacienteId)
-              if (paciente) irAFichaClinica(paciente, { citaId: cita.id, origen: "citas", motivo: cita.motivo })
-              else navegar("citas")
-            }}
+            onAtenderCita={pedirAtenderDesdeInicio}
             setVista={navegar}
             onVerCrm={(params) => { setAccionCrmInicio({ tab: "contactar", ...params }); navegar("crm") }}
             paraContactar={paraContactar}
@@ -800,6 +817,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   return (
     <div className="flex h-screen bg-slate-50 font-sans">
       {verAvisosInternos && <VentanaAvisosInternos usuario={usuario} onCerrar={() => setVerAvisosInternos(false)} />}
+      {dialogoAtenderInicio}
       {/* Backdrop móvil */}
       {menuAbierto && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMenuAbierto(false)} />}
 

@@ -346,7 +346,7 @@ export default function Inicio({
   const verTodasEnCitas = () => (onVerCitas ? onVerCitas(tarjeta && tarjeta !== "pendiente" ? tarjeta : "todas", periodo) : setVista?.("citas"))
   const accionFila = (cita) => {
     if (!esVistaOptometra || !puedeV("consultas", "crear") || !esHoy(cita.fecha)) return null
-    if (cita.estado === "En Atención") return { etiqueta: "Retomar", onClick: () => onAtenderCita?.(cita) }
+    if (cita.estado === "En Atención") return { etiqueta: "Seguir atendiendo", onClick: () => onAtenderCita?.(cita) }
     if (cita.estado === "Pendiente" || cita.estado === "En Espera") return { etiqueta: "Atender", onClick: () => onAtenderEnCitas?.(cita) }
     return null
   }
@@ -384,7 +384,7 @@ export default function Inicio({
       </div>
       <div>
         {fichasAbiertas.length === 1 && puedeV("consultas", "crear")
-          ? <button type="button" onClick={() => onAtenderCita?.(fichasAbiertas[0])} className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">Retomar</button>
+          ? <button type="button" onClick={() => onAtenderCita?.(fichasAbiertas[0])} className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">Seguir atendiendo</button>
           : <button type="button" onClick={() => (onVerCitas ? onVerCitas("enAtencion", "hoy") : setVista?.("citas"))} className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">Ver</button>}
       </div>
     </div>
@@ -563,7 +563,7 @@ export default function Inicio({
           id: cita.id, nombre: cita.paciente,
           insignia: { texto: textoAtencionAbierta(dias), tono: "urgente" },
           detalle: `${fechaLegible(cita.fecha)}, ${cita.hora} · ${cita.motivo || "Consulta general"}`,
-          accion: puedeAtenderAqui ? { etiqueta: "Ingresar", navega: true, onClick: () => onAtenderCita?.(cita) } : null,
+          accion: puedeAtenderAqui ? { etiqueta: "Seguir atendiendo", navega: true, onClick: () => onAtenderCita?.(cita) } : null,
         })),
       })
     }

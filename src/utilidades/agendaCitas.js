@@ -61,3 +61,26 @@ export function yaPasoLaHora(cita, ahora = ahoraEcuador()) {
   if (cita.fecha > hoy) return false
   return minutosDesdeMedianoche(cita.hora) <= ahora.getHours() * 60 + ahora.getMinutes()
 }
+
+// Llega tarde y ya hay otra cita después: atender ahora a quien llegó tarde ocuparía la hora de la siguiente. Devuelve esa cita siguiente, o null.
+//   * Solo cuenta si ya pasó la hora de inicio de la cita (llegó tarde) o si es de otro día (se atiende hoy, a la hora actual).
+//   * "Siguiente" = la próxima cita abierta (pendiente o en espera) del mismo profesional hoy, que empieza DESPUÉS de esta y antes de que termine la
+//     atención empezando ahora (ahora + duración). Si no hay ninguna, se atiende sin avisar.
+//   * El mismo profesional: el de la cita (asignado o quien la atiende); una cita sin profesional se compara con todas.
+export function siguienteCitaQueChoca(cita, citas = [], ahora = ahoraEcuador(), duracionDefault = 40) {
+  if (!cita || cita.estado === "En Atención" || !cita.hora) return null
+  const hoy = fechaAISO(ahora)
+  const ahoraMin = ahora.getHours() * 60 + ahora.getMinutes()
+  const otroDia = cita.fecha !== hoy
+  const inicio = minutosDesdeMedianoche(cita.hora)
+  if (!otroDia && ahoraMin <= inicio) return null // a tiempo (o antes): se atiende en su horario
+  const duracion = Number(cita.duracionMinutos ?? cita.duracion_minutos) || duracionDefault
+  const profesional = cita.atendidoPor || cita.asignadoA || null
+  const hastaMin = ahoraMin + duracion
+  return citas
+    .filter((c) => c.id !== cita.id && c.fecha === hoy && ["Pendiente", "En Espera"].includes(c.estado))
+    .filter((c) => !profesional || !(c.atendidoPor || c.asignadoA) || (c.atendidoPor || c.asignadoA) === profesional)
+    .map((c) => ({ c, inicio: minutosDesdeMedianoche(c.hora) }))
+    .filter(({ inicio: i }) => (otroDia ? i >= ahoraMin : i > inicio) && i < hastaMin)
+    .sort((a, b) => a.inicio - b.inicio)[0]?.c || null
+}

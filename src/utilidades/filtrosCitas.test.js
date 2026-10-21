@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable, responsableDeCita, citaPasaFiltros, contarCon, totalDelAlcance, periodosFiltro, tareasFiltro, proximoDiaDeAtencion, etiquetaDiaCorta, requiereConfirmarOtroDia } from "./filtrosCitas"
+import { puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable, responsableDeCita, citaPasaFiltros, contarCon, totalDelAlcance, periodosFiltro, tareasFiltro, requiereConfirmarOtroDia } from "./filtrosCitas"
 
 const ahora = new Date(2026, 9, 6, 10, 0) // 6 oct 2026, 10:00
 
@@ -189,37 +189,22 @@ describe("atajos del periodo y búsqueda en todas las fechas", () => {
 })
 
 describe("atajos por tarea (grupo Tarea del panel)", () => {
-  const sesion = (activo) => ({ activo, inicio: "09:00", fin: "12:00" })
-  const abierto = { manana: sesion(true), tarde: sesion(false) }
-  const cerrado = { manana: sesion(false), tarde: sesion(false) }
-  const disp = { horarioSemanal: { lunes: abierto, martes: abierto, miercoles: abierto, jueves: abierto, viernes: abierto, sabado: cerrado, domingo: cerrado }, excepciones: {} }
-
-  it("el día a confirmar es el próximo día de atención: un viernes, el lunes; sin horario, mañana", () => {
-    expect(proximoDiaDeAtencion(disp, "2026-10-09")).toBe("2026-10-12")
-    expect(proximoDiaDeAtencion(disp, "2026-10-07")).toBe("2026-10-08")
-    expect(proximoDiaDeAtencion({}, "2026-10-07")).toBe("2026-10-08")
-    expect(etiquetaDiaCorta("2026-10-12")).toBe("Lun 12")
-  })
-  it("las opciones son Todas, por confirmar (con su día) y Para reagendar", () => {
-    expect(tareasFiltro("2026-10-12").map((t) => t.etiqueta)).toEqual(["Todas", "Lun 12 · por confirmar", "Para reagendar"])
+  it("la única tarea es Para reagendar: ya no existe «por confirmar» (el paciente no confirma su cita)", () => {
+    expect(tareasFiltro().map((t) => t.etiqueta)).toEqual(["Todas", "Para reagendar"])
   })
 
   const cita = (id, o) => ({ id, paciente: `Paciente ${id}`, estado: "Pendiente", origen: "staff", fecha: "2026-10-12", pacienteId: id, asignadoA: null, atendidoPor: null, confirmadaAt: null, ...o })
   const citas = [
-    cita("a"), // lunes 12, sin confirmar
-    cita("b", { confirmadaAt: "2026-10-08T10:00:00Z" }), // lunes 12, ya confirmada
+    cita("a"),
     cita("c", { fecha: "2026-10-13" }), // otro día
     cita("d", { estado: "No Asistió", fecha: "2026-10-06" }),
     cita("e", { estado: "Cancelada", canceladaPor: "paciente", fecha: "2026-10-05" }),
-    cita("f", { estado: "En Espera" }), // lunes 12, en espera y sin confirmar
-    cita("g", { estado: "Atendida" }), // lunes 12, ya atendida
+    cita("f", { estado: "En Espera" }),
+    cita("g", { estado: "Atendida" }),
   ]
-  const base = { estado: "todas", origen: "todos", seguimiento: "todos", responsable: "todos", texto: "", ventana: null, diaConfirmar: "2026-10-12", idsReagendar: new Set(["d", "e"]) }
+  const base = { estado: "todas", origen: "todos", seguimiento: "todos", responsable: "todos", texto: "", ventana: null, idsReagendar: new Set(["d", "e"]) }
   const con = (filtro) => citas.filter((c) => citaPasaFiltros(c, { ...base, periodo: { filtro, desde: "", hasta: "" } })).map((c) => c.id)
 
-  it("'por confirmar': las citas abiertas de ese día que aún no están confirmadas", () => {
-    expect(con("confirmar")).toEqual(["a", "f"])
-  })
   it("'para reagendar' incluye canceladas y no asistidas aunque el estado esté en Todas", () => {
     expect(con("reagendar")).toEqual(["d", "e"])
   })
@@ -246,16 +231,15 @@ describe('filtro "Agendada": las citas dadas de alta este mes', () => {
   })
 })
 
-describe("«Ingresar» solo para hoy o una pendiente de un día anterior", () => {
+describe("«Atender» en toda cita abierta", () => {
   const hoy = "2026-10-19"
   const c = (estado, fecha) => ({ estado, fecha })
-  it("hoy y días anteriores sí; una cita futura no", async () => {
-    const { puedeIngresarCita, esCitaFuturaPendiente } = await import("./filtrosCitas")
-    expect(puedeIngresarCita(c("Pendiente", hoy), hoy)).toBe(true)
-    expect(puedeIngresarCita(c("Pendiente", "2026-10-17"), hoy)).toBe(true)
-    expect(puedeIngresarCita(c("En Espera", hoy), hoy)).toBe(true)
-    expect(puedeIngresarCita(c("Pendiente", "2027-04-17"), hoy)).toBe(false)
-    expect(esCitaFuturaPendiente(c("Pendiente", "2027-04-17"), hoy)).toBe(true)
+  it("hoy, días anteriores y también una cita futura (el paciente llegó antes): se atiende, con confirmación", async () => {
+    const { puedeIngresarCita } = await import("./filtrosCitas")
+    expect(puedeIngresarCita(c("Pendiente", hoy))).toBe(true)
+    expect(puedeIngresarCita(c("Pendiente", "2026-10-17"))).toBe(true)
+    expect(puedeIngresarCita(c("En Espera", hoy))).toBe(true)
+    expect(puedeIngresarCita(c("Pendiente", "2027-04-17"))).toBe(true)
   })
   it("retomar una atención abierta siempre se puede; una cita ya atendida o cancelada nunca", async () => {
     const { puedeIngresarCita } = await import("./filtrosCitas")
