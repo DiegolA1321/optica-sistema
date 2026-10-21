@@ -5,7 +5,8 @@ import { puede } from './utilidades/permisosUi';
 import Login from './paginas/Login';
 import ResolutionGuard from './componentes/ResolutionGuard';
 import { hoyISO, fechaAISO } from './utilidades/disponibilidad';
-import { supabase } from './lib/supabaseClient';
+import { supabase, marcarSesionEsperada, habiaSesionGuardada } from './lib/supabaseClient';
+import { MENSAJE_SESION_VENCIDA, MENSAJE_SESION_CERRADA_EN_OTRA_PESTANA, LIMITE_INACTIVIDAD_MS, EVENTO_SESION_PERDIDA, registrarActividad, tiempoSinActividad, guardarMotivoCierre, leerMotivoCierre } from './utilidades/sesionPestanas';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
 import { mapOrden, EVENTO_ORDEN } from './utilidades/ordenesLaboratorio';
@@ -327,6 +328,8 @@ function App() {
   // Ciberseguridad: mensaje para el login cuando la sesión se cerró sola por
   // inactividad (ver el useEffect junto a cerrarSesion, más abajo).
   const [avisoSesion, setAvisoSesion] = useState(null);
+  // true desde que ESTA pestaña cierra la sesión: el SIGNED_OUT que sigue es el suyo, no una sesión perdida.
+  const cierrePropioRef = useRef(false);
   const [citas, setCitas] = useState(() => {
     const cargadas = cargarDeStorage('optica_citas', CITAS_SEED);
     // Registros muy antiguos (de antes de que CITAS_SEED tuviera id) pueden no
@@ -906,7 +909,11 @@ function App() {
       // cuando ya se llamó (o se decidió no llamar) a setUsuario, React
       // aplica ambos cambios de estado juntos y no hay hueco que mostrar.
       try {
-        if (!session) return;
+        if (!session) {
+          // Había una sesión guardada y ya no sirve (venció o se revocó): se dice, no se vuelve al ingreso en silencio.
+          if (evento === 'INITIAL_SESSION' && habiaSesionGuardada) setAvisoSesion({ texto: MENSAJE_SESION_VENCIDA, id: Date.now() });
+          return;
+        }
         const { data: perfil } = await supabase.from('perfiles').select('*').eq('id', session.user.id).single();
         if (!perfil) return;
         // Una cuenta desactivada no entra, ni siquiera con una sesión que ya estaba abierta.
@@ -1007,10 +1014,23 @@ function App() {
     if (usuario?.rol === 'paciente' && usuario?.id && usuario?.token && supabase) {
       supabase.rpc('invalidar_sesion_paciente', { p_paciente_id: usuario.id, p_token: usuario.token });
     }
+    // Las demás pestañas se enteran del cierre (SIGNED_OUT) y dicen lo mismo que esta; esta no debe reaccionar a su propio cierre.
+    cierrePropioRef.current = true;
+    if (usuario?.rol !== 'paciente') guardarMotivoCierre(typeof mensaje === 'string' && mensaje ? mensaje : MENSAJE_SESION_CERRADA_EN_OTRA_PESTANA);
     // Cerrar la sesión estando dentro de una óptica también es una salida: se registra antes de cerrar la sesión real.
     const salida = usuario?.impersonadoPor ? registrarSalidaImpersonacion(usuario, 'al cerrar la sesión') : null;
     // Al cerrar sesión no queda ninguna ficha clínica a medias guardada en este equipo.
     borrarTodosLosBorradores();
+    volverAlIngreso();
+    Promise.resolve(salida).finally(() => supabase?.auth.signOut());
+    // Se usa como onClick en varios botones: solo un texto es un aviso (si no, llega el evento del clic y abría el modal de login).
+    if (typeof mensaje === 'string' && mensaje) setAvisoSesion({ texto: mensaje, id: Date.now() });
+    else setAvisoSesion(null);
+  };
+
+  // Deja la pantalla en el ingreso: sin sección ni pestaña en la URL ni guardadas, para que el próximo login (o la landing) no
+  // herede la pantalla donde se estaba. Lo usan el cierre de sesión y la sesión que se perdió.
+  const volverAlIngreso = () => {
     setUsuario(null);
     setPantallaActual('login');
     guardarSesion(null);
@@ -1023,10 +1043,6 @@ function App() {
       const query = params.toString();
       window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
     } catch { /* sin almacenamiento/historial: no pasa nada */ }
-    Promise.resolve(salida).finally(() => supabase?.auth.signOut());
-    // Se usa como onClick en varios botones: solo un texto es un aviso (si no, llega el evento del clic y abría el modal de login).
-    if (typeof mensaje === 'string' && mensaje) setAvisoSesion({ texto: mensaje, id: Date.now() });
-    else setAvisoSesion(null);
   };
 
   // Entrar y salir de una óptica como administrador queda en dos lugares: la actividad del superadmin (panel "Actividad": quién,
@@ -1107,20 +1123,58 @@ function App() {
   useEffect(() => {
     if (!usuario) return;
     let temporizador;
-    const reiniciar = () => {
-      clearTimeout(temporizador);
-      temporizador = setTimeout(() => {
-        cerrarSesion('Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.');
-      }, 15 * 60 * 1000);
+    let ultimoMovimiento = Date.now();
+    // La inactividad es de la persona, no de la pestaña: se cuenta con el último movimiento en CUALQUIERA de las pestañas abiertas.
+    // Una pestaña olvidada no puede cerrar la sesión (que es una sola para todas) mientras se trabaja en otra.
+    const revisar = () => {
+      const sinActividad = tiempoSinActividad(ultimoMovimiento);
+      if (sinActividad >= LIMITE_INACTIVIDAD_MS) cerrarSesion('Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.');
+      else temporizador = setTimeout(revisar, LIMITE_INACTIVIDAD_MS - sinActividad);
     };
+    const alMover = () => { ultimoMovimiento = Date.now(); registrarActividad(ultimoMovimiento); };
     const eventos = ['mousedown', 'keydown', 'scroll', 'touchstart'];
-    eventos.forEach((ev) => window.addEventListener(ev, reiniciar));
-    reiniciar();
+    eventos.forEach((ev) => window.addEventListener(ev, alMover));
+    alMover();
+    temporizador = setTimeout(revisar, LIMITE_INACTIVIDAD_MS);
     return () => {
       clearTimeout(temporizador);
-      eventos.forEach((ev) => window.removeEventListener(ev, reiniciar));
+      eventos.forEach((ev) => window.removeEventListener(ev, alMover));
     };
   }, [usuario]);
+
+  // Sesión perdida con la pantalla abierta (se cerró desde otra pestaña, venció o se revocó). Antes la pantalla seguía "dentro" y cada
+  // acción fallaba con "no tienes permiso" o con errores de la base en inglés. Ahora se dice y se lleva al ingreso.
+  useEffect(() => {
+    const esPersonal = !!usuario && ['admin', 'asistente', 'superadmin'].includes(usuario.rol);
+    marcarSesionEsperada(esPersonal);
+    if (!esPersonal || !supabase) return;
+    cierrePropioRef.current = false;
+    let vencida = false;
+    const sesionPerdida = (texto) => {
+      if (vencida || cierrePropioRef.current) return;
+      vencida = true;
+      volverAlIngreso();
+      setAvisoSesion({ texto, id: Date.now() });
+    };
+    const { data: suscripcion } = supabase.auth.onAuthStateChange((evento) => {
+      if (evento === 'SIGNED_OUT') sesionPerdida(leerMotivoCierre() || MENSAJE_SESION_VENCIDA);
+    });
+    const alPerderLlamada = async () => {
+      if (vencida || cierrePropioRef.current) return;
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session) { sesionPerdida(leerMotivoCierre() || MENSAJE_SESION_VENCIDA); return; }
+      // Hay una sesión guardada: se comprueba con el servidor que todavía sirve (un 401 aislado no basta para sacar a nadie).
+      const { error } = await supabase.auth.getUser();
+      if (error && (error.status === 401 || error.status === 403 || /session|jwt|token/i.test(error.message || ''))) sesionPerdida(MENSAJE_SESION_VENCIDA);
+    };
+    window.addEventListener(EVENTO_SESION_PERDIDA, alPerderLlamada);
+    return () => {
+      suscripcion.subscription.unsubscribe();
+      window.removeEventListener(EVENTO_SESION_PERDIDA, alPerderLlamada);
+      marcarSesionEsperada(false);
+    };
+  }, [usuario?.id, usuario?.rol]);
+
 
   // Link "Confirmar mi asistencia" del correo de recordatorio (migración
   // 0031) — independiente de sitio/sesión, se muestra sobre cualquier otra
