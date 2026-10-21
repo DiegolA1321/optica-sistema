@@ -8,8 +8,12 @@ test.use({ viewport: { width: 1366, height: 768 } })
 async function irACitas(page, vista) {
   await iniciarSesion(page, 'ADMIN', 'DEMO')
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
-  await page.getByRole('button', { name: vista, exact: true }).first().click()
+  await page.getByLabel('Buscar cita: paciente o código').waitFor({ timeout: 20_000 })
+  await elegirVista(page, vista)
 }
+
+// El número de cada día del Mes abre «Citas del día»; el resto de la celda abre «Gestionar cita» (días de hoy en adelante).
+const numeroDelDia = (page) => page.getByRole('button', { name: /^Ver las citas del / })
 
 test('Semana: el encabezado y una zona libre abren las citas del día (con mensaje si no hay)', async ({ page }) => {
   const errores = []
@@ -54,7 +58,7 @@ test('Semana: el encabezado y una zona libre abren las citas del día (con mensa
 
 test('Mes: un clic en un día abre el modal del día', async ({ page }) => {
   await irACitas(page, 'Mes')
-  await page.getByTitle('Ver las citas de este día').nth(10).click({ position: { x: 6, y: 4 } })
+  await numeroDelDia(page).nth(10).click()
   await expect(page.getByRole('dialog', { name: /./ })).toBeVisible()
   await expect(page.getByRole('dialog').getByRole('button', { name: /Ver esta semana/ })).toHaveCount(0)
 })
@@ -78,15 +82,15 @@ test('El título del periodo abre un selector de fecha en Semana, Mes y Lista', 
   await expect(page.getByRole('dialog', { name: 'Elegir fecha' })).toBeVisible()
 })
 
-test('El filtro "Fechas" está en el panel de las tres vistas y, desde Semana, pasa a la Lista', async ({ page }) => {
-  await irACitas(page, 'Semana')
+test('Las fechas viven solo en el selector de periodo: Filtrar ya no tiene «Fechas» y el rango se elige en la Lista', async ({ page }) => {
+  await irACitas(page, 'Lista')
   await page.getByRole('button', { name: /Filtrar/ }).click()
-  await expect(page.getByRole('button', { name: /Elegir rango de fechas/ })).toBeVisible()
-  await page.getByRole('button', { name: /Elegir rango de fechas/ }).click()
-  await page.getByRole('button', { name: '03/10/2026' }).click()
-  await page.getByRole('button', { name: '20/10/2026' }).click()
-  await expect(page.getByText(/Fechas: .*–/)).toBeVisible()
-  await expect(page.getByText(/citas? en el rango/)).toBeVisible()
+  await expect(page.getByRole('button', { name: /Elegir rango de fechas/ })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  const periodo = page.getByRole('group', { name: 'Periodo de las citas' })
+  await expect(periodo.getByRole('button', { name: 'Rango' })).toBeVisible()
+  await periodo.getByRole('button', { name: 'Rango' }).click()
+  await expect(page.getByRole('button', { name: '03/10/2026' })).toBeVisible()
 })
 
 test('Mes: sin el interruptor Citas/Carga ni el conteo repetido; el modal del día nunca ofrece "Ver esta semana"', async ({ page }) => {
@@ -96,7 +100,7 @@ test('Mes: sin el interruptor Citas/Carga ni el conteo repetido; el modal del d�
   await expect(page.getByRole('button', { name: /Octubre 2026/ }).first()).toBeVisible()
 
   // Un martes futuro sin citas (21 de octubre es miércoles; 27 de octubre, martes)
-  await page.getByTitle('Ver las citas de este día').filter({ hasText: /^27/ }).first().click({ position: { x: 6, y: 4 } })
+  await numeroDelDia(page).filter({ hasText: /^27$/ }).first().click()
   const dia = page.getByRole('dialog')
   await expect(dia.getByText('Un día despejado')).toBeVisible()
   await expect(dia.getByRole('button', { name: /Ver esta semana/ })).toHaveCount(0)
@@ -105,7 +109,7 @@ test('Mes: sin el interruptor Citas/Carga ni el conteo repetido; el modal del d�
   await page.keyboard.press('Escape')
 
   // Un día con citas (martes 6): ofrece ver la semana; es pasado, no ofrece agendar
-  await page.getByTitle('Ver las citas de este día').filter({ hasText: /^6/ }).first().click({ position: { x: 6, y: 4 } })
+  await numeroDelDia(page).filter({ hasText: /^6$/ }).first().click()
   await expect(page.getByRole('dialog').getByRole('button', { name: /Ver esta semana/ })).toHaveCount(0)
   await expect(page.getByRole('dialog').getByRole('button', { name: /Agendar/ })).toHaveCount(0)
 })
@@ -124,7 +128,7 @@ test('Del modal del día al detalle de una cita: el fondo no se vuelve a animar 
   const anterior = page.getByRole('button', { name: 'Mes anterior' })
   const titulo = page.getByRole('button', { name: /Octubre 2026/ }).first()
   expect((await titulo.boundingBox()).x).toBeLessThan((await anterior.boundingBox()).x)
-  await page.getByTitle('Ver las citas de este día').filter({ hasText: /^8/ }).first().click({ position: { x: 6, y: 4 } })
+  await numeroDelDia(page).filter({ hasText: /^8$/ }).first().click()
   await page.getByRole('dialog').getByRole('button', { name: /Rafael Cedeño/ }).click()
   const fondo = page.locator('div.fixed.inset-0').filter({ has: page.getByRole('dialog') }).first()
   await expect(page.getByRole('dialog').getByText('Detalle de la cita')).toBeVisible()

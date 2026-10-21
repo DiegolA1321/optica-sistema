@@ -19,17 +19,18 @@ test('el panel Filtrar ya no tiene el grupo Tarea', async ({ page }) => {
 test('"Contactar al paciente" desde Inicio filtra la Lista, cuenta bien y se quita con la x de su etiqueta', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
   await expect(page.getByText('Requiere tu atención').first()).toBeVisible({ timeout: 20_000 })
-  // El aviso "N citas por reagendar" y el "Ver todo →" del área Citas abren la lista ya filtrada con "Contactar al paciente".
+  // La tarjetita «por contactar» del área Citas abre su ventana y su enlace «Abrir en Citas · Contactar al paciente (n)» abre la lista ya filtrada.
   const citas = page.getByRole('region', { name: 'Requiere tu atención: Citas' })
-  await expect(citas).toContainText(/por reagendar/)
-  await citas.getByRole('button', { name: 'Ver todo en Citas' }).click()
+  await expect(citas).toContainText(/por contactar/)
+  await citas.getByRole('button', { name: /por contactar$/ }).click()
   await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Citas · Contactar al paciente/ }).click()
   await page.getByLabel('Buscar cita: paciente o código').waitFor({ timeout: 20_000 })
   await page.waitForTimeout(1200)
   const periodoActivo = page.getByRole('group', { name: 'Periodo de las citas' }).locator('[aria-pressed=true]')
   await expect(page.getByRole('button', { name: /Quitar el filtro Tarea: Contactar al paciente/ })).toBeVisible()
   await expect(periodoActivo).toHaveCount(0)
-  const n = Number(((await page.getByRole('status').first().innerText()).match(/\d+/) || [])[0])
+  // «17 citas · 2 canceladas»: el total de la lista es la suma (las canceladas se cuentan aparte y también se ven).
+  const n = ((await page.getByRole('status').first().innerText()).match(/\d+/g) || []).reduce((s, x) => s + Number(x), 0)
   expect(n).toBeGreaterThan(0)
   if (n <= 30) expect(await page.getByTitle('Ver el detalle de la cita').count(), 'conteo = citas en pantalla').toBe(n)
 

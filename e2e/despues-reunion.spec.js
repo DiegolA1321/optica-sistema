@@ -6,35 +6,35 @@ import { iniciarSesion, SLUG_DEMO } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
-test('el aviso de citas por reagendar es una línea con una sola acción: Reagendar con un caso, Ver con varios', async ({ page }) => {
+test('«Contactar al paciente»: una tarjetita que abre su ventana, con Reagendar, Escribir por WhatsApp y Descartar en cada caso', async ({ page }) => {
   await iniciarSesion(page, 'RECEPCION')
-  // Recepción ve el mismo bloque Citas que el administrador: una línea por tipo de aviso.
+  // Recepción ve el mismo bloque Citas que el administrador.
   const bloque = page.getByRole('region', { name: 'Requiere tu atención: Citas' })
   await expect(bloque).toBeVisible({ timeout: 20_000 })
-  const fila = bloque.getByRole('listitem').filter({ hasText: 'por reagendar' })
-  await expect(fila).toHaveCount(1)
-  await expect(fila).toContainText(/^\d+ citas? por reagendar/)
-  await expect(fila.getByRole('button')).toHaveCount(1)
-  if (await fila.getByRole('button', { name: 'Reagendar' }).count()) {
-    await fila.getByRole('button', { name: 'Reagendar' }).click()
+  const tarjeta = bloque.getByRole('button', { name: /por contactar$/ })
+  test.skip((await tarjeta.count()) === 0, 'La Demo no tiene pacientes por contactar')
+  await tarjeta.click()
+  const ventana = page.getByRole('dialog')
+  const caso = ventana.getByRole('listitem').first()
+  await expect(caso.getByRole('button', { name: /^Descartar el aviso de / })).toBeVisible()
+  await expect(ventana.getByRole('button', { name: /^Abrir en Citas · Contactar al paciente \(\d+\)/ })).toBeVisible()
+  if (await caso.getByRole('button', { name: 'Reagendar' }).count()) {
+    await caso.getByRole('button', { name: 'Reagendar' }).click()
     const dialogo = page.getByRole('dialog')
     await expect(dialogo).toBeVisible({ timeout: 20_000 })
     // Paciente y motivo vienen puestos; no se guarda nada.
     await expect(dialogo).not.toContainText('Selecciona un paciente')
     await page.keyboard.press('Escape')
-  } else {
-    await fila.getByRole('button', { name: 'Ver' }).click()
-    await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
-    await expect(page.locator('main').getByText('Contactar al paciente').first()).toBeVisible({ timeout: 15_000 })
   }
 })
 
-test('el administrador ve las citas por reagendar desde el "Ver todo" del bloque Citas', async ({ page }) => {
+test('el administrador abre «Contactar al paciente» en Citas desde la ventana de su tarjetita', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
   const bloque = page.getByRole('region', { name: 'Requiere tu atención: Citas' })
   await expect(bloque).toBeVisible({ timeout: 20_000 })
-  // El "Ver todo →" del área abre Citas en "Contactar al paciente" (sin número: el total está una sola vez, en el título).
-  await bloque.getByRole('button', { name: 'Ver todo en Citas' }).click()
+  const tarjeta = bloque.getByRole('button', { name: /por contactar$/ })
+  test.skip((await tarjeta.count()) === 0, 'La Demo no tiene pacientes por contactar')
+  await tarjeta.click()
   await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Citas · Contactar al paciente/ }).click()
   await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
   await expect(page.locator('main').getByText('Contactar al paciente').first()).toBeVisible({ timeout: 15_000 })

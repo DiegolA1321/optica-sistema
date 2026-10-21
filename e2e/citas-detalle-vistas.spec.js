@@ -18,7 +18,7 @@ for (const vista of ['Semana', 'Mes']) {
     test.skip((await cita.count()) === 0, `No hay citas en la ${vista.toLowerCase()} visible`)
     await cita.click()
     const detalle = page.getByRole('dialog')
-    await expect(detalle.getByRole('region', { name: 'La cita', exact: true })).toBeVisible()
+    await expect(detalle.getByRole('region', { name: 'Cita', exact: true })).toBeVisible()
     await expect(detalle.getByRole('region', { name: 'Seguimiento', exact: true })).toBeVisible()
     await expect(detalle.getByRole('status', { name: /Estado: / })).toBeVisible()
     expect(errores, 'sin errores de JavaScript').toEqual([])

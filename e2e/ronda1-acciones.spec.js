@@ -141,9 +141,9 @@ test('Citas: una cita de hoy se ve en la lista, la semana, el mes, el perfil del
     await expect(page.getByText('Consulta General').first()).toBeVisible({ timeout: 20_000 })
     await page.keyboard.press('Escape')
 
-    // Inicio: la agenda de hoy la incluye.
+    // Inicio del administrador: sin nombres de pacientes (solo números); la cita de hoy cuenta en «Desenlace de las citas».
     await irA(page, 'Inicio')
-    await expect(page.getByText(nombre).first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole('heading', { name: /Desenlace de las citas/ })).toBeVisible({ timeout: 30_000 })
 
     // Editar la cita (cambiar su motivo): guarda, avisa y el detalle lo muestra.
     await irA(page, 'Citas médicas')
@@ -162,9 +162,12 @@ test('Citas: una cita de hoy se ve en la lista, la semana, el mes, el perfil del
     await page.getByTitle('Ver el detalle de la cita').first().click()
     await expect(page.getByRole('dialog').getByText(motivoNuevo).first()).toBeVisible({ timeout: 15_000 })
 
-    // Cancelarla: confirma, avisa, y la lista deja de mostrarla como pendiente.
+    // Cancelarla: pide el motivo, avisa, y la lista la sigue mostrando como cancelada (atenuada).
     await page.getByRole('dialog').getByRole('button', { name: 'Cancelar cita' }).click()
-    await page.getByRole('dialog').last().getByRole('button', { name: /Cancelar cita|Sí/ }).last().click()
+    const cancelacion = page.getByRole('dialog').last()
+    await expect(cancelacion.getByRole('button', { name: 'Sí, cancelar' })).toBeDisabled()
+    await cancelacion.getByRole('radio', { name: 'La óptica no puede atender' }).click()
+    await cancelacion.getByRole('button', { name: 'Sí, cancelar' }).click()
     await expect(page.getByText(/cancelada|Cita cancelada/i).first()).toBeVisible({ timeout: 20_000 })
   } finally {
     await cancelarCitasDePrueba([nombre])

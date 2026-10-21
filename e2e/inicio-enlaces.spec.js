@@ -19,13 +19,15 @@ test('administrador: cada "Abrir en …" de la ventana de avisos muestra al lleg
   await alInicio(page)
   let enlacesProbados = 0
   for (const area of ['Citas', 'Pacientes', 'Ventas', 'Inventario']) {
-    const abrir = async () => { await alInicio(page); await page.getByRole('button', { name: `Ver todo en ${area}` }).click() }
     const tarjeta = page.getByRole('region', { name: `Requiere tu atención: ${area}` })
-    if (!(await tarjeta.getByRole('button', { name: `Ver todo en ${area}` }).count())) continue // área en orden: no tiene ventana
-    await page.getByRole('button', { name: `Ver todo en ${area}` }).click()
-    const etiquetas = (await page.getByRole('dialog').getByRole('button', { name: /^Abrir en / }).allInnerTexts()).map((t) => t.trim())
-    await page.keyboard.press('Escape')
-    for (const etiqueta of etiquetas) {
+    const tarjetitas = tarjeta.getByRole('listitem').getByRole('button')
+    const cuantas = await tarjetitas.count() // área en orden: no tiene tarjetitas ni ventana
+    for (let i = 0; i < cuantas; i++) {
+      const abrir = async () => { await alInicio(page); await tarjeta.getByRole('listitem').getByRole('button').nth(i).click() }
+      await abrir()
+      const etiquetas = (await page.getByRole('dialog').getByRole('button', { name: /^Abrir en / }).allInnerTexts()).map((t) => t.trim())
+      await page.keyboard.press('Escape')
+      for (const etiqueta of etiquetas) {
       await abrir()
       await page.getByRole('dialog').getByRole('button', { name: new RegExp('^' + etiqueta.replace(/[()·]/g, '\\$&')) }).click()
       const n = Number((etiqueta.match(/\((\d+)/) || [])[1])
@@ -33,7 +35,10 @@ test('administrador: cada "Abrir en …" de la ventana de avisos muestra al lleg
         await expect(estado(page)).toHaveText(new RegExp(`^${n} citas?$`), { timeout: 15_000 })
         await expect(page.getByRole('button', { name: /Quitar el filtro Estado: En atención/ })).toBeVisible()
       } else if (/Contactar al paciente/.test(etiqueta)) {
-        await expect(estado(page)).toHaveText(new RegExp(`^${n} citas?$`), { timeout: 15_000 })
+        // «17 citas · 2 canceladas»: la lista tiene la suma, que es el número que prometía el aviso.
+        await expect(estado(page)).toHaveText(/^\d+ citas?( · \d+ canceladas?)?$/, { timeout: 15_000 })
+        const suma = ((await estado(page).innerText()).match(/\d+/g) || []).reduce((s, x) => s + Number(x), 0)
+        expect(suma).toBe(n)
         await expect(page.getByRole('button', { name: /Quitar el filtro Tarea: Contactar al paciente/ })).toBeVisible()
       } else if (/Control sin agendar|Sin consulta/.test(etiqueta)) {
         await expect(estado(page)).toHaveText(new RegExp(`^Mostrando ${n} de \\d+ pacientes$`), { timeout: 15_000 })
@@ -50,6 +55,7 @@ test('administrador: cada "Abrir en …" de la ventana de avisos muestra al lleg
         throw new Error('Un enlace "Abrir en …" nuevo sin su pareja verificada: ' + etiqueta)
       }
       enlacesProbados++
+      }
     }
   }
   expect(enlacesProbados).toBeGreaterThan(0)
