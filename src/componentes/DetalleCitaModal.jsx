@@ -88,6 +88,7 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
   const hayAcciones = Boolean(
     (cita.pacienteId && onConfirmarDatos && paciente?.origen === "paciente" && !paciente.confirmadoRecepcion)
     || (!cita.pacienteId && onRegistrarPaciente) || puedeReasignar || (puedeEditarCita(cita) && onEditar)
+    || !!cita.pacienteId
     || (cita.estado === "En Atención" && onDejarDeAtender) || (puedeCancelarCita(cita) && onCancelar)
     || puedeTomar || puedeAgendarOtra || (cobroPendiente && onCobrar) || (!cobroPendiente && puedeIngresar),
   )
@@ -140,6 +141,11 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
         )}
     
         <div className="flex w-full flex-wrap items-center gap-2" role="group" aria-label="Acciones de la cita">
+          {cita.pacienteId && (
+            <a href={urlPerfilPaciente(cita.pacienteId)} target="_blank" rel="noopener noreferrer" className={BOTON_SECUNDARIO}>
+              <ExternalLink size={14} aria-hidden="true" /> Ver perfil
+            </a>
+          )}
           {cita.pacienteId && onConfirmarDatos && paciente?.origen === "paciente" && !paciente.confirmadoRecepcion && (
             <button type="button" onClick={() => onConfirmarDatos(cita)} title="El paciente se registró solo por la web: la recepción debe verificar sus datos en su primera visita." className={BOTON_SECUNDARIO}>
               <UserCheck size={14} aria-hidden="true" /> Verificar datos (registro web)
@@ -202,13 +208,6 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
           {edad !== null && <Dato etiqueta="Edad">{edad} {edad === 1 ? "año" : "años"}</Dato>}
           {correo && <Dato etiqueta="Correo">{correo}</Dato>}
           {!cedula && !telefono && edad === null && !correo && <Dato etiqueta="Contacto"><Vacio>Sin datos</Vacio></Dato>}
-          {cita.pacienteId && (
-            <div>
-              <a href={urlPerfilPaciente(cita.pacienteId)} target="_blank" rel="noopener noreferrer" className={BOTON_SECUNDARIO}>
-                <ExternalLink size={14} aria-hidden="true" /> Ver perfil
-              </a>
-            </div>
-          )}
         </Columna>
 
         <Columna titulo="Cita">

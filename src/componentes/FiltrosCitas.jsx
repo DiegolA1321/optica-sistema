@@ -230,9 +230,9 @@ export function SelectorVistaCitas({ vista, onChange, cabeSemana = true }) {
         <List size={14} aria-hidden="true" /> Lista
       </button>
       <div ref={ref} className="relative">
-        <button type="button" onClick={() => setAbierto((v) => !v)} aria-haspopup="menu" aria-expanded={abierto} aria-pressed={enCalendario} className={base + "w-[10.75rem] justify-between " + (enCalendario ? "text-white" : abierto ? "bg-slate-100 text-slate-800" : "text-slate-500 hover:bg-slate-50")} style={enCalendario ? { background: GRAD_MARCA } : undefined}>
-          <span className="flex items-center gap-1.5 whitespace-nowrap"><CalendarDays size={14} aria-hidden="true" /> Calendario{enCalendario ? ` · ${vista === "semana" ? "Semana" : "Mes"}` : ""}</span>
-          <ChevronDown size={12} className={"shrink-0 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
+        <button type="button" onClick={() => setAbierto((v) => !v)} aria-haspopup="menu" aria-expanded={abierto} aria-pressed={enCalendario} className={base + (enCalendario ? "text-white" : abierto ? "bg-slate-100 text-slate-800" : "text-slate-500 hover:bg-slate-50")} style={enCalendario ? { background: GRAD_MARCA } : undefined}>
+          <CalendarDays size={14} aria-hidden="true" /> Calendario
+          <ChevronDown size={12} className={"-ml-0.5 shrink-0 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
         </button>
         {abierto && (
           <div role="menu" aria-label="Calendario" className="absolute left-0 top-full z-30 mt-1.5 w-40 rounded-xl border border-slate-200/60 bg-white p-1 shadow-xl" style={{ animation: "menu-in 160ms ease-out" }}>

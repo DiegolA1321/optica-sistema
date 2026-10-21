@@ -85,7 +85,7 @@ describe("SelectorVistaCitas: Lista y Calendario (Semana o Mes)", () => {
   it("con un calendario activo el mismo botón lo dice (sin mover nada) y marca la opción activa", () => {
     render(<SelectorVistaCitas vista="semana" onChange={() => {}} />)
     const boton = screen.getByRole("button", { name: /Calendario/ })
-    expect(boton).toHaveTextContent("Calendario · Semana")
+    expect(boton.textContent.trim()).toBe("Calendario") // compacto: sin hueco reservado para «Semana» o «Mes»
     expect(boton).toHaveAttribute("aria-pressed", "true")
     expect(screen.getByRole("button", { name: /Lista/ })).toHaveAttribute("aria-pressed", "false")
     fireEvent.click(boton)

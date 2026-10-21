@@ -16,6 +16,14 @@ describe("Contactar al paciente", () => {
     expect(citasPorContactar(citas, descartes).map((c) => c.id)).toEqual(["c2"])
   })
 
+  it("reagendar no es cancelar: una cita reagendada sigue Pendiente y NO aparece en «Contactar al paciente»", () => {
+    const reagendada = cita({ id: "r1", pacienteId: "p9", paciente: "Rosa", fecha: hoy, estado: "Pendiente" }) // mismo registro, otra fecha y hora; el seguimiento guarda «Reagendada desde…»
+    expect(citasPorContactar([reagendada])).toEqual([])
+    // ni siquiera si el paciente tiene una cita anterior no efectuada: la cita viva la retoma
+    const previa = cita({ id: "c0", pacienteId: "p9", paciente: "Rosa", fecha: ayer, estado: "No Asistió" })
+    expect(citasPorContactar([previa, reagendada]).map((c) => c.id)).toEqual([])
+  })
+
   it("el motivo guardado manda; sin él se deduce del estado", () => {
     const seg = new Map([["c1", { motivo: "La atención se inició y no se terminó" }]])
     expect(motivoDeLaCita(cita({}), seg)).toBe("La atención se inició y no se terminó")

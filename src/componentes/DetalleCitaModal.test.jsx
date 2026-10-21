@@ -38,13 +38,15 @@ describe("DetalleCitaModal: acciones según permisos", () => {
 
 describe("DetalleCitaModal: Paciente · Cita · Seguimiento", () => {
   const completa = { ...cita, cedula: "0912345678", telefono: "0991112233", correo: "ana@x.com", creadoEn: "2026-10-18T14:00:00Z", origen: "paciente" }
-  it("las tres columnas van en ese orden, con «Ver perfil» debajo del paciente (no entre las acciones)", () => {
+  it("las tres columnas van en ese orden, con «Ver perfil» abajo, junto a las demás acciones", () => {
     render(<DetalleCitaModal cita={completa} onCerrar={f()} />)
     const titulos = screen.getAllByRole("heading", { level: 5 }).map((h) => h.textContent)
     expect(titulos).toEqual(["Paciente", "Cita", "Seguimiento"])
     const paciente = screen.getByRole("region", { name: "Paciente" })
-    expect(within(paciente).getByRole("link", { name: /Ver perfil/ })).toBeInTheDocument()
-    expect(screen.getAllByRole("link", { name: /Ver perfil/ })).toHaveLength(1) // una sola vez, bajo el paciente
+    expect(within(paciente).queryByRole("link", { name: /Ver perfil/ })).not.toBeInTheDocument()
+    const acciones = screen.getByRole("group", { name: "Acciones de la cita" })
+    expect(within(acciones).getByRole("link", { name: /Ver perfil/ })).toBeInTheDocument()
+    expect(screen.getAllByRole("link", { name: /Ver perfil/ })).toHaveLength(1) // una sola vez, abajo
   })
   it("el seguimiento es una línea de tiempo: agendada y por dónde; con eventos guardados dice quién, cuándo y el motivo", () => {
     const eventos = [
