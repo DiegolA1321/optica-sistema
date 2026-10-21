@@ -76,10 +76,12 @@ Nada arma fechas a mano.
 - **El dinero, igual:** `dinero(valor)` de `src/utilidades/formatoMoneda.js` ("$3,915.50": miles con coma, dos decimales con punto). Ninguna pantalla arma un monto con `toFixed(2)` ni define su propia función; `formatoMoneda.test.js` lo vigila.
 
 ### 13. Un estado que se puede comprobar se mueve solo; el que no, lo marca una persona
-- **Citas:** abrir la ficha pasa la cita a "En Atención"; guardarla la pasa a "Atendida"; pasados 10 minutos sin iniciar se marca "No asistió" (solo las "Pendiente": nunca toca "En espera"). "Llegó" lo marca recepción porque nadie más lo sabe. Ningún estado depende de que alguien se acuerde.
+- **Citas (reglas de tiempo, 21 oct. 2026, validadas en el servidor):** abrir la ficha pasa la cita a «En atención»; guardarla, a «Atendida». Una cita **Pendiente** que nadie abrió pasa a **«No efectuada» al terminar su horario** (hora de inicio + duración), con el motivo «El paciente no asistió»; nunca antes. Una cita **En espera o En atención nunca pasa sola durante su horario**: la atención iniciada y no terminada pasa a «No efectuada» **al cierre de la jornada de ese día** (según el horario de la óptica) con el motivo «La atención se inició y no se terminó» (el borrador de la ficha se conserva), y un paciente que llegó y nunca se atendió, con «El paciente llegó y no fue atendido». «Llegó» lo marca recepción porque nadie más lo sabe. Una cita no efectuada o cancelada por el paciente que nadie retoma en 30 días queda «Sin seguimiento»; nada se reagenda solo. Desde una sesión de personal no se puede marcar «No efectuada» antes de que termine el horario, y una cita ya resuelta solo la corrige el administrador («Corregir estado (excepción)», que queda en el seguimiento).
+- **Ningún estado depende de que alguien se acuerde.** La confirmación de la cita por el paciente ya no existe (quien agenda, viene; si no, cancela con su motivo).
 
 ### 14. El color significa lo mismo en todo el sistema
-- **Citas:** Pendiente = naranja, En atención = azul, Atendida = verde, No asistió = rojo, En espera = violeta, Cancelada = gris, en el calendario, en la leyenda, en la tarjeta y en el detalle. Lo seleccionado se ve en el azul de la marca, no en negro (`f45f548`).
+### 14. El color significa lo mismo en todo el sistema
+- **Citas:** Pendiente = naranja, En atención = azul, Atendida = verde, No efectuada = rojo (antes «No asistió»), En espera = violeta, Cancelada = gris, en el calendario, en la leyenda, en la tarjeta y en el detalle. Lo seleccionado se ve en el azul de la marca, no en negro (`f45f548`).
 - **Cómo aplicarlo:** un color nuevo se define en un solo lugar y se usa para una sola cosa.
 - **Tarjetas del mismo grupo:** la baldosa del ícono es igual en todas (gris neutro); el color queda reservado para un estado (Atendida verde, No asistió rojo, Pendiente naranja...). Tres tarjetas de un grupo con tres estilos de ícono parecen tres cosas distintas.
 
@@ -128,9 +130,9 @@ Si el Inicio avisa que un control está vencido, el perfil de ese paciente tambi
 Una alerta sin botón obliga a buscar; un botón que el rol no puede usar es peor. Cada botón se oculta si el rol no tiene el permiso del módulo al que lleva (agendar: citas crear; vender y cobrar: ventas crear; enviar mensaje: CRM crear; crear acceso: pacientes editar).
 - **Citas:** Reasignar y Tomar esta cita aparecen por permiso y alcance, no por nombre de rol.
 
-### 23. Un conteo y la lista que abre usan el mismo criterio, incluidas las canceladas
-Las canceladas no cuentan como citas del día ni del periodo: se cuentan aparte y solo se listan cuando se pide. Si una tarjeta dice "3 citas", la lista tiene 3.
-- **Citas:** "Todas" son las citas activas; las canceladas se ven solo con Estado: Canceladas.
+### 23. Un conteo y la lista que abre usan el mismo criterio; las canceladas no desaparecen, se cuentan aparte
+Una cita cancelada **se ve siempre** en Lista, Semana y Mes (atenuada y tachada, con su color en la leyenda) y el filtro «Canceladas» las deja solas; pero **no suma** a las citas del periodo: el conteo dice «16 citas · 2 canceladas». Si una tarjeta dice «3 citas», la lista tiene 3 citas más, aparte, sus canceladas. (Antes las canceladas solo salían con el filtro: cambió el 21 oct. 2026, reunión del 20 oct.)
+- **Citas:** «Todas» incluye las canceladas; «Canceladas» las deja solas; al cancelar se pide el motivo y queda quién canceló (el paciente desde el portal o una persona del personal).
 
 ### 24. Cada indicador vive en un solo lugar
 Si el puntaje, un estado o un total ya aparece en un bloque, no se repite en otro de la misma pantalla. El detalle va dentro de su padre, desplegable, no en una segunda lista.
@@ -193,14 +195,16 @@ Ocultar algo solo al dibujar la pantalla no lo oculta: el dato igual llega al na
 
 ### 37. Jerarquía: lo más importante para cada rol va primero, en el orden que pidió el ingeniero
 Una pantalla de resumen responde en 5 segundos "¿cómo va hoy?": quien la abre lee de arriba abajo, así que lo que decide su día va arriba. Si el ingeniero fijó un orden o una estructura, eso manda y no se reordena ni se compacta por gusto: un criterio mío ("que todo quepa en la primera pantalla") nunca pasa por encima de lo que él pidió.
-- **Administrador, a todo el ancho:** Totales (cuatro tarjetas), "Requiere tu atención" en cuatro tarjetas por área (Citas, Pacientes, Ventas, Inventario) en una cuadrícula de 2×2, el desenlace con sus cuatro tarjetas, las citas del día justo debajo y conectadas a él, y el registro de actividad al final.
-- **Optómetra:** atajos pequeños; las tarjetas del día (mis citas de hoy, siguiente paciente con "Atender", fichas sin terminar con "Retomar" solo si hay, atendidos hoy); su agenda de hoy con sus botones (sin citas hoy, su próxima jornada); sus avisos en tarjetas por área, solo los suyos y según sus permisos; y al final el desenlace de sus citas. Sin totales.
+- **Administrador, a todo el ancho:** Totales (cuatro tarjetas, cada una con su tinte suave que no es un color de estado), "Requiere tu atención" en cuatro tarjetas por área (Citas, Pacientes, Ventas, Inventario) en una cuadrícula de 2×2, el desenlace con sus cuatro números (atendidas, no efectuadas, pendientes y canceladas aparte), su selector de período y «Ir a Citas» —**sin la lista de citas debajo**: es lo mismo que el módulo Citas y cada tarjeta lleva allí con su mismo número—, y el registro de actividad al final.
+- **Optómetra, en este orden (20 oct. 2026):** atajos pequeños; **el desenlace de mis citas**; su día (siguiente paciente con "Atender", fichas sin terminar con "Seguir atendiendo" solo si hay) y su agenda de hoy con sus botones (sin citas hoy, su próxima jornada); **sus avisos** en tarjetas por área, solo los suyos y según sus permisos; y el apartado «Avisos» del administrador (los no leídos destacados). Sin totales.
+- **Recepción y ventas:** el mismo diseño de tarjetas en su «Requiere tu atención»; el apartado «Avisos» del administrador, debajo.
 - **Cómo aplicarlo:** antes de rediseñar una pantalla, lee los requisitos del ingeniero que la cubren y compara punto por punto; si una regla de este documento choca con un requisito, gana el requisito y se corrige la regla.
 
 ### 38. "Requiere tu atención" se separa por área, en tarjetas: nunca todo en una sola lista
-El ingeniero criticó el bloque que mezclaba todo en una lista y pidió separarlo por área. Cada área (Citas, Pacientes, Ventas, Inventario) es una tarjeta propia, de la misma altura que las demás de su fila, con su ícono, su título y su número (el total de avisos de esa área).
-- **Dentro de la tarjeta:** como máximo tres avisos, una línea cada uno con su número, qué pasa, hasta tres nombres ("Ana, Juan y 1 más") y una sola acción (con un caso, la acción lo resuelve; con varios, abre la lista filtrada). Si hay más tipos de aviso, el pie dice cuántos faltan ("2 avisos más"). Abajo, "Ver todo →" hacia el módulo, sin repetir el número. Un área sin avisos es una tarjeta que dice "Todo en orden".
-- **Un aviso por tipo, no por persona,** y el mismo criterio en todas las áreas. Una acción que el rol no puede usar no se muestra (regla 7).
+El ingeniero criticó el bloque que mezclaba todo en una lista y pidió separarlo por área; el 20 oct. 2026 pidió además que no tenga tanto texto: **tarjetitas**. Cada área (Citas, Pacientes, Ventas, Inventario) es una tarjeta propia, de la misma altura que las demás de su fila, con su ícono, su título y el total de avisos del área; dentro, **como máximo tres tarjetitas, cada una con el número grande y una leyenda corta** («por contactar», «con stock bajo») **sin nombres de pacientes**. Un área sin avisos es una línea: «Todo en orden».
+- **Qué abre cada cosa:** la tarjetita abre SU lista en la ventana estándar (regla 43), con cada caso, su detalle y su acción y el enlace «Abrir en …» con el número del destino (regla 42); «N avisos más» abre la ventana con todas las del área; «Ver todo →» lleva al módulo (con el filtro del aviso si el área tiene un solo tipo).
+- **Un aviso por tipo, no por persona,** y el mismo criterio en todas las áreas. Una acción que el rol no puede usar no se muestra (regla 7). La leyenda concuerda en singular y plural («1 orden atrasada»).
+- **Vigencia y descarte:** cada aviso tiene una vigencia y, si es una decisión de la persona, «Descartar» con motivo (queda quién, cuándo y por qué; se puede deshacer). Lo que es un hecho pendiente (dinero, una solicitud de datos, un paciente esperando) se resuelve, no se esconde. Tabla en `docs/ronda2-avisos-vigencia.md`.
 - **Qué falló:** una versión de esta regla pedía "un solo cuadro con un subtítulo por área" y "el total una sola vez en el título"; eso devolvió la lista única que el ingeniero había rechazado.
 
 
