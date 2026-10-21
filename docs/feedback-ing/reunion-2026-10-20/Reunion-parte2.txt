@@ -1,0 +1,288 @@
+LO MISMO EN VENTAS.
+PACIENTES PENDIENTES, HAY SALDRÍA UNO.
+ÓRDENES DE LABORATORIO LISTAS, PARA SIN AVISAR A LOS PACIENTES.
+TRES, ÓRDENES DE LABORATORIO LISTAS.
+Y CUATRO, ÓRDENES ATRASADAS.
+ACÁ, SIETE PRODUCTOS EN STOCK BAJO.
+CINCO PRODUCTOS CON, BUENO, AHÍ PODRÍA SER UNO QUE SERÍA STOCK BAJO.
+¿QUÉ MÁS PODRÍA VER AQUÍ?
+O SIMPLEMENTE SE LO DEJA CON ESE DE AHÍ.
+EN INVENTARIO, STOCK BAJO.
+¿QUÉ MÁS SERÍA?
+CANTIDAD TAL VEZ DE, NO, ACÁ ARRIBA ESTÁ PRODUCTOS, YA NO SERÍA DE REPETIRLO, ESTÁ 20 PRODUCTOS.
+STOCK BAJO.
+Y TAL VEZ PODRÍAS AÑADIR UNO QUE TENGA SOBRE, SOBRESTOCK.
+O SEA, UNO EN STOCK BAJO Y EL OTRO EN SOBRESTOCK.
+POR EJEMPLO, QUE TENGAMOS MUCHO DE ALGO.
+AHÍ ESTÁN DOS BLOQUES, DOS TARJETAS.
+STOCK BAJO Y TAL VEZ SOBRESTOCK.
+ESO TÚ PODRÍAS ESTABLECER UN UMBRAL.
+DECIDIR DE QUE A LO MEJOR EL, EL MÁXIMO DE UN, DE UN ÍTEM PODRÍA SER 20.
+Y QUE A PARTIR DE ESA CANTIDAD TÚ CONSIDERES QUE ES STOCK.
+O PODRÍA EN TODO CASO, COLOCAR, PORQUE SI NOSOTROS ESTABLECEMOS ESO ES COMO QUE MUY, MUY SUBJETIVO A LA, A LA EMPRESA.
+PORQUE PARA NOSOTROS DECIR QUE STOCK 20 ES MUCHO Y OTRO DECIRSE TODAVÍA ES POCO.
+Ya, entonces, como para no entrar tanto en ese detalle.
+Siete productos con stock bajo.
+Podría hacerse solo una tarjeta, por si quisiéramos añadir menos de una tarjeta más.
+Abre stock, abre inventario.
+Por todo inventario.
+Te abre inventario.
+Unidades, productos, unidades en stock.
+Productos 20.
+¿Cuál es la diferencia entre productos y unidades en stock?
+O sea, hay 20 productos y la suma de todos los, las repeticiones de los 20 productos son 224.
+¿Ah?
+Sí.
+Mira, ese de aquí de inventar en 90 días podría ser otra tarjeta que coloquemos al lado.
+Okay, sin inventar inventar de 90 días.
+Sin inventar 90 días podría ser la tarjeta o podría ser unidades de stock, podría ser una de esas dos tarjetas que coloquemos ahí.
+¿Tienes valor de inventario?
+Ya, no, eso está bien ahí.
+Ya, requiere atención que me muestras.
+Las, las que están por acabar sin stock.
+Ya, lo mismo que me muestras acá en la parte de afuera.
+Ya, regresa de nuevo al inicio.
+Ya, administrador, tengo 42 pacientes, 5 en este mes, tengo 94 citas, este mes hubieron 25 citas.
+Tengo ventas en total 4330, este mes hubieron 488.
+Y productos, 20 productos tengo en total, este mes aumentaron tres productos más.
+Ya, ahí tengo la información que puedo entender.
+De cómo está marcándose este apartado en cuestión, puedo registrar nuevo paciente, puedo agendar cita y puedo agregar productos.
+Como, como opciones rápidas.
+Y requiriendo atención, me da todas las tarjetas iniciales de los cuatro bloques importantes para yo poder visualizar, luego en ver todo.
+La información correspondiente como tal.
+Ya, sería entonces, si entiendes la idea de las tarjetas.
+Sí, sí.
+Ya, para que no se vea así todo, mucho texto, simplemente la información principal y cuando yo doy click a ver todo, ahí abre el listado completo de las cosas.
+Sí, lo entiendo.
+Ya, baja un poco.
+Veo que tienes algo más abajo.
+Desenlace de las citas.
+Hoy hay cero atendidas, no asistieron, pendientes canceladas.
+Ya, o sea, que, eh, este bloque de aquí debería ir arriba.
+Bueno, aquí muéstranos, si, ese, ese bloque de ahí, yo lo veo más útil para, para el optómetra.
+Pero es que lo, como te digo, o sea, al final, en este caso, No, ahí, ahí en administrador está bien, que esté abajo, porque lo de administrador lo más importante es lo que tenemos acá arriba.
+Ah, okay.
+Ya, bueno, entonces, este panel, pues, ¿hm?
+¿En este panel simplemente esto muestra la información que se selecciona acá?
+O sea, como yo selecciono algo, a ver, dale click a algo.
+Aquí, aquí te muestra las cosas, la información de que se selecciona.
+Pero eso es redundante, porque para eso yo tengo lo, tengo, tengo el panel de de citas médicas para ver el detalle de cuáles son.
+Entonces, yo solo dejaría todo lo que de se hace de citas, así como lo tienes.
+Y tal vez algún botón al lado de, eh, tal vez de donde está hoy, esta semana, este mes, todas, ir a citas, como para ir al apartado de citas médicas.
+Pero eso de tal vez abajo no, ¿Considerarías en primera instancia de que no lo veo tan, tan necesario porque es como yo ponerme a leer información ahí que estaría dentro del panel de citas médicas?
+Mmm, okay.
+O sea, este de aquí me da la información de cómo está desarrollándose las citas.
+Pero ya en citas médicas, pues ya puedo ver detalle de lo que me interesaría.
+Claro.
+Ya, sube.
+Ya.
+Ahora, cuando vaya al optómetra, totales, estaría, con el optómetra, productos, 20 productos, eh, las ventas se tendría que emitir del optómetra.
+Solo sería información del administrador.
+Déjame ver qué tiene el optómetra, ajá.
+Ya, mi próxima jornada con citas, ya, me requiere la atención de las citas, ya eso está bien, pero había que colocarlo de la misma manera que lo colocamos en el otro.
+Desenlace de mis citas, ya, también lo veo bien ahí.
+Y mi próxima jornada con citas, aviso de citas, ya.
+Ahora, podrías en todo caso colocar primero el desenlace de mis citas.
+Ya, debajo iría mi próxima jornada con citas y de ahí iría requiriendo atención.
+Ahí en el optómetra, perfecto.
+Ajá, en el optómetra.
+Sería esa secuencia como quiero.
+Desenlace de mis citas, de ahí mi próxima jornada con citas, para saber cuál es la próxima cita que tengo, y de ahí aquellos elementos que requieren mi atención.
+Ya, estaría bien ese, ese bloque de ahí.
+Ya lo tengo esta parte de primero de información relevante, que son aquellas cosas pendientes.
+Listo, pacientes, ¿qué tienes en pacientes?
+Paciente, tengo, bueno, eh, tengo este módulo y bueno, y al final en este, agregué, o bueno, cambié un poco de cómo se ve este paciente.
+En un caso, le agregué algo como para verlo directamente.
+Pero sabes qué, esa que está ahí, esa, ese que está ahí arriba, no, no lo veo tan útil porque es, distrae demasiado y no todos van a tener y no todos requieren una información de graduación, técnicamente.
+Y además ya lo tienes acá abajo de información, es redundar información.
+Okay, okay.
+O con qué finalidad tú colocaste los ojos ahí arriba?
+La, con la finalidad de que, de no dejar este espacio en blanco.
+Pero tú te, tú tenías todas esas opciones historiales, agendar cita lo tenías aquí arriba en la esquina, ¿porque no se veía mal?
+Sí, acá arriba en la esquina.
+Porque aquí queda un espacio en blanco feo, aunque estoy destacando el espacio feo.
+O sea, técnicamente el espacio está.
+Sí, eso sí, eso sí es, técnicamente el espacio está.
+Ya, entonces, lo que podrías hacer en todo caso es crearlo en, en cuadrícula.
+Historial clínica, agendar cita, bajo enviar mensajes y datos.
+Ahí de esa manera, la cuadrícula no, o sea, en una fila están dos columnas, y ya se ocupa y queda menos espacio en la mitad.
+Okay, entiendo, perfecto, esto aquí entonces, ya.
+Eh, bueno, aquí, un pequeño resumen, ya, de lo interesante, próximo control, última consulta, compras.
+Estado de corrección.
+Estado de corrección, no sé si todos van a tener lo mismo, o sea, ajusta dependiendo de control.
+O sea, ajusta.
+Ya, si es así, sí funciona.
+Citas del paciente, atendidos, pendientes, ya, eso me parece bien, citas por mes.
+Citas por mes, no lo haría un, un gráfico de barras, lo que haría es un gráfico de tendencia.
+Ah, ya, okay.
+Que eso se ve mejor, visualmente, porque ahí es como, no me dice nada, es puro espacio en blanco.
+Cambio con la otra, veo la, la forma y sé que está la gráfica por abajo y subió en octubre.
+Y en esas citas por mes, en todo caso tendrías que ponérmelo ahí en una esquinita, poder yo ver tal vez por año, por mes.
+Por año, por mes, sí, o por semana, tal vez, semana, mes y año.
+Para yo poder de forma rápida, porque recuerda que si tengo años con un paciente, podría ahí ver cómo ha estado en, en los años, la cantidad de citas.
+Y principalmente este igual, eh, filtrado por defecto, tal vez por mes o por semana.
+Podría ser esa elementos como tal.
+Ya, baja un poco.
+Eh, ya, aquí, fi, fi, de, fi, de, fidelización.
+Aquí todavía no le he puesto un estipulado de de puntos o de puntajes para ver cuándo tienen eh, algún beneficio, tengo que ponerlo.
+Y bueno, aquí a la final, si ha referido a alguien y bueno, ya, ¿sabes?
+Ya, está, ya, funciona, solo hay que hacer con, eh, citas del paciente, citas por mes.
+Hay que ponerlas en dos bloques, o sea, un bloque donde esté los, o sea, en dos y en dos, pendientes, atendidas, no asistió, canceladas abajo, y al lado este todo lo que es la gráfica de, de tendencia, para que no, para ganar más espacio.
+Y no se vaya tan abajo fidelización.
+Okay.
+Ya, entonces, podríamos en este citas del paciente ponerle en dos bloques, uno al lado del otro.
+Y de esta manera, pues ya se ve más ordenado.
+Fidelización está bien, listo, me parece, este apartado de resumen lo veo bien.
+Listo, porque tengo información del paciente.
+Sube un poco.
+Eso de abierto hace dos días, yo no lo pondré ahí.
+Si tú vas a dejarme ese botón de seguir atendiendo ahí donde está, que puede funcionar, lo pondría al lado.
+O lo quitaría, porque técnicamente eh, ingresar y seguir atendiendo hacen lo mismo.
+Ya, entonces, el de dejar de atender lo podría dejar ahí, para que sea más rápido cancelar la del agendamiento desde ahí, pero ese de de ingresar ya lo quitaría.
+Okay, okay, perfecto.
+Ya, ese y quitar, porque ocupa mucho espacio, o sea, ese bloque que hiciste ahí me deja una línea de espacios que separa el resto de información innecesariamente.
+Mhm, sí, entiendo.
+Y ahora sí, ingresa a citas.
+Citas son toda la información sobre las citas.
+Ya, requiere atención, dejar de atender, ingresar.
+Ya, cobro pendiente, cobro pendiente.
+Yo en ese cobro pendiente, yo lo pondría en resumen, déjame ver resumen, creo que ahí estaba.
+No, no está.
+Yo podría poner en resumen el cobro pendiente porque eh, igual en compras va a estar.
+Dale click a compras.
+Ya, bueno, aquí ni me lo dices y ahí es donde técnicamente tendría que estar la la referencia.
+En citas, abre citas.
+Yo podría quitar eso de citas en atención y cobro pendiente porque técnicamente las citas de atención me estás indicando arriba.
+Okay.
+Ya, entonces, el verbo el bloque de historial de citas.
+Sí, o sí, lo podrías hacer.
+O en todo caso, si tú quieres, lo integras en resumen, que es lo primero que se abre la esa y lo quitaría de ahí arriba del seguir atendiendo.
+O sea, esos mismos dos bloques lo pondría en resumen, en la parte principal debajo de resumen y lo quitaría ya de la parte de arriba donde dice seguir atendiendo.
+Okay.
+Yo creo que ahí podría funcionar mejor, porque en resumen me da información de cuando hay una cita en atención y cuando hay cobro pendiente.
+Ya, perfecto.
+Ya, y cuando entro a citas solo me da la información de citas, como está ahí abajo.
+Aquí, por ejemplo, datar la información de de esa cita.
+Baja.
+Baja, deja ver cómo está, solo hay esas dos citas.
+Sí, solo hay tres citas.
+Ya, ahora, aquí puede entrar en un conflicto, anota resumen.
+Ya, porque esa información de citas del paciente y citas por mes tienen más sentido en citas.
+Entonces, las podrías quitar de ahí, en todo caso y poner en citas, adelante nuevamente citas.
+Así como te dije, en dos bloques colocas lo de las citas con la tendencia y abajo el historial de citas y ahí se entiende más rápido todo lo referente a citas.
+Y en resumen simplemente se centra para los avisos de citas en atención, cobro pendiente y lo de lo de última vez atendido, o sea, lo de la última cita, lo de la compra de lentes y lo de la fidelización.
+Entra nuevamente.
+O sea, dejaría eso de estado de corrección, próximo control, última consulta, arriba de eso pondría lo de cita pendiente, cobro pendiente y lo que sigue sería fidelización.
+Okay.
+Ya.
+Ya.
+Ahora vámonos a.
+Vámonos a graduación.
+Ya, graduación, imprimir receta, comparando receta, explicar paciente, explicar al paciente.
+¿Imprimir receta qué?
+De, de qué es lo que como.
+No sé, pero no sería receta, sería entonces imprimir diagnóstico.
+Claro.
+Claro.
+Ya, para cancelar.
+Tal vez yo no lo pondría como graduación, yo lo pondría como diagnóstico.
+Porque puedes ahí también añadir cualquier otro, los últimos diagnósticos, por ejemplo, en lo que tenga que ver con otros temas, tú podrías colocar también esa información.
+No solamente la graduación, sino que los otros opciones que estén ahí, podrías colocar tal vez la última, así como este paciente de octubre, o sea, desde la última cita, los últimos resultados se ven ahí.
+Podría ser una opción.
+¿O cómo lo ves tú?
+Claro, sería más que todo diagnóstico aquí, o sea, dar todo lo de esa cita y que, bueno, hasta la final pueda filtrar por las otras citas.
+Claro, si quieres ver diagnósticos, podrías en todo caso ver diagnósticos previos así, como tú tienes ahí y no solamente me sale graduación, sino me salen los otros de otra cosa que que se hayan que se han tratado.
+De manera más rápida yo puedo ver cómo está la graduación.
+Comparando receta ¿qué haces?
+Eh, comparar dos recetas, es como, aquí vemos, un caso, la del anterior y la vigente, y vemos cómo ha evolucionado o cómo ha empeorado, o cómo va su.
+Ya, pero recetas no las llames, ¿por qué las llamas recetas?
+Comparar diagnósticos.
+Podría ser comparar diagnósticos.
+Podría ser así.
+Porque receta es como que tú me estás ya dando el tratamiento ahí, y ahí no está el tratamiento.
+Listo, anda a compras, pero están bien, están bien esas opciones, yo las veo bastante útiles, compras, ya.
+Ya, ese botón de nueva venta está como que muy escondido.
+Podría tal vez añadir un bloque blanco en todo ese parte de ahí como para que se diferencie del fondo.
+O sea, como que haya todo el listado pero en un fondo en un apartado en blanco para que se, no se vea como que parte, como que estuviera flotando ahí dentro del fondo.
+Ya.
+Listo, ahora, ándate a órdenes de laboratorio, esas sí son las recetas.
+Estas son las órdenes de laboratorio.
+Ahí sí, esa ya es el diagnóstico en todo caso.
+No, las órdenes de laboratorio es cuando, sabes que igual a la final, muchas veces los lentes no los hacen la misma optó las ópticas, mandan a centros de laboratorios, los cuales ellos hacen los lentes y aquí se muestran.
+¿Cómo va esa orden?
+Mmm, ahí podría ser un poco complicado, porque ahí dependería mucho de que ir registrando la, cómo está el pedido hecho en en donde yo lo mandé a efectuar por parte del optómetro.
+Ya.
+Porque teóricamente si yo doy en compras, si en compras tengo un lente, yo como optómetro sé que ese lente está eh pendiente de, podrías tal vez colocar en compras las los compras hechas más el estado de que si ya está entregado o todavía está pendiente.
+Y ya con eso ya se sabe que todavía está en ese flujo de de que todavía no ha llegado a, de que no ha llegado o que no ha sido entregado.
+Porque ¿cómo registro una orden de laboratorio ahí?
+Desde la ficha clínica.
+O sea, si en la ficha clínica le puse que se compre unos lentes, se pone acá.
+Claro.
+Pero no es lo mismo que compras.
+Técnicamente.
+Claro, porque esa orden de laboratorio no lo veo todavía en el flujo de de lo que estamos registrando.
+Ya, analiza bien esa parte, porque si no, igual, porque, por ejemplo, en citas, en citas, cuando ya nosotros entramos a citas, and de nuevo a citas.
+Ya, abre una cita.
+Tiene una, abriría como un modal.
+Anteriormente se había.
+El anterior, pues se ha visto que abriría un modal.
+En citas, anda.
+No, no, ahí, ahí donde estaban.
+No, ahí en la cita del paciente.
+Citas.
+Ah, este de aquí.
+Ajá, ese ahí.
+Porque ahí está el diagnóstico.
+Entonces, yo necesito tener un apartado de, de, de diagnóstico, porque en la cita está el diagnóstico como tal.
+Está la información detallada de esa parte.
+Ya.
+Entonces, eso está bien, no, no tendría que tener un modal de diagnóstico, porque ya en la cita tengo toda la información que hubo en esa cita.
+Pero en el apartado de, o sea, me refiero a tratamiento, porque está todo el tratamiento.
+A ese no tendría que tener otra vez el tratamiento, porque ahí está.
+Pero el apartado de diagnóstico, así aparte, me permite ver rápidamente cómo está el paciente actualmente y lo puedo visualizar rápido.
+Entonces, ese sí está bien en cuanto a la, a su existencia acá afuera.
+Ahora, historial, sube.
+Historial, historia clínica.
+¿Qué tienes ahí?
+Eh, se ha usado lentes, antecedentes, si ha tenido alergias, familiares, la información que se coloca normalmente ahí.
+Exactamente.
+La que se coloca al inicio cuando se crea por primera vez un paciente.
+Exactamente.
+Ya está bien, eso, eso está bien ahí, dale cierra ahí.
+A agendar cita, enviar mensaje, datos, ¿qué hay en datos?
+Toda la data del paciente.
+Ya, yo lo que pondría, lo pondría así, pondría, cierra eso.
+Podría, podría historia clínica y al lado datos, para que sean dos información y abajo agendar cita y al lado enviar mensajes, para que sean dos acciones cuando ordenes la cuadrícula.
+Okay.
+Ya.
+Listo, ahora entra al, a la atención.
+Ya, ¿qué tenemos aquí?
+Veo que ya has ajustado las cosas, motivo de la consulta, ya, antecedentes del paciente, listo, síntomas, aquí hay un caso, puede dar entre los, el paciente se puede utilizar.
+Sí, está bien.
+Si no se ha investigado que se tiene algún antecedente, o sea, bien, me parece bien, uso de lentes, no sí, ya.
+Me pareció bien esa parte y sube.
+Listo, una vez que yo lleno el motivo de la consulta, avanzo.
+¿Qué es lo que sigue?
+Los síntomas.
+No, no.
+Ah, lo de visual.
+Lo cambiaste el diseño.
+Sí, bastante.
+Porque lo que pasaba era de que se estaba mostrando solo una ficha clínica como que, de un caso, déjame.
+¿Qué, qué puedo seleccionar yo ahí?
+Espera, ya solo se estaba mostrando así la ficha clínica.
+Corta menos, pues.
+Como por ahí.
+Entonces, al querer ampliarla, en un caso, yo la quería ampliar hasta aquí, todo esto, se veía muy ruidoso, muy.
+Pero tú ve también igual investigando, porque no estaba como muy secuencial la, la.
+Está bien.
+Ficha clínica, que, al final, al final de eso.
+No, no, me refiero a la parte de agudeza visual.
+Lo dejo de derecha a izquierda.
+Ajá.
+Ya, eso de ahí, dale click y déjame ver qué es lo que se selecciona.
+¿Eso son valores fijos o pueden variar?
+Valores fijos, están ahorita.
+Que, bueno, que a la final esta ficha clínica como tal no la he hecho ver todavía con la optómetra.
+Ya, quería ver igual.
+Sí.

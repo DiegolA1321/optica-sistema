@@ -1,3 +1,20 @@
+## 21 oct. 2026 — reunión del 20 oct.: reglas de trabajo, requisitos y plan de cinco rondas
+**Reglas de trabajo para todas las rondas de ahora en adelante (Diego):**
+- Se corren **solo las pruebas de lo que se toca** en cada ronda. La suite completa de Playwright se corre **una sola vez, al final de todas las rondas**.
+- **No se publica nada en Vercel** hasta que Diego lo diga al final. Todo se prueba en localhost.
+- Cada cambio se revisa **en todos los perfiles y paneles que afecte** (administrador, optómetra, recepción, ventas, roles propios, portal del paciente y superadmin) y se ajusta donde corresponda.
+- Lo que requiera **base de datos** se le muestra a Diego **antes de aplicarlo**, con el protocolo de siempre: respaldo, ensayo, aplicación y verificación con sesión real.
+
+**Requisitos:** `docs/feedback-ing/requisitos-reunion-20oct.md` (transcripción en 3 partes + notas por módulo de Diego + 10 decisiones ya tomadas). Nada de esa lista está implementado salvo lo que diga la Ronda 1.
+
+**Plan:**
+1. **Ronda 1 — Sesión y guardados** (bloqueante).
+2. **Ronda 2 — Citas, «Requiere tu atención» e Inicio.**
+3. **Ronda 3 — Pacientes, perfil, ficha clínica y portal.**
+4. **Ronda 4 — Ventas e Inventario.**
+5. **Ronda 5 — Horario, Usuarios, Soporte, CRM y gráficas de tendencia.**
+6. Al final: suite completa de Playwright, revisión de Diego y publicación (solo cuando él lo diga).
+
 ## 19 oct. 2026 (noche, 4) — limpieza del proyecto
 - **Qué se hizo (un solo commit):** se eliminaron ~68 MB de capturas de rondas (`docs/portal-capturas`, `portal-detalles`, `portal-v2-capturas`, `portal-comparacion`, `ficha-cinco-pasos`, `ficha-coherencia`, `inicio-capturas`, `inicio-superadmin-capturas`, `ficha-capturas`, `propuesta-ficha`, `ficha-cinco-pasos-propuesta`), `src/assets/hero.png`, 6 archivos de `src` que nadie importaba (`ColaVentas`, `TendenciaGraduacion`, `GraficaGraduacion`, `RequiereAtencion`, `utilidades/graficos.js`, `utilidades/recetaTexto.js`) y los scripts de arreglos de datos de un solo uso y de capturas (`corregir-*`, `capturas-*`, `comparar-portal`, `lado-a-lado-portal`, `revision-adaptable`, etc.).
 - **Dónde quedó lo demás:** las revisiones, `roadmap-artifact.html` y `SYSTEM_MODERNIZATION_ROADMAP.md` están en `docs/historial/`; los ensayos y verificaciones de migraciones, en `scripts/historial/`; cinco capturas finales, en `docs/figuras-tesis/`. Se conservan completos `docs/portal-propuesta/`, `docs/maquetas/`, `public/capturas/` y las mediciones de Nielsen.

@@ -1,0 +1,366 @@
+falladas. 
+falladas. 
+Ah, falladas. 
+Ahí sí nos. Qué es eso?
+Ya. Y mi pregunta es, ahí yo no he colocado la graduación del 
+de los ojos. 
+Como te digo. 
+Ah, bajo un poco, bajo un poco, bajo un poco. 
+Este modal de aquí sí. Ah, la graduación está acá, parece. 
+Mhm. 
+Pero como si, como si sí te digo, o sea, al final, este modal solo dice ahí como para que esté, pero legalmente quiero igual, este de aquí va a ser cuando ya hable con la con la optometra y ella me diga realmente si esto está o no está, pero lo que yo quería ver era, o sea, los otros igual eh módulos como tal. 
+Este de aquí, o sea, solamente si te das cuenta, está así, que a mí me gusta cómo se ve visualmente, pero todavía no sé si realmente, o sea, está siguiendo una secuencia correcta. 
+Refracción? 
+Refracción, déjame a ver qué dice. 
+Ah, salud ocular, déjame a ver qué dice. 
+La que sigue, después del cuatro. 
+Sube, sube, sube. 
+El cuatro, o sea, eso. 
+Ah, ya. 
+Mmm, a ver. 
+El problema es que cada uno es información, pero no todas las todas las citas tienen todo ese registro de información. 
+Mhm. 
+¿Te acuerdas que sabes que nosotros habíamos definido que poníamos el primer paso que era el motivo de la consulta, o sea, lo que vimos en anámesis? 
+De ahí, de ahí te acuerdas que venía lo que viene siendo el registro de 
+de lo de lo que se trató. 
+Y ahí en ese punto dos, nosotros teníamos la los las cuatro opciones como tal y podríamos desplegar las opciones que íbamos a tratar. 
+Y dentro de cada despliegue aparecía cada una de las opciones pertinentes. 
+Y después de registrar todos los elementos que queríamos en ese bloque como tal, ya nos íbamos al diagnóstico de receta. 
+Solo eran tres pasos. 
+Okay, okay. 
+Tanto el dos, el tres y el cuatro son parte de un mismo proceso de de registrar 
+cómo está el paciente actualmente. 
+No es como que el dos va después, el tres va después del dos 
+o algo así. 
+Entonces sería que integre el paso uno, paso dos y paso tres y dentro del paso uno se pares en bloques. 
+Primero todos compactados y luego que el optómetra abra los bloques que requiere lo que realmente va a registrar. 
+Okay, okay, te entiendo. 
+Y de ahí va el diagnóstico y receta. 
+Y el diagnóstico y receta. 
+Y le quitarías ya el encabezado y todo. 
+Baja un poco. 
+Ya baja un poco. 
+Sí, está. 
+El modelo está campé. 
+Esta ficha clínica cambió bastante. 
+Ya. ¿Y en terminar la atención? 
+¿Qué pasa cuando doy terminar la atención? 
+Bueno, faltan pasos. 
+Te debería igual. 
+Ya eso tienes que ver que tal vez no debería ser todo obligatorio, tienes que dejarlo 
+como opcional, es porque para que se registren los que realmente 
+el paciente, el doctor necesita registrar. 
+Sí te entiendo. 
+Ya, pero cuando termina lo que viene siendo la atención, ¿qué me sale? 
+Un modal de imprimir reporte, ¿de qué? 
+¿Qué me sales? 
+Claro, imprimir eh. 
+Porque me acuerdo que antes veíamos el cuadrito donde salía la impresión de la información. 
+Ajá. 
+Aquí te imprimir, descargar PDF. 
+En todo caso, sería pertinente que cuando tú le des clic baja. 
+A terminar la atención, ahí te sale el modal o te salga lo que viene siendo 
+la vista previa del reporte 
+para que tú lo puedas descargar ahí, porque si no nunca lo vas a descargar, a veces arriba no sé, te puede hasta perder. 
+Claro. 
+Entonces en vez de opción, tú puedes dar un modal 
+que diga los botones de 
+descargar reporte o una visualización previa del reporte para descargarlo y 
+y luego se termina la agenda. 
+Podría ser. 
+Ahora, ¿qué pasa si yo por casualidades no le no lo descargo? 
+¿Cómo lo puedo descargar después? 
+Ah, claro. 
+Ahí eso sí no está pensado. 
+Debería parecerme a 
+acá en para descargar el reporte de la cita. 
+Las hijitas en citas y encitas, tal vez por ahí podría haber una opción. 
+Por ejemplo, ahí es imprimir receta, ver receta, imagino que debería estar la 
+eso de ahí. 
+En esos dos botones. 
+Ya, pero ahí hay que adjuntarle, porque eso es lo que vimos acá. 
+De ahí podría ser para recuperarlo. 
+Listo, eso sí tiene que ajustar antes de presentarle al optómetro porque eso te 
+es algo que comúnmente puede pasar. 
+Ya. 
+Para asunto. 
+Listo, pero el resto, como está acá lo del paciente lo veo bien, el flujo que ahorita me muestras en la otra parte también la veo bien, como está presentado, solo hay que coordinar lo que te dije en los tres pasos. 
+Ya. 
+Sí, sí, te entiendo. 
+Ya de ahí. 
+Toda la información de las ventas, asimismo está más ordenado. 
+Eh. 
+Toma antes el diagnóstico. 
+Ah, ya. 
+Esto es para detallar lo que se compró, que bueno, que al final 
+todavía no se ha vendido. 
+Es como que tú le mandas una proforma 
+a 
+a la persona de cuánto gastaría comprando sus lentes. 
+¿Entiendes? 
+Ya. 
+¿Qué qué? 
+¿Cuándo das nuevamente qué sale? 
+¿Dónde me dijiste? 
+Nueva venta. 
+Ahí se pues se busca aquí, bueno, vamos a hacer unas lunas, monofocal. 
+Ya. 
+Precio de luna, no sé, unas 50. 
+Si cancela eso. 
+Ya cancela esa parte de ahí, dale cancelar no más. 
+Ya, nueva venta, requiere atención, ¿qué te muestra? 
+Las horas de laboratorio, eso analízalo, sí, resulta práctico integrarlo o mejor nomás que se gestione como yo lo he venido gestionando a la espera de contacto con ellos. 
+Sí, sí. 
+Ya. 
+Órdenes atrasadas que no han sido entregadas. 
+Mhm. 
+Ya, cierra eso. 
+Ya, no me tiene que convencer mucho eso que dice tomar datos del diagnóstico, porque 
+eh 
+en teoría 
+ventas me están mostrando las ventas que están ya efectuadas. 
+No posibles candidatos a vender. 
+No. 
+Porque para eso estoy dentro de pacientes y en pacientes yo 
+podría en todo caso ahí 
+efectuar la venta al paciente. 
+A ver, pero ventas yo puede en ventas añadir un venderle un producto a un paciente directamente en ventas, buscar el paciente y venderle. 
+Y ahí podría tomar su dato del diagnóstico para poder ver cómo está el paciente en su último diagnóstico y poder sugerirle un mejor 
+un mejor trato. 
+Ahí tal vez podría estar esa opción. 
+Pero si yo tengo aquí un listado 
+son el listado de las ventas directamente. 
+A lo mejor ese por vender podría ser otra opción, pero aparte, donde 
+pueda haber tal vez como posibles candidatos, 
+pero no como la principal, porque aquí la principal tendría que darme todo el listado de las ventas que están ya pendientes 
+o efectuadas o pendientes de entrega. 
+Porque yo entiendo que aquí tú me estás poniendo eh candidatos posibles. 
+Claro, sí, sí. 
+Comprobantes, ¿qué tienes? 
+Son 
+eh 
+los vendidos. 
+Ajá. 
+Ya, entonces eso tendría que ir primero. 
+Ya, abonar abonar, o sea, registrar los pagos. 
+Sí. 
+Ya, cierra eso. 
+Lo puedo buscar, puedo filtrar, listo, avanza, sube. 
+Órdenes de laboratorio, bueno, eso es lo que en antes vimos a cobros y saldos. 
+Cobrado hoy, saldos por cobrar. 
+Eso habría que analizar un poco como 
+cómo se lo presenta. 
+Comprobantes. 
+¿Por qué antes no hay comprobantes? 
+Técnicamente ahí me está dando lo mismo. 
+Lo que podría es igual, en todo caso, subir, pon comprobantes y saldo. 
+Esa parte de 
+de saldos por cobrar 
+no de ventas con saldo siete pacientes, podría establecer entre los bloques encima de comprobantes, 
+o sea, debajo de comprobantes y de ahí viene el listado. 
+Y según los filtros se van ajustando esos valores, para yo ver rápidamente 
+los totales según los filtros. 
+Te fuiste lejos o es alguna bulla del fondo. 
+Hola. 
+Parte y parte. 
+Parte y parte. 
+Ah, ya, listo. 
+Eh. 
+Andate inventario. 
+Producto, unidades, stock, todos, precio, existencia, ya, accesorios, por montura, por accesorios, nuevos este mes, 
+por marca, conteo, ¿Qué es conteo físico? 
+Conteo físico. 
+Que dice, bueno, eh, 
+hay 
+tantos en 
+en el en en bueno, aunque técnicamente es lo mismo, porque si estamos 
+eh 
+aquí está agregado lo de la óptica, debería ser lo mismo. 
+O sea, entiendo que esto es por si acaso yo tenga, quiera verificar que lo que tengo en stock coincida con mi listado. 
+Exacto. 
+Entonces tú coges, haces así y bueno, 
+revisar diferencias 
+o imprimir. 
+Bueno, esa podría ser interesante. 
+Y bueno, aquí hay un error. 
+Ya, conteo físico para yo poder contar las cosas. 
+Ya, ¿qué pasa si quiero editar una información? 
+Ya, le doy editar. 
+Ya, y ajustar stock. 
+Mira, ahí tal vez podríamos añadir el lo de stock máximo 
+o o sobre stock. 
+Así mismo como está un mínimo. 
+Okay. 
+Como para cuando yo, porque a veces puedo comprar y comprar y cuando estoy registrando, 
+porque regresé a cancelar, yo me imagino que compré nuevos productos, 
+vamos a ajustar stock. 
+Dale click a ajustar stock. 
+Ajustar por conteo, unidades que existencia, mermar, devolución del proveedor. 
+Ya, ahora, dale click a 
+dale, o sea, cancela eso. 
+Dale click a registrar ingresar registrar ingreso. 
+Ahí, ahí donde registro los ingresos. 
+Listo. 
+Ahí tal vez cuando registro los ingresos, por ejemplo, si pusiera si pongo ahí 20, me indica ahí sobre stock 
+antes de registrar el ingreso, podría ser, como para darme cuenta que 
+que hay ahí de más. 
+Podría ser una opción. 
+Listo, a ver, entonces, pero si yo tengo un, yo, la verdad, se cancela. 
+Ajustar stock lo veo práctico. 
+Para al darle click de nuevo, ajustar stock. 
+Ya, luego práctico para poder validar las cantidades. 
+Ahora, el de 
+salte de ahí. 
+El de conteo físico, 
+dale click. 
+Lo veo más práctico para poder descargar la hoja más que hacer aquí directamente ese conteo físico, porque para eso lo hago en cada 
+ítem. 
+Puede ser, o sea, eso habría que analizar un poco, pero ahí ahí dejémoslo mientras tanto. 
+Ahora, 
+eh 
+tú me hablas, habla de nuevo cualquier ítem de abajo. 
+Ya, tú me hablas de descontinuar. 
+Dale a descontinúa ese, dale a descontinuar a ese. 
+Y no dejar de investigar tú mismo. 
+Ya no importa, salgamos de eso, la idea es, ¿dónde yo veo los descontinuados? 
+Claro, no hay un 
+filtro de descontinuado. 
+descontinuado y ahí mismo descontinuado, poderle volver a 
+a continuar, 
+a continuar y así mismo cuando yo agregue un nuevo producto va a verificar si ese producto ya existe tanto en el stock disponible como en los descontinuados, porque si ya existe, decirle este producto ya existe en descontinuado 
+y lo que hago nomás es darle continuidad. 
+Ya. 
+CRM mi horario reporte, 
+CRM déjame ver rápido. 
+Control vencido. Aquí también hace falta los las tarjetas que sabes te dije, las que me indica rápidamente cuáles son 
+o sea, tarjetas de información, como el próximo cumpleaños o tal vez los 
+el cliente, el cliente más destacado, el cliente más fiel, el cliente que me dio más recomendaciones, o sea, tarjetas de información rápida de los de los 
+del top de cada cosa más relevante. 
+Y de ahí el detalle de más cosas. 
+Ya. 
+Ya, en mi horario, déjame ver qué tienes. 
+Bueno, este horario es como ya lo estábamos conversando anteriormente, porque bueno, aquí yo puedo cerrar, 
+guardar y 
+Y yo como optómetra, yo vería mi horario de de trabajo. 
+Sí. 
+Ya, y yo como asigno horarios a los a mis trabajadores ahí. 
+El horario de la óptica nomás. 
+Se 
+No puedo yo asignarle un horario específico a cada trabajador. 
+No. 
+Habría que analizar eso si si sería pertinente hacer la posibilidad, dar la posibilidad de 
+de que se pueda añadir un horario específico para cada 
+Porque ese horario de la óptica es información para cuando se vea la página de del sistema en la web, de qué tanto a qué qué días y qué horarios se atiende, pero puede ser diferente el horario que tenga cada trabajador. 
+Pues algunos trabajan medio tiempo, otros pueden trabajar tiempo completo, y el administrador podría colocar las horas de los de los trabajadores y cuando yo vaya a mi horario como optómetra asistente, vea cuál es mi horario disponible. 
+Okay. 
+Ya. 
+En reportes, 
+Sí. 
+En reportes pues todos 
+sobre 
+todo está eh seccionado por resumen, consultas por mes, se puede exportar. 
+Ya, eso, esto es otra vez gráfico de barras, tienes que hacerle la línea de tendencia. 
+Búscalo mal gráfico de tendencia y te das cuenta cuáles son, esos son gráficos de barra, que muchas gráficos de tendencia también se ponen con barras, pero se ve la línea marcada 
+cómo se van dando las cosas. 
+Claro, claro, claro. 
+Okay. 
+Ya, eh 
+Bueno, soporte, 
+O sea, administrador que te quita los permisos. 
+Eso tienes que revisar. 
+Soportes son las acciones que ha hecho las personas en el sistema, ¿verdad? 
+Sí, o sea, 
+tú le puedes mandar un aviso al personal, ya sea un rol, a una persona que bueno, aquí tiene que estar eh 
+Ya, si hay esa lógica de avisos, también intégrala en el dashboard, que aparezcan ahí en un apartado correspondiente, para que cuando tú des un aviso les vea los vean todos por tanto en la notificación como en el dashboard, podría ser. 
+Mhm. 
+Okay. 
+Ya, eh 
+aquí también lo quise, pues bueno, mandar una 
+soporte del sistema, pues mandar una consulta al superadmin para que igual 
+revisa lo que está sucediendo. 
+Está bien, me parece bien. 
+Ya, eh 
+en los otros eh 
+acá 
+en el optómetra, que bueno, que a la final él tiene permiso para esto, 
+era de que él le mandaba una solicitud al administrador para que el administrador pueda eh 
+como quiera por por jerarquía, se podría decir, 
+de que obviamente el optómetra no va a contactar directamente al al administrador o al superadmin de la empresa, 
+sino que el el optómetra le manda al administrador de la óptica y el administrador de la óptica es quien le manda al 
+superadmin los el soporte del sistema. 
+Podría ser, podría ser, aunque igual podrías hacerlo en doble, o sea, en dos caminos, porque 
+por ejemplo, si 
+si identifica que es una situación de sistema, 
+luego es doble paso, o sea, el administrador 
+Ahora, si el administrador, ahora, si el administrador puede solucionarlo, 
+no, está bien, está bien, porque si yo le envío al administrador, el administrador lo ve, si lo soluciona, si le puede solucionarlo, soluciona, si no, te lo notifica a ti. 
+Ya, eh bueno, en usuarios y permisos, pues ya es esto lo que habíamos conversado anteriormente. 
+Ah, sí, sí, sabes, lo vi bien como se estaban creando los roles y permisos. 
+Y lo de lo de configuración pues 
+es lo de las pasadas Creo que tampoco tenía mucha novedad. 
+Ya a ver, eh Diego, 
+podría hay dos opciones. 
+Ajusta los 
+las cosas que ahorita te mencioné en los apartados como tal, esos detalles, 
+ya. 
+Con eso decide si 
+me lo presentas a mí como última revisada para yo interactuar, esta vez yo interactuar, así como hemos interactuado otras veces yo manejando el sistema, 
+o directamente haces ya el análisis con la óptica para que te estees un poco cómo ellos ven el sistema, cómo interpretan el flujo, cómo ven las opciones, tú explicándoles qué contempla, 
+cómo maneja cada cosa y que ellos te den retroalimentación y vayas analizando 
+qué aspectos eh ve bien, qué aspectos hay que ajustar y luego eso me lo comentas en la reunión. 
+Okay, perfecto. Igual creo que ya faltaría poco, se podría decir, creo que igual 
+Sí, ya son suficientes. Esas cosas ya casi está todo definido, solo faltaría tal vez si realmente 
+el usuario final ve usable o ve útil todo esto en la jerarquía que está 
+y también qué elementos podría él considerar relevantes que no hemos contemplado debido a la experiencia que manejan ellos es la que 
+está por el trato continuo en esa en ese enfoque de de optometría. 
+Claro, claro, en base a eso analizar, 
+¿okay? 
+Sí, lo entiendo. 
+Ya, entonces tú decides si haces esos ajustes, me los enseñas o haces los ajustes, lo trabajas con haces la reunión o la prueba con con el usuario 
+y luego analizamos la parte de como tal, ¿okay? Pero si haces esa reunión con el usuario 
+anota, anota los detalles que te menciona, es una tómalo como una prueba inicial 
+para validar cómo está el flujo actual, porque ya luego tendríamos que definir para la tesis 
+pruebas estructuradas 
+para que el el optómetra o los opto, bueno en este caso es un optómetra porque es juego de la tesis, 
+en base a esa encuesta que resuelva 
+tomarlo como los datos para luego redactar. 
+Claro, claro, sí te entiendo, sí te entiendo. 
+Ya. 
+Entonces para que lo tengas presente, simplemente esto como un Ese, yo creo que 
+yo creo que, bueno, aquí lo único que falta es, bueno, me pasas el video para igual 
+irlo mejorando, igual sí recuerdo más o menos, o bueno, sí recuerdo bien, pero igual faltan No, igual no hay problemas, voy a pasar. 
+Pero además, de ahí yo creo que 
+sería de que yo vaya a hablar con con el optómetra porque igual 
+ya 
+puedo tener o puedo hacer o mejorar algo más y ya como última revisión pues ya te la te envío a ti. 
+Ahí, o sea, yo al final 
+tengo que ver, a ver, si mejoro su sistema, 
+cuando, ahí tengo que ver la disponibilidad de la chica, porque creo que sí puede, pero igual como te digo, para la revisión final y 
+y eso, yo te diría cuando tú igual podrías, ¿entiendes? 
+Ya, entonces, tú 
+o ya chatea se manda que lo dudo 
+si no es la otra, pero de la otra se manda no pasa, porque igual ya quiero dejar terminado este sistema y ya empezar con las pruebas y a su vez 
+con el documento para ya saber que 
+Podrías analizar cuándo podrías reunirte con 
+con lo con el optómetra como tal para eso. 
+Si digamos que hay chance en dos semanas que te puedes reunir con ellos, la semana siguiente podemos hacer una revisión de como de lo que hemos ahorita visto. Si es la otra semana, entonces después de esa reunión tú me avisas para coordinar nosotros cuándo podemos hacerlo, como para ahí igual Claro. 
+O sea, lo que yo, o sea, al final la mano es una prima, 
+yo creo que si le digo para, bueno ahorita no, porque son las 10, pero si le digo para hacerlo mañana, ella me va a decir como que ya dale, ya depende de ti, pero claro, tienes que primero que tener hecho los cambios. 
+Claro, eso sí pues. 
+Por eso te digo, o sea, 
+yo creo que 
+esta semana termino esos cambios, 
+eh 
+lo que ella me diga, yo creo que para la otra semana ya te diría para revisar. 
+Ya, ahí vemos entonces que ahí había chance sí martes en la tarde. 
+Eh 
+Porque normalmente tengo lunes y martes en la tarde chance. 
+De ahí ya no tengo chance nuevamente hasta viernes en la tarde 
+como tal, porque miércoles y jueves todo el día paso en clase. 
+Mhm. 
+Ya, entonces ahí vemos si hay chance el martes o si no lo hacemos el viernes, dependiendo de cómo hayas hecho la reunión y los cambios. 
+Claro, claro, igual yo te estoy avisando también. Sí, sí, tú avísame, en base a eso vemos. 
+Ya, pues si ya por ahora esto de aquí en la revisión, cualquier detalle igual me avisa. 
+Ya, sí, perfectamente. Me envias, ahí pones el enlace, no sé cuando Sí, lo subo al drive que hemos manejado, por si acaso. 
+Ya, sí, no te preocupes. Listo, te anti, muchas gracias y igual. 
+Hasta luego. 

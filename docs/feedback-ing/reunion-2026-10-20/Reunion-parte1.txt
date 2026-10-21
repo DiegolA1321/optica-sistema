@@ -1,0 +1,387 @@
+En tu caso igual, si gustas. Gracias.
+Ya, eh, perfecto.
+Calendario, ya bueno.
+Aquí lo que hice fue un un filtrado, por los estados pendientes, por este mes, por la web, por sección, por si es por primera vez o si es por seguimiento, eh un rango de tiempo y el profesional.
+Ya, antes que, ya, agendado todas y este mes.
+¿Por qué se plantea así?
+¿Por qué se planteó así?
+Porque aquí, Porque si te das cuenta es como nuevamente elegir la la el filtrado por rango de fecha, como lo tienes en lista, que pones por semana, mes o o día.
+Ah, okay.
+¿Qué diferencia tiene este?
+O sea, algo más rápido, supongo.
+No, porque, ¿por qué tienes entonces la selección afuera de, por ejemplo, en lista, para qué tienes esa selección de poder verlo por semana o por mes o por día?
+Ábrete a lista.
+Ya.
+Ábrete a esta semana.
+Ya, y ponle como filtro este mes.
+En el filtro, en el filtro que tienes las opciones.
+Ah, ya.
+Déjame limpiarlo.
+Ya, ¿qué pasó ahí?
+Ah, solo se muestra en esta en esta semana.
+Que no hay coincidencia, este no hay concordancia, por lo que estás redundando ahí el filtrado, o hay de dos, o tú decides que esa opción esté como la tienes ahorita o la integras dentro del filtro.
+Ah, okay.
+Pero si te das cuenta que eso no no hace nada ahí, porque me va a buscar lo de este mes en la semana y técnicamente es lo mismo y me va a omitir lo de más.
+Ya, entonces esa de ahí se habría comido ya. Vuelven nuevamente al filtrado.
+Ya. Estado, eso está bien, origen también lo veo bien, visita también lo veo bien, fechas y profesional. Ya, lo único que me llamó la atención fue agendado por lo que no le veo mucha utilidad, contradice la la otra secuencia, ¿Qué más?
+Ya, perfecto.
+Eh, creo que, claro, el mes, el, vemos harto tiempo que no, ya, entonces bueno.
+Bueno, demos una semana, semana y media más o menos.
+Pero creo que la última vez eso estaba más feo, o sea, dijiste que te lo arreglara. Bueno, y ahorita sí se le da click, te aparece toda la información de de la cita, del paciente, del seguimiento.
+Eh, aquí podemos hacer lo que es agendar otra cita y bueno, ver perfil.
+Ya, eso está bien. Ábrete de nuevo las las opciones.
+Déjame ver, abre alguno que tenga un estado diferente. Ese dice no asistió. Y ese que dice pendiente.
+Se refiere a que todavía no se ha ejecutado.
+Sí, porque están para mañana. Ya dale click, dice reasignar, editar, cancelar cita, ya.
+Ya, este es reasignar, ¿Por qué reasignar? Porque bueno, que se pensó igual eso de que si no, en un caso la optometra no está, pues bueno, se reasigna a alguien más, pero bueno, Solo es para reasignar quién va a atender.
+Sí.
+Y ahí pensando, bueno, que al final eh como a la final no es como una implementación, más bien todavía no se va a implementar, sino son pruebas de usabilidad,
+supongo que igual para esa óptica, esto a la final no iría, porque solamente es un profesional, como quieras, pero sí está bien pensado como para un futuro, ¿me entiendes? Si se quisiera plantear como una, como un negocio, una estrategia de negocio.
+No, pero técnicamente no está del todo mal que exista, porque si la óptica no lo necesita no lo utiliza, pero si en un momento lo requiere, lo necesita, ahí está.
+Tampoco es una opción que sobre, por así decirlo. Yo la veo que esté bien ahí, así la óptica ahorita trabaja con una persona, pero eso es relativo, porque de aquí a mañana puedes ir a abrir una nueva o un nuevo otro nuevo otro nuevo trabajador.
+Claro.
+Claro.
+Bueno, ya, entonces aquí bueno, vemos lo que es editar cita y ver perfil.
+Ya.
+Eh, así mismo acá, ya un ratito, regresa, regresa, ese es el mismo, no. Ábrese y ese que está en pendiente.
+Ya. ¿Y cuándo entra en estado de de atender?
+Cuando ya se le da clic en atender.
+¿Y dónde está?
+Aunque, espérate, espérate.
+Que no sé, déjame agregar una cita ahorita que no se puede por ahorita.
+Pero,
+por qué bestia? Eso sí estaba, qué bestia.
+Escondido, ya se enteró que hay nueva reunión.
+Es que eso sí, eso sí estaba, eso lo ponía aquí a agendar,
+Maldito Cloud, porque no me agenda. Agendar o atender.
+Atender, atender.
+Creo que, te enfrente la que están pendientes son las que Bueno, es que también ya sé por qué qué pasó, mira, lo que pasa es lo siguiente, ya.
+Yo lo que pensé también aquí es eh sucede de que al momento de que anteriormente, bueno, se le daba atender, te lleva directamente a la ficha médica, pero si uno salía, se regresaba, como que no,
+no como se llama, no existía la opción de atender.
+Entonces, en este caso,
+Hijo de perra.
+cita hueva.
+Tranquila, digo, te escucha el S y se pone peor.
+Ah, es cierto.
+Ya bueno.
+Eh,
+No sé por qué los otros no aparecen.
+No me ha entendido, igual es que la la final legalmente estoy para un poquito más rápido, estoy igual ayudándome con Cloud.
+No, está bien, o sea, no hay problema en que te ayudes, pero no descuide.
+Claro, eso sí, eso sí es verdad, o sea, tienes razón.
+Entonces, lo que estaba haciendo era que bueno,
+que en este caso, este paciente que está aquí,
+al momento de ingresar, tendría esta opción de seguir atendiendo, porque anteriormente eh cuando se ingresaba y no se atendía, pues ya aquí puedo darle otra vez click a a cómo se llama, a seguir atendiendo,
+pero
+se ha borrado el de atender. Eso está raro.
+Ya, pero cuando estaba lo de pendiente, le doy click a atender y me abre directamente la ficha o me manda aquí?
+Eh, directamente a la ficha.
+Ya, ya, eso está bien.
+Ya, entonces, voy a salir, al momento de ingresar, me aparece ahí,
+Sí, te aparece otra vez seguir atendiendo.
+Su ficha está abierta, bueno.
+Ya, listo, ya avanzamos en esa. Ábrete nuevo el calendario.
+A lo de las citas pendientes, ya.
+Eh, las citas finalizadas, ¿cómo se, cómo qué mencionan?
+De que está finalizada, simplemente que aquí no no todavía no he atendido a nadie, simplemente está como atendida.
+O sea, que está a está está atendida, no no no finalizada ni nada.
+Pero es lo mismo, pues no.
+O sea, si está atendida, sí, me refería a esas, a las que ya están atendidas.
+Ya, entonces, ya sale que ha atendido y a ver perfil y agendar otra cita, ya, listo.
+Cuando le das agendar otra cita, ¿a dónde te manda?
+Cuando le mando pongo agendar otra cita, agendar otra cita, me manda este modal para agendar otra cita este paciente.
+Por su paciente, ya, está bien.
+Sí.
+Ya, salgamos de ahí. La otra cita, se le coge el horario, bueno, está aquí es porque a la final,
+llegó un horario diferente en la grilla.
+Okay, ya, cancelar.
+Déjame ver cuándo está en atención, creo que es el el azul.
+¿Cómo se muestra?
+Ya.
+Hay tienes uno que está en el 18.
+No, es
+Aquí está reanudar cita, dejar de atender, editar cita, ver perfil.
+Había entonces dos días.
+No sé si deberías añadir un mecanismo de control de que
+porque no tiene sentido que esté una cita abierta hace dos días.
+Hola.
+No te escucho, no sé si me escuchas.
+Sí, te estoy escuchando.
+Ah, ya, que como me sabe internet inestable, entonces no sé si se me desaparece.
+A ver.
+Abierto hace dos
+hace dos días.
+No sé si se plantea un control. ¿Qué debería hacer?
+Porque lo que va a estar ahí estar
+eh va a estar eso inconcluso.
+A ver, si yo estoy atendiendo
+y por algún motivo
+no cierro la atención,
+el sistema, ¿qué me diría?
+El sistema, ¿qué haría?
+No la puede dar por finalizada ni por atendida porque no eso automáticamente se da cuando se guarda ya,
+Claro, la ficha.
+cuando se guarda la ficha.
+Si no se guarda la ficha significa que nunca se atendió.
+Ya.
+Entonces,
+¿Qué es lo que pasa cuando
+la ficha dice cuando dice no asistió?
+Déjame ver cómo está en no asistió.
+No asistió, se pone rojo, no asistió. Sí, déjame ver qué qué opciones sale.
+No asistió, confirmar datos.
+¿Qué es confirmar datos?
+Que sus datos estén bien.
+Registrar al paciente confirmar datos, pero por qué lo que pasa el el el confirmar datos es porque este ha sido un paciente
+eh
+Ah, hay tantas cosas, Dios santo, pero bueno, vamos, sigamos, sigamos.
+A ver, voy a ver, vamos por partes.
+Mira, recuerda que tuviste algunos días como para irlo analizando con, o sea, paulatinamente.
+Lo que pasa es que está bien.
+Está bien que quieras acelerar con el tema como tal, pero si empiezas a descuidar mucho lo que estás eh estableciendo como tal o las opciones que estás presentando, luego vas a estar
+intentando descifrar para qué era o qué intenté hacer.
+Y esto de aquí más tiene peso cuando le vayas a mostrar al cliente o el cliente te pueda preguntar.
+Ya, ahí es donde va a tener más incidencia
+el hecho de no tener claro las las opciones y para qué están.
+Entonces, por preferiblemente es hacer con calma por partes para yo tenerlo claro, antes de como que decirle, esto quiero, esto quiero, esto quiero, de todas las demás cosas y al final no sé qué
+cómo está cada cosa al detalle, ¿ya?
+Entonces,
+eso de ahí, listo, vamos a ver, analizamos entonces la parte de si, pero lo que, ¿cuántos estados tenemos? Tenemos pendiente, en espera, en atención, atendida, no asistió, cancelada.
+Las pendientes son aquellas que él todavía no se ha determinado una,
+claro, que todavía no se ha llegado al día.
+No, porque ahí viste que ya, ah ya, y si pasa del día, se pone automáticamente como no asistió.
+Si no, no, no, no en el día, si pasa su hora, ya se pone como que no asistió.
+Directamente si pasa su hora, ¿cómo se pone no asistió?
+Sí, como que no asistió.
+Pendiente, en espera, en atención, atendida.
+Ya.
+Dame, déjame abrir una pendiente otra vez.
+Una pendiente, yo puedo cancelar la cita, ver perfil,
+ya, porque se podría, en todo caso,
+colocar
+que si la la que está en atención
+queda abierta
+se coloque en pendiente, podría ser.
+A ver, ¿cómo sería?
+Podría ser en pendiente, porque técnicamente no es ahora,
+Porque si ponemos no asistió,
+ya, lo que podríamos hacer tal vez es cambiar el término no asistió por no efectuada.
+Ya.
+Entonces, cuando pasa el tiempo, digamos que le damos un margen de que está abierto, ¿qué será?
+unas
+5 horas, por así decirlo, unas 2 horas o una hora.
+Una consulta puede demorarse una a dos horas, tal vez un margen de 5 horas, imaginemos que por algún motivo no
+no se olvidó o un margen de un día. Eso puede analizar si qué cantidad de horas o si le dejas un margen de un día.
+Si está abierta y pasa esa cantidad de tiempo como tal, entonces automáticamente se pone como no efectuada.
+Cierra ese modal.
+Ya, entonces sería
+el rojo, no le pongas no asistió, sino que ponle no efectuada.
+Perfecto.
+Cancelada
+es cuando hay una cita que luego se se se cancela como quieras.
+Sí, la cancelan, sí.
+Ya.
+Para ser cancelada, técnicamente no es efectuada,
+pero es muy diferente al no efectuar una cita que cancelar una cita.
+Ya. Ahora, ¿cómo yo cancelo una cita?
+Eh, desde el modelo de paciente.
+O sea, yo ahí en las citas yo no puedo cancelar una cita.
+Sí, cancelar cita.
+Y se cancela la cita.
+¿Y dónde está?
+Se desaparece, porque está cancelada.
+No, pero te debería mostrar seis, porque ¿por qué por qué tengo la indicación ahí de cancelada?
+Claro, claro.
+O sea, debería estar ahí si tengo ahí una indicación de cancelada.
+Listo, entonces habría que ajustar el no asistió a no efectuada y cuando pasa un tiempo determinado en una cita abierta, se pone como no efectuada, si que no se guardó.
+Ya. Si hay una cita que está agendada y pasa su tiempo y no hay interacción, pero no le pongas,
+tú dices que apenas, por ejemplo, las 4:30, si no se abre la 4:30, se pone como, si son 4:31, se pone como no efectuada.
+No. Si la cita es a las 4:30,
+Ajá.
+y termina a las 5:20, pongámosle,
+a esa hora recién se pone en no asistido.
+Ya. ¿Qué pasa si yo la abro a las 5:19?
+Ahí está en el tiempo todavía estipulado, o sea, sí,
+Pero no me va a reconocer que ya acabó el tiempo y me va a poner no cancelar y me va a poner cancelar eh no efectuada.
+No, porque está en el tiempo estipulado.
+Ya, pero por si acaso, pégate los ojos a esa variación, porque puede que el sistema eh esté, tal vez no sé cómo están las reglas, pero que la regla debería considerar que si no está en ejecución
+y se pasó el tiempo, entonces colocar como no efectuada. Pero si se pasó el tiempo y está en ejecución, entonces no se colocaría que no esté efectuada.
+Okay.
+Por si acaso, porque como tú me dices, es como que está la validación automática, pero puede que
+contradicte
+el hecho de que se está uno no ingresa un minuto antes, pero se compra en un minuto y pum se cierra, o sea, pum aparece no no efectuada.
+Claro, claro.
+Solo verificado por si acaso.
+Listo.
+Ahora sí, vamos de nuevo rapidito, pon lista otra vez.
+Listo, yo en lista puedo ver con las de esta semana para ver.
+Listo, puedo ver las que he tenido esta semana, perfecto. Ahora, quiero ver el formato calendario, dale clic a semana.
+Semana, dale clic a mes.
+Ya, lo puedo ver en semana y mes como quiera. Y puedo ver el listado de la información correspondiente. ¿Qué? Le das clic al domingo 4, dale clic al domingo 4.
+Ya, ahí dale, se para un ratito.
+Ya, yo lo puedo de gestionar cita.
+Dale clic a gestionar cita.
+Ahí es donde agendo la nueva cita. Ya está bien que se de ahí para no complicar mucho, porque si le doy de que doy clic a la
+al día como tal,
+podría ser una opción que, por ejemplo, yo al calendario le di clic al al día y ahí me salga la opción de agendar en este día.
+Por ejemplo, sale el mismo modal, pero con el día ya bloqueado y los horarios disponibles y yo lo agende.
+Pero no tampoco pasa nada si es que directamente se maneja de gestionar cita.
+Entonces lo podría dejar ahí y como está.
+Ya.
+Claro.
+Listo, ahora cierra ese modal.
+Ahora, dale clic a eh una de las citas pendien- de la cita
+Cita pendiente, ¿Cómo era cita pendiente?
+Que todavía no está, o sea, que está pendiente, que su día no ha llegado.
+Ah, son las futuras. Ve, son las futuras ya. Entonces, tengo esta cita pendiente, le doy clic, veo la hora, el motivo, el origen, el profesional a cargo, agendada, confirmada,
+agendada Eric y confirmada Eric. ¿Cómo fue eso?
+Porque el paciente puede confirmar
+la cita.
+O sea, si yo he agendado a un paciente la cita como tal, él tiene que ingresar de otra forma y confirmarla.
+Ah,, pena que. Claro, tienes razón.
+Ya, agendada él, ya.
+Podrías, en todo caso,
+ahí validar o añadir información sobre, por ejemplo, si se cancela la cita, ponerla ahí cancelada tal.
+O eh, por ejemplo, ahí también poner atendido tal.
+O sea, ahí podrías en seguimiento está bien el parámetro, ahí podrías añadir información que se registre cuándo fue atendida, cuándo fue cancelada, cuándo fue tal vez eh
+no efectuada.
+Algo así información, porque el seguimiento igual sería interesante como para poder ir a saber
+eh qué
+Aunque técnicamente ya me lo dice el día como tal, pero ahí podría estar la información, porque yo lo agenda el 4 de octubre,
+fue el día que yo agendé la la cita, pero yo agendé una cita para el 16, es decir,
+hoy día estamos 20, pero yo estoy agendando una cita para el 25.
+Entonces sale agendada el 20 de octubre y la cita es el sábado 25 de octubre.
+Claro.
+Y hoy mismo en seguimiento me dice eh
+efectuada el 25 de octubre a las 3 de la tarde o cancelada el 23 de octubre a las tal hora o no asistió a la cita, tal vez podría ser directamente,
+pero ahí yo en seguimiento puedo añadir esa información como tal, aquí estaría confirmado porque no está haciendo algo que realmente se esté implementando ese apartado,
+pero podría ponerle los detalles de cuándo se efectuaron las cosas, cuando se desarroll- cuando se ejecutó o cuando se canceló o cuándo no fue efectuada, digo, cuando fue
+las tres opciones, o sea, cancelada, no efectuada y efectuada.
+¿Entiendes la idea ahí?
+Sí, sí, entiendo.
+Ya, entonces ahí podríamos poner este apartado de aquí. Listo, entonces tengo esa información del seguimiento de la cita, puedo ver el perfil del paciente,
+reasignar.
+Ya. Yo te recomiendo que
+podrías,
+en todo caso,
+poner paciente primero como columna primera,
+para que el botón de ver perfil quede alineado más o menos a la misma línea, a la misma secuencia de paciente.
+Okay.
+De ahí viene cita y luego viene seguimiento.
+Ya, y cita
+ya quedaría
+ya, editar cita, cancelar cita, reasignar.
+Ver perfil, reasignar, cancelar cita, editar cita.
+Ya, de ahí sigue, de ahí seguiría la cita
+y de ahí seguiría seguimiento como tal.
+Listo.
+Ahora, cerra- ya, eso lo veo bien. Entonces, si ya tengo, ya estoy en el A ver, un ratito, antes que la cierre.
+Ya, si yo hago esto así,
+no me aparece en la parte inferior el botón de acción que sería
+atender.
+Cuando aparezca ya en la esquina, como quieras.
+Apodo atender, cancelar o editar la cita.
+Sí, yo creo que puede funcionar estando ahí. Ya, este apartado lo veo bien, solo sería de ajustar
+las dos cosas que te digo, la vista de ciérrala, la vista correspondiente a lista, vista de calendario
+y quitar del filtro lo que viene siendo lo que en antes vimos de de agendada.
+¿Ya?
+Ahora, requieren atención 22, ¿A qué te refieres con eso?
+De que no porque no asistió,
+eh
+dos atenciones abiertas de días anteriores, un control sin sin agendar.
+Porque, ¿qué pasa? De que cuando se está eh
+se está en la ficha clínica,
+te da la opción de agendar cita.
+Tipo si te da dice, bueno, tienes controles en seis
+meses, un caso, te da la opción de que, bueno, la vas a agendar o no la vas a agendar.
+¿Me entiendes? Y muchos pacientes pueden decir, bueno, sí, la agendo.
+O dicen, bueno, no,
+yo veo cuando cuándo la agendo.
+¿Me entiendes? Entonces, por eso,
+dice como que un control sin agendar.
+Como que te da atención y bueno, lo de no asistió.
+Para que igual la persona pues esté más pendiente y de esos casos.
+Pendiente de esos casos.
+Claro, de eso de de los, claro, porque requieren atención.
+Ábrelo, de nuevo eso.
+Abiertas son las que están las que todavía están en ejecución.
+Ajá.
+Ya.
+Un control sin agendar.
+Y ese control de dónde aparece?
+Como te digo, cuando tú haces la ficha clínica, te dice, bueno, tiene un control en un mes.
+Ajá.
+Ya, y ahí te dice, bueno, ¿quieres agendar la cita?
+O
+¿No quieres agendar la cita? Entonces, si dice que sí, tú escoges ahí mismo te da la opción de agendar cita.
+Ahí mismo te tiene que dar la opción de poder agendarlas.
+Ya, eso lo veo interesante, 19 citas por reagendar.
+Porque no se efectuó, se reagendaría.
+Mm, ya. Podría ser.
+¿Qué pasa cuando le doy abrir en citas para reagendar 19?
+Me filtra todas aquellas citas.
+Ajá.
+Tarea para reagendar.
+Okay, me está filtrando también por tarea. Baja un poco más.
+Baja que parece haber visto una
+Por registrar. La sube, sube, sube.
+Esa que dice por registrar, más arribita, ahí.
+Ahí, por registrar, no asistió, que es un paciente que no
+que no tiene cuenta todavía.
+Ajá.
+Sí, exacto.
+Primera vez que viene.
+Listo, subamos.
+Sube por completo.
+Hmm, podría ser útil.
+Sí, podría ser útil la el este de aquí.
+Ya, bueno, podríamos dejarlo ahí, porque igual son mecanismos de
+de avisos, de control.
+Ya.
+Listo, a ver, retomemos el inicio para irnos abarcando por partes.
+Ahora el inicio.
+Ya, a ver, hay un problema con esta parte de aquí.
+¿Cuál crees que sería?
+los colores.
+Uno, digo yo, da muy simple.
+Ya, podría ser que le falta algo de color, podrías darle un poquito más de énfasis a los a los bloques principales, a los totales.
+Creo que sí lo tenías tú antes.
+No es que pongas colores saturados y remarcar a puro color, pero tal vez algo como que sea distintivo
+en esos bloques.
+Pero
+¿Qué es lo que tiene?
+Se ve mucho texto, hay demasiado texto en
+en este bloque.
+Ya.
+O sea, sé que es informativo, sé que lo notas como informativo, pero tú mismo puedes percibir de que si yo veo tanta
+tantas palabras, al final no
+no decido leer alguna, porque lo veo tanto que digo nunca voy a nunca voy a terminar.
+Claro.
+Ya, entonces así es la percepción ahora de
+cómo lo tienes planteado, de que se ve mucho contenido, o sea, mucho texto.
+Y esto de es facilito que te cualquiera te lo rejete, o sea, cualquier persona que te revise esto o te analice eso, que tú defiendas esto, te va a decir, pero ¿por qué tantas palabras? ¿Dónde está
+la pertinencia al usuario, o sea, dónde está la
+lo que viene siendo
+los mecanismos para que el usuario sienta cómodo con el sistema?
+Ahora, ¿cómo podemos replantear esto?
+Tú tenías
+dos atenciones abiertas, un control y 19 citas por reagendar, ya dos pacientes fue cuando se confirmaron si paciente control vencido, un paciente. Lo que puedes hacer, mira, esos mismos elementos que tú me puedes traer ahí, un paciente, tres, cuatro horas atrasadas y luego me indicas qué pacientes son.
+Yo de ti lo que hago es colocarlas como bloques.
+Tarjetas, tres tarjetas para cada uno como tal,
+donde cada tarjeta muestra el número y abajo indica la leyenda a qué se refiere y con ver todo ya ya veo listado detallado.
+O sea, no muestra directamente cuáles son los nombres de las personas, sino directamente pongo las tarjetas.
+Citas, por ejemplo, pongo dos, 1 19, dos sin dos atenciones abierta, un control sin agendar y si no es citas por reagendar.
+Pacientes, bloque de dos
+al lado bloque de seis, al lado bloque de uno y abajo pacientes con la web,
+datos sin confirmar, hay que ver cómo se encaja el se empata eso, pacientes con control vencido y un paciente
+pidió sus medidas montaje desde su portal.
+Ya, pero ahí tendrías en todo caso establecer tres áreas claves.
+Por ejemplo, el área clave sería atenciones abiertas, controles sin agendar, citas para reagendar.
+Acá sería pacientes
+sin pacientes web sin datos confirmados, pacientes con control vencido y pacientes
+solicitudes de pacientes o requerimientos de pacientes en línea.
+Algo así, o sea, define tres bloques como quieras de los casos que tú manejas en en este apartado.
+Lo mismo en ventas.
+Eh
+pacientes pendientes, ahí saldría uno,
+órdenes de laboratorio listas para sin avisar al paciente, tres órdenes de laboratorio listas,
