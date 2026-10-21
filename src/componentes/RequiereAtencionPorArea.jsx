@@ -198,7 +198,7 @@ export default function RequiereAtencionPorArea({ bloques, columnas = 2, compact
                   : <span className="ml-auto rounded-full bg-emerald-50 px-2.5 py-0.5 text-sm font-bold text-emerald-700">Todo en orden</span>}
               </div>
               {visibles.length > 0 ? (
-                <ul className={"grid flex-1 gap-2.5 p-3 " + (visibles.length === 1 ? "grid-cols-1" : visibles.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
+                <ul className={"grid flex-1 gap-2.5 p-3 " + (columnas === 3 ? (visibles.length === 1 ? "grid-cols-1" : visibles.length === 2 ? "grid-cols-2" : "grid-cols-3") : "grid-cols-1 sm:grid-cols-3")}>
                   {visibles.map((f) => {
                     const tono = TONOS[f.tono] || TONOS.pendiente
                     return (
