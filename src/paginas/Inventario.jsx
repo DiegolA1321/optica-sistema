@@ -279,6 +279,8 @@ export default function Inventario({
       if (error) return mensajeDeError(error, activo ? "No se pudo reactivar el producto. Revisa tu conexión e intenta de nuevo." : "No se pudo descontinuar el producto. Revisa tu conexión e intenta de nuevo.")
     }
     setProductos((prev) => prev.map((p) => (p.id === producto.id ? { ...p, activo } : p)))
+    // Al reactivar el último descontinuado, el filtro «Descontinuados» desaparece: la lista vuelve sola a los activos (si no, quedaba vacía y sin forma de salir).
+    if (activo && !productos.some((p) => p.activo === false && p.id !== producto.id)) setVerDescontinuados(false)
     registrarLog(usuario, "inventario", activo ? "Reactivó un producto del inventario" : "Descontinuó un producto del inventario", producto.nombre)
     avisar(activo ? `"${producto.nombre}" reactivado: ya puede volver a venderse.` : `"${producto.nombre}" descontinuado: conserva su historial y puedes reactivarlo.`)
     return null
