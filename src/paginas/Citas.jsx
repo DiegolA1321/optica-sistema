@@ -1962,25 +1962,25 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
             onCambiarHora={setNuevaHora}
           />
 
-          {/* Excepción, no flujo normal: el estado lo deduce el sistema
-              (En atención al abrir la ficha, Atendida al cobrar, No
-              asistió a los 10 minutos). Esto solo sirve para deshacer un
-              estado puesto por error. */}
-          <details className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-3.5">
-            <summary className="cursor-pointer text-sm font-semibold text-slate-600">Corregir estado (excepción)</summary>
-            <p className="mt-2 text-xs text-slate-500">El estado cambia solo según lo que ocurre en la visita. Úsalo únicamente para deshacer un estado puesto por error.</p>
-            <label htmlFor="citas-estado-corregido" className="sr-only">Estado de la cita</label>
-            <select
-              id="citas-estado-corregido"
-              value={estadoCorregido}
-              onChange={(e) => setEstadoCorregido(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
-            >
-              {estadosCorregibles(reagendando).map((e) => (
-                <option key={e} value={e}>{etiquetaEstadoCita(e)}</option>
-              ))}
-            </select>
-          </details>
+          {/* Excepción, no flujo normal, solo para el administrador: el estado lo deduce el sistema (En atención al abrir la ficha, Atendida al guardarla,
+              No efectuada al terminar el horario). Esto sirve para deshacer un estado puesto por error y queda en el seguimiento de la cita. */}
+          {usuario?.rol === "admin" && (
+            <details className="rounded-xl border border-slate-200/60 bg-slate-50/60 p-3.5">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-600">Corregir estado (excepción)</summary>
+              <p className="mt-2 text-xs text-slate-500">El estado cambia solo según lo que ocurre en la visita. Úsalo únicamente para deshacer un estado puesto por error (por ejemplo, una cita marcada «Atendida» que nunca se atendió). Quién lo corrigió, cuándo y de qué estado a cuál queda en el seguimiento de la cita.</p>
+              <label htmlFor="citas-estado-corregido" className="sr-only">Estado de la cita</label>
+              <select
+                id="citas-estado-corregido"
+                value={estadoCorregido}
+                onChange={(e) => setEstadoCorregido(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200/60 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
+              >
+                {estadosCorregibles(reagendando).map((e) => (
+                  <option key={e} value={e}>{etiquetaEstadoCita(e)}</option>
+                ))}
+              </select>
+            </details>
+          )}
         
           </div>
         </Cascaron>
