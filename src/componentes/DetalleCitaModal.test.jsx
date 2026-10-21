@@ -44,7 +44,7 @@ describe("DetalleCitaModal: Paciente · Cita · Seguimiento", () => {
     expect(titulos).toEqual(["Paciente", "Cita", "Seguimiento"])
     const paciente = screen.getByRole("region", { name: "Paciente" })
     expect(within(paciente).getByRole("link", { name: /Ver perfil/ })).toBeInTheDocument()
-    expect(within(screen.getByRole("group", { name: "Acciones de la cita" })).queryByRole("link", { name: /Ver perfil/ })).toBeNull()
+    expect(screen.getAllByRole("link", { name: /Ver perfil/ })).toHaveLength(1) // una sola vez, bajo el paciente
   })
   it("el seguimiento es una línea de tiempo: agendada y por dónde; con eventos guardados dice quién, cuándo y el motivo", () => {
     const eventos = [

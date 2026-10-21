@@ -564,7 +564,7 @@ export default function Inicio({
       const n = atencionesVista.length
       const abiertasEnCitas = citasVista.filter((c) => c.estado === "En Atención").length
       poner("citas", {
-        id: "atenciones", cantidad: n, tono: "urgente", corto: "atenciones abiertas",
+        id: "atenciones", cantidad: n, tono: "urgente", corto: uno(n, "atención abierta", "atenciones abiertas"),
         texto: uno(n, "atención abierta de un día anterior", "atenciones abiertas de días anteriores"),
         nombres: nombresResumidos(atencionesVista.map(({ cita }) => cita.paciente)),
         enlace: { texto: `Abrir en Citas · En atención (${abiertasEnCitas})`, onClick: enCitas("enAtencion", "siempre") },
@@ -579,7 +579,7 @@ export default function Inicio({
     if (incControlesPorAgendar && sinAgendar.length > 0) {
       const n = sinAgendar.length
       poner("citas", {
-        id: "controles-sin-agendar", cantidad: n, corto: "controles sin agendar",
+        id: "controles-sin-agendar", cantidad: n, corto: uno(n, "control sin agendar", "controles sin agendar"),
         texto: uno(n, "control sin agendar", "controles sin agendar"),
         nombres: nombresResumidos(sinAgendar.map((x) => x.paciente.nombre)),
         enlace: { texto: `Abrir en Pacientes · Control sin agendar (${n})`, onClick: enPacientes({ rapido: "ControlSinAgendar" }) },
@@ -595,7 +595,7 @@ export default function Inicio({
       const grupos = citasPorReasignar(citas, disponibilidad, hoyISO())
       const n = grupos.reduce((suma, g) => suma + g.citas.length, 0)
       if (n > 0) poner("citas", {
-        id: "ausencias", cantidad: n, corto: "citas por reasignar",
+        id: "ausencias", cantidad: n, corto: uno(n, "cita por reasignar", "citas por reasignar"),
         texto: uno(n, "cita por reasignar por una ausencia", "citas por reasignar por ausencias"),
         nombres: nombresResumidos(grupos.map((g) => `${g.personaNombre || etiquetaMiembro(equipo, g.personaId)} el ${formatoFecha(g.fecha, "medioSinAnio")}`)),
         casos: grupos.flatMap((g) => g.citas.map((c) => ({
@@ -638,7 +638,7 @@ export default function Inicio({
       const n = solicitudesEliminacion.length
       const nombreDe2 = (id) => pacientes.find((p) => p.id === id)?.nombre || "Paciente"
       poner("pacientes", {
-        id: "eliminacion", cantidad: n, corto: "piden eliminar su cuenta",
+        id: "eliminacion", cantidad: n, corto: uno(n, "pide eliminar su cuenta", "piden eliminar su cuenta"),
         texto: uno(n, "paciente pidió eliminar su cuenta", "pacientes pidieron eliminar su cuenta"),
         nombres: nombresResumidos(solicitudesEliminacion.map((x) => nombreDe2(x.pacienteId))),
         casos: solicitudesEliminacion.map((x) => ({
@@ -662,7 +662,7 @@ export default function Inicio({
     })
     // Un paciente cambió su teléfono o su correo desde su portal: «Marta Zambrano actualizó su teléfono». Se queda hasta que se marca como visto.
     if (puedeV("pacientes", "ver") && avisosContacto.length > 0) poner("pacientes", {
-      id: "contacto-actualizado", cantidad: avisosContacto.length, corto: "cambiaron su contacto",
+      id: "contacto-actualizado", cantidad: avisosContacto.length, corto: uno(avisosContacto.length, "cambió su contacto", "cambiaron su contacto"),
       texto: uno(avisosContacto.length, "paciente actualizó su contacto desde su portal", "pacientes actualizaron su contacto desde su portal"),
       nombres: nombresResumidos(avisosContacto.map((a) => nombreDe(a.pacienteId))),
       casos: avisosContacto.map((a) => ({ id: a.id, nombre: nombreDe(a.pacienteId), detalle: textoAvisoContacto(nombreDe(a.pacienteId), a.campos).replace(/^.*? actualizó /, "Actualizó "), accion: { etiqueta: "Visto", onClick: () => onAtenderAvisoContacto?.(a.id) } })),
@@ -670,7 +670,7 @@ export default function Inicio({
     // Un paciente pidió sus medidas (distancia pupilar y montaje) desde su portal: el aviso se quita al marcarla atendida en su perfil.
     const pidenMedidas = pacientes.filter((p) => p.medidasSolicitadasEn)
     if (puedeV("pacientes", "ver") && pidenMedidas.length > 0) poner("pacientes", {
-      id: "medidas-solicitadas", cantidad: pidenMedidas.length, corto: "piden sus medidas",
+      id: "medidas-solicitadas", cantidad: pidenMedidas.length, corto: uno(pidenMedidas.length, "pide sus medidas", "piden sus medidas"),
       texto: uno(pidenMedidas.length, "paciente pidió sus medidas de montaje desde su portal", "pacientes pidieron sus medidas de montaje desde su portal"),
       nombres: nombresResumidos(pidenMedidas.map((p) => p.nombre)),
       casos: pidenMedidas.map((p) => ({ id: p.id, nombre: p.nombre, detalle: "Pidió su distancia pupilar y medidas de montaje", accion: { etiqueta: "Responder", navega: true, onClick: () => onVerPerfilPaciente?.(p.id, "graduacion") } })),
@@ -688,7 +688,7 @@ export default function Inicio({
     if (incCumple && cumpleaneros.length > 0) {
       const hoyN = cumpleaneros.filter((c) => c.esHoy).length
       poner("pacientes", {
-        id: "cumple", cantidad: cumpleaneros.length, corto: "cumpleaños cercanos",
+        id: "cumple", cantidad: cumpleaneros.length, corto: uno(cumpleaneros.length, "cumpleaños cercano", "cumpleaños cercanos"),
         texto: hoyN === 0 ? uno(cumpleaneros.length, "cumpleaños cercano", "cumpleaños cercanos") : hoyN === cumpleaneros.length ? "cumpleaños hoy" : `cumpleaños (${hoyN} hoy)`,
         nombres: nombresResumidos(cumpleaneros.map((c) => c.nombre)),
         casos: cumpleaneros.map((c) => ({
@@ -701,7 +701,7 @@ export default function Inicio({
     // Quien lleva más de 30 días esperando su venta pasa aquí para contactarlo o cerrarlo con "No compró"; nunca se cierra solo.
     // Pagos por transferencia que los pacientes reportan desde su portal: esperan que Ventas revise el comprobante (el mismo número que en Ventas · Cobros y saldos).
     if (incSaldos && pagosPorVerificar.length > 0) poner("ventas", {
-      id: "pagos-por-verificar", cantidad: pagosPorVerificar.length, corto: "pagos por verificar",
+      id: "pagos-por-verificar", cantidad: pagosPorVerificar.length, corto: uno(pagosPorVerificar.length, "pago por verificar", "pagos por verificar"),
       texto: uno(pagosPorVerificar.length, "pago por transferencia por verificar", "pagos por transferencia por verificar"),
       nombres: nombresResumidos(pagosPorVerificar.map((p) => p.pacienteNombre || nombreDe(p.pacienteId))),
       enlace: { texto: `Abrir en Ventas · Pagos por verificar (${pagosPorVerificar.length})`, onClick: () => onVerSaldos?.() },
@@ -710,7 +710,7 @@ export default function Inicio({
     // Lo que un paciente pide desde su portal («Solicitar lentes nuevos») cuenta mientras nadie lo toma; a los 30 días lo cuenta la línea de abajo (no se cuenta dos veces).
     const solicitudesPortal = incSaldos ? solicitudesNuevasDelPortal(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
     if (solicitudesPortal.length > 0) poner("ventas", {
-      id: "solicitudes-portal", cantidad: solicitudesPortal.length, corto: "piden lentes",
+      id: "solicitudes-portal", cantidad: solicitudesPortal.length, corto: uno(solicitudesPortal.length, "pide lentes", "piden lentes"),
       texto: uno(solicitudesPortal.length, "paciente pidió lentes nuevos desde su portal", "pacientes pidieron lentes nuevos desde su portal"),
       nombres: nombresResumidos(solicitudesPortal.map(({ pase }) => nombreDe(pase.pacienteId))),
       enlace: { texto: `Abrir en Ventas · Desde el portal (${solicitudesPortal.length})`, onClick: () => onVerCola?.("portal") },
@@ -722,7 +722,7 @@ export default function Inicio({
     })
     const esperanMucho = incSaldos ? pacientesParaSeguimiento(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
     if (esperanMucho.length > 0) poner("ventas", {
-      id: "esperan-venta", cantidad: esperanMucho.length, corto: "esperan su venta",
+      id: "esperan-venta", cantidad: esperanMucho.length, corto: uno(esperanMucho.length, "espera su venta", "esperan su venta"),
       texto: uno(esperanMucho.length, `paciente espera su venta hace más de ${DIAS_PARA_SEGUIMIENTO} días`, `pacientes esperan su venta hace más de ${DIAS_PARA_SEGUIMIENTO} días`),
       nombres: nombresResumidos(esperanMucho.map(({ pase }) => nombreDe(pase.pacienteId))),
       enlace: { texto: `Abrir en Ventas · Más de ${DIAS_PARA_SEGUIMIENTO} días (${esperanMucho.length})`, onClick: () => onVerCola?.("mas30") },
@@ -734,7 +734,7 @@ export default function Inicio({
     })
     if (incOrdenes && listasSinAvisar.length > 0) {
       poner("ventas", {
-        id: "ordenes-listas", cantidad: listasSinAvisar.length, corto: "listas sin avisar",
+        id: "ordenes-listas", cantidad: listasSinAvisar.length, corto: uno(listasSinAvisar.length, "lista sin avisar", "listas sin avisar"),
         texto: uno(listasSinAvisar.length, "orden de laboratorio lista sin avisar al paciente", "órdenes de laboratorio listas sin avisar a los pacientes"),
         nombres: nombresResumidos(listasSinAvisar.map((o) => nombreDe(o.pacienteId))),
         enlace: { texto: `Abrir en Ventas · Listas sin avisar (${listasSinAvisar.length})`, onClick: () => onVerOrdenes?.("sinavisar") },
@@ -746,7 +746,7 @@ export default function Inicio({
       })
     }
     if (incOrdenes && atrasadas.length > 0) poner("ventas", {
-      id: "ordenes-atrasadas", cantidad: atrasadas.length, tono: "urgente", corto: "órdenes atrasadas",
+      id: "ordenes-atrasadas", cantidad: atrasadas.length, tono: "urgente", corto: uno(atrasadas.length, "orden atrasada", "órdenes atrasadas"),
       texto: uno(atrasadas.length, "orden atrasada", "órdenes atrasadas"),
       nombres: nombresResumidos([...new Set(atrasadas.map((o) => o.laboratorio || "Sin laboratorio"))]),
       enlace: { texto: `Abrir en Ventas · Órdenes atrasadas (${atrasadas.length})`, onClick: () => onVerOrdenes?.("atrasadas") },
@@ -759,7 +759,7 @@ export default function Inicio({
     })
     if (incSaldos && saldos.ventas > 0) {
       poner("ventas", {
-        id: "saldos", cantidad: saldos.ventas, corto: "ventas con saldo",
+        id: "saldos", cantidad: saldos.ventas, corto: uno(saldos.ventas, "venta con saldo", "ventas con saldo"),
         texto: textoSaldosSinNumero(saldos),
         enlace: { texto: `Abrir en Ventas · Saldos por cobrar (${saldos.pacientes} ${saldos.pacientes === 1 ? "paciente" : "pacientes"})`, onClick: () => onVerSaldos?.() },
         casos: facturasConSaldo.map(({ f, saldo }) => ({

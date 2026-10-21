@@ -2,7 +2,7 @@
 // reflejan en todos los lugares donde deben verse. Complementa a `sesion-pestanas.spec.js` (la sesión) y a `escrituras-directas`
 // (que comprueba que la base acepta cada escritura): aquí se mira lo que ve la persona, incluido el portal del paciente.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, escribirSecreto, nombrePrueba, cedulaValida, telefonoPrueba, elegirFecha, crearCitaDeHoyParaPaula, cancelarCitasDePrueba, SLUG_PRUEBAS } from './ayudas.js'
+import { iniciarSesion, escribirSecreto, nombrePrueba, cedulaValida, telefonoPrueba, elegirFecha, crearCitaDeHoyParaPaula, cancelarCitasDePrueba, SLUG_PRUEBAS, elegirVista } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
@@ -127,12 +127,11 @@ test('Citas: una cita de hoy se ve en la lista, la semana, el mes, el perfil del
     await irA(page, 'Citas médicas')
     await page.getByLabel('Buscar cita: paciente o código').fill(nombre)
     await expect(page.getByTitle('Ver el detalle de la cita').first()).toBeVisible({ timeout: 20_000 })
-    const vista = (nombreVista) => page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: nombreVista })
     for (const v of ['Semana', 'Mes']) {
-      await vista(v).click()
+      await elegirVista(page, v)
       await expect(page.locator(`main button[title^="${nombre} · "]`).first(), `la cita se ve en la vista ${v}`).toBeVisible({ timeout: 20_000 })
     }
-    await vista('Lista').click()
+    await elegirVista(page, 'Lista')
 
     // Perfil del paciente: pestaña Citas.
     await irA(page, 'Pacientes')

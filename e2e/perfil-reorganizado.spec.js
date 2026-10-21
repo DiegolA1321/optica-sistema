@@ -53,7 +53,7 @@ test('cabecera, alertas arriba de las pestañas, Citas y Resumen', async ({ page
   await expect(page.getByText('Productos y servicios')).toHaveCount(0)
   await pestanas.nth(1).click()
   // Citas: la próxima con "Ingresar", y nada clínico mezclado
-  await expect(page.getByRole('region', { name: 'Próxima cita' }).getByRole('button', { name: 'Ingresar' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Próxima cita' }).getByRole('button', { name: 'Atender' })).toBeVisible()
   await expect(page.getByText('Tendencia de graduación medida')).toHaveCount(0)
   await expect(page.getByText('Puntaje de fidelidad')).toHaveCount(0)
   await foto(page, 'reorganizado-1-citas')
@@ -73,10 +73,10 @@ test('cabecera, alertas arriba de las pestañas, Citas y Resumen', async ({ page
   await expect(masPendientes).toBeVisible()
   await expect(masPendientes).toHaveAttribute('aria-expanded', 'false')
   await masPendientes.click()
-  // Regla del 19 oct.: la cita agendada es futura, así que NO ofrece «Ingresar» (solo hoy o una pendiente de un día anterior).
+  // Regla del 21 oct.: «Atender» aparece en toda cita abierta, también en una futura (pregunta «¿Atenderla hoy?» antes de entrar).
   const otras = page.getByRole('region', { name: 'Otras citas pendientes' })
   await expect(otras).toBeVisible()
-  await expect(otras.getByRole('button', { name: 'Ingresar' })).toHaveCount(0)
+  await expect(otras.getByRole('button', { name: 'Atender' }).first()).toBeVisible()
   await foto(page, 'reorganizado-2-mas-pendientes')
 
   // "Cuenta Portal" abre las opciones de la cuenta

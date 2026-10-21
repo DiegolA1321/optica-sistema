@@ -1,7 +1,7 @@
 // Citas (8 oct): modal "Citas del día" al hacer clic en un día de Semana o Mes, selector de fecha en el título del periodo y
 // filtro "Fechas" disponible en las tres vistas. SOLO LECTURA: corre en la Demo.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion } from './ayudas.js'
+import { iniciarSesion, elegirVista } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
@@ -68,7 +68,7 @@ test('El título del periodo abre un selector de fecha en Semana, Mes y Lista', 
   await selector.getByRole('button', { name: /20 de octubre/ }).click()
   await expect(page.getByRole('button', { name: /19 – 25 oct 2026/ })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Mes', exact: true }).first().click()
+  await elegirVista(page, 'Mes')
   await page.getByRole('button', { name: /Octubre 2026/ }).first().click()
   await page.getByRole('dialog', { name: 'Elegir fecha' }).getByRole('button', { name: 'ene', exact: true }).click()
   await expect(page.getByRole('button', { name: /Enero 2026/ })).toBeVisible()
@@ -137,7 +137,7 @@ test('Periodo, título y flechas tienen la misma altura en Lista, Semana y Mes, 
   await page.getByLabel('Buscar cita: paciente o código').waitFor({ timeout: 20_000 })
   await page.waitForTimeout(1000)
   for (const vista of ['Lista', 'Semana', 'Mes']) {
-    await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: vista }).click()
+    await elegirVista(page, vista)
     await page.waitForTimeout(500)
     const flechas = page.getByRole('button', { name: /anterior$/ }).first().locator('xpath=..')
     const titulo = page.getByRole('button', { name: /\d{4}/ }).filter({ has: page.locator('svg') }).last()

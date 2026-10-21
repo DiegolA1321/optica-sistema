@@ -69,7 +69,7 @@ test('2 · Paula atiende al paciente: ficha, diagnóstico y control', async ({ p
   await page.getByText(datos.nombre).first().click()
   await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 20_000 })
   // La cita actual o próxima trae "Ingresar": entra directo a su ficha.
-  await page.getByRole('button', { name: 'Ingresar' }).first().click()
+  await page.getByRole('button', { name: 'Atender' }).first().click()
   await expect(page.getByText('Paso 1 de 5')).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: 'Entendido, completar antecedentes' }).click()
   await llenarFichaObligatoria(page) // agudeza sin corrección y refracción de los dos ojos; queda en Diagnóstico y receta

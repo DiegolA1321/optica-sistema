@@ -99,7 +99,7 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
   await expect(page.getByText(NOMBRE).first()).toBeVisible({ timeout: 45_000 })
   await page.getByText(NOMBRE).first().click()
   await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 45_000 })
-  await page.getByRole('button', { name: 'Ingresar' }).first().click()
+  await page.getByRole('button', { name: 'Atender' }).first().click()
   await expect(page.getByText('Paso 1 de 5')).toBeVisible({ timeout: 20_000 })
 
   // ── Paso 1 ──

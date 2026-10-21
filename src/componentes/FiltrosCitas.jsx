@@ -187,7 +187,7 @@ export function PeriodoLista({ valor, onChange, opciones, sinActivo = false, ran
   const [abierto, setAbierto] = useState(false)
   const ref = useCierre(abierto, () => setAbierto(false))
   const hayRango = Boolean(rango && (rango.desde || rango.hasta))
-  const base = "inline-flex items-center whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer "
+  const base = "inline-flex items-center whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors cursor-pointer "
   const corta = (iso) => formatoFecha(iso, "medioSinAnio")
   return (
     <div role="group" aria-label="Periodo de las citas" className="flex h-9 shrink-0 items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
@@ -230,7 +230,7 @@ export function SelectorVistaCitas({ vista, onChange, cabeSemana = true }) {
         <List size={14} aria-hidden="true" /> Lista
       </button>
       <div ref={ref} className="relative">
-        <button type="button" onClick={() => setAbierto((v) => !v)} aria-haspopup="menu" aria-expanded={abierto} aria-pressed={enCalendario} className={base + "w-[8.75rem] justify-between " + (enCalendario ? "text-white" : abierto ? "bg-slate-100 text-slate-800" : "text-slate-500 hover:bg-slate-50")} style={enCalendario ? { background: GRAD_MARCA } : undefined}>
+        <button type="button" onClick={() => setAbierto((v) => !v)} aria-haspopup="menu" aria-expanded={abierto} aria-pressed={enCalendario} className={base + "w-[10.75rem] justify-between " + (enCalendario ? "text-white" : abierto ? "bg-slate-100 text-slate-800" : "text-slate-500 hover:bg-slate-50")} style={enCalendario ? { background: GRAD_MARCA } : undefined}>
           <span className="flex items-center gap-1.5 whitespace-nowrap"><CalendarDays size={14} aria-hidden="true" /> Calendario{enCalendario ? ` · ${vista === "semana" ? "Semana" : "Mes"}` : ""}</span>
           <ChevronDown size={12} className={"shrink-0 transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
         </button>
@@ -283,7 +283,7 @@ function SelectorPeriodo({ titulo, unidad, visible, onElegir }) {
         aria-haspopup="dialog"
         aria-expanded={abierto}
         title="Elegir otra fecha"
-        className={"inline-flex h-9 w-44 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 text-[13px] font-semibold shadow-sm transition-colors cursor-pointer " + (abierto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200/60 bg-white hover:border-slate-300 hover:bg-slate-50")}
+        className={"inline-flex h-9 w-[10.5rem] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 text-[13px] font-semibold shadow-sm transition-colors cursor-pointer " + (abierto ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200/60 bg-white hover:border-slate-300 hover:bg-slate-50")}
         style={abierto ? undefined : { color: INK }}
       >
         <span>{titulo}</span>
@@ -373,7 +373,7 @@ export function NavegadorPeriodo({ titulo, tituloNodo = null, onAnterior, onSigu
     const apagada = "grid h-full w-8 place-items-center rounded-lg text-slate-300 cursor-not-allowed"
     return (
       <div className="flex min-w-0 items-center gap-2">
-        <span className="inline-flex h-9 w-44 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-slate-200/60 bg-slate-50 px-3 text-[13px] font-semibold text-slate-400">{titulo}</span>
+        <span className="inline-flex h-9 w-[10.5rem] shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-slate-200/60 bg-slate-50 px-3 text-[13px] font-semibold text-slate-400">{titulo}</span>
         <div className="flex h-9 shrink-0 items-center rounded-xl border border-slate-200/60 bg-slate-50 p-1">
           <button type="button" disabled aria-label={etiquetaAnterior} title="Con todas las fechas no hay periodo que mover" className={apagada}><ChevronLeft size={14} /></button>
           <button type="button" disabled aria-label={etiquetaSiguiente} title="Con todas las fechas no hay periodo que mover" className={apagada}><ChevronRight size={14} /></button>
@@ -425,5 +425,5 @@ export function SeccionRango({ rango, flotante = false }) {
 
 // Cuántas citas se ven ("5 citas", "0 citas"): siempre el mismo formato, con o sin resultados.
 export function ConteoCitas({ texto }) {
-  return <p role="status" className="shrink-0 text-xs text-slate-500">{texto}</p>
+  return <p role="status" className="min-w-0 text-xs leading-tight text-slate-500">{texto}</p>
 }

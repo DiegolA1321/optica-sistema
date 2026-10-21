@@ -109,7 +109,7 @@ test.describe('Perfil del paciente: atender desde la cabecera', () => {
     await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
     await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
     await abrirDesdeLaLista(page, nombre)
-    const ingresar = page.getByRole('button', { name: 'Ingresar', exact: true }).first() // el de la cabecera (la pestaña Citas lleva el suyo)
+    const ingresar = page.getByRole('button', { name: 'Atender', exact: true }).first() // el de la cabecera (la pestaña Citas lleva el suyo)
     await expect(ingresar).toBeVisible()
     await expect(page.getByText(/Cita de hoy/)).toBeVisible()
     // el botón está en la cabecera, encima de las pestañas
@@ -128,7 +128,7 @@ test.describe('Perfil del paciente: atender desde la cabecera', () => {
     await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
     await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
     await abrirDesdeLaLista(page, nombre)
-    await expect(page.getByRole('button', { name: 'Ingresar', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Atender', exact: true })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Agendar cita' }).first()).toBeVisible()
   })
 })

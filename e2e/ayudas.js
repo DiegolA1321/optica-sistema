@@ -315,3 +315,11 @@ export async function llenarFichaObligatoria(page) {
   for (const [id, valor] of [['odEsfera', '-1.75'], ['odCilindro', '-0.75'], ['odEje', '10'], ['oiEsfera', '-1.50'], ['oiCilindro', '-0.50'], ['oiEje', '90']]) await page.locator('#' + id).fill(valor)
   await irAPasoFicha(page, 5, 'Diagnóstico y receta')
 }
+
+// Vista de Citas: «Lista» es un botón; «Semana» y «Mes» están dentro del menú «Calendario» (se abre y se elige).
+export async function elegirVista(page, vista) {
+  const grupo = page.getByRole('group', { name: 'Vista de citas' })
+  if (vista === 'Lista') { await grupo.getByRole('button', { name: /^Lista/ }).click(); return }
+  await grupo.getByRole('button', { name: /^Calendario/ }).click()
+  await page.getByRole('menuitemradio', { name: new RegExp(vista) }).click()
+}

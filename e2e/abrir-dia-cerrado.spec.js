@@ -2,7 +2,7 @@
 // elige mañana y/o tarde (solo para el personal), queda como excepción de esa fecha (se ve en Mi horario) y se puede volver a cerrar si no tiene
 // citas. ESCRIBE datos: corre en la óptica de pruebas (E2E) y deja el día como estaba.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, restaurarDiasDeHorario } from './ayudas.js'
+import { iniciarSesion, restaurarDiasDeHorario, elegirVista } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
@@ -14,7 +14,7 @@ const conRestauracion = (fechas, cuerpo) => async ({ page, browser }) => {
 async function irAlDomingo(page, rol) {
   await iniciarSesion(page, rol, 'E2E')
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
-  await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: 'Mes' }).click()
+  await elegirVista(page, 'Mes')
   await page.getByTitle('Elegir otra fecha').click()
   const selector = page.getByRole('dialog', { name: 'Elegir fecha' })
   await selector.getByRole('button', { name: 'dic', exact: true }).click()
@@ -59,7 +59,7 @@ test('el administrador abre un domingo solo para esa fecha, aparece en Mi horari
 
   // Volver a cerrarlo desde Citas
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
-  await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: 'Mes' }).click()
+  await elegirVista(page, 'Mes')
   await page.getByTitle('Elegir otra fecha').click()
   await page.getByRole('dialog', { name: 'Elegir fecha' }).getByRole('button', { name: 'dic', exact: true }).click()
   await page.getByTitle('Ver las citas de este día').filter({ hasText: /^20/ }).first().click({ position: { x: 6, y: 4 } })
@@ -96,14 +96,14 @@ test('"Abrir y agendar" deja el formulario de agendar con ese día; el personal 
 test('Semana y Lista muestran el domingo cerrado y permiten abrirlo desde ahí', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
-  await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: 'Semana' }).click()
+  await elegirVista(page, 'Semana')
   // Siete columnas: el domingo siempre aparece, aunque esté cerrado
   await expect(page.getByTitle('Ver las citas de este día')).toHaveCount(7)
   await expect(page.getByText('Cerrado').first()).toBeVisible()
   await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/abrir-5-semana-con-domingo.png' })
 
   // Lista: un domingo cerrado, con el botón para abrirlo (abre el formulario directo)
-  await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: 'Lista' }).click()
+  await elegirVista(page, 'Lista')
   await page.getByTitle('Elegir otra fecha').click()
   const selector = page.getByRole('dialog', { name: 'Elegir fecha' })
   await selector.getByRole('button', { name: 'Mes siguiente' }).click()
@@ -120,7 +120,7 @@ test('cerrar un día puntual con nombre de feriado: se ve en Citas (Semana, Mes 
   page.on('pageerror', (e) => errores.push(e.message))
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
-  await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: 'Mes' }).click()
+  await elegirVista(page, 'Mes')
   await page.getByTitle('Elegir otra fecha').click()
   await page.getByRole('dialog', { name: 'Elegir fecha' }).getByRole('button', { name: 'dic', exact: true }).click()
   // Lunes 21 de diciembre de 2026: un día normal de atención
@@ -138,7 +138,7 @@ test('cerrar un día puntual con nombre de feriado: se ve en Citas (Semana, Mes 
   // Mes: el nombre sale en la casilla del día
   await expect(page.getByTitle('Feriado: Día de los Difuntos').first()).toBeVisible()
   // Semana: el nombre reemplaza a "Cerrado" en esa columna
-  await page.getByRole('group', { name: 'Vista de citas' }).getByRole('button', { name: 'Semana' }).click()
+  await elegirVista(page, 'Semana')
   await page.getByTitle('Elegir otra fecha').click()
   const sel = page.getByRole('dialog', { name: 'Elegir fecha' })
   await sel.getByRole('button', { name: 'Mes siguiente' }).click()

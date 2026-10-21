@@ -1,29 +1,40 @@
 // "Atender" una cita de OTRO día en la óptica de pruebas (E2E): ESCRIBE datos (un paciente y una cita para Paula).
-// Regla del 19 oct.: «Ingresar» (o «Atender») solo aparece si la cita es de hoy o una pendiente de un día ANTERIOR que no se atendió; una cita FUTURA muestra «Próxima cita: [fecha]» sin botón, en la Agenda y en el perfil.
-// Las citas de hoy entran directo a la ficha (lo cubre llego-en-espera.spec.js); la de un día anterior abre su detalle con "¿Atenderla hoy?" y un clic más.
+// Regla del 21 oct. (Ronda 2, punto 11): «Atender» aparece en TODA cita abierta, también en una futura (el paciente llegó antes), en la Agenda y en el perfil.
+// Las citas de hoy entran directo a la ficha (lo cubre llego-en-espera.spec.js); la de otro día pregunta «Esta cita es del … ¿Atenderla hoy?» y, al confirmar, se mueve a hoy.
 import { test, expect } from '@playwright/test'
 import { iniciarSesion, crearCitaDeHoyParaPaula } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
-test('una cita futura no se atiende: dice «Próxima cita» y no ofrece Atender ni Ingresar, ni en la Agenda ni en el perfil', async ({ page }) => {
+test('una cita futura también se atiende (llegó antes): «Atender» pregunta «¿Atenderla hoy?» en la Agenda, en el detalle y en el perfil, y «No» no hace nada', async ({ page }) => {
   const nombre = await crearCitaDeHoyParaPaula('E2E', { diasDespues: 3 })
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
   await page.getByLabel('Buscar cita: paciente o código').fill(nombre)
   const tarjeta = page.locator('main .rounded-2xl').filter({ has: page.getByRole('button', { name: nombre }) }).first()
-  await expect(tarjeta).toContainText('Próxima cita:')
-  await expect(tarjeta.getByRole('button', { name: 'Atender', exact: true })).toHaveCount(0)
+  await expect(tarjeta).not.toContainText('Próxima cita:')
+  // En la Agenda
+  await tarjeta.getByRole('button', { name: 'Atender', exact: true }).click()
+  const pregunta = page.getByRole('dialog', { name: 'Atender una cita de otro día' })
+  await expect(pregunta).toContainText('Esta cita es del')
+  await expect(pregunta).toContainText('¿Atenderla hoy?')
+  await expect(pregunta).toContainText('La cita se moverá a hoy, a la hora actual.')
+  await pregunta.getByRole('button', { name: 'No' }).click()
+  await expect(pregunta).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toHaveCount(0)
+  // En el detalle
   await tarjeta.getByRole('button', { name: nombre }).click()
-  await expect(page.getByRole('dialog').getByRole('button', { name: 'Atender', exact: true })).toHaveCount(0)
-  await page.keyboard.press('Escape')
+  await page.getByRole('dialog').getByRole('button', { name: 'Atender', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Atender una cita de otro día' })).toBeVisible()
+  await page.getByRole('dialog', { name: 'Atender una cita de otro día' }).getByRole('button', { name: 'No' }).click()
+  // En el perfil del paciente
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
   await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
   await expect(page.getByText(nombre).first()).toBeVisible({ timeout: 45_000 })
   await page.getByText(nombre).first().click()
   await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 45_000 })
-  await expect(page.getByRole('button', { name: 'Ingresar' })).toHaveCount(0)
-  await expect(page.getByText(/Próxima cita:/).first()).toBeVisible()
+  await page.getByRole('button', { name: 'Atender', exact: true }).first().click()
+  await expect(page.getByRole('dialog', { name: 'Atender una cita de otro día' })).toBeVisible()
 })
 
 test('una cita de un día anterior pregunta "¿Atenderla hoy?" antes de entrar a la ficha', async ({ page }) => {
@@ -33,10 +44,9 @@ test('una cita de un día anterior pregunta "¿Atenderla hoy?" antes de entrar a
   await page.getByLabel('Buscar cita: paciente o código').fill(nombre)
   const tarjeta = page.locator('main .rounded-2xl').filter({ has: page.getByRole('button', { name: nombre }) }).first()
 
-  // "Atender" en la tarjeta abre el detalle con la pregunta; "No" la descarta y no se entra a ninguna ficha.
+  // "Atender" en la tarjeta pregunta; "No" la descarta y no se entra a ninguna ficha.
   await tarjeta.getByRole('button', { name: 'Atender', exact: true }).click()
-  const detalle = page.getByRole('dialog')
-  const pregunta = detalle.getByRole('group', { name: 'Atender una cita de otro día' })
+  const pregunta = page.getByRole('dialog', { name: 'Atender una cita de otro día' })
   await expect(pregunta).toContainText('Esta cita es del')
   await expect(pregunta).toContainText('¿Atenderla hoy?')
   await pregunta.getByRole('button', { name: 'No' }).click()
@@ -44,7 +54,8 @@ test('una cita de un día anterior pregunta "¿Atenderla hoy?" antes de entrar a
   await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toHaveCount(0)
 
   // "Atender" dentro del detalle plantea lo mismo; confirmar entra a la ficha.
-  await detalle.getByRole('button', { name: 'Atender', exact: true }).click()
+  await tarjeta.getByRole('button', { name: nombre }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Atender', exact: true }).click()
   await expect(pregunta).toBeVisible()
   await pregunta.getByRole('button', { name: 'Atenderla hoy' }).click()
   await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 20_000 })
@@ -59,7 +70,7 @@ test('al atender una cita pendiente de un día anterior se mueve al día de hoy 
   await page.getByLabel('Buscar cita: paciente o código').fill(nombre)
   const tarjeta = page.locator('main .rounded-2xl').filter({ has: page.getByRole('button', { name: nombre }) }).first()
   await tarjeta.getByRole('button', { name: 'Atender', exact: true }).click()
-  await page.getByRole('dialog').getByRole('group', { name: 'Atender una cita de otro día' }).getByRole('button', { name: 'Atenderla hoy' }).click()
+  await page.getByRole('dialog', { name: 'Atender una cita de otro día' }).getByRole('button', { name: 'Atenderla hoy' }).click()
   await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 20_000 })
 
   const { correo, clave } = credencial('RECEPCION', 'E2E')

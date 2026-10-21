@@ -58,7 +58,7 @@ test('ficha de cinco pasos: se llena, se termina y todo queda como se pidió', a
   await expect(page.getByText(nombre).first()).toBeVisible({ timeout: 45_000 })
   await page.getByText(nombre).first().click()
   await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 45_000 })
-  await page.getByRole('button', { name: 'Ingresar' }).first().click()
+  await page.getByRole('button', { name: 'Atender' }).first().click()
   await expect(page.getByText('Paso 1 de 5')).toBeVisible({ timeout: 20_000 })
 
   // ── La barra: cinco pasos, cada nombre en UNA línea, sin desplazamiento horizontal ──

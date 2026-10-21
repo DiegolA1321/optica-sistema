@@ -1424,7 +1424,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
         {/* Fila 2, igual en las tres vistas: a la izquierda cuántas citas se ven; a la derecha, el periodo (en la Lista,
             Hoy · Semana · Mes) y las flechas ‹ › con su título. */}
         <div className="flex h-12 items-center justify-between gap-3 px-2 pt-2.5">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 shrink items-center gap-3">
             {vistaActiva === "lista" && buscando && (
               <p className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Search size={14} aria-hidden="true" /> Buscando en todas las fechas</p>
             )}
@@ -1432,7 +1432,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
           </div>
           {vistaActiva === "lista" ? (
             !buscando && (
-              <div className="flex min-w-0 items-center gap-3">
+              <div className="flex shrink-0 items-center gap-2">
                 <PeriodoLista valor={filtro} onChange={elegirPeriodo} opciones={periodos} sinActivo={hayRango} rango={{ desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta }} />
                 {hayRango || ["hoy", "semana", "mes"].includes(filtro) ? (
                   <NavegadorPeriodo titulo={tituloLista} onAnterior={() => moverLista(-1)} onSiguiente={() => moverLista(1)} etiquetaAnterior="Periodo anterior" etiquetaSiguiente="Periodo siguiente" selector={selectorPeriodo} />

@@ -1,4 +1,4 @@
-// Tareas de recepción en Citas ("por confirmar" y "Para reagendar"): ya no hay un grupo "Tarea" en el panel Filtrar; se llega a
+// Tarea de recepción en Citas ("Para reagendar"; ya no existe «por confirmar»): ya no hay un grupo "Tarea" en el panel Filtrar; se llega a
 // ellas desde las filas de "Requiere tu atención" de Inicio. Mientras están activas reemplazan al periodo de la Lista, el conteo
 // coincide con las citas que se ven y la etiqueta con su "x" las quita (vuelve a Hoy). SOLO LECTURA en la Óptica Demo.
 import { test, expect } from '@playwright/test'

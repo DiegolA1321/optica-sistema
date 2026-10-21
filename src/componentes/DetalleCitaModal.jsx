@@ -80,6 +80,13 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
   const cedula = cita.cedula || paciente?.cedula
   const telefono = cita.telefono || paciente?.telefono
   const profesional = profesionalDeCita(cita, equipo)
+  // Sin ninguna acción para esta persona en este estado (p. ej. una cita cancelada vista por quien solo mira), no se dibuja una franja de pie vacía.
+  const hayAcciones = Boolean(
+    (cita.pacienteId && onConfirmarDatos && paciente?.origen === "paciente" && !paciente.confirmadoRecepcion)
+    || (!cita.pacienteId && onRegistrarPaciente) || puedeReasignar || (puedeEditarCita(cita) && onEditar)
+    || (cita.estado === "En Atención" && onDejarDeAtender) || (puedeCancelarCita(cita) && onCancelar)
+    || puedeTomar || puedeAgendarOtra || (cobroPendiente && onCobrar) || (!cobroPendiente && puedeIngresar),
+  )
 
   return (
     <Cascaron
@@ -95,7 +102,7 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
         </div>
       }
       derecha={<span role="status" aria-label={"Estado: " + etiquetaEstado} className={"shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO[cita.estado] || BADGE_PENDIENTE)}>{etiquetaEstado}</span>}
-      pie={<>
+      pie={!hayAcciones ? undefined : <>
         {reasignando && puedeReasignar && (
           <div className="w-full rounded-lg bg-slate-50 px-3 py-2">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Pasar la cita a</p>
