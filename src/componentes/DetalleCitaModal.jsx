@@ -6,13 +6,14 @@ import { useState } from "react"
 import { X, User, Stethoscope, CalendarPlus, Receipt, AlertTriangle, ExternalLink, CalendarClock, LogOut, UserX, DoorOpen, Undo2, Loader2, UserRoundPlus, Repeat, UserCheck } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
-import { yaPasoLaHora } from "../utilidades/agendaCitas"
 import { Cascaron } from "./AtencionPaciente"
 import { urlPerfilPaciente } from "./calendarioComun"
 import { profesionalDeCita, mostrarProfesional, esReasignable, esTomable } from "../utilidades/profesionalCita"
 import { edadEnAnios } from "../utilidades/edad"
 import { puedeCancelarCita, puedeIngresarCita, puedeEditarCita, puedeAgendarOtraCita } from "../utilidades/filtrosCitas"
-import { seguimientoDeCita, cuandoDeEvento, TITULO_EVENTO, ORIGEN_AGENDADA } from "../utilidades/seguimientoCita"
+import { seguimientoDeCita, cuandoDeEvento, detalleDeEvento, sufijoDeEvento, TITULO_EVENTO } from "../utilidades/seguimientoCita"
+import { useEventosDeCita } from "../utilidades/eventosCita"
+import { yaTerminoSuHorario } from "../utilidades/agendaCitas"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -53,7 +54,7 @@ const BOTON_SECUNDARIO = "inline-flex items-center gap-1.5 rounded-xl border bor
 // ficha (la guardia de otro día y de la siguiente cita la hace quien recibe onIngresar); «Llegó» pasa la cita a «En espera» (lo usa recepción, que no atiende).
 // «Ver perfil» abre el paciente en otra pestaña para no perder el lugar en la agenda. Cada acción solo aparece si se pasa su función (permisos) y la cita está
 // en un estado que la admite.
-export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = false, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, eventos = [], onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, personasAsignables = [], ausenteEnLaHora, onReasignar, onTomar, onRegistrarPaciente, onConfirmarDatos, sinAnimarFondo = false }) {
+export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = false, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, eventos: eventosPropios, duracionDefault = 40, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, personasAsignables = [], ausenteEnLaHora, onReasignar, onTomar, onRegistrarPaciente, onConfirmarDatos, sinAnimarFondo = false }) {
   // "Reasignar": quien tiene permiso de editar citas con alcance "todo" (lo decide Citas.jsx pasando onReasignar). Un clic en la persona.
   const [reasignando, setReasignando] = useState(false)
   const puedeReasignar = !!onReasignar && esReasignable(cita)
@@ -62,15 +63,18 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
   // «Atender» pasa por la guardia del sistema (otro día, siguiente cita ya agendada): la pregunta no vive aquí, la hace quien recibe onIngresar.
   const puedeIngresar = puedeIngresarCita(cita) && !!onIngresar
   const puedeAgendarOtra = puedeAgendarOtraCita(cita) && !!onAgendarOtra
-  const seguimiento = seguimientoDeCita(cita, eventos)
+  // El seguimiento sale de la base; quien abre el detalle puede pasar los eventos ya leídos (o las pruebas, los suyos).
+  const eventosLeidos = useEventosDeCita(cita, eventosPropios === undefined)
+  const seguimiento = seguimientoDeCita(cita, eventosPropios ?? eventosLeidos)
   const triage = cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle)
     ? [cita.triage.sintomas?.join(", "), cita.triage.desdeCuando, cita.triage.detalle].filter(Boolean).join(" · ")
     : null
   // Cambios de estado a mano (la recepción): "Llegó" solo el día de la cita; "No efectuada" solo mientras sigue pendiente y
-  // ya pasó su hora (el sistema la marca sola a los 10 minutos; "En espera" no se marca sola).
+  // terminó su horario (el sistema la marca sola en ese momento; "En espera" y "En atención" no se marcan solas durante su horario).
   const puedeLlego = !!onLlego && cita.estado === "Pendiente" && cita.fecha === hoyISO()
   const puedeNoLlego = !!onNoLlego && cita.estado === "En Espera"
-  const puedeNoAsistio = !!onNoAsistio && cita.estado === "Pendiente" && yaPasoLaHora(cita)
+  // «No efectuada» a mano: solo cuando ya terminó el horario de la cita (el servidor lo exige igual).
+  const puedeNoAsistio = !!onNoAsistio && cita.estado === "Pendiente" && yaTerminoSuHorario(cita, undefined, duracionDefault)
   const hayCambioDeEstado = puedeLlego || puedeNoLlego || puedeNoAsistio
   const etiquetaEstado = etiquetaEstadoCita(cita.estado)
   // Datos del paciente (la cita guarda los del momento de agendar; el expediente trae la edad y, a veces, el correo).
@@ -244,11 +248,10 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
                 <span className="absolute -left-[1.1rem] top-1.5 h-2 w-2 rounded-full bg-slate-400" aria-hidden="true" />
                 <p className="text-sm font-semibold" style={{ color: INK }}>
                   {TITULO_EVENTO[e.tipo] || e.tipo}
-                  {e.tipo === "agendada" && (e.datos?.origen || e.detalle) && <span className="font-normal text-slate-500"> · {ORIGEN_AGENDADA[e.datos?.origen] || e.datos?.origen || e.detalle}</span>}
+                  {sufijoDeEvento(e) && <span className="font-normal text-slate-500"> · {sufijoDeEvento(e)}</span>}
                 </p>
                 {(cuandoDeEvento(e) || e.quien) && <p className="text-xs text-slate-500">{[cuandoDeEvento(e), e.quien && "por " + e.quien].filter(Boolean).join(" · ")}</p>}
-                {e.datos?.motivo && <p className="text-xs text-slate-600">{e.datos.motivo}{e.datos.detalle ? ": " + e.datos.detalle : ""}</p>}
-                {e.datos?.fecha_anterior && <p className="text-xs text-slate-600">Reagendada desde el {formatoFecha(e.datos.fecha_anterior, "calendario", { enFrase: true })}{e.datos.hora_anterior ? " a las " + e.datos.hora_anterior : ""}</p>}
+                {detalleDeEvento(e).map((l) => <p key={l} className="text-xs text-slate-600">{l}</p>)}
               </li>
             ))}
           </ol>

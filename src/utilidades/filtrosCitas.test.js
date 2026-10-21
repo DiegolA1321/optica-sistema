@@ -194,8 +194,8 @@ describe("atajos del periodo y búsqueda en todas las fechas", () => {
 })
 
 describe("atajos por tarea (grupo Tarea del panel)", () => {
-  it("la única tarea es Para reagendar: ya no existe «por confirmar» (el paciente no confirma su cita)", () => {
-    expect(tareasFiltro().map((t) => t.etiqueta)).toEqual(["Todas", "Para reagendar"])
+  it("la única tarea es Contactar al paciente: ya no existe «por confirmar» (el paciente no confirma su cita)", () => {
+    expect(tareasFiltro().map((t) => t.etiqueta)).toEqual(["Todas", "Contactar al paciente"])
   })
 
   const cita = (id, o) => ({ id, paciente: `Paciente ${id}`, estado: "Pendiente", origen: "staff", fecha: "2026-10-12", pacienteId: id, asignadoA: null, atendidoPor: null, confirmadaAt: null, ...o })

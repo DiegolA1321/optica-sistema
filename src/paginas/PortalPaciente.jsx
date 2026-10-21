@@ -12,6 +12,8 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
 import { minutosHastaCita } from "../utilidades/agendaCitas"
 import { Cascaron } from "../componentes/AtencionPaciente"
+import MotivoDeCancelacion from "../componentes/MotivoDeCancelacion"
+import { MOTIVOS_PACIENTE } from "../utilidades/motivosCancelacion"
 import MisCompras from "../componentes/MisCompras"
 import ResumenPortal from "../componentes/portal/ResumenPortal"
 import MisCitasPortal from "../componentes/portal/MisCitasPortal"
@@ -125,14 +127,19 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   const [cancelando, setCancelando] = useState(null)
   const [guardandoCancelar, setGuardandoCancelar] = useState(false)
   const [errorCancelar, setErrorCancelar] = useState("")
+  // El motivo de la cancelación (lista fija + detalle opcional): la óptica lo ve en el seguimiento de la cita.
+  const [motivoCancelar, setMotivoCancelar] = useState("")
+  const [detalleCancelar, setDetalleCancelar] = useState("")
+  const pedirCancelar = (cita) => { setMotivoCancelar(""); setDetalleCancelar(""); setErrorCancelar(""); setCancelando(cita) }
   // Cuando el servidor rechaza una regla (anticipación, política de la óptica, horario), su mensaje ya está escrito para el paciente.
   const mensajeDelServidor = (err) => (err?.code === "P0001" ? err.message : null)
   const confirmarCancelar = async () => {
     if (!cancelando) return
+    if (!motivoCancelar) { setErrorCancelar("Elige por qué cancelas tu cita."); return }
     setGuardandoCancelar(true)
     setErrorCancelar("")
     if (supabase && opticaId) {
-      const { data, error: errorRpc } = await supabase.rpc("cancelar_cita_publica", { p_cita_id: cancelando.id, p_paciente_id: pacienteId, p_token: usuario?.token })
+      const { data, error: errorRpc } = await supabase.rpc("cancelar_cita_publica", { p_cita_id: cancelando.id, p_paciente_id: pacienteId, p_token: usuario?.token, p_motivo: motivoCancelar, p_detalle: detalleCancelar.trim() || null })
       if (errorRpc || data !== true) {
         setGuardandoCancelar(false)
         setErrorCancelar(mensajeDelServidor(errorRpc) || "No pudimos cancelar tu cita. Intenta de nuevo en un momento.")
@@ -284,6 +291,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       const { data, error: errorRpc } = await supabase.rpc("crear_cita_publica", {
         p_optica_id: opticaId, p_paciente: nuevaCita.paciente, p_fecha: nuevaCita.fecha, p_hora: nuevaCita.hora, p_cedula: nuevaCita.cedula || null,
         p_fecha_nacimiento: usuario?.fecha_nacimiento || usuario?.fechaNacimiento || null, p_telefono: nuevaCita.telefono || null, p_motivo: nuevaCita.motivo,
+        p_canal: "portal", // el seguimiento de la cita dice por dónde se agendó
       })
       if (errorRpc || !data?.[0]) {
         setGuardandoCita(false)
@@ -348,7 +356,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     descargarIcs({ cita, optica: nombreOptica, direccion: contacto.direccion })
     datos.agregarAlCalendario(cita.id)
   }
-  const citaProps = { puedeReagendar, avisoNoReagendable: textoNoReagendable, onReagendar: abrirReagendar, onCancelar: setCancelando, cambiosPermitidos: Boolean(parametrizacion?.permitirReagendarPaciente), whatsappUrl: contacto.whatsappUrl, onCalendario: alCalendario, calendarioAgregada: (id) => Boolean(datos.detalle.porCita[id]?.enCalendarioAt) }
+  const citaProps = { puedeReagendar, avisoNoReagendable: textoNoReagendable, onReagendar: abrirReagendar, onCancelar: pedirCancelar, cambiosPermitidos: Boolean(parametrizacion?.permitirReagendarPaciente), whatsappUrl: contacto.whatsappUrl, onCalendario: alCalendario, calendarioAgregada: (id) => Boolean(datos.detalle.porCita[id]?.enCalendarioAt) }
   const cargandoPortal = cargandoDatos || datos.cargando
   // Los puntos: los mismos y con la misma regla que el CRM (consultas × 10 + pacientes referidos × 15).
   const puntos = resumenDePuntos(contarConsultas({ id: usuario?.id, nombre: usuario?.nombre }, misConsultas), datos.referidos)
@@ -516,12 +524,13 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
             <span />
             <div className="ml-auto flex items-center gap-2">
               <button type="button" disabled={guardandoCancelar} onClick={() => setCancelando(null)} className={BOTON_SECUNDARIO}>Volver</button>
-              <button type="button" disabled={guardandoCancelar} onClick={confirmarCancelar} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-red-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-50">{guardandoCancelar ? "Cancelando..." : "Sí, cancelar cita"}</button>
+              <button type="button" disabled={guardandoCancelar || !motivoCancelar} onClick={confirmarCancelar} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-red-600 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer disabled:opacity-50">{guardandoCancelar ? "Cancelando..." : "Sí, cancelar cita"}</button>
             </div>
           </>}
         >
           <div className="p-5">
-            <p className="text-lg text-slate-700">Esta acción no se puede deshacer — si cambias de opinión tendrás que agendar una cita nueva.</p>
+            <p className="mb-3 text-lg text-slate-700">Esta acción no se puede deshacer — si cambias de opinión tendrás que agendar una cita nueva. Cuéntanos por qué la cancelas:</p>
+            <MotivoDeCancelacion grande motivos={MOTIVOS_PACIENTE} motivo={motivoCancelar} detalle={detalleCancelar} onMotivo={setMotivoCancelar} onDetalle={setDetalleCancelar} deshabilitado={guardandoCancelar} />
             {errorCancelar && <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base font-medium text-red-700">{errorCancelar}</p>}
           </div>
         </Cascaron>

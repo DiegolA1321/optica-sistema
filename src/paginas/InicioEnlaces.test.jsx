@@ -122,10 +122,10 @@ describe("Requiere tu atención: la ventana y sus enlaces", () => {
     render(<Inicio {...base} citas={reag(2)} setVista={(v) => vistas.push(v)} />)
     const citas = area("Citas")
     for (const cerrar of ["escape", "cerrar"]) {
-      fireEvent.click(within(citas).getByRole("button", { name: /2 citas por reagendar/ }))
-      const ventana = screen.getByRole("dialog", { name: "2 citas por reagendar" })
+      fireEvent.click(within(citas).getByRole("button", { name: /2 pacientes por contactar/ }))
+      const ventana = screen.getByRole("dialog", { name: "2 pacientes por contactar" })
       expect(ventana).toHaveAttribute("aria-modal", "true")
-      expect(within(ventana).getByRole("heading", { level: 2, name: "2 citas por reagendar" })).toBeInTheDocument()
+      expect(within(ventana).getByRole("heading", { level: 2, name: "2 pacientes por contactar" })).toBeInTheDocument()
       expect(within(ventana).getAllByRole("button", { name: "Cerrar" })).toHaveLength(2) // la X de la cabecera y el botón del pie
       if (cerrar === "escape") fireEvent.keyDown(document, { key: "Escape" })
       else fireEvent.click(within(ventana).getAllByRole("button", { name: "Cerrar" })[1])
@@ -138,12 +138,12 @@ describe("Requiere tu atención: la ventana y sus enlaces", () => {
 
   it("al resolver un caso la lista y los números del Inicio se actualizan", () => {
     const { rerender } = render(<Inicio {...base} citas={reag(3)} />)
-    fireEvent.click(within(area("Citas")).getByRole("button", { name: /3 citas por reagendar/ }))
+    fireEvent.click(within(area("Citas")).getByRole("button", { name: /3 pacientes por contactar/ }))
     expect(within(screen.getByRole("dialog")).getAllByRole("button", { name: "Reagendar" })).toHaveLength(3)
     rerender(<Inicio {...base} citas={reag(2)} /> ) // se resolvió un caso
-    const ventana = screen.getByRole("dialog", { name: "2 citas por reagendar" })
+    const ventana = screen.getByRole("dialog", { name: "2 pacientes por contactar" })
     expect(within(ventana).getAllByRole("button", { name: "Reagendar" })).toHaveLength(2)
-    expect(within(area("Citas")).getByRole("button", { name: "2 citas por reagendar" })).toBeInTheDocument()
+    expect(within(area("Citas")).getByRole("button", { name: "2 pacientes por contactar" })).toBeInTheDocument()
     rerender(<Inicio {...base} citas={[]} />) // se resolvieron todos
     expect(screen.getByRole("dialog")).toHaveTextContent("Todo en orden")
   })
@@ -174,7 +174,7 @@ describe("Requiere tu atención: la ventana y sus enlaces", () => {
     const llamadas = []
     const sinPaciente = { id: "sp", fecha: dia(-1), hora: "09:00 AM", estado: "No Asistió", paciente: "Rafael Sin Registro", pacienteId: null }
     render(<Inicio {...base} citas={[sinPaciente]} onVerCitas={(...a) => llamadas.push(a)} />)
-    fireEvent.click(within(area("Citas")).getByRole("button", { name: /1 cita por reagendar/ }))
+    fireEvent.click(within(area("Citas")).getByRole("button", { name: /1 paciente por contactar/ }))
     const ventana = screen.getByRole("dialog")
     expect(within(ventana).queryByRole("button", { name: "Reagendar" })).not.toBeInTheDocument()
     fireEvent.click(within(ventana).getByRole("button", { name: "Ver cita" }))
@@ -195,7 +195,7 @@ describe("Botón 'Requieren atención' de cada módulo", () => {
     fireEvent.click(screen.getByRole("button", { name: "Requieren atención: 2" }))
     const ventana = screen.getByRole("dialog", { name: "Citas · 2 avisos" })
     expect(within(ventana).getAllByRole("button", { name: "Reagendar" })).toHaveLength(2)
-    expect(within(ventana).getByRole("button", { name: "Abrir en Citas · Para reagendar (2)" })).toBeInTheDocument()
+    expect(within(ventana).getByRole("button", { name: "Abrir en Citas · Contactar al paciente (2)" })).toBeInTheDocument()
     fireEvent.keyDown(document, { key: "Escape" })
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })

@@ -75,6 +75,9 @@ import { codigoConsulta } from "../utilidades/soporte"
 import { nombreModuloDeUso } from "../utilidades/soporteAyuda"
 import VentanaAvisosInternos from "../componentes/soporte/VentanaAvisosInternos"
 import { listaParaContactar } from "../utilidades/crmContactos"
+import { useAvisosDescartados } from "../utilidades/avisosDescartados"
+import { useSeguimientoDeContacto, registrarContacto } from "../utilidades/contactarPaciente"
+import { abrirWhatsApp } from "../utilidades/whatsapp"
 
 
 // ─── Paleta de firma ───
@@ -126,6 +129,14 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
   // Cuando un paciente cambia su teléfono o su correo desde su portal (migración 0130).
+  // Avisos descartados (con motivo) y seguimiento de «Contactar al paciente»: se comparten entre el Inicio y Citas para que el número sea el mismo.
+  const { descartes, descartar: descartarAviso, restaurar: restaurarAviso } = useAvisosDescartados(usuario?.opticaId, !!usuario?.opticaId && opticaActiva)
+  const seguimientoContacto = useSeguimientoDeContacto(citas, !!usuario?.opticaId && opticaActiva)
+  const contactarPaciente = (cita, mensaje) => {
+    abrirWhatsApp(cita.telefono, mensaje)
+    registrarContacto(cita.id, "whatsapp")
+    mostrarAviso(`WhatsApp abierto para ${cita.paciente}. Queda anotado en el seguimiento de la cita.`)
+  }
   const { avisos: avisosContacto, atender: atenderAvisoContacto } = useAvisosContacto(usuario?.opticaId, puede(usuario, "pacientes", "ver"))
   // Pagos por transferencia que los pacientes reportan desde su portal (migración 0131): Ventas los revisa y el Inicio los cuenta.
   const { pagos: pagosPorVerificar, recargar: recargarPagos } = usePagosTransferencia(usuario?.opticaId, puede(usuario, "ventas", "ver"))
@@ -689,6 +700,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onEstadoInicialConsumido={() => setEstadoCitasInicial(null)}
             atenderCitaId={citaParaAtender}
             onAtenderCitaConsumido={() => setCitaParaAtender(null)}
+            descartes={descartes}
             editarCitaId={citaParaEditar}
             onEditarCitaConsumido={() => setCitaParaEditar(null)}
             motivosConsulta={motivosConsulta}
@@ -791,7 +803,12 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onVerPerfilPaciente={(pacienteId, tab) => { setAccionPacienteInicio({ pacienteId, accion: "historial", ...(tab ? { tab } : {}) }); navegar("pacientes") }}
             onAgendarRapido={() => { setControlParaAgendar(null); setAtajoInicio("citas") }}
             onAgendarControl={(paciente, fecha, asignadoA) => { setControlParaAgendar({ pacienteId: paciente.id, fecha, asignadoA }); setAtajoInicio("citas") }}
-            onReagendarCancelada={(cita) => { setControlParaAgendar({ pacienteId: cita.pacienteId, fecha: cita.fecha, asignadoA: cita.asignadoA || "", motivo: cita.motivo || "" }); setAtajoInicio("citas") }}
+            descartes={descartes}
+            onDescartar={descartarAviso}
+            onRestaurar={restaurarAviso}
+            seguimientoContacto={seguimientoContacto}
+            onContactarPaciente={contactarPaciente}
+            onReagendarCancelada={(cita) => { setControlParaAgendar({ heredaDeCitaId: cita.id, heredaDeEstado: cita.estado, pacienteId: cita.pacienteId, fecha: cita.fecha, asignadoA: cita.asignadoA || "", motivo: cita.motivo || "" }); setAtajoInicio("citas") }}
             onCrearPacienteRapido={() => setAtajoInicio("pacientes")}
             onCrearProductoRapido={() => setAtajoInicio("inventario")}
             onReabastecerProducto={(productoId) => {

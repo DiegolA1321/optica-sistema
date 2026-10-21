@@ -5,17 +5,17 @@ import { horaLibreAhora, necesitaMoverseAHoy } from "./moverCitaAHoy"
 const HOY = "2026-10-10"
 
 describe("estados que se pueden corregir a mano", () => {
-  it("una cita de un día futuro solo puede estar pendiente o cancelada: nunca en atención, atendida ni sin asistir", () => {
-    expect(estadosCorregibles({ fecha: "2026-10-14", estado: "Pendiente" }, HOY)).toEqual(["Pendiente", "Cancelada"])
+  it("una cita de un día futuro solo puede estar pendiente: nunca en atención, atendida ni no efectuada (y cancelar es otra acción, con su motivo)", () => {
+    expect(estadosCorregibles({ fecha: "2026-10-14", estado: "Pendiente" }, HOY)).toEqual(["Pendiente"])
     for (const e of ["En Atención", "Atendida", "No Asistió"]) expect(estadoCorregibleEs({ fecha: "2026-10-14", estado: "Pendiente" }, e, HOY)).toBe(false)
   })
   it("una cita de hoy o de un día pasado puede tener cualquier estado", () => {
-    expect(estadosCorregibles({ fecha: HOY, estado: "Pendiente" }, HOY)).toHaveLength(5)
+    expect(estadosCorregibles({ fecha: HOY, estado: "Pendiente" }, HOY)).toEqual(["En Atención", "Pendiente", "Atendida", "No Asistió"])
     expect(estadosCorregibles({ fecha: "2026-10-01", estado: "No Asistió" }, HOY)).toContain("En Atención")
   })
   it("un dato viejo en un estado imposible se ve tal cual, y se ofrece sacarlo de ahí", () => {
     const mala = { fecha: "2026-10-14", estado: "En Atención" }
-    expect(estadosCorregibles(mala, HOY)).toEqual(["En Atención", "Pendiente", "Cancelada"])
+    expect(estadosCorregibles(mala, HOY)).toEqual(["En Atención", "Pendiente"])
     expect(estadoCorregibleEs(mala, "En Atención", HOY)).toBe(true) // dejarla como está no es un cambio
     expect(estadoCorregibleEs(mala, "Atendida", HOY)).toBe(false)
   })

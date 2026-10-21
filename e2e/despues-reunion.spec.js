@@ -25,7 +25,7 @@ test('el aviso de citas por reagendar es una línea con una sola acción: Reagen
   } else {
     await fila.getByRole('button', { name: 'Ver' }).click()
     await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
-    await expect(page.locator('main').getByText('Para reagendar').first()).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('main').getByText('Contactar al paciente').first()).toBeVisible({ timeout: 15_000 })
   }
 })
 
@@ -33,11 +33,11 @@ test('el administrador ve las citas por reagendar desde el "Ver todo" del bloque
   await iniciarSesion(page, 'ADMIN')
   const bloque = page.getByRole('region', { name: 'Requiere tu atención: Citas' })
   await expect(bloque).toBeVisible({ timeout: 20_000 })
-  // El "Ver todo →" del área abre Citas en "Para reagendar" (sin número: el total está una sola vez, en el título).
+  // El "Ver todo →" del área abre Citas en "Contactar al paciente" (sin número: el total está una sola vez, en el título).
   await bloque.getByRole('button', { name: 'Ver todo en Citas' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Citas · Para reagendar/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Citas · Contactar al paciente/ }).click()
   await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
-  await expect(page.locator('main').getByText('Para reagendar').first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('main').getByText('Contactar al paciente').first()).toBeVisible({ timeout: 15_000 })
 })
 
 test('agudeza visual: el estado se llama "Sin agudeza visual con corrección registrada" y se explica al pasar el cursor', async ({ page }) => {

@@ -150,21 +150,21 @@ describe("Inicio del administrador", () => {
     const una = { id: "cn", fecha: hoy, hora: "02:00 PM", estado: "No Asistió", paciente: "Paciente Cuatro", pacienteId: "p4", motivo: "Control" }
     const { unmount } = render(<Inicio {...base} citas={[...base.citas, una]} onReagendarCancelada={(c) => reagendadas.push(c.id)} />)
     expect(area("Citas")).not.toHaveTextContent("Paciente Cuatro") // la tarjetita no lleva nombres
-    fireEvent.click(tarj("Citas", /1 cita por reagendar/))
-    const ventana = screen.getByRole("dialog", { name: "1 cita por reagendar" })
+    fireEvent.click(tarj("Citas", /1 paciente por contactar/))
+    const ventana = screen.getByRole("dialog", { name: "1 paciente por contactar" })
     expect(ventana).toHaveTextContent("Paciente Cuatro")
     expect(ventana).toHaveTextContent("No efectuada")
     fireEvent.click(within(ventana).getByRole("button", { name: "Reagendar" }))
     expect(reagendadas).toEqual(["cn"])
-    expect(screen.getByRole("dialog", { name: "1 cita por reagendar" })).toBeInTheDocument() // resolver un caso no cierra la lista
+    expect(screen.getByRole("dialog", { name: "1 paciente por contactar" })).toBeInTheDocument() // resolver un caso no cierra la lista
     unmount()
     const otra = { ...una, id: "cx", estado: "Cancelada", canceladaPor: "paciente", paciente: "Paciente Tres", pacienteId: "p3" }
     render(<Inicio {...base} citas={[...base.citas, una, otra]} onReagendarCancelada={(c) => reagendadas.push(c.id)} onVerCitas={(...a) => pedidos.push(a)} />)
-    fireEvent.click(tarj("Citas", /2 citas por reagendar/))
-    const dos = screen.getByRole("dialog", { name: "2 citas por reagendar" })
+    fireEvent.click(tarj("Citas", /2 pacientes por contactar/))
+    const dos = screen.getByRole("dialog", { name: "2 pacientes por contactar" })
     expect(within(dos).getAllByRole("button", { name: "Reagendar" })).toHaveLength(2)
     expect(dos).toHaveTextContent("Canceló el paciente")
-    fireEvent.click(within(dos).getByRole("button", { name: /^Abrir en Citas · Para reagendar \(2\)/ }))
+    fireEvent.click(within(dos).getByRole("button", { name: /^Abrir en Citas · Contactar al paciente \(2\)/ }))
     expect(pedidos).toEqual([["todas", "reagendar", undefined]])
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument() // el enlace sale a Citas y cierra la ventana
   })

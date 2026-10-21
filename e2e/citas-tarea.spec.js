@@ -1,4 +1,4 @@
-// Tarea de recepción en Citas ("Para reagendar"; ya no existe «por confirmar»): ya no hay un grupo "Tarea" en el panel Filtrar; se llega a
+// Tarea de recepción en Citas ("Contactar al paciente"; ya no existe «por confirmar»): ya no hay un grupo "Tarea" en el panel Filtrar; se llega a
 // ellas desde las filas de "Requiere tu atención" de Inicio. Mientras están activas reemplazan al periodo de la Lista, el conteo
 // coincide con las citas que se ven y la etiqueta con su "x" las quita (vuelve a Hoy). SOLO LECTURA en la Óptica Demo.
 import { test, expect } from '@playwright/test'
@@ -16,18 +16,18 @@ test('el panel Filtrar ya no tiene el grupo Tarea', async ({ page }) => {
   await expect(panel.getByRole('group', { name: 'Tarea' })).toHaveCount(0)
 })
 
-test('"Para reagendar" desde Inicio filtra la Lista, cuenta bien y se quita con la x de su etiqueta', async ({ page }) => {
+test('"Contactar al paciente" desde Inicio filtra la Lista, cuenta bien y se quita con la x de su etiqueta', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
   await expect(page.getByText('Requiere tu atención').first()).toBeVisible({ timeout: 20_000 })
-  // El aviso "N citas por reagendar" y el "Ver todo →" del área Citas abren la lista ya filtrada con "Para reagendar".
+  // El aviso "N citas por reagendar" y el "Ver todo →" del área Citas abren la lista ya filtrada con "Contactar al paciente".
   const citas = page.getByRole('region', { name: 'Requiere tu atención: Citas' })
   await expect(citas).toContainText(/por reagendar/)
   await citas.getByRole('button', { name: 'Ver todo en Citas' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Citas · Para reagendar/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Citas · Contactar al paciente/ }).click()
   await page.getByLabel('Buscar cita: paciente o código').waitFor({ timeout: 20_000 })
   await page.waitForTimeout(1200)
   const periodoActivo = page.getByRole('group', { name: 'Periodo de las citas' }).locator('[aria-pressed=true]')
-  await expect(page.getByRole('button', { name: /Quitar el filtro Tarea: Para reagendar/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Quitar el filtro Tarea: Contactar al paciente/ })).toBeVisible()
   await expect(periodoActivo).toHaveCount(0)
   const n = Number(((await page.getByRole('status').first().innerText()).match(/\d+/) || [])[0])
   expect(n).toBeGreaterThan(0)

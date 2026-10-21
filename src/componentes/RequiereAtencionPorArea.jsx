@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { CheckCircle2, ArrowRight, AlertCircle } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { Cascaron } from "./AtencionPaciente"
+import MotivoDeCancelacion from "./MotivoDeCancelacion"
 
 // «Requiere tu atención» del Inicio (reunión del 20 oct., ATN-1): una tarjeta por área (Citas, Pacientes, Ventas, Inventario), nunca todo en una sola lista (I4), y dentro de
 // cada área, como máximo TRES tarjetitas: cada una con el número grande y debajo una leyenda corta («por contactar», «con stock bajo»), sin nombres de pacientes
@@ -13,7 +14,9 @@ import { Cascaron } from "./AtencionPaciente"
 // avisos actuales. Un área sin avisos dice «Todo en orden» en una línea.
 //
 // bloques: [{ id, titulo, modulo, icono, filas, onVerTodo }]; onVerTodo lleva al módulo.
-// filas: [{ id, cantidad, texto, corto?, tono?: "urgente", enlace?: { texto, onClick }, casos: [{ id, nombre, detalle?, icono?, insignia?: { texto, tono }, accion?: { etiqueta, onClick, navega? } }] }]
+// filas: [{ id, cantidad, texto, corto?, tono?: "urgente", enlace?: { texto, onClick }, casos: [{ id, nombre, detalle?, icono?, insignia?: { texto, tono }, accion?: { etiqueta, onClick, navega? }, acciones?: [...] }],
+//   descartable?: { motivos: [texto], onDescartar(caso, motivo, detalle) → { error? } }, descartados?: [{ id, nombre, motivo, por, onRestaurar() }] }]
+// Una fila descartable lleva «Descartar» en cada caso: pide el motivo (lista fija + detalle) y lo saca de la lista; lo descartado queda abajo, «Volver a mostrar» lo trae de vuelta.
 // `texto` es la frase completa (nombre accesible y título de la ventana); `corto` es la leyenda de la tarjetita.
 export const AVISOS_POR_TARJETA = 3
 const INSIGNIA = { urgente: "border-red-200 bg-red-50 text-red-700", neutro: "border-slate-200 bg-slate-50 text-slate-600", aviso: "border-amber-200 bg-amber-50 text-amber-700" }
@@ -30,6 +33,21 @@ function VentanaAvisos({ bloque: bloqueCompleto, filaId, soloFila = false, onCer
   const ejecutar = (accion) => {
     if (accion.navega) onCerrar()
     accion.onClick()
+  }
+  const [descartando, setDescartando] = useState(null) // { filaId, casoId }
+  const [motivoDescarte, setMotivoDescarte] = useState("")
+  const [detalleDescarte, setDetalleDescarte] = useState("")
+  const [guardandoDescarte, setGuardandoDescarte] = useState(false)
+  const [errorDescarte, setErrorDescarte] = useState("")
+  const abrirDescarte = (filaId, casoId) => { setDescartando({ filaId, casoId }); setMotivoDescarte(""); setDetalleDescarte(""); setErrorDescarte("") }
+  const confirmarDescarte = async (fila, caso) => {
+    if (!motivoDescarte) { setErrorDescarte("Elige el motivo."); return }
+    setGuardandoDescarte(true)
+    setErrorDescarte("")
+    const r = await fila.descartable.onDescartar(caso, motivoDescarte, detalleDescarte)
+    setGuardandoDescarte(false)
+    if (r?.error) { setErrorDescarte(r.error); return }
+    setDescartando(null)
   }
   const unica = soloFila ? bloque.filas[0] : null
   return (
@@ -56,26 +74,64 @@ function VentanaAvisos({ bloque: bloqueCompleto, filaId, soloFila = false, onCer
             )}
           </div>
           <ul>
-            {f.casos.map((c) => (
-              <li key={c.id} className="flex items-center gap-3 border-t border-slate-100 py-2.5">
-                {c.icono
-                  ? <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600" aria-hidden="true"><c.icono size={17} /></span>
-                  : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-xs font-bold text-blue-600" aria-hidden="true">{iniciales(c.nombre)}</span>}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold" style={{ color: INK }}>{c.nombre}</p>
-                  <p className="text-sm text-slate-500">
-                    {c.insignia && <span className={"mr-2 rounded-full border px-2 py-0.5 text-xs font-bold " + (INSIGNIA[c.insignia.tono] || INSIGNIA.neutro)}>{c.insignia.texto}</span>}
-                    {c.detalle}
-                  </p>
-                </div>
-                {c.accion && (
-                  <button type="button" onClick={() => ejecutar(c.accion)} className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
-                    {c.accion.etiqueta}
-                  </button>
-                )}
-              </li>
-            ))}
+            {f.casos.map((c) => {
+              const acciones = c.acciones || (c.accion ? [c.accion] : [])
+              const abierto = descartando?.filaId === f.id && descartando?.casoId === c.id
+              return (
+                <li key={c.id} className="border-t border-slate-100 py-2.5">
+                  <div className="flex items-center gap-3">
+                    {c.icono
+                      ? <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600" aria-hidden="true"><c.icono size={17} /></span>
+                      : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-xs font-bold text-blue-600" aria-hidden="true">{iniciales(c.nombre)}</span>}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold" style={{ color: INK }}>{c.nombre}</p>
+                      <p className="text-sm text-slate-500">
+                        {c.insignia && <span className={"mr-2 rounded-full border px-2 py-0.5 text-xs font-bold " + (INSIGNIA[c.insignia.tono] || INSIGNIA.neutro)}>{c.insignia.texto}</span>}
+                        {c.detalle}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      {acciones.map((a) => (
+                        <button key={a.etiqueta} type="button" onClick={() => ejecutar(a)} className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
+                          {a.etiqueta}
+                        </button>
+                      ))}
+                      {f.descartable && !abierto && (
+                        <button type="button" onClick={() => abrirDescarte(f.id, c.id)} aria-label={`Descartar el aviso de ${c.nombre}`} className="rounded-lg px-2.5 py-1 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer">Descartar</button>
+                      )}
+                    </div>
+                  </div>
+                  {abierto && (
+                    <div role="group" aria-label={`Descartar el aviso de ${c.nombre}`} className="mt-3 space-y-3 rounded-xl border border-slate-200/70 bg-slate-50/60 p-3.5">
+                      <p className="text-sm font-semibold text-slate-700">¿Por qué se descarta? Queda registrado y se puede volver a mostrar.</p>
+                      <MotivoDeCancelacion etiqueta="Motivo del descarte" motivos={f.descartable.motivos.map((t) => ({ id: t, texto: t }))} motivo={motivoDescarte} detalle={detalleDescarte} onMotivo={setMotivoDescarte} onDetalle={setDetalleDescarte} deshabilitado={guardandoDescarte} />
+                      {errorDescarte && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{errorDescarte}</p>}
+                      <div className="flex items-center justify-end gap-2">
+                        <button type="button" disabled={guardandoDescarte} onClick={() => setDescartando(null)} className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Volver</button>
+                        <button type="button" disabled={guardandoDescarte || !motivoDescarte} onClick={() => confirmarDescarte(f, c)} className="rounded-lg bg-slate-800 px-3.5 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-slate-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50">Descartar el aviso</button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              )
+            })}
           </ul>
+          {f.descartados?.length > 0 && (
+            <details className="mt-2 rounded-xl border border-slate-200/60 bg-slate-50/50 px-3.5 py-2.5">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-600">Descartados ({f.descartados.length})</summary>
+              <ul className="mt-2 divide-y divide-slate-100">
+                {f.descartados.map((d) => (
+                  <li key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold" style={{ color: INK }}>{d.nombre}</p>
+                      <p className="text-sm text-slate-500">{d.motivo}{d.por ? ` · ${d.por}` : ""}</p>
+                    </div>
+                    <button type="button" onClick={d.onRestaurar} aria-label={`Volver a mostrar el aviso de ${d.nombre}`} className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">Volver a mostrar</button>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </section>
       ))}
     </Cascaron>

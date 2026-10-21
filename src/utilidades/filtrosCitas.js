@@ -27,7 +27,7 @@ export const periodosFiltro = () => [
 // Elegirlo reemplaza al periodo de la Lista; "Todas" (la primera opción) vuelve al periodo. (La confirmación de la cita por el paciente ya no existe: no hay "por confirmar".)
 export const tareasFiltro = () => [
   { id: "ninguna", etiqueta: "Todas" },
-  { id: "reagendar", etiqueta: "Para reagendar" },
+  { id: "reagendar", etiqueta: "Contactar al paciente" },
 ]
 
 export const ORIGENES_FILTRO = [

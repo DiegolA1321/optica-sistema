@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { particionarAgenda, agruparPorDia, desplazarRango, yaPasoLaHora, minutosHastaCita, siguienteCitaQueChoca } from "./agendaCitas"
+import { particionarAgenda, agruparPorDia, desplazarRango, yaPasoLaHora, minutosHastaCita, siguienteCitaQueChoca, yaTerminoSuHorario } from "./agendaCitas"
 
 const c = (id, fecha, hora) => ({ id, fecha, hora })
 
@@ -95,5 +95,22 @@ describe("siguienteCitaQueChoca", () => {
     const otra = cita(1, "04:00 PM", { fecha: "2026-10-24" })
     const citas = [otra, cita(2, "04:00 PM")]
     expect(siguienteCitaQueChoca(otra, citas, ahora(15, 40), 40)?.id).toBe(2)
+  })
+})
+
+describe("yaTerminoSuHorario", () => {
+  const cita = (fecha, hora, extra = {}) => ({ id: 1, fecha, hora, ...extra })
+  const a = (h, m) => new Date(2026, 9, 21, h, m)
+  it("una cita de 4:00 con 50 minutos termina a las 4:50: a las 4:49 todavía no, a las 4:50 sí", () => {
+    expect(yaTerminoSuHorario(cita("2026-10-21", "04:00 PM", { duracionMinutos: 50 }), a(16, 49))).toBe(false)
+    expect(yaTerminoSuHorario(cita("2026-10-21", "04:00 PM", { duracionMinutos: 50 }), a(16, 50))).toBe(true)
+  })
+  it("sin duración propia usa la de la óptica", () => {
+    expect(yaTerminoSuHorario(cita("2026-10-21", "04:00 PM"), a(16, 39), 40)).toBe(false)
+    expect(yaTerminoSuHorario(cita("2026-10-21", "04:00 PM"), a(16, 40), 40)).toBe(true)
+  })
+  it("un día anterior ya terminó y uno futuro no", () => {
+    expect(yaTerminoSuHorario(cita("2026-10-20", "11:00 PM"), a(1, 0))).toBe(true)
+    expect(yaTerminoSuHorario(cita("2026-10-22", "08:00 AM"), a(23, 0))).toBe(false)
   })
 })

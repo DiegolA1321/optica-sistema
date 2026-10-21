@@ -32,9 +32,9 @@ test('administrador: cada "Abrir en …" de la ventana de avisos muestra al lleg
       if (/En atención/.test(etiqueta)) {
         await expect(estado(page)).toHaveText(new RegExp(`^${n} citas?$`), { timeout: 15_000 })
         await expect(page.getByRole('button', { name: /Quitar el filtro Estado: En atención/ })).toBeVisible()
-      } else if (/Para reagendar/.test(etiqueta)) {
+      } else if (/Contactar al paciente/.test(etiqueta)) {
         await expect(estado(page)).toHaveText(new RegExp(`^${n} citas?$`), { timeout: 15_000 })
-        await expect(page.getByRole('button', { name: /Quitar el filtro Tarea: Para reagendar/ })).toBeVisible()
+        await expect(page.getByRole('button', { name: /Quitar el filtro Tarea: Contactar al paciente/ })).toBeVisible()
       } else if (/Control sin agendar|Sin consulta/.test(etiqueta)) {
         await expect(estado(page)).toHaveText(new RegExp(`^Mostrando ${n} de \\d+ pacientes$`), { timeout: 15_000 })
       } else if (/Órdenes listas/.test(etiqueta)) {

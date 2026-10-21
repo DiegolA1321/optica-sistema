@@ -62,6 +62,16 @@ export function yaPasoLaHora(cita, ahora = ahoraEcuador()) {
   return minutosDesdeMedianoche(cita.hora) <= ahora.getHours() * 60 + ahora.getMinutes()
 }
 
+// ¿Ya terminó el horario de la cita (hora de inicio + su duración)? Es cuando una cita pendiente que nadie abrió pasa sola a «No efectuada» (el servidor usa la misma cuenta).
+// `duracionDefault`: la duración de la óptica, para las citas que no traen la suya.
+export function yaTerminoSuHorario(cita, ahora = ahoraEcuador(), duracionDefault = 40) {
+  const hoy = fechaAISO(ahora)
+  if (cita.fecha < hoy) return true
+  if (cita.fecha > hoy) return false
+  const duracion = Number(cita.duracionMinutos ?? cita.duracion_minutos) || duracionDefault
+  return minutosDesdeMedianoche(cita.hora) + duracion <= ahora.getHours() * 60 + ahora.getMinutes()
+}
+
 // Llega tarde y ya hay otra cita después: atender ahora a quien llegó tarde ocuparía la hora de la siguiente. Devuelve esa cita siguiente, o null.
 //   * Solo cuenta si ya pasó la hora de inicio de la cita (llegó tarde) o si es de otro día (se atiende hoy, a la hora actual).
 //   * "Siguiente" = la próxima cita abierta (pendiente o en espera) del mismo profesional hoy, que empieza DESPUÉS de esta y antes de que termine la

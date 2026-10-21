@@ -43,6 +43,8 @@ import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import DiaCitasModal from "../componentes/DiaCitasModal"
 import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas, SelectorVistaCitas } from "../componentes/FiltrosCitas"
 import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
+import MotivoDeCancelacion from "../componentes/MotivoDeCancelacion"
+import { MOTIVOS_PERSONAL } from "../utilidades/motivosCancelacion"
 import { colorDe } from "../componentes/calendarioComun"
 import { etiquetaMiembro, miembrosActivos } from "../utilidades/equipo"
 import { puedeReasignar, ausenteEnHorario } from "../utilidades/reasignacion"
@@ -56,7 +58,7 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
-import { citasParaReagendar } from "../utilidades/controles"
+import { citasPorContactar, heredarBorrador } from "../utilidades/contactarPaciente"
 import { ESTADOS_FILTRO, periodosFiltro, tareasFiltro, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, textoConteoCitas, puedeIngresarCita, esPrimeraVez } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
@@ -225,7 +227,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
 const FILTRO_POR_DEFECTO = "hoy"
 const PAGINA_LISTA = 30
 
-export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDisponibilidad, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, editarCitaId = null, onEditarCitaConsumido, equipo = [], vistaPropia = false, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
+export default function Citas({ descartes = new Map(), avisosDelModulo = null, usuario, onAviso, setDisponibilidad, estadoInicial = null, onEstadoInicialConsumido, atenderCitaId = null, onAtenderCitaConsumido, editarCitaId = null, onEditarCitaConsumido, equipo = [], vistaPropia = false, cargaInicial = false, citas = [], setCitas, pacientes = [], setPacientes, consultas = [], disponibilidad, abrirModalAlEntrar = false, onModalAlEntrarConsumido, overlaySolo = false, onOverlayCerrado, controlParaAgendar = null, motivosConsulta = [], inventario = [], setInventario, facturasVenta = [], setFacturasVenta, parametrizacion, onAtender, onVerPerfil }) {
   const opticaId = usuario?.opticaId
   const [modalAbierto, setModalAbierto] = useState(false)
   // Mismo modal que "Agendar cita" — en modo Gestionar la fecha arranca en
@@ -268,6 +270,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   const [marcandoEstadoId, setMarcandoEstadoId] = useState(null)
   const [confirmando, setConfirmando] = useState(false)
 
+  const heredaDeRef = useRef(null) // la cita no efectuada de la que se reagenda: la nueva hereda su borrador de ficha
   // Acceso directo desde "Agendar cita" en Inicio: abre este modal sin pasar
   // primero por la vista de agenda (feedback del asesor: si una "opción rápida"
   // exige dos clics extra ya no es rápida).
@@ -280,6 +283,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
         setFecha(diaHabilMasCercano(controlParaAgendar.fecha, disponibilidad, citas) || hoyISO())
         setMotivo(controlParaAgendar.motivo ?? (motivosConsulta.find((m) => /control/i.test(m)) || ""))
         setAsignadoA(controlParaAgendar.asignadoA || "")
+        heredaDeRef.current = controlParaAgendar.heredaDeCitaId ? { citaId: controlParaAgendar.heredaDeCitaId, citaOrigen: citas.find((c) => c.id === controlParaAgendar.heredaDeCitaId) } : null
       }
       setModalAbierto(true)
       onModalAlEntrarConsumido?.()
@@ -360,6 +364,12 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   useEffect(() => { setLimiteLista(PAGINA_LISTA) }, [refLista, filtro, estadoFiltro, altaFiltro, origenFiltro, seguimientoFiltro, responsableFiltro, busqueda, rangoDesde, rangoHasta])
   const [anterioresAbierto, setAnterioresAbierto] = useState(false)
   const [porCancelar, setPorCancelar] = useState(null)
+  const [motivoCancelacion, setMotivoCancelacion] = useState("")
+  const [detalleCancelacion, setDetalleCancelacion] = useState("")
+  const [cancelando, setCancelando] = useState(false)
+  const [errorCancelacion, setErrorCancelacion] = useState("")
+  const pedirCancelar = (id) => { setMotivoCancelacion(""); setDetalleCancelacion(""); setErrorCancelacion(""); setPorCancelar(id) }
+  const cerrarCancelar = () => { if (!cancelando) setPorCancelar(null) }
 
   // ── "+ Añadir nuevo paciente" inline, dentro del modal en modo Gestionar ──
   const [mostrarNuevoPaciente, setMostrarNuevoPaciente] = useState(false)
@@ -514,6 +524,15 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     }
 
     setCitas([...citas, nuevaCita])
+    const origen = heredaDeRef.current
+    heredaDeRef.current = null
+    if (origen?.citaOrigen && !atenderInmediato) {
+      // El borrador pertenece a quien atendió (o a quien tiene la sesión): se copia a la cita nueva si lo hay.
+      const dueno = origen.citaOrigen.atendidoPor || usuario.id
+      if (heredarBorrador(dueno, paciente.id, origen.citaId, nuevaCita.id) || (dueno !== usuario.id && heredarBorrador(usuario.id, paciente.id, origen.citaId, nuevaCita.id))) {
+        onAviso?.("La cita nueva conserva el borrador de la ficha que quedó sin terminar.")
+      }
+    }
     registrarLog(usuario, "citas", atenderInmediato ? "Atendió a un paciente de inmediato" : "Agendó una cita", `${nuevaCita.paciente} · ${fechaLegible(nuevaCita.fecha)}`)
 
     const irADeUnaALaFicha = atenderInmediato
@@ -614,33 +633,29 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   // cuando cancela el propio paciente desde el portal, distinguiendo quién
   // canceló (cancelada_por, migración 0078) para que el badge no diga
   // "por el paciente" en una cita que canceló recepción.
+  // Cancelar pide el motivo (lista fija + detalle) y lo hace una función de la base: queda quién canceló, por qué y cuándo en el seguimiento de la cita.
   const confirmarCancelacion = async () => {
-    if (porCancelar == null) return
+    if (porCancelar == null || cancelando) return
+    if (!motivoCancelacion) { setErrorCancelacion("Elige el motivo de la cancelación."); return }
     const cancelada = citas.find((c) => c.id === porCancelar)
+    setCancelando(true)
+    setErrorCancelacion("")
     if (supabase && opticaId) {
-      const { data: actualizadas, error: errorCancelar } = await supabase
-        .from("citas")
-        .update({ estado: "Cancelada", cancelada_por: "recepcion" })
-        .eq("id", porCancelar)
-        .select()
-      if (fueBloqueadoPorPermiso({ error: errorCancelar, data: actualizadas })) {
-        setBannerError(MENSAJE_SIN_PERMISO)
-        setPorCancelar(null)
-        return
-      }
-      if (errorCancelar) {
-        setBannerError("No se pudo cancelar la cita. Revisa tu conexión e intenta de nuevo.")
-        setPorCancelar(null)
+      const { data, error: errorCancelar } = await supabase.rpc("cancelar_cita", { p_cita_id: porCancelar, p_motivo: motivoCancelacion, p_detalle: detalleCancelacion.trim() || null })
+      if (errorCancelar || data !== true) {
+        setCancelando(false)
+        setErrorCancelacion(esErrorSinPermiso(errorCancelar) ? MENSAJE_SIN_PERMISO : data === false ? "Esa cita ya no se puede cancelar: cambió de estado. Revisa la lista." : mensajeDeError(errorCancelar, "No se pudo cancelar la cita. Revisa tu conexión e intenta de nuevo."))
         return
       }
     }
     setBannerError("")
     setCitas(citas.map((c) => (c.id === porCancelar ? { ...c, estado: "Cancelada", canceladaPor: "recepcion" } : c)))
-    registrarLog(usuario, "citas", "Canceló una cita", cancelada ? `${cancelada.paciente} · ${fechaLegible(cancelada.fecha)}` : "")
+    setCancelando(false)
     setPorCancelar(null)
+    onAviso?.(cancelada ? "Cita de " + cancelada.paciente + " cancelada." : "Cita cancelada.")
   }
 
-  // Marca el desenlace real de una cita — antes nada en todo el sistema volvía
+    // Marca el desenlace real de una cita — antes nada en todo el sistema volvía
   // a tocar cita.estado después de crearla, así que "Atendida" se inferÍa solo
   // por si la fecha ya había pasado (una cita de hace un mes con paciente que
   // nunca llegó se contaba igual como "atendida" que una que sí se realizó).
@@ -887,27 +902,24 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     // motivo), no hace falta elegir una fecha nueva.
     const estadoCambiado = estadoCorregido && estadoCorregido !== reagendando.estado
     if (estadoCambiado && !estadoCorregibleEs(reagendando, estadoCorregido)) {
-      setErrorReagendar("Esa cita es de un día que todavía no llega: solo puede estar pendiente o cancelada.")
+      setErrorReagendar("Esa cita es de un día que todavía no llega: solo puede estar pendiente.")
       return
     }
     const sinNuevoHorario = !nuevaFecha && !nuevaHora
     if (sinNuevoHorario && (estadoCambiado || nuevoMotivo !== reagendando.motivo)) {
-      const cancelaAhora = estadoCambiado && estadoCorregido === "Cancelada"
-      const cambios = { motivo: nuevoMotivo, ...(estadoCambiado ? { estado: estadoCorregido } : {}), ...(cancelaAhora ? { cancelada_por: "recepcion" } : {}) }
       if (supabase && opticaId) {
-        const { data: actualizadas, error: errorUpdate } = await supabase.from("citas").update(cambios).eq("id", reagendando.id).select()
-        if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizadas })) {
-          setErrorReagendar(MENSAJE_SIN_PERMISO)
-          return
+        // El motivo se guarda como siempre; el estado lo corrige la función del administrador (queda en el seguimiento: de qué estado a cuál, quién y cuándo).
+        if (nuevoMotivo !== reagendando.motivo) {
+          const { data: actualizadas, error: errorUpdate } = await supabase.from("citas").update({ motivo: nuevoMotivo }).eq("id", reagendando.id).select()
+          if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizadas })) { setErrorReagendar(MENSAJE_SIN_PERMISO); return }
+          if (errorUpdate) { setErrorReagendar("No se pudo guardar el cambio. Revisa tu conexión e intenta de nuevo."); return }
         }
-        if (errorUpdate) {
-          setErrorReagendar(esErrorHoraInvalida(errorUpdate) ? MENSAJE_HORA_INVALIDA : "No se pudo guardar el cambio. Revisa tu conexión e intenta de nuevo.")
-          return
+        if (estadoCambiado) {
+          const { data: corregida, error: errorCorregir } = await supabase.rpc("corregir_estado_cita", { p_cita_id: reagendando.id, p_estado: estadoCorregido })
+          if (errorCorregir || corregida !== true) { setErrorReagendar(mensajeDeError(errorCorregir, "No se pudo corregir el estado. Revisa tu conexión e intenta de nuevo.")); return }
         }
       }
-      const { cancelada_por: canceladaPorNuevo, ...cambiosLocales } = cambios
-      setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, ...cambiosLocales, ...(canceladaPorNuevo ? { canceladaPor: canceladaPorNuevo } : {}) } : c)))
-      registrarLog(usuario, "citas", estadoCambiado ? "Corrigió el estado de una cita" : "Editó una cita", `${reagendando.paciente} · ${fechaLegible(reagendando.fecha)}`)
+      setCitas(citas.map((c) => (c.id === reagendando.id ? { ...c, motivo: nuevoMotivo, ...(estadoCambiado ? { estado: estadoCorregido } : {}) } : c)))
       cerrarReagendar()
       mostrarExito(estadoCambiado ? "Estado de la cita corregido." : "Cita actualizada.")
       return
@@ -922,10 +934,9 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     // estado sigue siendo una acción aparte y explícita ("Cambiar estado").
     const resueltaAlEditar = ["Atendida", "No Asistió", "Cancelada"].includes(reagendando.estado)
     const nuevoEstado = estadoCambiado ? estadoCorregido : resueltaAlEditar ? reagendando.estado : "Pendiente"
-    const seCancela = nuevoEstado === "Cancelada" && reagendando.estado !== "Cancelada"
-    const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, ...(seCancela ? { canceladaPor: "recepcion" } : {}) }
+    const citaActualizada = { ...reagendando, fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado }
     if (supabase && opticaId) {
-      const { data: reagendadas, error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, estado: nuevoEstado, ...(seCancela ? { cancelada_por: "recepcion" } : {}) }).eq("id", reagendando.id).select()
+      const { data: reagendadas, error: errorUpdate } = await supabase.from("citas").update({ fecha: nuevaFecha, hora: nuevaHora, motivo: nuevoMotivo, ...(estadoCambiado || resueltaAlEditar ? {} : { estado: nuevoEstado }) }).eq("id", reagendando.id).select()
       if (fueBloqueadoPorPermiso({ error: errorUpdate, data: reagendadas })) {
         setErrorReagendar(MENSAJE_SIN_PERMISO)
         return
@@ -933,6 +944,10 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
       if (errorUpdate) {
         setErrorReagendar(esErrorHoraInvalida(errorUpdate) ? MENSAJE_HORA_INVALIDA : "No se pudo reagendar la cita. Revisa tu conexión e intenta de nuevo.")
         return
+      }
+      if (estadoCambiado) {
+        const { data: corregida, error: errorCorregir } = await supabase.rpc("corregir_estado_cita", { p_cita_id: reagendando.id, p_estado: estadoCorregido })
+        if (errorCorregir || corregida !== true) { setErrorReagendar(mensajeDeError(errorCorregir, "La cita se movió, pero no se pudo corregir su estado. Revisa tu conexión e intenta de nuevo.")); return }
       }
     }
     setCitas(citas.map((c) => (c.id === reagendando.id ? citaActualizada : c)))
@@ -1036,7 +1051,8 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
       mes: { desde: fechaAISO(new Date(d.getFullYear(), d.getMonth(), 1)), hasta: fechaAISO(new Date(d.getFullYear(), d.getMonth() + 1, 0)) },
     }
   }, [refLista])
-  const idsReagendar = useMemo(() => new Set(citasParaReagendar(citas).map((c) => c.id)), [citas])
+  // «Contactar al paciente»: las mismas citas que el aviso del Inicio (sin las descartadas), para que el número coincida.
+  const idsReagendar = useMemo(() => new Set(citasPorContactar(citas, descartes).map((c) => c.id)), [citas, descartes])
   const periodos = useMemo(() => periodosFiltro(), [])
   const tareaActiva = filtro === "reagendar" ? filtro : "ninguna"
   const ventana = useMemo(() => {
@@ -1881,18 +1897,22 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
         />
       )}
 
-      {/* ─── MODAL CANCELAR ─── */}
+      {/* ─── MODAL CANCELAR (con el motivo) ─── */}
       {porCancelar != null && (
-        <Cascaron titulo="¿Cancelar esta cita?" subtitulo="Confirma antes de continuar" Icono={AlertTriangle} ancho="max-w-md" onCerrar={() => setPorCancelar(null)}
+        <Cascaron titulo="¿Cancelar esta cita?" subtitulo={citas.find((c) => c.id === porCancelar)?.paciente || "Elige el motivo"} Icono={AlertTriangle} ancho="max-w-md" onCerrar={cerrarCancelar}
           pie={<>
           <span />
           <div className="ml-auto flex items-center gap-2">
-            <button type="button" onClick={() => setPorCancelar(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Volver</button>
-            <button type="button" onClick={confirmarCancelacion} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer">Sí, cancelar</button>
+            <button type="button" disabled={cancelando} onClick={cerrarCancelar} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Volver</button>
+            <button type="button" disabled={cancelando || !motivoCancelacion} onClick={confirmarCancelacion} className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50">{cancelando && <Loader2 size={14} className="animate-spin" aria-hidden="true" />} Sí, cancelar</button>
           </div>
         </>}
         >
-          <p className="p-6 text-sm text-slate-600">La cita queda marcada como Cancelada — el registro no se borra y se puede reagendar cuando quieras.</p>
+          <div className="space-y-3 p-6">
+            <p className="text-sm text-slate-600">La cita queda marcada como Cancelada: no se borra, se ve en la agenda y se puede reagendar. Queda dicho quién la canceló y por qué.</p>
+            <MotivoDeCancelacion motivos={MOTIVOS_PERSONAL} motivo={motivoCancelacion} detalle={detalleCancelacion} onMotivo={setMotivoCancelacion} onDetalle={setDetalleCancelacion} deshabilitado={cancelando} />
+            {errorCancelacion && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{errorCancelacion}</p>}
+          </div>
         </Cascaron>
       )}
 
@@ -2048,7 +2068,8 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
             onAgendarOtra={puede(usuario, "citas", "crear") ? (c) => { setDetalleCitaId(null); agendarOtraCita(c) } : undefined}
             onCobrar={puede(usuario, "ventas", "crear") ? (c) => { setDetalleCitaId(null); cobrarCita(c) } : undefined}
             onEditar={puede(usuario, "citas", "editar") ? (c) => { setDetalleCitaId(null); abrirReagendar(c) } : undefined}
-            onCancelar={puede(usuario, "citas", "editar") ? (c) => { setDetalleCitaId(null); setPorCancelar(c.id) } : undefined}
+            onCancelar={puede(usuario, "citas", "editar") ? (c) => { setDetalleCitaId(null); pedirCancelar(c.id) } : undefined}
+            duracionDefault={disponibilidad?.duracionCita || 40}
             onDejarDeAtender={puede(usuario, "citas", "editar") ? (c) => { setDetalleCitaId(null); setDejarCita(c) } : undefined}
             marcandoEstado={marcandoEstadoId === cita.id}
             onLlego={puede(usuario, "citas", "editar") ? marcarLlego : undefined}

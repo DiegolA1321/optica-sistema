@@ -42,6 +42,8 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import FilaTarjetas from "../componentes/FilaTarjetas"
 import RequiereAtencionPorArea, { BotonRequierenAtencion } from "../componentes/RequiereAtencionPorArea"
 import AvisosInicio from "../componentes/AvisosInicio"
+import { particionarDescartados, TIPOS_DESCARTABLES } from "../utilidades/avisosDescartados"
+import { citasPorContactar, motivoDeLaCita, mensajeContacto, TIPO_AVISO_CONTACTAR } from "../utilidades/contactarPaciente"
 import VentanaTotal from "../componentes/VentanaTotal"
 import ParaEmpezar from "../componentes/ParaEmpezar"
 import VentanaActividad from "../componentes/VentanaActividad"
@@ -83,6 +85,11 @@ export default function Inicio({
   onAgendarRapido,
   onAgendarControl,
   onReagendarCancelada,
+  descartes = new Map(), // los avisos descartados vigentes (clave «tipo|clave» → descarte)
+  onDescartar, // async (tipo, clave, motivo, detalle) → { error? }
+  onRestaurar, // async (tipo, clave) → { error? }
+  seguimientoContacto = new Map(), // por cita por contactar: { motivo, contactadaEn, sinSeguimiento }
+  onContactarPaciente, // (cita, mensaje) → abre WhatsApp y deja la cita como «contactada»
   onCrearPacienteRapido,
   onCrearProductoRapido,
   onReabastecerProducto,
@@ -151,7 +158,9 @@ export default function Inicio({
 
   // Controles que el optómetra dejó "para agendar después" (o cuya cita se canceló) y siguen sin cita.
   const sinAgendar = useMemo(() => controlesSinAgendar(pacientes, consultas, citas), [pacientes, consultas, citas])
-  const paraReagendar = useMemo(() => citasParaReagendar(citas), [citas])
+  // «Contactar al paciente»: las citas no efectuadas y las canceladas por el paciente que nadie retomó (30 días), menos las descartadas.
+  const paraReagendar = useMemo(() => citasPorContactar(citas, descartes), [citas, descartes])
+  const contactarDescartadas = useMemo(() => citasParaReagendar(citas).filter((c) => descartes.has(`${TIPO_AVISO_CONTACTAR}|${c.id}`)), [citas, descartes])
 
   // Pacientes con el control vencido por contactar hoy, el más atrasado primero.
   const inactivos = useMemo(() => (listaCrm?.filas || []).flatMap((f) => { const m = f.motivos.find((x) => x.id === "control_vencido"); return m ? [{ paciente: f.paciente, dias: m.dias }] : [] }).sort((a, b) => (b.dias ?? 0) - (a.dias ?? 0)), [listaCrm])
@@ -560,6 +569,26 @@ export default function Inicio({
     const enPacientes = (filtro) => () => (onVerPacientes ? onVerPacientes(filtro) : setVista?.("pacientes"))
     const puedeAgendar = puedeV("citas", "crear")
     const puedeAtenderAqui = puedeV("consultas", "crear")
+    // «Descartar» (decisión de la persona, con motivo): lo descartado sale de la tarjetita y queda abajo, en «Descartados», con «Volver a mostrar».
+    // La tarjetita cuenta lo que se ve; el enlace «Abrir en …» dice el número TOTAL del módulo (con lo descartado), que es el que se verá allí (regla 42).
+    const descarteDe = (tipo, lista, claveDe, nombreDeItem) => {
+      const { visibles, descartados } = particionarDescartados(lista, tipo, claveDe, descartes)
+      const extra = !onDescartar ? {} : {
+        descartable: {
+          motivos: TIPOS_DESCARTABLES[tipo].motivos,
+          onDescartar: async (caso, motivo, detalle) => {
+            const r = await onDescartar(tipo, caso.id, motivo, detalle)
+            if (!r?.error) onAviso?.({ texto: `Aviso de ${caso.nombre} descartado.`, accion: { etiqueta: "Deshacer", onClick: () => onRestaurar?.(tipo, caso.id) } })
+            return r
+          },
+        },
+        descartados: descartados.map(({ item, descarte }) => ({
+          id: claveDe(item), nombre: nombreDeItem(item), motivo: descarte.motivo, por: descarte.por,
+          onRestaurar: async () => { const r = await onRestaurar?.(tipo, claveDe(item)); if (!r?.error) onAviso?.(`El aviso de ${nombreDeItem(item)} vuelve a mostrarse.`) },
+        })),
+      }
+      return { visibles, total: lista.length, hay: visibles.length > 0 || (descartados.length > 0 && !!onDescartar), extra }
+    }
     if (incAtenciones && atencionesVista.length > 0) {
       const n = atencionesVista.length
       const abiertasEnCitas = citasVista.filter((c) => c.estado === "En Atención").length
@@ -576,18 +605,19 @@ export default function Inicio({
         })),
       })
     }
-    if (incControlesPorAgendar && sinAgendar.length > 0) {
-      const n = sinAgendar.length
+    const dControl = incControlesPorAgendar ? descarteDe("citas:control_sin_agendar", sinAgendar, (x) => x.paciente.id, (x) => x.paciente.nombre) : null
+    if (dControl?.hay) {
+      const n = dControl.visibles.length
       poner("citas", {
         id: "controles-sin-agendar", cantidad: n, corto: uno(n, "control sin agendar", "controles sin agendar"),
         texto: uno(n, "control sin agendar", "controles sin agendar"),
-        nombres: nombresResumidos(sinAgendar.map((x) => x.paciente.nombre)),
-        enlace: { texto: `Abrir en Pacientes · Control sin agendar (${n})`, onClick: enPacientes({ rapido: "ControlSinAgendar" }) },
-        casos: sinAgendar.map(({ paciente, fechaControl, consulta }) => ({
+        enlace: { texto: `Abrir en Pacientes · Control sin agendar (${dControl.total})`, onClick: enPacientes({ rapido: "ControlSinAgendar" }) },
+        casos: dControl.visibles.map(({ paciente, fechaControl, consulta }) => ({
           id: paciente.id, nombre: paciente.nombre,
           detalle: `Control recomendado para el ${fechaLegible(fechaAISO(fechaControl))} · consulta del ${fechaLegible(consulta.fecha)}`,
           accion: puedeAgendar ? { etiqueta: "Agendar", onClick: () => onAgendarControl?.(paciente, fechaAISO(fechaControl), asignadoDelControl(consulta, equipo)) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
         })),
+        ...dControl.extra,
       })
     }
     // Ausencias registradas en "Mi horario" con citas abiertas de esa persona: solo para quien puede reasignar (permiso, no rol).
@@ -605,20 +635,43 @@ export default function Inicio({
         }))),
       })
     }
-    if (incCanceladas && paraReagendar.length > 0) {
+    const hayContactar = paraReagendar.length > 0 || (contactarDescartadas.length > 0 && !!onDescartar)
+    if (incCanceladas && hayContactar) {
       const n = paraReagendar.length
+      const puedeEscribir = puedeV("citas", "ver") && !!onContactarPaciente
       poner("citas", {
-        id: "reagendar", cantidad: n, corto: "por reagendar",
-        texto: uno(n, "cita por reagendar", "citas por reagendar"),
-        nombres: nombresResumidos(paraReagendar.map((c) => c.paciente)),
-        enlace: { texto: `Abrir en Citas · Para reagendar (${n})`, onClick: enCitas("todas", "reagendar") },
-        casos: paraReagendar.map((c) => ({
-          id: c.id, nombre: c.paciente,
-          insignia: c.estado === "No Asistió" ? { texto: "No efectuada", tono: "urgente" } : { texto: "Canceló el paciente", tono: "neutro" },
-          detalle: `${fechaLegible(c.fecha)}, ${c.hora}${c.motivo ? ` · ${c.motivo}` : ""}`,
+        id: "contactar", cantidad: n, corto: "por contactar",
+        texto: uno(n, "paciente por contactar", "pacientes por contactar"),
+        // «Contactar al paciente» reemplaza a «Citas por reagendar»: la lista de Citas con esa tarea tiene exactamente estos mismos pacientes.
+        enlace: { texto: `Abrir en Citas · Contactar al paciente (${n})`, onClick: enCitas("todas", "reagendar") },
+        casos: paraReagendar.map((c) => {
+          const seg = seguimientoContacto.get(c.id)
+          const motivo = motivoDeLaCita(c, seguimientoContacto)
+          const acciones = []
           // Una cita sin paciente registrado no se puede reagendar desde aquí: se abre en su día.
-          accion: c.pacienteId && puedeAgendar ? { etiqueta: "Reagendar", onClick: () => onReagendarCancelada?.(c) } : { etiqueta: "Ver cita", navega: true, onClick: enCitas("todas", "dia", c.fecha) },
-        })),
+          acciones.push(c.pacienteId && puedeAgendar ? { etiqueta: "Reagendar", onClick: () => onReagendarCancelada?.(c) } : { etiqueta: "Ver cita", navega: true, onClick: enCitas("todas", "dia", c.fecha) })
+          if (puedeEscribir && c.telefono) acciones.push({ etiqueta: "Escribir por WhatsApp", onClick: () => onContactarPaciente(c, mensajeContacto({ cita: c, motivo, opticaNombre })) })
+          return {
+            id: c.id, nombre: c.paciente,
+            insignia: c.estado === "No Asistió" ? { texto: "No efectuada", tono: "urgente" } : { texto: "Canceló el paciente", tono: "neutro" },
+            detalle: `${fechaLegible(c.fecha)}, ${c.hora} · ${motivo}${seg?.contactadaEn ? ` · Contactado el ${fechaLegible(String(seg.contactadaEn).slice(0, 10))}` : ""}`,
+            acciones,
+          }
+        }),
+        ...(onDescartar ? {
+          descartable: {
+            motivos: TIPOS_DESCARTABLES[TIPO_AVISO_CONTACTAR].motivos,
+            onDescartar: async (caso, motivoDescarte, detalle) => {
+              const r = await onDescartar(TIPO_AVISO_CONTACTAR, caso.id, motivoDescarte, detalle)
+              if (!r?.error) onAviso?.({ texto: `Aviso de ${caso.nombre} descartado.`, accion: { etiqueta: "Deshacer", onClick: () => onRestaurar?.(TIPO_AVISO_CONTACTAR, caso.id) } })
+              return r
+            },
+          },
+          descartados: contactarDescartadas.map((c) => {
+            const d = descartes.get(`${TIPO_AVISO_CONTACTAR}|${c.id}`)
+            return { id: c.id, nombre: c.paciente, motivo: d.motivo, por: d.por, onRestaurar: async () => { const r = await onRestaurar?.(TIPO_AVISO_CONTACTAR, c.id); if (!r?.error) onAviso?.(`El aviso de ${c.paciente} vuelve a mostrarse.`) } }
+          }),
+        } : {}),
       })
     }
     if (incPorConfirmar && porConfirmar.length > 0) {
@@ -649,17 +702,21 @@ export default function Inicio({
         })),
       })
     }
-    if (incControles && hayInactivos) poner("pacientes", {
-      id: "controles", cantidad: inactivos.length, corto: "con control vencido",
-      texto: esVistaOptometra ? "de tus pacientes con el control vencido" : uno(inactivos.length, "paciente con el control vencido", "pacientes con el control vencido"),
-      nombres: nombresResumidos(inactivos.map(({ paciente }) => paciente.nombre)),
-      enlace: puedeV("crm", "ver") ? { texto: `Abrir en CRM · Control vencido (${inactivos.length})`, onClick: abrirCrm({ filtro: "control_vencido" }) } : undefined,
-      casos: inactivos.map(({ paciente, dias }) => ({
-        id: paciente.id, nombre: paciente.nombre,
-        detalle: `Control vencido hace ${dias} ${dias === 1 ? "día" : "días"}`,
-        accion: puedeV("crm", "crear") ? { etiqueta: "Ver en CRM", navega: true, onClick: abrirCrm({ filtro: "control_vencido" }) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
-      })),
-    })
+    const dVencido = incControles && hayInactivos ? descarteDe("pacientes:control_vencido", inactivos, ({ paciente }) => paciente.id, ({ paciente }) => paciente.nombre) : null
+    if (dVencido?.hay) {
+      const n = dVencido.visibles.length
+      poner("pacientes", {
+        id: "controles", cantidad: n, corto: "con control vencido",
+        texto: esVistaOptometra ? "de tus pacientes con el control vencido" : uno(n, "paciente con el control vencido", "pacientes con el control vencido"),
+        enlace: puedeV("crm", "ver") ? { texto: `Abrir en CRM · Control vencido (${dVencido.total})`, onClick: abrirCrm({ filtro: "control_vencido" }) } : undefined,
+        casos: dVencido.visibles.map(({ paciente, dias }) => ({
+          id: paciente.id, nombre: paciente.nombre,
+          detalle: `Control vencido hace ${dias} ${dias === 1 ? "día" : "días"}`,
+          accion: puedeV("crm", "crear") ? { etiqueta: "Ver en CRM", navega: true, onClick: abrirCrm({ filtro: "control_vencido" }) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
+        })),
+        ...dVencido.extra,
+      })
+    }
     // Un paciente cambió su teléfono o su correo desde su portal: «Marta Zambrano actualizó su teléfono». Se queda hasta que se marca como visto.
     if (puedeV("pacientes", "ver") && avisosContacto.length > 0) poner("pacientes", {
       id: "contacto-actualizado", cantidad: avisosContacto.length, corto: uno(avisosContacto.length, "cambió su contacto", "cambiaron su contacto"),
@@ -675,16 +732,21 @@ export default function Inicio({
       nombres: nombresResumidos(pidenMedidas.map((p) => p.nombre)),
       casos: pidenMedidas.map((p) => ({ id: p.id, nombre: p.nombre, detalle: "Pidió su distancia pupilar y medidas de montaje", accion: { etiqueta: "Responder", navega: true, onClick: () => onVerPerfilPaciente?.(p.id, "graduacion") } })),
     })
-    if (incSinConsulta && sinAtender > 0) poner("pacientes", {
-      id: "sin-consulta", cantidad: sinAtender, corto: "sin consulta",
-      texto: uno(sinAtender, "paciente registrado sin ninguna consulta", "pacientes registrados sin ninguna consulta"),
-      enlace: { texto: `Abrir en Pacientes · Sin consulta (${sinAtender})`, onClick: enPacientes({ correccion: "Sin evaluación" }) },
-      casos: pacientesSinConsulta.map((p) => ({
-        id: p.id, nombre: p.nombre,
-        detalle: `Registrado el ${fechaLegible(p.fechaRegistro) || "—"}`,
-        accion: { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(p.id) },
-      })),
-    })
+    const dSinConsulta = incSinConsulta && sinAtender > 0 ? descarteDe("pacientes:sin_consulta", pacientesSinConsulta, (p) => p.id, (p) => p.nombre) : null
+    if (dSinConsulta?.hay) {
+      const n = dSinConsulta.visibles.length
+      poner("pacientes", {
+        id: "sin-consulta", cantidad: n, corto: "sin consulta",
+        texto: uno(n, "paciente registrado sin ninguna consulta", "pacientes registrados sin ninguna consulta"),
+        enlace: { texto: `Abrir en Pacientes · Sin consulta (${dSinConsulta.total})`, onClick: enPacientes({ correccion: "Sin evaluación" }) },
+        casos: dSinConsulta.visibles.map((p) => ({
+          id: p.id, nombre: p.nombre,
+          detalle: `Registrado el ${fechaLegible(p.fechaRegistro) || "—"}`,
+          accion: { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(p.id) },
+        })),
+        ...dSinConsulta.extra,
+      })
+    }
     if (incCumple && cumpleaneros.length > 0) {
       const hoyN = cumpleaneros.filter((c) => c.esHoy).length
       poner("pacientes", {
@@ -709,17 +771,21 @@ export default function Inicio({
     })
     // Lo que un paciente pide desde su portal («Solicitar lentes nuevos») cuenta mientras nadie lo toma; a los 30 días lo cuenta la línea de abajo (no se cuenta dos veces).
     const solicitudesPortal = incSaldos ? solicitudesNuevasDelPortal(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
-    if (solicitudesPortal.length > 0) poner("ventas", {
-      id: "solicitudes-portal", cantidad: solicitudesPortal.length, corto: uno(solicitudesPortal.length, "pide lentes", "piden lentes"),
-      texto: uno(solicitudesPortal.length, "paciente pidió lentes nuevos desde su portal", "pacientes pidieron lentes nuevos desde su portal"),
-      nombres: nombresResumidos(solicitudesPortal.map(({ pase }) => nombreDe(pase.pacienteId))),
-      enlace: { texto: `Abrir en Ventas · Desde el portal (${solicitudesPortal.length})`, onClick: () => onVerCola?.("portal") },
-      casos: solicitudesPortal.map(({ pase }) => ({
-        id: pase.id, nombre: nombreDe(pase.pacienteId),
-        detalle: `${etiquetaInteres(pase.interes)} · ${diasEnEspera(pase) === 0 ? "hoy" : "hace " + diasEnEspera(pase) + (diasEnEspera(pase) === 1 ? " día" : " días")}`,
-        accion: { etiqueta: "Atender", navega: true, onClick: () => onVerCola?.("portal") },
-      })),
-    })
+    const dPortal = solicitudesPortal.length > 0 ? descarteDe("ventas:solicitud_lentes", solicitudesPortal, ({ pase }) => pase.id, ({ pase }) => nombreDe(pase.pacienteId)) : null
+    if (dPortal?.hay) {
+      const n = dPortal.visibles.length
+      poner("ventas", {
+        id: "solicitudes-portal", cantidad: n, corto: uno(n, "pide lentes", "piden lentes"),
+        texto: uno(n, "paciente pidió lentes nuevos desde su portal", "pacientes pidieron lentes nuevos desde su portal"),
+        enlace: { texto: `Abrir en Ventas · Desde el portal (${dPortal.total})`, onClick: () => onVerCola?.("portal") },
+        casos: dPortal.visibles.map(({ pase }) => ({
+          id: pase.id, nombre: nombreDe(pase.pacienteId),
+          detalle: `${etiquetaInteres(pase.interes)} · ${diasEnEspera(pase) === 0 ? "hoy" : "hace " + diasEnEspera(pase) + (diasEnEspera(pase) === 1 ? " día" : " días")}`,
+          accion: { etiqueta: "Atender", navega: true, onClick: () => onVerCola?.("portal") },
+        })),
+        ...dPortal.extra,
+      })
+    }
     const esperanMucho = incSaldos ? pacientesParaSeguimiento(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
     if (esperanMucho.length > 0) poner("ventas", {
       id: "esperan-venta", cantidad: esperanMucho.length, corto: uno(esperanMucho.length, "espera su venta", "esperan su venta"),
@@ -769,17 +835,21 @@ export default function Inicio({
         })),
       })
     }
-    if (incStock && productosBajoStock.length > 0) poner("inventario", {
-      id: "stock", cantidad: productosBajoStock.length, corto: "con stock bajo",
-      texto: uno(productosBajoStock.length, "producto con stock bajo", "productos con stock bajo"),
-      nombres: nombresResumidos(productosBajoStock.map((p) => `${p.nombre} (${p.stock})`)),
-      enlace: { texto: `Abrir en Inventario · Stock bajo (${productosBajoStock.length})`, onClick: () => (onVerStockBajo ? onVerStockBajo() : setVista?.("inventario")) },
-      casos: productosBajoStock.map((p) => ({
-        id: p.id, nombre: p.nombre,
-        detalle: `Quedan ${p.stock} ${Number(p.stock) === 1 ? "unidad" : "unidades"}`,
-        accion: puedeV("inventario", "editar") ? { etiqueta: "Reabastecer", navega: true, onClick: () => (onReabastecerProducto ? onReabastecerProducto(p.id) : setVista?.("inventario")) } : null,
-      })),
-    })
+    const dStock = incStock && productosBajoStock.length > 0 ? descarteDe("inventario:stock_bajo", productosBajoStock, (p) => p.id, (p) => p.nombre) : null
+    if (dStock?.hay) {
+      const n = dStock.visibles.length
+      poner("inventario", {
+        id: "stock", cantidad: n, corto: "con stock bajo",
+        texto: uno(n, "producto con stock bajo", "productos con stock bajo"),
+        enlace: { texto: `Abrir en Inventario · Stock bajo (${dStock.total})`, onClick: () => (onVerStockBajo ? onVerStockBajo() : setVista?.("inventario")) },
+        casos: dStock.visibles.map((p) => ({
+          id: p.id, nombre: p.nombre,
+          detalle: `Quedan ${p.stock} ${Number(p.stock) === 1 ? "unidad" : "unidades"}`,
+          accion: puedeV("inventario", "editar") ? { etiqueta: "Reabastecer", navega: true, onClick: () => (onReabastecerProducto ? onReabastecerProducto(p.id) : setVista?.("inventario")) } : null,
+        })),
+        ...dStock.extra,
+      })
+    }
     return filas
   }
   // Inicio del administrador y del optómetra: un bloque por área, solo los que le corresponden por sus permisos.
