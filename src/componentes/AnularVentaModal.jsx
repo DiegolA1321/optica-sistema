@@ -4,7 +4,7 @@ import { dinero } from "../utilidades/formatoMoneda"
 import { useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
-import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, mensajeDeError } from "../utilidades/permisos"
 import { registrarLog } from "../utilidades/logs"
 import { totalAbonado } from "../utilidades/abonos"
 import { numeroComprobante } from "../utilidades/comprobantes"
@@ -28,7 +28,7 @@ export default function AnularVentaModal({ factura, paciente, abonos, ordenesAbi
     if (supabase) {
       const { error: errorRpc } = await supabase.rpc("anular_factura_venta", { p_factura_id: factura.id, p_motivo: motivo.trim(), p_anulada_por: usuario?.id || null })
       if (errorRpc) {
-        setError(esErrorSinPermiso(errorRpc) ? MENSAJE_SIN_PERMISO : errorRpc.message || "No se pudo anular la venta. Revisa tu conexión e intenta de nuevo.")
+        setError(mensajeDeError(errorRpc, "No se pudo anular la venta. Revisa tu conexión e intenta de nuevo."))
         setGuardando(false)
         return
       }

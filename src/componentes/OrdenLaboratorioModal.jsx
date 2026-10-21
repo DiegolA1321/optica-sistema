@@ -9,7 +9,7 @@ import { useEffect, useState } from "react"
 import { FlaskConical, Printer } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { Cascaron } from "./AtencionPaciente"
-import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, mensajeDeError } from "../utilidades/permisos"
 import { registrarLog } from "../utilidades/logs"
 import { medidasTexto } from "../utilidades/inventarioKardex"
 import { imprimirHtml, datosOpticaProforma } from "../utilidades/proforma"
@@ -110,7 +110,7 @@ export default function OrdenLaboratorioModal({
         : supabase.rpc("crear_orden_laboratorio", { p_factura_id: facturaId, p_datos: datosParaRpc(d) })
       const { data, error: errorRpc } = await rpc
       if (errorRpc) {
-        setError(esErrorSinPermiso(errorRpc) ? MENSAJE_SIN_PERMISO : errorRpc.message || "No se pudo guardar la orden. Revisa tu conexión e intenta de nuevo.")
+        setError(mensajeDeError(errorRpc, "No se pudo guardar la orden. Revisa tu conexión e intenta de nuevo."))
         setGuardando(false)
         return
       }

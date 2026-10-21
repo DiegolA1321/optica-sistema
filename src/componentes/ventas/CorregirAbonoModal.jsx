@@ -9,7 +9,7 @@ import CamposPagos from "./CamposPagos"
 import { dinero } from "../../utilidades/formatoMoneda"
 import { hoyISO } from "../../utilidades/disponibilidad"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
-import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../../utilidades/permisos"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, mensajeDeError } from "../../utilidades/permisos"
 import { registrarLog } from "../../utilidades/logs"
 import { EVENTO_ABONO, EVENTO_ABONO_QUITADO, EVENTO_ABONO_ANULADO, mapAbono, saldoTrasCorregir } from "../../utilidades/abonos"
 import { filasParaTotal, revisarPagos, textoPagos, pagosDeAbono } from "../../utilidades/pagos"
@@ -54,7 +54,7 @@ export default function CorregirAbonoModal({ abono, factura, paciente, abonos, u
         ? await supabase.rpc("anular_abono", { p_abono_id: abono.id, p_motivo: motivo.trim() }).single()
         : await supabase.rpc("corregir_abono", { p_abono_id: abono.id, p_motivo: motivo.trim(), p_monto: valor, p_fecha: fecha, p_nota: nota.trim() || null, p_pagos: pagos }).single()
       if (errorRpc) {
-        setError(esErrorSinPermiso(errorRpc) ? MENSAJE_SIN_PERMISO : errorRpc.message || "No se pudo guardar. Revisa tu conexión e intenta de nuevo.")
+        setError(mensajeDeError(errorRpc, "No se pudo guardar. Revisa tu conexión e intenta de nuevo."))
         setGuardando(false)
         return
       }

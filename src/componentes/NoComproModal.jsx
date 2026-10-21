@@ -4,7 +4,7 @@ import { useState } from "react"
 import { UserX } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { MOTIVOS_NO_COMPRO } from "../utilidades/pasesVenta"
-import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, mensajeDeError } from "../utilidades/permisos"
 import { Cascaron, PieFormulario } from "./AtencionPaciente"
 
 // "No compró": cierra el pase como descartado y guarda el motivo (descartar_pase,
@@ -24,7 +24,7 @@ export default function NoComproModal({ nombrePaciente, paseId, onCancelar, onHe
     if (supabase) {
       const { error: errorRpc } = await supabase.rpc("descartar_pase", { p_pase_id: paseId, p_motivo: motivo, p_detalle: motivo === "otro" ? detalle.trim() : null })
       if (errorRpc) {
-        setError(esErrorSinPermiso(errorRpc) ? MENSAJE_SIN_PERMISO : errorRpc.message || "No se pudo guardar. Revisa tu conexión e intenta de nuevo.")
+        setError(mensajeDeError(errorRpc, "No se pudo guardar. Revisa tu conexión e intenta de nuevo."))
         setGuardando(false)
         return
       }

@@ -65,7 +65,7 @@ import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { crearRegistroPaciente, validarDatosPaciente } from "../utilidades/pacientes"
 import PermisosAlRegistrar from "../componentes/PermisosAlRegistrar"
-import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso, mensajeDeError } from "../utilidades/permisos"
 import { moverCitaAHoy as moverCitaAHoyCompartido } from "../utilidades/moverCitaAHoy"
 import { estadosCorregibles, estadoCorregibleEs, etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { Cascaron } from "../componentes/AtencionPaciente"
@@ -838,7 +838,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     const anterior = cita.asignadoA || null
     const { data, error } = await supabase.rpc("reasignar_cita", { p_cita_id: cita.id, p_nuevo: nuevoId })
     if (error) {
-      onAviso?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : (error.message || "No se pudo reasignar la cita. Revisa tu conexión e intenta de nuevo."))
+      onAviso?.(mensajeDeError(error, "No se pudo reasignar la cita. Revisa tu conexión e intenta de nuevo."))
       return
     }
     const fila = Array.isArray(data) ? data[0] : data

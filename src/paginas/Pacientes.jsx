@@ -111,7 +111,7 @@ import ElegirVentaOrdenModal from "../componentes/ElegirVentaOrdenModal"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, listarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos, puntosFidelidad } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { antecedentesRelevantes, textoAntecedentes } from "../utilidades/antecedentes"
-import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso } from "../utilidades/permisos"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso, mensajeDeError } from "../utilidades/permisos"
 import { supabase } from "../lib/supabaseClient"
 import { INK, ACCION_VER, ACCION_CONFIRMAR } from "@/lib/tema"
 import NotaAlcance from "../componentes/NotaAlcance"
@@ -583,7 +583,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       })
       setGuardandoCuenta(false)
       if (error) {
-        mostrarNotif("No se pudo guardar la cuenta: " + error.message)
+        mostrarNotif(mensajeDeError(error, "No se pudo guardar la cuenta de acceso."))
         return
       }
     }

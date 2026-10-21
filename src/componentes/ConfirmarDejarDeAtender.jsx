@@ -4,6 +4,7 @@ import { useState } from "react"
 import ConfirmarEliminarModal from "./ConfirmarEliminarModal"
 import { dejarDeAtenderCita, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import { registrarLog } from "../utilidades/logs"
+import { esErrorSinPermiso, MENSAJE_SIN_PERMISO } from "../utilidades/permisos"
 
 // Confirmación para dejar de atender una cita que quedó "En atención" (sin
 // tener abierta su ficha): la cita vuelve a Pendiente. La usan el perfil del
@@ -18,7 +19,7 @@ export default function ConfirmarDejarDeAtender({ cita, usuario, setCitas, onCan
     setError("")
     const { error: errorUpdate } = await dejarDeAtenderCita(cita)
     if (errorUpdate) {
-      setError("No se pudo dejar de atender. Revisa tu conexión e intenta de nuevo.")
+      setError(esErrorSinPermiso(errorUpdate) ? MENSAJE_SIN_PERMISO : "No se pudo dejar de atender. Revisa tu conexión e intenta de nuevo.")
       setTrabajando(false)
       return
     }

@@ -7,7 +7,7 @@ import { diaDeRegistro } from "../utilidades/periodoLista"
 import { useState } from "react"
 import { Wallet } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
-import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, mensajeDeError } from "../utilidades/permisos"
 import { registrarLog } from "../utilidades/logs"
 import { abonoSugerido, mapAbono, saldoFactura, totalAbonado, EVENTO_ABONO } from "../utilidades/abonos"
 import { filasParaTotal, revisarPagos, textoPagos } from "../utilidades/pagos"
@@ -48,7 +48,7 @@ export default function AbonoModal({ factura, paciente, abonos, usuario, onRegis
         ? await supabase.rpc("registrar_pago_cuota_venta", { p_factura_id: factura.id, p_pagos: revision.pagos }).single()
         : await supabase.rpc("registrar_abono", { p_factura_id: factura.id, p_monto: valor, p_fecha: fecha, p_nota: nota.trim() || null, p_pagos: revision.pagos }).single()
       if (errorRpc) {
-        setError(esErrorSinPermiso(errorRpc) ? MENSAJE_SIN_PERMISO : errorRpc.message || "No se pudo registrar el abono. Revisa tu conexión e intenta de nuevo.")
+        setError(mensajeDeError(errorRpc, "No se pudo registrar el abono. Revisa tu conexión e intenta de nuevo."))
         setGuardando(false)
         return
       }

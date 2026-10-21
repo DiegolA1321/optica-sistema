@@ -27,6 +27,8 @@ export const textoAtencionAbierta = (dias) => `Abierta hace ${dias} día${dias =
 // Si su fecha ya pasó, el sistema la marcará como "No asistió" solo.
 export async function dejarDeAtenderCita(cita) {
   if (!supabase) return { error: null }
-  const { error } = await supabase.from("citas").update({ estado: "Pendiente", atendido_por: null }).eq("id", cita.id)
+  // Con .select(): una cita que no se pudo cambiar (la base la rechazó sin error) no se da por cambiada.
+  const { data, error } = await supabase.from("citas").update({ estado: "Pendiente", atendido_por: null }).eq("id", cita.id).select("id")
+  if (!error && Array.isArray(data) && data.length === 0) return { error: { code: "42501", message: "La cita no se pudo cambiar." } }
   return { error }
 }

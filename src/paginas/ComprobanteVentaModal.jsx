@@ -7,7 +7,7 @@ import { Receipt, Search, AlertTriangle, Plus, ArrowLeft, Wrench, Printer, Steth
 import { supabase } from "../lib/supabaseClient"
 import { registrarLog } from "../utilidades/logs"
 import { UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
-import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
+import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, mensajeDeError } from "../utilidades/permisos"
 import { puede } from "../utilidades/permisosUi"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import CamposPagos, { FILAS_INICIALES } from "../componentes/ventas/CamposPagos"
@@ -364,7 +364,7 @@ export default function ComprobanteVentaModal({
         })
         .single()
       if (errorRpc) {
-        setError(esErrorSinPermiso(errorRpc) ? MENSAJE_SIN_PERMISO : errorRpc.message || "No se pudo registrar la venta. Revisa tu conexión e intenta de nuevo.")
+        setError(mensajeDeError(errorRpc, "No se pudo registrar la venta. Revisa tu conexión e intenta de nuevo."))
         setGuardando(false)
         return
       }
