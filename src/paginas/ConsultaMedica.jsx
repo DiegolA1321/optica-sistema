@@ -31,6 +31,7 @@ import HojaReceta from "../componentes/HojaReceta"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
 import { claveBorrador, guardarBorrador, leerBorrador, borrarBorrador, textoGuardado } from "../utilidades/borradorFicha"
+import { EVENTO_GUARDAR_BORRADOR } from "../utilidades/sesionPestanas"
 import { textoOjoCompleto } from "../utilidades/refraccion"
 import { agudezaConLentes } from "../utilidades/agudeza"
 import { PASOS, crearForm, recetaDesdeForm, datosClinicosDesdeForm, columnasDeAnamnesis, estadoCorreccionDeForm, anamnesisDeConsulta, hayAnamnesisPrevia, validarPasos, pasoConErrores, estadoDePasos, componerTexto } from "../utilidades/fichaDatos"
@@ -604,6 +605,17 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     const t = setTimeout(() => { if (guardarBorrador(clave, JSON.parse(instantanea))) setGuardadoEn(Date.now()) }, 1200)
     return () => clearTimeout(t)
   }, [clave, instantanea, hayCambiosSinGuardar, fichaGuardada])
+  // Antes de cerrar la sesión por inactividad (o al avisarla) el borrador se guarda al instante, sin esperar el segundo y medio de pausa.
+  const ultimoEstadoRef = useRef(null)
+  ultimoEstadoRef.current = { clave, instantanea, guardar: !!clave && !fichaGuardada && hayCambiosSinGuardar }
+  useEffect(() => {
+    const alGuardar = () => {
+      const u = ultimoEstadoRef.current
+      if (u?.guardar && guardarBorrador(u.clave, JSON.parse(u.instantanea))) setGuardadoEn(Date.now())
+    }
+    window.addEventListener(EVENTO_GUARDAR_BORRADOR, alGuardar)
+    return () => window.removeEventListener(EVENTO_GUARDAR_BORRADOR, alGuardar)
+  }, [])
   const clavesRevisadas = useRef(new Set())
   useEffect(() => {
     if (!clave || fichaGuardada || clavesRevisadas.current.has(clave)) return

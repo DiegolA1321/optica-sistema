@@ -6,7 +6,7 @@ import Login from './paginas/Login';
 import ResolutionGuard from './componentes/ResolutionGuard';
 import { hoyISO, fechaAISO } from './utilidades/disponibilidad';
 import { supabase, marcarSesionEsperada, habiaSesionGuardada } from './lib/supabaseClient';
-import { MENSAJE_SESION_VENCIDA, MENSAJE_SESION_CERRADA_EN_OTRA_PESTANA, LIMITE_INACTIVIDAD_MS, EVENTO_SESION_PERDIDA, registrarActividad, tiempoSinActividad, guardarMotivoCierre, leerMotivoCierre } from './utilidades/sesionPestanas';
+import { MENSAJE_SESION_VENCIDA, MENSAJE_SESION_CERRADA_EN_OTRA_PESTANA, MENSAJE_CIERRE_POR_INACTIVIDAD, EVENTO_GUARDAR_BORRADOR, EVENTO_SESION_PERDIDA, registrarActividad, tiempoSinActividad, segundosParaCerrar, seguirConectado, guardarMotivoCierre, leerMotivoCierre } from './utilidades/sesionPestanas';
 import { resolverOpticaPublica } from './utilidades/opticaActual';
 import { resolverSitio } from './utilidades/resolverSitio';
 import { mapOrden, EVENTO_ORDEN } from './utilidades/ordenesLaboratorio';
@@ -23,6 +23,7 @@ import { borrarTodosLosBorradores } from './utilidades/borradorFicha';
 // nunca necesita bajar el código de SuperadminPanel, un visitante público
 // nunca necesita el de PortalPaciente, etc.
 const PaginaVenta = lazyConReintento(() => import('./paginas/PaginaVenta'), 'PaginaVenta');
+const AvisoInactividad = lazyConReintento(() => import('./componentes/AvisoInactividad'), 'AvisoInactividad');
 const Dashboard = lazyConReintento(() => import('./paginas/Dashboard'), 'Dashboard');
 const AgendarCitaPublica = lazyConReintento(() => import('./paginas/AgendarCitaPublica'), 'AgendarCitaPublica');
 const PortalPaciente = lazyConReintento(() => import('./paginas/PortalPaciente'), 'PortalPaciente');
@@ -328,6 +329,7 @@ function App() {
   // Ciberseguridad: mensaje para el login cuando la sesión se cerró sola por
   // inactividad (ver el useEffect junto a cerrarSesion, más abajo).
   const [avisoSesion, setAvisoSesion] = useState(null);
+  const [segundosInactividad, setSegundosInactividad] = useState(null);
   // true desde que ESTA pestaña cierra la sesión: el SIGNED_OUT que sigue es el suyo, no una sesión perdida.
   const cierrePropioRef = useRef(false);
   const [citas, setCitas] = useState(() => {
@@ -1010,7 +1012,7 @@ function App() {
   // token seguiría funcionando para siempre si alguien lo copió antes.
   // `mensaje` (opcional) es lo que ve el paciente/admin en el login después
   // (cierre por inactividad, cambio de contraseña, etc.).
-  const cerrarSesion = (mensaje) => {
+  const cerrarSesion = (mensaje, { conservarBorrador = false } = {}) => {
     if (usuario?.rol === 'paciente' && usuario?.id && usuario?.token && supabase) {
       supabase.rpc('invalidar_sesion_paciente', { p_paciente_id: usuario.id, p_token: usuario.token });
     }
@@ -1019,8 +1021,9 @@ function App() {
     if (usuario?.rol !== 'paciente') guardarMotivoCierre(typeof mensaje === 'string' && mensaje ? mensaje : MENSAJE_SESION_CERRADA_EN_OTRA_PESTANA);
     // Cerrar la sesión estando dentro de una óptica también es una salida: se registra antes de cerrar la sesión real.
     const salida = usuario?.impersonadoPor ? registrarSalidaImpersonacion(usuario, 'al cerrar la sesión') : null;
-    // Al cerrar sesión no queda ninguna ficha clínica a medias guardada en este equipo.
-    borrarTodosLosBorradores();
+    // Al cerrar sesión no queda ninguna ficha clínica a medias guardada en este equipo; salvo en el cierre por inactividad, donde el
+    // borrador se conserva (24 h, solo para esa misma persona) para retomar la atención al volver a entrar.
+    if (!conservarBorrador) borrarTodosLosBorradores();
     volverAlIngreso();
     Promise.resolve(salida).finally(() => supabase?.auth.signOut());
     // Se usa como onClick en varios botones: solo un texto es un aviso (si no, llega el evento del clic y abría el modal de login).
@@ -1120,27 +1123,49 @@ function App() {
   // actividad real del usuario — evita dejar datos clínicos abiertos en un
   // dispositivo compartido. Cualquier click/tecla/scroll/toque reinicia el
   // conteo; llamadas de red o timers en segundo plano no cuentan.
+  // El cierre usa siempre la última versión de cerrarSesion; el efecto no se reinicia cada vez que `usuario` cambia de objeto (cada
+  // actualización de datos lo hace), porque reiniciarlo contaría como actividad y la inactividad nunca se cumpliría.
+  const cerrarSesionRef = useRef(null);
+  cerrarSesionRef.current = cerrarSesion;
+  const inactividadIniciadaRef = useRef(false);
+  const haySesion = !!usuario;
   useEffect(() => {
-    if (!usuario) return;
-    let temporizador;
+    if (!haySesion) return;
     let ultimoMovimiento = Date.now();
+    let avisando = false;
     // La inactividad es de la persona, no de la pestaña: se cuenta con el último movimiento en CUALQUIERA de las pestañas abiertas.
     // Una pestaña olvidada no puede cerrar la sesión (que es una sola para todas) mientras se trabaja en otra.
-    const revisar = () => {
-      const sinActividad = tiempoSinActividad(ultimoMovimiento);
-      if (sinActividad >= LIMITE_INACTIVIDAD_MS) cerrarSesion('Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.');
-      else temporizador = setTimeout(revisar, LIMITE_INACTIVIDAD_MS - sinActividad);
-    };
-    const alMover = () => { ultimoMovimiento = Date.now(); registrarActividad(ultimoMovimiento); };
+    // Un minuto antes del cierre sale «¿Sigues ahí?»; mientras está, mover el mouse no reinicia nada: solo «Seguir conectado».
+    const alMover = () => { if (avisando) return; ultimoMovimiento = Date.now(); registrarActividad(ultimoMovimiento); };
     const eventos = ['mousedown', 'keydown', 'scroll', 'touchstart'];
     eventos.forEach((ev) => window.addEventListener(ev, alMover));
-    alMover();
-    temporizador = setTimeout(revisar, LIMITE_INACTIVIDAD_MS);
-    return () => {
-      clearTimeout(temporizador);
-      eventos.forEach((ev) => window.removeEventListener(ev, alMover));
+    // Entrar o abrir la página cuenta como actividad; que el efecto vuelva a armarse con la pantalla ya abierta, no.
+    if (!inactividadIniciadaRef.current) { inactividadIniciadaRef.current = true; alMover(); } else ultimoMovimiento = Date.now() - tiempoSinActividad(Date.now());
+    const revisar = () => {
+      const restan = segundosParaCerrar(ultimoMovimiento);
+      if (restan === null) {
+        if (avisando) { avisando = false; ultimoMovimiento = Date.now(); setSegundosInactividad(null); }
+        return;
+      }
+      // La ficha clínica abierta guarda su borrador al avisar y otra vez justo antes de cerrar.
+      if (!avisando) window.dispatchEvent(new Event(EVENTO_GUARDAR_BORRADOR));
+      avisando = true;
+      setSegundosInactividad(restan);
+      if (restan <= 0) {
+        window.dispatchEvent(new Event(EVENTO_GUARDAR_BORRADOR));
+        setSegundosInactividad(null);
+        cerrarSesionRef.current(MENSAJE_CIERRE_POR_INACTIVIDAD, { conservarBorrador: true });
+      }
     };
-  }, [usuario]);
+    const intervalo = setInterval(revisar, 1000);
+    return () => {
+      clearInterval(intervalo);
+      eventos.forEach((ev) => window.removeEventListener(ev, alMover));
+      setSegundosInactividad(null);
+    };
+  }, [haySesion, usuario?.id]);
+
+  const seguirConectadoAhora = () => { seguirConectado(); setSegundosInactividad(null); };
 
   // Sesión perdida con la pantalla abierta (se cerró desde otra pestaña, venció o se revocó). Antes la pantalla seguía "dentro" y cada
   // acción fallaba con "no tienes permiso" o con errores de la base en inglés. Ahora se dice y se lleva al ingreso.
@@ -1355,7 +1380,12 @@ function App() {
 
   // El personal y el superadmin (dashboard y panel) siguen con la guarda de tamaño y zoom; todo lo que ve un paciente o un visitante se adapta (regla 48).
   const pantallaDelPersonal = pantallaActual === 'dashboard' || pantallaActual === 'panel_superadmin';
-  return <ResolutionGuard desactivado={!pantallaDelPersonal}>{contenido}</ResolutionGuard>;
+  return (
+    <ResolutionGuard desactivado={!pantallaDelPersonal}>
+      {contenido}
+      {segundosInactividad !== null && <Suspense fallback={null}><AvisoInactividad segundos={segundosInactividad} onSeguir={seguirConectadoAhora} /></Suspense>}
+    </ResolutionGuard>
+  );
 }
 
 export default App;

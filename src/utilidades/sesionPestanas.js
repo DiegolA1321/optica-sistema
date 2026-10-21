@@ -4,7 +4,12 @@
 //  * la detección de que la sesión se perdió (para no dejar la pantalla "dentro" con llamadas anónimas a la base).
 export const MENSAJE_SESION_VENCIDA = 'Tu sesión venció, vuelve a ingresar'
 export const MENSAJE_SESION_CERRADA_EN_OTRA_PESTANA = 'Cerraste sesión en otra pestaña. Vuelve a ingresar.'
-export const LIMITE_INACTIVIDAD_MS = 15 * 60 * 1000
+export const LIMITE_INACTIVIDAD_MS = 30 * 60 * 1000
+// Un minuto antes del cierre se pregunta «¿Sigues ahí?»; solo «Seguir conectado» reinicia el tiempo (mover el mouse ya no basta).
+export const AVISO_INACTIVIDAD_MS = 60 * 1000
+export const MENSAJE_CIERRE_POR_INACTIVIDAD = 'Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.'
+// Antes de cerrar, la ficha clínica abierta guarda su borrador al instante (ConsultaMedica escucha este evento).
+export const EVENTO_GUARDAR_BORRADOR = 'optica:guardar-borrador'
 export const EVENTO_SESION_PERDIDA = 'optica:sesion-perdida'
 
 const CLAVE_ACTIVIDAD = 'optica_ultima_actividad'
@@ -22,10 +27,21 @@ function escribir(clave, valor) {
 }
 
 // Cualquier pestaña que registra actividad la registra para todas. Se escribe a lo más cada 2 s (mousedown/scroll son muy frecuentes).
-export function registrarActividad(ahora = Date.now()) {
-  if (ahora - ultimaEscritura < ESCRITURA_MINIMA_MS) return
+export function registrarActividad(ahora = Date.now(), { forzar = false } = {}) {
+  if (!forzar && ahora - ultimaEscritura < ESCRITURA_MINIMA_MS) return
   ultimaEscritura = ahora
   escribir(CLAVE_ACTIVIDAD, String(ahora))
+}
+
+// «Seguir conectado»: reinicia el tiempo en TODAS las pestañas (la actividad es un dato compartido).
+export const seguirConectado = (ahora = Date.now()) => registrarActividad(ahora, { forzar: true })
+
+// Segundos que faltan para el cierre, o null mientras no toca avisar. Se calcula con la actividad de cualquier pestaña, así que
+// si se pulsa «Seguir conectado» en una, la cuenta desaparece en todas.
+export function segundosParaCerrar(desde, ahora = Date.now()) {
+  const sin = tiempoSinActividad(desde, ahora)
+  if (sin < LIMITE_INACTIVIDAD_MS - AVISO_INACTIVIDAD_MS) return null
+  return Math.max(0, Math.ceil((LIMITE_INACTIVIDAD_MS - sin) / 1000))
 }
 
 // Milisegundos sin actividad en CUALQUIER pestaña. Sin dato compartido, se cuenta desde `desde` (el último movimiento de esta pestaña).
