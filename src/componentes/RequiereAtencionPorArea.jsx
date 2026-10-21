@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { CheckCircle2, ArrowRight, AlertCircle, AlertTriangle, Clock, Info } from "lucide-react"
+import { CheckCircle2, ArrowRight, AlertCircle } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { Cascaron } from "./AtencionPaciente"
 import MotivoDeCancelacion from "./MotivoDeCancelacion"
@@ -159,44 +159,40 @@ export function BotonRequierenAtencion({ bloque }) {
   )
 }
 
-// columnas: 1, 2 (el Inicio de la óptica) o 3 (el Inicio del superadmin, que solo muestra las áreas con avisos). compacto: menos aire, para que
-// todo quepa en una pantalla. lateral: lo que va a la derecha del título (por ejemplo, «Sistema y Soporte: todo en orden»).
-// El color solo informa (fondo blanco como el resto del sistema): un ícono de color junto al número dice qué tan urgente es el aviso. Rojo = urgente (atrasadas, atenciones abiertas),
-// ámbar = pendiente (lo que hay que hacer), azul = informativo. El número va en rojo solo si es urgente; si no, en el color de texto normal. Los tonos pasan 4.5:1 sobre blanco.
+// Un solo panel blanco con una columna por área (Citas, Pacientes, Ventas, Inventario), separadas por una línea fina. Cada columna: su título, sus avisos en filas pequeñas
+// (punto de color, número y leyenda corta en una línea; toda la fila se pulsa y abre su lista en la ventana estándar) y, abajo, «Ver en [módulo]». Una columna sin avisos dice «Todo en orden».
+// El color solo informa: el punto dice qué tan urgente es (rojo urgente, ámbar pendiente, azul informativo) y el número va en rojo solo si es urgente.
+// lateral: lo que va a la derecha del título (por ejemplo, «Sistema y Soporte: todo en orden»). compacto: menos aire (Inicio del superadmin).
 export const TONOS = {
-  urgente: { franja: "#DC2626", numero: "#B91C1C", Icono: AlertTriangle, nombre: "Urgente" },
-  pendiente: { franja: "#B45309", numero: INK, Icono: Clock, nombre: "Pendiente" },
-  info: { franja: "#2563EB", numero: INK, Icono: Info, nombre: "Informativo" },
+  urgente: { punto: "#DC2626", numero: "#B91C1C", nombre: "Urgente" },
+  pendiente: { punto: "#B7791F", numero: INK, nombre: "Pendiente" },
+  info: { punto: "#2563EB", numero: INK, nombre: "Informativo" },
 }
-// Dos áreas por fila (Citas y Pacientes arriba, Ventas e Inventario abajo), las dos de cada fila con la misma altura. Dentro de cada área, filas apiladas.
-const COLUMNAS = { 1: "grid-cols-1", 2: "grid-cols-1 lg:grid-cols-2 lg:auto-rows-fr", 3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 md:auto-rows-fr" }
-export default function RequiereAtencionPorArea({ bloques, columnas = 2, compacto = false, lateral = null }) {
+const COLUMNAS = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3", 4: "lg:grid-cols-4" }
+export default function RequiereAtencionPorArea({ bloques, compacto = false, lateral = null }) {
   const [abierto, setAbierto] = useState(null) // { bloqueId, filaId, soloFila }
   if (bloques.length === 0) return null
   const bloqueAbierto = abierto ? bloques.find((b) => b.id === abierto.bloqueId) : null
   return (
     <section id="requiere-atencion" aria-label="Requiere tu atención" className="scroll-mt-4 space-y-2.5">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Requiere tu atención</h2>
+        <h2 className="text-[13px] font-bold uppercase tracking-[0.14em] text-slate-500">Requiere tu atención</h2>
         {lateral}
       </div>
-      <div className={"grid " + (compacto ? "gap-3 " : "gap-4 ") + (COLUMNAS[columnas] || COLUMNAS[2])}>
-        {bloques.map((b) => {
+      <div className={"grid grid-cols-1 sm:grid-cols-2 rounded-2xl border border-slate-200/70 bg-white shadow-sm " + (COLUMNAS[Math.min(bloques.length, 4)] || COLUMNAS[4])}>
+        {bloques.map((b, n) => {
           const Icono = b.icono
           const visibles = b.filas.slice(0, AVISOS_POR_TARJETA)
-          const total = b.filas.reduce((n, f) => n + (f.cantidad ?? 1), 0)
           const mas = b.filas.length - visibles.length
-          // «Ver todo» lleva al módulo; si el área tiene un solo tipo de aviso con su filtro, lleva a esa lista filtrada.
+          // «Ver en [módulo]» lleva al módulo; si el área tiene un solo tipo de aviso con su filtro, lleva a esa lista filtrada.
           const verTodo = b.filas.length === 1 && b.filas[0].enlace ? b.filas[0].enlace.onClick : b.onVerTodo
           return (
-            <section key={b.id} aria-label={`Requiere tu atención: ${b.titulo}`} className="flex flex-col rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-              <div className={"flex items-center gap-3 border-b border-slate-100 px-4 " + (compacto ? "py-2" : "py-3")}>
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><Icono size={18} aria-hidden="true" /></span>
-                <span className="text-base font-bold" style={{ color: INK }}>{b.titulo}</span>
-                {total > 0 && <span className="ml-auto rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-bold text-slate-700">{total}</span>}
-              </div>
+            <section key={b.id} aria-label={`Requiere tu atención: ${b.titulo}`} className={"flex min-w-0 flex-col px-5 " + (compacto ? "py-3 " : "py-5 ") + (n > 0 ? "border-t border-slate-100 sm:border-t-0 sm:border-l sm:max-lg:odd:border-l-0 lg:border-l " : "")}>
+              <h3 className="mb-2 flex items-center gap-2 text-base font-bold" style={{ color: INK }}>
+                <Icono size={16} aria-hidden="true" className="shrink-0 text-slate-500" /> {b.titulo}
+              </h3>
               {visibles.length > 0 ? (
-                <ul className="flex-1 divide-y divide-slate-100 px-1.5 py-1">
+                <ul className="flex-1">
                   {visibles.map((f) => {
                     const tono = TONOS[f.tono] || TONOS.pendiente
                     return (
@@ -205,30 +201,30 @@ export default function RequiereAtencionPorArea({ bloques, columnas = 2, compact
                           type="button"
                           onClick={() => setAbierto({ bloqueId: b.id, filaId: f.id, soloFila: true })}
                           aria-label={`${f.cantidad ?? 1} ${f.texto}`}
-                          className="group flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer"
+                          title={`${tono.nombre}: ${f.texto}`}
+                          className="grid w-full grid-cols-[0.5rem_2.25rem_minmax(0,1fr)] items-center gap-x-2.5 rounded-lg py-2 text-left transition-colors hover:bg-slate-50 cursor-pointer"
                         >
-                          <tono.Icono size={16} aria-hidden="true" className="shrink-0" style={{ color: tono.franja }} />
-                          <span className="min-w-[2.25rem] shrink-0 font-heading text-[26px] font-bold leading-none" style={{ color: tono.numero }}>{f.cantidad ?? 1}</span>
-                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700" title={f.corto || f.texto}>{f.corto || f.texto}</span>
-                          <ArrowRight size={16} aria-hidden="true" className="shrink-0 text-slate-400 transition-colors group-hover:text-slate-600" />
+                          <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: tono.punto }} />
+                          <span className="text-right font-serif text-[22px] font-bold leading-none" style={{ color: tono.numero }}>{f.cantidad ?? 1}</span>
+                          <span className="truncate text-[15px] text-slate-700">{f.corto || f.texto}</span>
                         </button>
                       </li>
                     )
                   })}
                 </ul>
               ) : (
-                <p className="flex flex-1 items-center gap-2 px-4 py-3.5 text-sm font-medium text-slate-600"><CheckCircle2 size={16} className="shrink-0 text-emerald-600" aria-hidden="true" /> Todo en orden</p>
+                <p className="flex flex-1 items-start gap-2 py-2 text-[15px] text-slate-600"><CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" aria-hidden="true" /> Todo en orden</p>
               )}
-              <footer className={"flex items-center border-t border-slate-100 px-4 text-sm " + (compacto ? "py-1.5" : "py-2.5")}>
+              <div className="mt-3 flex items-center gap-3 text-sm">
+                <button type="button" onClick={verTodo} aria-label={`Ver todo en ${b.titulo}`} className="flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+                  Ver en {b.modulo || b.titulo} <ArrowRight size={14} aria-hidden="true" />
+                </button>
                 {mas > 0 && (
-                  <button type="button" onClick={() => setAbierto({ bloqueId: b.id, filaId: null, soloFila: false })} aria-label={`Ver los ${mas} avisos más de ${b.titulo}`} className="font-semibold text-slate-500 transition-colors hover:text-slate-700 cursor-pointer">
-                    {mas === 1 ? "1 aviso más" : `${mas} avisos más`}
+                  <button type="button" onClick={() => setAbierto({ bloqueId: b.id, filaId: null, soloFila: false })} aria-label={`Ver los ${mas} avisos más de ${b.titulo}`} className="ml-auto text-slate-500 transition-colors hover:text-slate-700 cursor-pointer">
+                    {mas === 1 ? "+1 más" : `+${mas} más`}
                   </button>
                 )}
-                <button type="button" onClick={verTodo} aria-label={`Ver todo en ${b.titulo}`} className="ml-auto flex items-center gap-1 font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-                  Ver todo <ArrowRight size={14} aria-hidden="true" />
-                </button>
-              </footer>
+              </div>
             </section>
           )
         })}

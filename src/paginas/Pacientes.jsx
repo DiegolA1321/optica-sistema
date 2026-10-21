@@ -64,7 +64,6 @@ import { contarCitas, citasPorMes, diaMasFrecuente } from "../utilidades/resumen
 import { esAtencionInmediata, validarHorarioCita, registrarCita } from "../utilidades/agendarCita"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import SeleccionarCitaModal from "../componentes/SeleccionarCitaModal"
-import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
@@ -323,11 +322,6 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
   // Selector de cita al entrar a la ficha clínica desde el perfil (pedido del
   // ing, reunión 29 sept.): { paciente, citas } cuando hay que elegir, o null.
   const [seleccionCitaPara, setSeleccionCitaPara] = useState(null)
-  // D2 (reunión 29 sept.): igual que "Atender" en Citas médicas, elegir una
-  // cita de un paciente web sin confirmar por recepción pide confirmar sus
-  // datos primero — { paciente, citaId } o null. Reutiliza
-  // ConfirmarDatosPacienteModal en vez de duplicar ese formulario acá.
-  const [confirmarDatosPara, setConfirmarDatosPara] = useState(null)
   // Edad calculada desde fecha_nacimiento — mismo cálculo que ya usa
   // ConsultaMedica.jsx para la receta impresa, ahora también visible en el
   // encabezado del expediente (pedido explícito de Diego).
@@ -836,18 +830,9 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     setAgendarHoraCustom(`${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`)
   }
 
-  // D2 (reunión 29 sept.): mismo chequeo que "Atender" en Citas médicas —
-  // un paciente de origen web sin confirmar por recepción no entra directo a
-  // la ficha clínica, tenga o no una cita vinculada (elegida en
-  // SeleccionarCitaModal o "Atender ahora"
-  // pendiente). Un solo punto de entrada para no repetir el chequeo en cada
-  // callback de arriba.
+  // Un solo punto de entrada a la ficha clínica desde el perfil (cita elegida, «Atender ahora» o «Atender»).
   const irAFichaConfirmandoSiHaceFalta = (paciente, citaId, motivo) => {
     if (!puedeAtender) { onAviso?.("No tienes permiso para atender pacientes."); return }
-    if (paciente.origen === "paciente" && !paciente.confirmadoRecepcion) {
-      setConfirmarDatosPara({ paciente, citaId, motivo })
-      return
-    }
     onIrAFichaClinica?.(paciente, citaId, motivo)
   }
 
@@ -2523,22 +2508,6 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
           onSeleccionar={(citaId) => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); irAFichaConfirmandoSiHaceFalta(p, citaId) }}
           onAbrirSinCita={() => { const p = seleccionCitaPara.paciente; setSeleccionCitaPara(null); abrirAtenderAhora(p) }}
           onCerrar={() => setSeleccionCitaPara(null)}
-        />
-      )}
-
-      {/* ─── CONFIRMAR DATOS DEL PACIENTE (D2, reunión 29 sept.) ─── */}
-      {confirmarDatosPara && (
-        <ConfirmarDatosPacienteModal
-          usuario={usuario}
-          paciente={confirmarDatosPara.paciente}
-          pacientes={pacientes}
-          setPacientes={setPacientes}
-          onConfirmado={(pacienteConfirmado) => {
-            const { citaId, motivo } = confirmarDatosPara
-            setConfirmarDatosPara(null)
-            onIrAFichaClinica?.(pacienteConfirmado, citaId, motivo)
-          }}
-          onCerrar={() => setConfirmarDatosPara(null)}
         />
       )}
 

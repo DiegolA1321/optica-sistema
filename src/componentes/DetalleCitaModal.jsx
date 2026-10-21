@@ -3,7 +3,7 @@
 import { etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import { useState } from "react"
-import { X, User, Stethoscope, CalendarPlus, Receipt, AlertTriangle, ExternalLink, CalendarClock, LogOut, UserX, DoorOpen, Undo2, Loader2, UserRoundPlus, Repeat, UserCheck } from "lucide-react"
+import { X, User, Stethoscope, CalendarPlus, Receipt, AlertTriangle, ExternalLink, CalendarClock, LogOut, UserX, DoorOpen, Undo2, Loader2, UserRoundPlus, Repeat } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { hoyISO, etiquetaFecha } from "../utilidades/disponibilidad"
 import { Cascaron } from "./AtencionPaciente"
@@ -54,7 +54,7 @@ const BOTON_SECUNDARIO = "inline-flex items-center gap-1.5 rounded-xl border bor
 // ficha (la guardia de otro día y de la siguiente cita la hace quien recibe onIngresar); «Llegó» pasa la cita a «En espera» (lo usa recepción, que no atiende).
 // «Ver perfil» abre el paciente en otra pestaña para no perder el lugar en la agenda. Cada acción solo aparece si se pasa su función (permisos) y la cita está
 // en un estado que la admite.
-export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = false, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, eventos: eventosPropios, duracionDefault = 40, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, personasAsignables = [], ausenteEnLaHora, onReasignar, onTomar, onRegistrarPaciente, onConfirmarDatos, sinAnimarFondo = false }) {
+export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = false, equipo = [], fechaAtencionReal, cobroPendiente, marcandoEstado = false, eventos: eventosPropios, duracionDefault = 40, onCerrar, onIngresar, onAgendarOtra, onCobrar, onEditar, onCancelar, onDejarDeAtender, onLlego, onNoLlego, onNoAsistio, personasAsignables = [], ausenteEnLaHora, onReasignar, onTomar, onRegistrarPaciente, sinAnimarFondo = false }) {
   // "Reasignar": quien tiene permiso de editar citas con alcance "todo" (lo decide Citas.jsx pasando onReasignar). Un clic en la persona.
   const [reasignando, setReasignando] = useState(false)
   const puedeReasignar = !!onReasignar && esReasignable(cita)
@@ -86,8 +86,7 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
   const profesional = profesionalDeCita(cita, equipo)
   // Sin ninguna acción para esta persona en este estado (p. ej. una cita cancelada vista por quien solo mira), no se dibuja una franja de pie vacía.
   const hayAcciones = Boolean(
-    (cita.pacienteId && onConfirmarDatos && paciente?.origen === "paciente" && !paciente.confirmadoRecepcion)
-    || (!cita.pacienteId && onRegistrarPaciente) || puedeReasignar || (puedeEditarCita(cita) && onEditar)
+    (!cita.pacienteId && onRegistrarPaciente) || puedeReasignar || (puedeEditarCita(cita) && onEditar)
     || !!cita.pacienteId
     || (cita.estado === "En Atención" && onDejarDeAtender) || (puedeCancelarCita(cita) && onCancelar)
     || puedeTomar || puedeAgendarOtra || (cobroPendiente && onCobrar) || (!cobroPendiente && puedeIngresar),
@@ -145,11 +144,6 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
             <a href={urlPerfilPaciente(cita.pacienteId)} target="_blank" rel="noopener noreferrer" className={BOTON_SECUNDARIO}>
               <ExternalLink size={14} aria-hidden="true" /> Ver perfil
             </a>
-          )}
-          {cita.pacienteId && onConfirmarDatos && paciente?.origen === "paciente" && !paciente.confirmadoRecepcion && (
-            <button type="button" onClick={() => onConfirmarDatos(cita)} title="El paciente se registró solo por la web: la recepción debe verificar sus datos en su primera visita." className={BOTON_SECUNDARIO}>
-              <UserCheck size={14} aria-hidden="true" /> Verificar datos (registro web)
-            </button>
           )}
           {!cita.pacienteId && onRegistrarPaciente && (
             <button type="button" onClick={() => onRegistrarPaciente(cita)} className={BOTON_SECUNDARIO}>

@@ -38,7 +38,6 @@ import { diaHabilMasCercano } from "../utilidades/controles"
 import CalendarioSemanal from "../componentes/CalendarioSemanal"
 import CalendarioMes from "../componentes/CalendarioMes"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
-import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import DiaCitasModal from "../componentes/DiaCitasModal"
 import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas, SelectorVistaCitas } from "../componentes/FiltrosCitas"
@@ -425,14 +424,6 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
   const [cpErrores, setCpErrores] = useState({})
   const [cpPermisos, setCpPermisos] = useState(PERMISOS_INICIALES)
   const [cpGuardando, setCpGuardando] = useState(false)
-  // D2 (reunión 29 sept.): paciente que YA existe (se registró/dedupe al
-  // agendar por la web, migración 0067) y solo falta que recepción confirme o
-  // corrija sus datos antes de abrir la ficha clínica — { cita, paciente } o
-  // null. Reutiliza ConfirmarDatosPacienteModal (también usado desde
-  // Pacientes.jsx al elegir una cita desde el perfil del paciente) en vez de
-  // duplicar el formulario acá.
-  const [confirmarDatosPara, setConfirmarDatosPara] = useState(null)
-  const [confirmarSoloPara, setConfirmarSoloPara] = useState(null) // paciente web sin confirmar, desde el detalle de su cita
 
   // Inserta un paciente nuevo con el mismo shape que usa Pacientes.jsx —
   // reutilizado tanto por "+ Añadir nuevo paciente" (Gestionar) como por
@@ -728,14 +719,6 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
     if (cita.pacienteId) {
       const paciente = pacientes.find((p) => p.id === cita.pacienteId)
       if (!paciente) { setBannerError("No se encontró el paciente vinculado a esta cita."); return }
-      // D2 (reunión 29 sept.): un paciente que se registró solo al agendar
-      // por la web (origen='paciente') todavía no fue revisado por
-      // recepción — antes de abrir la ficha, se confirma o corrige una vez
-      // sus datos (ConfirmarDatosPacienteModal).
-      if (paciente.origen === "paciente" && !paciente.confirmadoRecepcion) {
-        setConfirmarDatosPara({ cita, paciente })
-        return
-      }
       marcarEstado(cita.id, "En Atención")
       onAtender?.(paciente, cita.id, cita.motivo)
       return
@@ -1868,35 +1851,6 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
         </Cascaron>
       )}
 
-      {/* ─── CONFIRMAR DATOS DEL PACIENTE (D2, reunión 29 sept.) ─── */}
-      {confirmarDatosPara && (
-        <ConfirmarDatosPacienteModal
-          usuario={usuario}
-          paciente={confirmarDatosPara.paciente}
-          pacientes={pacientes}
-          setPacientes={setPacientes}
-          onConfirmado={(pacienteConfirmado) => {
-            const { cita } = confirmarDatosPara
-            setConfirmarDatosPara(null)
-            marcarEstado(cita.id, "En Atención")
-            onAtender?.(pacienteConfirmado, cita.id, cita.motivo)
-          }}
-          onCerrar={() => setConfirmarDatosPara(null)}
-        />
-      )}
-
-      {confirmarSoloPara && (
-        <ConfirmarDatosPacienteModal
-          soloConfirmar
-          usuario={usuario}
-          paciente={confirmarSoloPara}
-          pacientes={pacientes}
-          setPacientes={setPacientes}
-          onConfirmado={(p) => { setConfirmarSoloPara(null); onAviso?.(`Datos de ${p.nombre} verificados.`) }}
-          onCerrar={() => setConfirmarSoloPara(null)}
-        />
-      )}
-
       {/* ─── MODAL CANCELAR (con el motivo) ─── */}
       {porCancelar != null && (
         <Cascaron titulo="¿Cancelar esta cita?" subtitulo={citas.find((c) => c.id === porCancelar)?.paciente || "Elige el motivo"} Icono={AlertTriangle} ancho="max-w-md" onCerrar={cerrarCancelar}
@@ -2079,7 +2033,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
             ausenteEnLaHora={(id, c) => ausenteEnHorario(disponibilidad, id, c.fecha, c.hora)}
             onReasignar={puedeReasignar(usuario, vistaPropia ? "propio" : "todo") ? reasignarCita : undefined}
             onTomar={puede(usuario, "citas", "editar") ? tomarCita : undefined}
-            onConfirmarDatos={puede(usuario, "pacientes", "editar") ? (c) => { const p = pacientes.find((x) => x.id === c.pacienteId); if (p) { setDetalleCitaId(null); setConfirmarSoloPara(p) } } : undefined}
+
             onRegistrarPaciente={puede(usuario, "pacientes", "crear") && puede(usuario, "citas", "editar") ? registrarPacienteDeCita : undefined}
           />
         )

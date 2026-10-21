@@ -41,16 +41,16 @@ describe("Inicio del administrador", () => {
     expect(within(totales).getAllByRole("button", { name: /: / })).toHaveLength(4)
     expect(within(totales).getByText("+2 este mes")).toBeInTheDocument() // los dos pacientes se registraron hoy
     expect(within(totales).getByText("$100.00")).toBeInTheDocument() // el total vendido (la venta de la prueba no tiene fecha de este mes)
-    expect(within(totales).getByText("+$0.00 vendido este mes · 0 ventas")).toBeInTheDocument()
+    expect(within(totales).getByText("+$0.00 este mes")).toBeInTheDocument()
     expect(within(totales).queryByText("Pacientes sin atender")).not.toBeInTheDocument()
   })
 
-  it("Totales: Ventas muestra el total vendido y debajo '+$ vendido este mes · N ventas', con la misma lógica que las demás", () => {
+  it("Totales: Ventas muestra el total vendido y debajo '+$ este mes', con la misma lógica que las demás", () => {
     const ahora = new Date().toISOString()
     render(<Inicio {...base} facturasVenta={[{ id: "f1", estado: "pagada", montoTotal: 100.5, creadoEn: ahora }, { id: "f2", estado: "pagada", montoTotal: 20, creadoEn: ahora }, { id: "f3", estado: "anulada", montoTotal: 999, creadoEn: ahora }]} />)
     const totales = screen.getByRole("region", { name: "Totales" })
     expect(within(totales).getByText("$120.50")).toBeInTheDocument()
-    expect(within(totales).getByText("+$120.50 vendido este mes · 2 ventas")).toBeInTheDocument()
+    expect(within(totales).getByText("+$120.50 este mes")).toBeInTheDocument()
   })
 
   it("el dinero sale con separador de miles: $3,915.50", () => {
@@ -58,7 +58,7 @@ describe("Inicio del administrador", () => {
     render(<Inicio {...base} facturasVenta={[{ id: "f1", estado: "pagada", montoTotal: 3000, creadoEn: ahora }, { id: "f2", estado: "pagada", montoTotal: 915.5, creadoEn: "2020-01-01T10:00:00Z" }]} />)
     const totales = screen.getByRole("region", { name: "Totales" })
     expect(within(totales).getByText("$3,915.50")).toBeInTheDocument()
-    expect(within(totales).getByText("+$3,000.00 vendido este mes · 1 venta")).toBeInTheDocument()
+    expect(within(totales).getByText("+$3,000.00 este mes")).toBeInTheDocument()
   })
 
   it("el orden es Totales, Requiere tu atención y Desenlace de las citas, con 'Ir a Citas' junto al período; sin la lista de citas de abajo", () => {
@@ -87,10 +87,10 @@ describe("Inicio del administrador", () => {
 
   it("Requiere tu atención: el color solo informa — rojo para lo urgente, ámbar para lo pendiente, azul para lo informativo; el número va en rojo solo si es urgente", () => {
     expect(Object.keys(TONOS)).toEqual(["urgente", "pendiente", "info"])
-    expect(new Set(Object.values(TONOS).map((t) => t.franja)).size).toBe(3)
-    expect(TONOS.urgente.franja).toBe("#DC2626")
-    expect(TONOS.pendiente.franja).toBe("#B45309")
-    expect(TONOS.info.franja).toBe("#2563EB")
+    expect(new Set(Object.values(TONOS).map((t) => t.punto)).size).toBe(3)
+    expect(TONOS.urgente.punto).toBe("#DC2626")
+    expect(TONOS.pendiente.punto).toBe("#B7791F")
+    expect(TONOS.info.punto).toBe("#2563EB")
     expect(TONOS.urgente.numero).toBe("#B91C1C")
     expect(TONOS.pendiente.numero).toBe(TONOS.info.numero) // el texto normal
     expect(TONOS.urgente.numero).not.toBe(TONOS.pendiente.numero)
@@ -102,8 +102,8 @@ describe("Inicio del administrador", () => {
     expect(filas.length).toBeGreaterThan(0)
     for (const li of filas) {
       const boton = within(li).getByRole("button")
-      expect(boton.className).toContain("w-full")
-      expect(boton.className).toContain("items-center")
+      expect(boton.className).toContain("w-full") // toda la fila se pulsa
+      expect(boton.querySelector("[style*='background-color']")).not.toBeNull() // el punto de color
     }
   })
 
@@ -114,7 +114,7 @@ describe("Inicio del administrador", () => {
     expect(fondo).not.toContain("14, 43, 51")
   })
 
-  it("Requiere tu atención: cada tipo de aviso es UNA tarjetita con el número grande y una leyenda corta, sin nombres de pacientes; 'Ver todo' sin número", () => {
+  it("Requiere tu atención: cada tipo de aviso es UNA fila con su punto, el número y una leyenda corta, sin nombres de pacientes; «Ver en Citas» sin número", () => {
     const abiertas = [1, 2, 3, 4, 5].map((n) => ({ id: "ab" + n, fecha: "2020-01-0" + n, hora: "09:00 AM", estado: "En Atención", paciente: "Abierta " + n, pacienteId: "x" + n }))
     render(<Inicio {...base} citas={[...base.citas, ...abiertas]} />)
     const citas = area("Citas")
@@ -122,7 +122,7 @@ describe("Inicio del administrador", () => {
     expect(tarj("Citas", "5 atenciones abiertas de días anteriores")).toHaveTextContent(/^5\s*atenciones abiertas$/)
     expect(citas).not.toHaveTextContent(/Abierta \d/) // ni un nombre de paciente en la tarjeta
     expect(within(citas).queryByRole("button", { name: "Seguir atendiendo" })).not.toBeInTheDocument()
-    expect(within(citas).getByRole("button", { name: "Ver todo en Citas" })).toHaveTextContent(/^Ver todo$/)
+    expect(within(citas).getByRole("button", { name: "Ver todo en Citas" })).toHaveTextContent(/^Ver en Citas$/)
     expect(screen.getByRole("region", { name: "Requiere tu atención" })).not.toHaveTextContent(/Ver todo \(/)
   })
 
@@ -154,20 +154,18 @@ describe("Inicio del administrador", () => {
     const pacientes = [
       { id: "p1", nombre: "Control Vencido", fechaRegistro: hoy },
       { id: "p2", nombre: "Sin Consulta Dos", fechaRegistro: hoy },
-      { id: "p3", nombre: "Web Sin Confirmar", origen: "paciente", confirmadoRecepcion: false, cedula: "1710034065", telefono: "0991234567", correo: "w@x.com" },
+      { id: "p3", nombre: "Pide Medidas", medidasSolicitadasEn: "2026-10-20T10:00:00Z" },
       { id: "p4", nombre: "Cumple Hoy", fechaRegistro: hoy, fechaNacimiento: "1990-" + mmdd, aceptaPromociones: true },
     ]
     const consultas = [{ id: "k1", pacienteId: "p1", paciente: "Control Vencido", fecha: "2020-01-01", motivo: "Control", proximoControlDias: 30 }]
     render(<Inicio {...base} pacientes={pacientes} consultas={consultas} citas={[]} pases={[]} />)
     const tarjeta = area("Pacientes")
     expect(within(tarjeta).getAllByRole("listitem")).toHaveLength(3) // máximo tres tarjetitas
-    expect(within(tarjeta).getByRole("button", { name: "Ver los 1 avisos más de Pacientes" })).toHaveTextContent("1 aviso más") // la cuarta (el cumpleaños) queda tras «1 aviso más»
-    const suma = within(tarjeta).getAllByRole("listitem").reduce((n, li) => n + Number(li.textContent.match(/^\d+/)[0]), 0) + 1
-    expect(within(tarjeta).getByText(String(suma))).toBeInTheDocument() // el número del área cuenta todos sus avisos
+    expect(within(tarjeta).getByRole("button", { name: "Ver los 1 avisos más de Pacientes" })).toHaveTextContent("+1 más") // la cuarta (el cumpleaños) queda tras «+1 más»
     expect(screen.getByRole("region", { name: "Requiere tu atención" })).not.toHaveTextContent(/Ver todo \(/)
     // la ventana de «1 aviso más» trae los cuatro tipos, también el que no cabía
     fireEvent.click(within(tarjeta).getByRole("button", { name: "Ver los 1 avisos más de Pacientes" }))
-    const ventana = screen.getByRole("dialog", { name: `Pacientes · ${suma} avisos` })
+    const ventana = screen.getByRole("dialog", { name: /^Pacientes · \d+ avisos$/ })
     expect(within(ventana).getAllByRole("heading", { level: 3 })).toHaveLength(4)
     expect(ventana).toHaveTextContent("Cumple Hoy")
   })
@@ -249,26 +247,11 @@ describe("Inicio del administrador", () => {
     sinTarj(/control sin agendar/)
   })
 
-  it("pacientes de la web con datos sin verificar: la ventana ofrece 'Verificar datos (registro web)'; el optómetra no los ve", () => {
-    const pacientes = [
-      ...base.pacientes,
-      { id: "p3", nombre: "Web Sin Confirmar", origen: "paciente", confirmadoRecepcion: false, cedula: "1710034065", telefono: "0991234567", correo: "w@x.com" },
-      { id: "p4", nombre: "Web Ya Confirmado", origen: "paciente", confirmadoRecepcion: true },
-      { id: "p5", nombre: "Registrado Por Recepción", origen: "staff", confirmadoRecepcion: true },
-    ]
-    const { unmount } = render(<Inicio {...base} pacientes={pacientes} />)
-    const fila = area("Pacientes")
-    expect(fila).not.toHaveTextContent(/Web Sin Confirmar|Web Ya Confirmado|Registrado Por Recepción/) // sin nombres en la tarjetita
-    fireEvent.click(within(fila).getByRole("button", { name: /datos sin verificar/ }))
-    const ventana = screen.getByRole("dialog", { name: /1 paciente de la web con los datos sin verificar/ })
-    expect(ventana).toHaveTextContent("Web Sin Confirmar")
-    expect(ventana).not.toHaveTextContent(/Web Ya Confirmado|Registrado Por Recepción/)
-    expect(ventana).toHaveTextContent("Cédula 1710034065")
-    fireEvent.click(within(ventana).getByRole("button", { name: "Verificar datos (registro web)" }))
-    expect(screen.getByRole("dialog", { name: "Verificar datos del paciente (registro web)" })).toBeInTheDocument() // encima de la lista, que sigue abierta
-    unmount()
-    render(<Inicio {...base} pacientes={pacientes} {...rol("optometra", PERMISOS_OPTOMETRA)} />)
+  it("un paciente registrado por la web ya no genera un aviso de «datos sin verificar» ni la acción «Verificar datos (registro web)»", () => {
+    const pacientes = [...base.pacientes, { id: "p3", nombre: "Web Sin Confirmar", origen: "paciente", confirmadoRecepcion: false, cedula: "1710034065", telefono: "0991234567", correo: "w@x.com" }]
+    render(<Inicio {...base} pacientes={pacientes} />)
     sinTarj(/datos sin verificar/)
+    expect(screen.queryByText(/Verificar datos/)).not.toBeInTheDocument()
   })
 
   it("un paciente que pidió eliminar su cuenta desde el portal aparece en «Requiere tu atención» del administrador, con su motivo; el optómetra no lo ve", () => {

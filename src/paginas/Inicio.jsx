@@ -22,11 +22,9 @@ import {
   CheckCircle2,
   UserX,
   Ban,
-  UserCheck,
   CalendarOff,
   UserPlus,
 } from "lucide-react"
-import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
 import { listaParaContactar, armarMensaje, plantillaDe } from "../utilidades/crmContactos"
 import { esInactivo } from "../utilidades/fidelizacion"
 import { controlesSinAgendar, asignadoDelControl, citasParaReagendar } from "../utilidades/controles"
@@ -183,7 +181,6 @@ export default function Inicio({
   const [totalAbierto, setTotalAbierto] = useState(null) // id de la tarjeta de Totales cuya ventana está abierta
   const [dejarCita, setDejarCita] = useState(null)
   const [reasignarGrupo, setReasignarGrupo] = useState(null) // { fecha, personaId, personaNombre, citas } de una ausencia con citas por pasar
-  const [confirmarPaciente, setConfirmarPaciente] = useState(null) // paciente de la web cuyos datos recepción aún no confirma
   // Señal de "qué cambió" en el KPI de pacientes (antes solo mostraba el
   // número del momento, sin ningún punto de comparación) — cuántos se
   // registraron este mes calendario, contra fechaRegistro real.
@@ -271,9 +268,9 @@ export default function Inicio({
   // que una misma tarjeta no haga dos cosas distintas según dónde se toque.
   const atajosAdmin = (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Atajos">
-      {puedeV("pacientes", "crear") && <button type="button" onClick={onCrearPacienteRapido} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><Users size={14} aria-hidden="true" /> Registrar paciente</button>}
-      {puedeV("citas", "crear") && <button type="button" onClick={onAgendarRapido} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><Calendar size={14} aria-hidden="true" /> Agendar cita</button>}
-      {puedeV("inventario", "crear") && <button type="button" onClick={onCrearProductoRapido} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><Package size={14} aria-hidden="true" /> Agregar producto</button>}
+      {puedeV("pacientes", "crear") && <button type="button" onClick={onCrearPacienteRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Registrar paciente</button>}
+      {puedeV("citas", "crear") && <button type="button" onClick={onAgendarRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Agendar cita</button>}
+      {puedeV("inventario", "crear") && <button type="button" onClick={onCrearProductoRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Agregar producto</button>}
     </div>
   )
   // Cuánto se dio de alta este mes: cada total lo dice junto al número, con la misma lógica en las tres tarjetas.
@@ -305,13 +302,14 @@ export default function Inicio({
   const filaTotales = (
     <FilaTarjetas
       titulo="Totales"
-      descripcion="Todo lo registrado y lo nuevo de este mes"
+      descripcion="lo registrado y lo nuevo de este mes"
       acciones={atajosAdmin}
+      variante="totales"
       compacta
       tarjetas={[
         { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, color: "azul", onClick: () => setTotalAbierto("pacientes") },
         { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, color: "violet", onClick: () => setTotalAbierto("citas") },
-        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} vendido este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, color: "green", onClick: () => setTotalAbierto("ventas") },
+        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} este mes`, icono: ShoppingBag, color: "green", onClick: () => setTotalAbierto("ventas") },
         { id: "productos", titulo: "Productos", valor: productosActivos.length, desc: `+${productosEsteMes} este mes`, icono: Package, color: "amber", onClick: () => setTotalAbierto("productos") },
       ].filter(Boolean)}
     />
@@ -327,14 +325,14 @@ export default function Inicio({
   const estadoEnCitas = { atendida: "atendida", noAsistio: "noAsistio", pendiente: "abiertas", cancelada: "cancelada" }
   const irACitas = (estado = "todas") => () => (onVerCitas ? onVerCitas(estado, periodo) : setVista?.("citas"))
   const botonIrACitas = (
-    <button type="button" onClick={irACitas()} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 cursor-pointer">
+    <button type="button" onClick={irACitas()} className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
       Ir a Citas <ArrowRight size={14} aria-hidden="true" />
     </button>
   )
   const selectorPeriodo = (
-    <div role="group" aria-label="Período del desenlace" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
+    <div role="group" aria-label="Período del desenlace" className="flex flex-wrap items-center gap-1">
       {PERIODOS_DESENLACE.map(([id, etiqueta]) => (
-        <button key={id} type="button" aria-pressed={periodo === id} onClick={() => setPeriodo(id)} className={"rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer " + (periodo === id ? "text-white" : "text-slate-600 hover:bg-slate-50")} style={periodo === id ? { background: GRAD_MARCA } : undefined}>{etiqueta}</button>
+        <button key={id} type="button" aria-pressed={periodo === id} onClick={() => setPeriodo(id)} className={"rounded-full px-4 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (periodo === id ? "text-white" : "text-slate-600 hover:text-slate-900")} style={periodo === id ? { background: GRAD_MARCA } : undefined}>{etiqueta}</button>
       ))}
     </div>
   )
@@ -344,13 +342,14 @@ export default function Inicio({
     <FilaTarjetas
       titulo={`${esVistaOptometra ? "Desenlace de mis citas" : "Desenlace de las citas"} · ${ETIQUETA_PERIODO[periodo]}`}
       descripcion={tarjeta ? `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"} · ${NOMBRE_TARJETA[tarjeta].toLowerCase()}` : desenlace.canceladas > 0 ? `${desenlace.canceladas} ${desenlace.canceladas === 1 ? "cancelada aparte" : "canceladas aparte"}` : undefined}
-      acciones={<div className="flex flex-wrap items-center gap-2">{selectorPeriodo}{botonIrACitas}</div>}
+      acciones={<div className="flex flex-wrap items-center gap-3">{selectorPeriodo}{botonIrACitas}</div>}
+      variante="desenlace"
       compacta
       tarjetas={[
         tarjetaDe("atendida", { id: "atendidas", titulo: "Atendidas", valor: desenlace.atendidas, desc: enAtencionN > 0 ? `${enAtencionN} en atención ahora` : undefined, icono: CheckCircle2, color: "green" }),
         tarjetaDe("noAsistio", { id: "noAsistieron", titulo: "No efectuadas", valor: desenlace.noAtendidas, icono: UserX, color: "red" }),
         tarjetaDe("pendiente", { id: "pendientes", titulo: "Pendientes", valor: desenlace.pendientes, icono: Clock, color: "amber" }),
-        tarjetaDe("cancelada", { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: "Aparte", icono: Ban, color: "slate", aparte: true }),
+        tarjetaDe("cancelada", { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: "Aparte", icono: Ban, color: "slate" }),
       ]}
     />
   )
@@ -462,11 +461,12 @@ export default function Inicio({
   const filaVender = (
     <FilaTarjetas
       titulo="Para vender"
-      descripcion="Lo que espera a quien vende"
+      descripcion="lo que espera a quien vende"
       acciones={atajosAdmin}
+      variante="totales"
       tarjetas={[
         { id: "listos", titulo: "Listos para venta", valor: listos.length, desc: "Esperan que se les atienda", icono: ShoppingBag, color: "green", seleccionada: tarjetaVenta === "listos", onClick: () => setTarjetaVenta("listos") },
-        { id: "proformas", titulo: "Proformas en seguimiento", valor: proformas.length, desc: "Lo pensarán", icono: FileText, color: "blue", seleccionada: tarjetaVenta === "proformas", onClick: () => setTarjetaVenta("proformas") },
+        { id: "proformas", titulo: "Proformas en seguimiento", valor: proformas.length, desc: "Lo pensarán", icono: FileText, color: "azul", seleccionada: tarjetaVenta === "proformas", onClick: () => setTarjetaVenta("proformas") },
         { id: "saldos", titulo: "Saldos por cobrar", valor: dinero(saldos.total), desc: saldos.ventas === 0 ? "Nada pendiente" : textoSaldos(saldos, { conTotal: false }), icono: Wallet, color: saldos.cantidad > 0 ? "amber" : "slate", seleccionada: tarjetaVenta === "saldos", onClick: () => setTarjetaVenta("saldos") },
       ]}
     />
@@ -549,9 +549,6 @@ export default function Inicio({
   const incControlesPorAgendar = ["administrador", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)
   const incCanceladas = ["administrador", "recepcion"].includes(plantilla) || (plantilla === "general" && veCitas)
   const incStock = veInventario && plantilla !== "optometra" // quien puede ver el inventario ve el aviso; "Reabastecer" solo con inventario: editar
-  const incPorConfirmar = ["administrador", "recepcion"].includes(plantilla)
-  // Pacientes que se registraron solos al agendar por la web (R15) y cuyos datos recepción todavía no confirma (R22).
-  const porConfirmar = pacientes.filter((p) => p.origen === "paciente" && !p.confirmadoRecepcion)
   // Un paciente que pide eliminar su cuenta desde el portal es una decisión del administrador de la óptica: tiene que verla sin entrar al perfil.
   const incEliminacion = plantilla === "administrador" && puedeV("pacientes", "editar")
   const incCumple = (["administrador", "recepcion"].includes(plantilla) || plantilla === "general") && veCrm
@@ -674,19 +671,6 @@ export default function Inicio({
             return { id: c.id, nombre: c.paciente, motivo: d.motivo, por: d.por, onRestaurar: async () => { const r = await onRestaurar?.(TIPO_AVISO_CONTACTAR, c.id); if (!r?.error) onAviso?.(`El aviso de ${c.paciente} vuelve a mostrarse.`) } }
           }),
         } : {}),
-      })
-    }
-    if (incPorConfirmar && porConfirmar.length > 0) {
-      const n = porConfirmar.length
-      poner("pacientes", {
-        id: "por-confirmar", cantidad: n, corto: "datos sin verificar",
-        texto: uno(n, "paciente de la web con los datos sin verificar", "pacientes de la web con los datos sin verificar"),
-        nombres: nombresResumidos(porConfirmar.map((p) => p.nombre)),
-        casos: porConfirmar.map((p) => ({
-          id: p.id, nombre: p.nombre,
-          detalle: `Se registró por la web el ${fechaLegible(p.fechaRegistro) || "—"} · Cédula ${p.cedula || "—"}`,
-          accion: puedeV("pacientes", "editar") ? { etiqueta: "Verificar datos (registro web)", onClick: () => setConfirmarPaciente(p) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(p.id) },
-        })),
       })
     }
     if (incEliminacion && solicitudesEliminacion.length > 0) {
@@ -863,7 +847,7 @@ export default function Inicio({
   const filasDe = (area) => avisosPorArea.filter((f) => f.area === area)
   // Un bloque solo existe si el rol tiene avisos de esa área; el que existe y está vacío dice "todo en orden".
   const aplicaCitas = incAtenciones || incControlesPorAgendar || incCanceladas || puedeReasignarCitas
-  const aplicaPacientes = incPorConfirmar || incEliminacion || incControles || incSinConsulta || incCumple
+  const aplicaPacientes = incEliminacion || incControles || incSinConsulta || incCumple
   const aplicaVentas = incOrdenes || incSaldos
   const bloquesAtencion = [
     veCitas && aplicaCitas && { id: "citas", titulo: "Citas", modulo: "Citas", icono: Calendar, filas: filasDe("citas"), onVerTodo: () => setVista?.("citas") },
@@ -912,18 +896,6 @@ export default function Inicio({
     />
   )
 
-  const bConfirmarPaciente = confirmarPaciente && (
-    <ConfirmarDatosPacienteModal
-      soloConfirmar
-      usuario={usuario}
-      paciente={confirmarPaciente}
-      pacientes={pacientes}
-      setPacientes={setPacientes}
-      onCerrar={() => setConfirmarPaciente(null)}
-      onConfirmado={(p) => { setConfirmarPaciente(null); onAviso?.(`Datos de ${p.nombre} verificados.`) }}
-    />
-  )
-
   // ─── 6. Registro de actividad, compacto: las últimas 5 acciones (solo el administrador) ───
   const bActividad = actividadReciente.length > 0 && (
     <section aria-label="Registro de actividad" className="space-y-2.5">
@@ -953,7 +925,6 @@ export default function Inicio({
       <>
         {bloque && <BotonRequierenAtencion bloque={bloque} />}
         {bDejarCita}
-        {bConfirmarPaciente}
         {bReasignar}
       </>
     )
@@ -969,7 +940,6 @@ export default function Inicio({
 
       {bSuspendida}
       {bDejarCita}
-      {bConfirmarPaciente}
       {bReasignar}
       {actividadAbierta && <VentanaActividad opticaId={usuario?.opticaId} onCerrar={() => setActividadAbierta(false)} />}
       {totalAbierto && totalesVentana[totalAbierto] && <VentanaTotal total={totalesVentana[totalAbierto]} onCerrar={() => setTotalAbierto(null)} />}

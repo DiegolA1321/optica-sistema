@@ -59,10 +59,7 @@ export async function crearRegistroPaciente(supabase, opticaId, { nombre, cedula
 }
 
 // Validación compartida de los datos básicos de un paciente (nombre, cédula,
-// teléfono, correo) — antes vivía solo dentro de Citas.jsx (completar
-// registro / confirmar datos / alta rápida); ahora también la usa
-// ConfirmarDatosPacienteModal (D2, ver ese componente) para no repetir las
-// mismas reglas en un segundo lugar.
+// teléfono, correo): la cédula se valida con la regla oficial de Ecuador (dígito verificador) y no puede repetirse en la óptica.
 export function validarDatosPaciente(pacientes, { nombre, cedula, telefono, correo }, idEnEdicion = null) {
   const errs = {}
   if (!esNombreValido(nombre)) errs.nombre = "Ingresa un nombre válido (solo letras)."

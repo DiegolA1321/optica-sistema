@@ -163,7 +163,6 @@ function mapPaciente(p) {
     // confirmado_recepcion (migración 0077, D2) — mismo hallazgo que origen:
     // si no está en esta lista blanca, se guarda bien pero desaparece del
     // frontend en el siguiente reload.
-    confirmadoRecepcion: p.confirmado_recepcion,
     // medidas_solicitadas_en (migración 0080) — mismo hallazgo, otra vez.
     medidasSolicitadasEn: p.medidas_solicitadas_en,
     // Permisos para recibir mensajes (migración 0114). Mismo hallazgo de siempre: sin estar aquí se guardan bien pero no vuelven al recargar.

@@ -77,12 +77,8 @@ describe("DetalleCitaModal: Paciente · Cita · Seguimiento", () => {
     expect(screen.queryByText(/Confirmada/i)).toBeNull()
     expect(screen.queryByRole("button", { name: /confirmada/i })).toBeNull()
   })
-  it("«Verificar datos (registro web)» solo en el paciente que se registró por la web sin verificar, con su explicación al pasar el cursor", () => {
-    const web = { origen: "paciente", confirmadoRecepcion: false }
-    const { rerender } = render(<DetalleCitaModal cita={completa} paciente={web} onConfirmarDatos={f()} onCerrar={f()} />)
-    const boton = screen.getByRole("button", { name: /Verificar datos \(registro web\)/ })
-    expect(boton).toHaveAttribute("title", expect.stringMatching(/se registró solo por la web.*verificar sus datos en su primera visita/))
-    rerender(<DetalleCitaModal cita={completa} paciente={{ origen: "staff", confirmadoRecepcion: true }} onConfirmarDatos={f()} onCerrar={f()} />)
+  it("ya no existe «Verificar datos (registro web)»: ni para el paciente que se registró por la web", () => {
+    render(<DetalleCitaModal cita={completa} paciente={{ origen: "paciente", confirmadoRecepcion: false }} onCerrar={f()} />)
     expect(screen.queryByRole("button", { name: /Verificar datos/ })).toBeNull()
   })
   it("el botón principal dice «Atender»; con la ficha abierta, «Seguir atendiendo»", () => {
