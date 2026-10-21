@@ -15,6 +15,40 @@
 5. **Ronda 5 — Horario, Usuarios, Soporte, CRM y gráficas de tendencia.**
 6. Al final: suite completa de Playwright, revisión de Diego y publicación (solo cuando él lo diga).
 
+### Ronda 1 — la sesión se pierde sin avisar (21 oct. 2026, HECHA en localhost, sin publicar, sin cambios de base de datos)
+**Causa real (reproducida con dos pestañas antes de corregir; no era la renovación del token):** la sesión de Supabase es una por navegador, pero el sistema trataba cada pestaña por separado. Cada pestaña tenía su propio temporizador de inactividad (15 min) y su cierre llamaba a `signOut()` global: una pestaña olvidada cerraba la sesión de TODAS. La pestaña en uso seguía dibujando el sistema mientras todas sus llamadas salían con el token anónimo (`anon`): «Ya no tienes permiso», `permission denied for table roles`, «Sin rol», 0 roles. Al cerrar sesión y volver a entrar todo funcionaba. La renovación con tres pestañas a la vez sí funciona (la librería usa un candado entre pestañas): hay prueba.
+**Qué cambió:**
+- `src/utilidades/sesionPestanas.js`: la inactividad se cuenta con el último movimiento en CUALQUIER pestaña (localStorage); el motivo del cierre se comparte para que todas digan lo mismo.
+- `App.jsx`: si la sesión se pierde con la pantalla abierta (cierre en otra pestaña, token vencido o revocado) la pantalla lo dice —«Tu sesión venció, vuelve a ingresar» (o «Cerraste sesión en otra pestaña…» / el aviso de inactividad)— y lleva al ingreso; al abrir con una sesión guardada que ya no sirve también lo dice. `supabaseClient.js`: una llamada a la base sin sesión (o un 401) estando «dentro» avisa a la aplicación.
+- `mensajeDeError` (`utilidades/permisos.js`): ningún error crudo de la base en inglés llega a la pantalla (9 lugares: abonos, ventas, órdenes, reasignar cita, cuenta del paciente, Usuarios y Roles).
+- Usuarios: si no se pudieron leer los roles o las personas dice «No se pudo cargar los usuarios y roles» con «Reintentar» (antes «Sin rol» y 0).
+- Soporte con la vista de Optómetra del administrador: solo Mis consultas, Avisos y Ayuda (antes mostraba las pestañas del administrador). El cambio de vista no toca la sesión.
+- Errores propios encontrados y corregidos: «Dejar de atender» daba por hecho un cambio que la base podía no haber hecho (faltaba `.select()`); al reactivar el último producto descontinuado la lista quedaba vacía y sin forma de salir (Inventario).
+**Pruebas:** `e2e/sesion-pestanas.spec.js` (5: cierre en otra pestaña, tres pestañas renovando a la vez, recargar/atrás/adelante, sesión vencida, sesión guardada inservible), `e2e/ronda1-acciones.spec.js` (paciente, citas, inventario, vista de Optómetra), `sesionPestanas.test.js`, `permisos.test.js`; Vitest completo 1541/1541. Pasan también `escrituras-directas`, `flujo-completo`, `ventas-abonos`, `inventario-v2`, `usuarios-registro`, `registrar-paciente-desde-cita`, `llego-en-espera`, `soporte-v2`, `comunicacion-interna`, `roles`, `perfil-reorganizado`, `portal-recorrido`, `atender-otro-dia`, `actualizacion-entre-roles`, `permisos-api` (la suite completa queda para el final).
+**Pendiente que sale de esta ronda (no es de sesión):** «Eliminar usuario» no existe (solo Desactivar; USU-3, Ronda 5); la cita cancelada desaparece de la lista (CIT-7, Ronda 2); `ConfirmarDejarDeAtender` aún dice «No asistió» (D2, Ronda 2).
+
+| Acción (óptica de pruebas, administrador, interfaz real) | ¿Funcionaba? | Qué fallaba | Cómo se comprobó |
+|---|---|---|---|
+| Crear cita | Sí con sesión sana; con sesión perdida no guardaba | La sesión | `flujo-completo` 1 («Cita registrada y guardada correctamente.») |
+| Ver la cita en lista, semana, mes, perfil, Inicio | Sí | — | `ronda1-acciones` (cita de hoy en las 5 vistas) |
+| Editar cita | Sí | — | `ronda1-acciones` («Cita actualizada.» y el motivo nuevo en el detalle) |
+| Cancelar cita | Sí (confirma y avisa) | La cita desaparece de la lista (requisito CIT-7, Ronda 2) | `escrituras-directas`, `ronda1-acciones` |
+| Cita en el portal | Sí | — | `portal-recorrido` (agendar y reagendar desde el portal, vistos en el personal) |
+| Crear paciente | Sí | La sesión | `ronda1-acciones` («Paciente registrado» y en la lista) |
+| Editar paciente (solo el nombre) | Sí | La sesión | `ronda1-acciones` («Expediente del paciente actualizado correctamente.») |
+| Eliminar paciente | Sí: pide escribir el nombre; anonimiza y quita su acceso | — | `ronda1-acciones` (el portal rechaza su clave después) |
+| Restablecer clave y entrar al portal con la nueva | Sí; la anterior deja de entrar | La sesión | `ronda1-acciones` (portal real, dos claves) |
+| Venta con abono; registrar abono | Sí; se ve en inventario, perfil, Reportes, saldos y portal | La sesión | `flujo-completo` 3–5, `ventas-abonos`, `inventario-v2` 3, `portal-recorrido` |
+| Agregar, editar, ajustar stock, descontinuar | Sí | La sesión | `ronda1-acciones`, `escrituras-directas`, `inventario-v2` |
+| Reactivar producto | No del todo | Error propio: al reactivar el último, la lista quedaba vacía | Corregido; `ronda1-acciones` |
+| Crear rol | Sí | La sesión («permission denied for table roles») | `escrituras-directas` (crear, editar, eliminar rol) |
+| Crear, editar y desactivar usuario | Sí | La sesión («permission denied for function desactivar_usuario»); Usuarios mostraba «Sin rol» y 0 | `escrituras-directas`, `usuarios-registro` |
+| Eliminar usuario | No existe | Solo hay Desactivar (Ronda 5) | Revisión del código |
+| «Atender ahora» | Sí | — | `perfil-reorganizado` (perfil y menú de la lista), `llego-en-espera` |
+| «Dejar de atender» | No del todo | Error propio: no comprobaba que la base cambiara la cita | Corregido; `ronda1-acciones` |
+| Soporte (administrador) | Sí | La sesión («no tienes permiso») | `soporte-v2`, `comunicacion-interna` |
+| Soporte en vista de Optómetra | No | Mostraba las pestañas del administrador | Corregido; `ronda1-acciones` + unitaria |
+
 ## 19 oct. 2026 (noche, 4) — limpieza del proyecto
 - **Qué se hizo (un solo commit):** se eliminaron ~68 MB de capturas de rondas (`docs/portal-capturas`, `portal-detalles`, `portal-v2-capturas`, `portal-comparacion`, `ficha-cinco-pasos`, `ficha-coherencia`, `inicio-capturas`, `inicio-superadmin-capturas`, `ficha-capturas`, `propuesta-ficha`, `ficha-cinco-pasos-propuesta`), `src/assets/hero.png`, 6 archivos de `src` que nadie importaba (`ColaVentas`, `TendenciaGraduacion`, `GraficaGraduacion`, `RequiereAtencion`, `utilidades/graficos.js`, `utilidades/recetaTexto.js`) y los scripts de arreglos de datos de un solo uso y de capturas (`corregir-*`, `capturas-*`, `comparar-portal`, `lado-a-lado-portal`, `revision-adaptable`, etc.).
 - **Dónde quedó lo demás:** las revisiones, `roadmap-artifact.html` y `SYSTEM_MODERNIZATION_ROADMAP.md` están en `docs/historial/`; los ensayos y verificaciones de migraciones, en `scripts/historial/`; cinco capturas finales, en `docs/figuras-tesis/`. Se conservan completos `docs/portal-propuesta/`, `docs/maquetas/`, `public/capturas/` y las mediciones de Nielsen.

@@ -95,7 +95,7 @@ test.describe('sesión con varias pestañas', () => {
     // El servidor deja de reconocer la sesión: la base responde 401 y la comprobación de la sesión también.
     await page.route('**/auth/v1/user', (ruta) => ruta.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ msg: 'invalid JWT: token is expired' }) }))
     await page.route('**/rest/v1/**', (ruta) => ruta.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST301', message: 'JWT expired' }) }))
-    await page.getByRole('button', { name: /Inventario/ }).first().click()
+    // La siguiente llamada a la base (la actualización automática, cada 20 s) se entera sola; la pantalla no se queda "dentro".
     await enElIngreso(page)
     await expect(page.getByText(MENSAJE_VENCIDA)).toBeVisible()
     await expect(page.getByText(/no tienes permiso|permission denied|JWT/i)).toHaveCount(0)

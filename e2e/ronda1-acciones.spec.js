@@ -30,7 +30,7 @@ async function entrarAlPortal(browser, cedula, clave) {
   return { portal, contexto, entro }
 }
 
-test('Pacientes: crear, editar, dar acceso al portal, restablecer la clave, agendar y cancelar su cita, y eliminar', async ({ page, browser }) => {
+test('Pacientes: crear, editar, dar acceso al portal, restablecer la clave y eliminar (con su acceso al portal)', async ({ page, browser }) => {
   test.setTimeout(300_000)
   const nombre = nombrePrueba()
   const nombreEditado = nombre + ' Editado'
@@ -146,10 +146,24 @@ test('Citas: una cita de hoy se ve en la lista, la semana, el mes, el perfil del
     await irA(page, 'Inicio')
     await expect(page.getByText(nombre).first()).toBeVisible({ timeout: 30_000 })
 
-    // Cancelarla: confirma, avisa, y la lista deja de mostrarla como pendiente.
+    // Editar la cita (cambiar su motivo): guarda, avisa y el detalle lo muestra.
     await irA(page, 'Citas médicas')
     await page.getByLabel('Buscar cita: paciente o código').fill(nombre)
     await page.getByTitle('Ver el detalle de la cita').first().click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Editar cita' }).click()
+    const edicion = page.getByRole('dialog', { name: 'Editar cita' })
+    const motivoNuevo = await edicion.locator('select').first().evaluate((el) => {
+      const otra = [...el.options].find((o) => o.value && o.value !== el.value)
+      el.value = otra.value
+      el.dispatchEvent(new Event('change', { bubbles: true }))
+      return otra.textContent.trim()
+    })
+    await edicion.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expect(page.getByText('Cita actualizada.')).toBeVisible({ timeout: 20_000 })
+    await page.getByTitle('Ver el detalle de la cita').first().click()
+    await expect(page.getByRole('dialog').getByText(motivoNuevo).first()).toBeVisible({ timeout: 15_000 })
+
+    // Cancelarla: confirma, avisa, y la lista deja de mostrarla como pendiente.
     await page.getByRole('dialog').getByRole('button', { name: 'Cancelar cita' }).click()
     await page.getByRole('dialog').last().getByRole('button', { name: /Cancelar cita|Sí/ }).last().click()
     await expect(page.getByText(/cancelada|Cita cancelada/i).first()).toBeVisible({ timeout: 20_000 })
@@ -199,4 +213,39 @@ test('Inventario: agregar, editar, ajustar stock, descontinuar y reactivar un pr
   await page.reload()
   await irA(page, 'Inventario')
   await expect(page.getByRole('button', { name: `Ver el detalle de ${nombre}` })).toBeVisible({ timeout: 30_000 })
+})
+
+test('Vista de Optómetra del administrador: cambia el menú y Soporte sin tocar la sesión; en Soporte ve solo lo de ese rol', async ({ page }) => {
+  test.setTimeout(180_000)
+  await iniciarSesion(page, 'ADMIN', 'E2E')
+  await irA(page, 'Usuarios y permisos')
+  const misRoles = async (marcar) => {
+    await page.getByRole('button', { name: 'Mis roles' }).click()
+    const ventana = page.getByRole('dialog', { name: 'Mis roles' })
+    const casilla = ventana.getByRole('checkbox', { name: /Optómetra/ }).first()
+    if ((await casilla.isChecked()) !== marcar) await casilla.setChecked(marcar)
+    await ventana.getByRole('button', { name: 'Guardar mis roles' }).click()
+    await expect(ventana).toHaveCount(0, { timeout: 20_000 })
+  }
+  await misRoles(true)
+  try {
+    await page.locator('header button').last().click()
+    await page.getByRole('menuitemradio', { name: /Optómetra/ }).click()
+    await irA(page, 'Soporte')
+    const pestanas = page.getByRole('tablist').first()
+    await expect(pestanas.getByRole('tab', { name: /Mis consultas/ })).toBeVisible({ timeout: 20_000 })
+    await expect(pestanas.getByRole('tab', { name: /Consultas del personal|Soporte del sistema/ })).toHaveCount(0)
+    // La sesión sigue siendo la misma: nada de «no tienes permiso» ni de volver al ingreso.
+    await expect(page.getByText(/no tienes permiso|permission denied/i)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Iniciar sesión' })).toHaveCount(0)
+    await page.locator('header button').last().click()
+    await page.getByRole('menuitemradio', { name: /Administrador/ }).click()
+    await irA(page, 'Soporte')
+    await expect(page.getByRole('tablist').first().getByRole('tab', { name: /Consultas del personal/ })).toBeVisible({ timeout: 20_000 })
+  } finally {
+    await page.locator('header button').last().click().catch(() => {})
+    await page.getByRole('menuitemradio', { name: /Administrador/ }).click().catch(() => {})
+    await irA(page, 'Usuarios y permisos')
+    await misRoles(false)
+  }
 })
