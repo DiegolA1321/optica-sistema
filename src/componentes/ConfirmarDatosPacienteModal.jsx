@@ -48,7 +48,7 @@ export default function ConfirmarDatosPacienteModal({ usuario, paciente, pacient
       }
       if (errorConfirmar) {
         setGuardando(false)
-        setError("No se pudieron confirmar los datos del paciente. Revisa tu conexión e intenta de nuevo.")
+        setError("No se pudieron verificar los datos del paciente. Revisa tu conexión e intenta de nuevo.")
         return
       }
     }
@@ -60,7 +60,7 @@ export default function ConfirmarDatosPacienteModal({ usuario, paciente, pacient
 
   return (
     <Cascaron
-      titulo="Confirmar datos del paciente"
+      titulo="Verificar datos del paciente (registro web)"
       subtitulo={"Se registró por la web y todavía no pasó por recepción — revisa o corrige sus datos" + (soloConfirmar ? "." : " antes de abrir la ficha clínica.")}
       Icono={UserCheck}
       ancho="max-w-md"
@@ -72,7 +72,7 @@ export default function ConfirmarDatosPacienteModal({ usuario, paciente, pacient
         <div className="ml-auto flex items-center gap-2">
           <button type="button" onClick={onCerrar} disabled={guardando} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50">Cancelar</button>
           <button type="submit" disabled={guardando} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer" style={{ background: GRAD }}>
-            {guardando ? "Guardando…" : soloConfirmar ? "Confirmar datos" : "Confirmar y atender"}
+            {guardando ? "Guardando…" : soloConfirmar ? "Verificar datos" : "Verificar y atender"}
             {!soloConfirmar && <ChevronRight size={16} />}
           </button>
         </div>

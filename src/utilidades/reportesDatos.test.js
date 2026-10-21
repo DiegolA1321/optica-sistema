@@ -38,7 +38,7 @@ describe("Reportes cuenta lo mismo que Citas, con los mismos filtros", () => {
       const f = filtrarDatos(datos, filtros)
       const m = metricasDelPeriodo(f, datos, RANGO)
       const enCitas = (estado) => datos.citas.filter((c) => citaPasaFiltros(c, { estado, alta: "todas", origen: filtros.origen, seguimiento: filtros.visita, responsable: filtros.profesional || "todos", motivo: filtros.motivo, texto: "", periodo: { filtro: "todas", desde: RANGO.inicio, hasta: RANGO.fin } }, datos.historial)).length
-      expect(m.programadas.length, "Citas (Todas, sin canceladas)").toBe(enCitas("todas"))
+      expect(m.programadas.length + m.canceladas.length, "Citas «Todas» (canceladas aparte) = citas del período + canceladas").toBe(enCitas("todas"))
       expect(m.atendidas.length).toBe(enCitas("atendida"))
       expect(m.noAsistio.length).toBe(enCitas("noAsistio"))
       expect(m.canceladas.length).toBe(enCitas("cancelada"))

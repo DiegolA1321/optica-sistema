@@ -108,9 +108,9 @@ export function coincideResponsable(cita, valor) {
 }
 
 // ── Filtros combinados y conteos que los reflejan ──
-// "Todas" significa las citas activas: las canceladas solo se ven eligiendo el estado "Canceladas",
-// igual en Lista, Semana y Mes.
-export const coincideEstadoVisible = (cita, estado) => (estado === "todas" ? cita.estado !== "Cancelada" : coincideEstado(cita, estado))
+// Una cita cancelada NO desaparece (reunión del 20 oct.): "Todas" las incluye, atenuadas y tachadas, en Lista, Semana y Mes, y "Canceladas" las deja solas.
+// Los conteos las dicen aparte («16 citas · 2 canceladas»): no suman a las citas del periodo.
+export const coincideEstadoVisible = (cita, estado) => (estado === "todas" ? true : coincideEstado(cita, estado))
 
 // Búsqueda por nombre del paciente o código de la cita (el que recibe al reservar en línea).
 export function coincideTexto(cita, texto) {
@@ -159,9 +159,13 @@ export const contarCon = (citas, f, consultas, cambios) => {
 }
 
 // Denominador de "Mostrando X de Y": las citas del alcance sin ningún filtro del usuario (en Semana y Mes, las del
-// periodo visible). Las canceladas entran solo si se está mirando el estado "Canceladas".
+// periodo visible), canceladas incluidas.
 export const totalDelAlcance = (citas, f) =>
-  citas.reduce((n, c) => {
-    if (f.ventana && (c.fecha < f.ventana.desde || c.fecha > f.ventana.hasta)) return n
-    return n + (c.estado !== "Cancelada" || f.estado === "cancelada" ? 1 : 0)
-  }, 0)
+  citas.reduce((n, c) => (f.ventana && (c.fecha < f.ventana.desde || c.fecha > f.ventana.hasta) ? n : n + 1), 0)
+
+// «16 citas» y, si las hay, « · 2 canceladas»: las canceladas se cuentan aparte, nunca dentro de las citas.
+export function textoConteoCitas(lista, sufijo = "") {
+  const canceladas = lista.filter((c) => c.estado === "Cancelada").length
+  const citas = lista.length - canceladas
+  return `${citas} ${citas === 1 ? "cita" : "citas"}${sufijo}${canceladas > 0 ? ` · ${canceladas} ${canceladas === 1 ? "cancelada" : "canceladas"}` : ""}`
+}

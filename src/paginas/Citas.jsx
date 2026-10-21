@@ -57,7 +57,7 @@ import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiqueta
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
 import { citasParaReagendar } from "../utilidades/controles"
-import { ESTADOS_FILTRO, periodosFiltro, tareasFiltro, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, puedeIngresarCita, esPrimeraVez } from "../utilidades/filtrosCitas"
+import { ESTADOS_FILTRO, periodosFiltro, tareasFiltro, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, textoConteoCitas, puedeIngresarCita, esPrimeraVez } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
@@ -128,7 +128,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
     : null
   return (
     <div
-      className={"relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md " + (resuelta ? "border-slate-100 opacity-80" : cita.estado === "En Atención" ? "border-blue-300 ring-2 ring-blue-100" : "border-slate-200/60 hover:border-blue-200/60")}
+      className={"relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md " + (cita.estado === "Cancelada" ? "border-slate-100 opacity-60 " : "") + (resuelta ? "border-slate-100 opacity-80" : cita.estado === "En Atención" ? "border-blue-300 ring-2 ring-blue-100" : "border-slate-200/60 hover:border-blue-200/60")}
     >
       <span className="absolute inset-y-0 left-0 w-1.5" style={{ backgroundColor: colorDe(cita.estado).linea }} aria-hidden="true" />
 
@@ -144,7 +144,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
           </div>
           <div className="min-w-0">
             <span className="flex min-w-0 items-center gap-1.5 text-base font-semibold text-slate-800">
-              <button type="button" onClick={() => onAbrirDetalle?.(cita)} title="Ver el detalle de la cita" className="min-w-0 truncate text-left transition-colors hover:text-blue-700 cursor-pointer">{cita.paciente}</button>
+              <button type="button" onClick={() => onAbrirDetalle?.(cita)} title="Ver el detalle de la cita" className={"min-w-0 truncate text-left transition-colors hover:text-blue-700 cursor-pointer " + (cita.estado === "Cancelada" ? "line-through" : "")}>{cita.paciente}</button>
               {triage && <span title={`Pre-triage: ${triage}`} aria-label={`Pre-triage: ${triage}`} className="shrink-0 text-amber-600"><AlertTriangle size={14} aria-hidden="true" /></span>}
             </span>
             {lineaProfesional && <span className="mt-0.5 block truncate text-xs text-slate-500">{lineaProfesional}</span>}
@@ -1258,7 +1258,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   // Lista de un solo día que está cerrado (domingo, y más adelante feriados): en lugar del vacío genérico, se ofrece abrirlo.
   const diaCerradoEnLista = vistaActiva === "lista" && filtro === "hoy" && !hayRango && !hayFiltros && mostradas === 0 && !diaAbierto(horarioEfectivo(refLista, disponibilidad))
   const hoySinCitas = vistaActiva === "lista" && filtro === "hoy" && refLista === hoyISO() && !hayRango && !hayFiltros && mostradas === 0
-  const textoResumen = `${mostradas} ${mostradas === 1 ? "cita" : "citas"}${sufijoPeriodo}`
+  const textoResumen = textoConteoCitas(resultado, sufijoPeriodo)
   const elegirPeriodo = (id) => { setFiltro(id); setRefLista(hoyISO()); setRangoDesde(""); setRangoHasta("") }
   const opcionesResponsable = [{ id: "todos", etiqueta: "Todos" }, { id: "ninguno", etiqueta: "Nadie" }, ...equipo.map((m) => ({ id: m.id, etiqueta: m.nombre }))]
   const seccionesFiltro = [
@@ -1869,7 +1869,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
           paciente={confirmarSoloPara}
           pacientes={pacientes}
           setPacientes={setPacientes}
-          onConfirmado={(p) => { setConfirmarSoloPara(null); onAviso?.(`Datos de ${p.nombre} confirmados.`) }}
+          onConfirmado={(p) => { setConfirmarSoloPara(null); onAviso?.(`Datos de ${p.nombre} verificados.`) }}
           onCerrar={() => setConfirmarSoloPara(null)}
         />
       )}

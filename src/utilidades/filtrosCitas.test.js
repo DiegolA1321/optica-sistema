@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable, responsableDeCita, citaPasaFiltros, contarCon, totalDelAlcance, periodosFiltro, tareasFiltro, requiereConfirmarOtroDia } from "./filtrosCitas"
+import { puedeAtenderCita, puedeEditarCita, puedeAgendarOtraCita, puedeCancelarCita, esPrimeraVez, coincideEstado, coincideOrigen, coincideSeguimiento, coincideResponsable, responsableDeCita, citaPasaFiltros, contarCon, totalDelAlcance, periodosFiltro, tareasFiltro, textoConteoCitas, requiereConfirmarOtroDia } from "./filtrosCitas"
 
 const ahora = new Date(2026, 9, 6, 10, 0) // 6 oct 2026, 10:00
 
@@ -121,13 +121,13 @@ describe("filtros combinados y conteos", () => {
   const base = { estado: "todas", origen: "todos", seguimiento: "todos", responsable: "todos", texto: "", periodo: { filtro: "todas", desde: "", hasta: "" }, ventana: null }
   const pasan = (f) => citas.filter((c) => citaPasaFiltros(c, f)).map((c) => c.id)
 
-  it("'Todas' son las activas: las canceladas solo salen con el estado Canceladas", () => {
-    expect(pasan(base)).toEqual(["a", "b", "c", "e"])
+  it("'Todas' incluye las canceladas (no desaparecen); el estado Canceladas las deja solas", () => {
+    expect(pasan(base)).toEqual(["a", "b", "c", "d", "e"])
     expect(pasan({ ...base, estado: "cancelada" })).toEqual(["d"])
   })
   it("el conteo de cada opción respeta todos los demás filtros pero no el propio", () => {
     const f = { ...base, origen: "paciente" }
-    expect(contarCon(citas, f, [], { estado: "todas" })).toBe(3) // a, b, e
+    expect(contarCon(citas, f, [], { estado: "todas" })).toBe(4) // a, b, d, e
     expect(contarCon(citas, f, [], { estado: "pendiente" })).toBe(2) // a, e
     expect(contarCon(citas, f, [], { estado: "cancelada" })).toBe(1) // d
     expect(contarCon(citas, f, [], { origen: "staff" })).toBe(1) // c, sin el filtro de origen propio
@@ -142,12 +142,17 @@ describe("filtros combinados y conteos", () => {
   })
   it("en Semana y Mes el periodo visible recorta, y el total es el de ese periodo", () => {
     const f = { ...base, ventana: { desde: "2026-10-01", hasta: "2026-10-31" } }
-    expect(pasan(f)).toEqual(["a", "b", "c"])
-    expect(totalDelAlcance(citas, f)).toBe(3)
-    expect(totalDelAlcance(citas, { ...f, estado: "cancelada" })).toBe(4)
+    expect(pasan(f)).toEqual(["a", "b", "c", "d"])
+    expect(totalDelAlcance(citas, f)).toBe(4)
   })
-  it("el total sin filtros no cuenta las canceladas", () => {
-    expect(totalDelAlcance(citas, base)).toBe(4)
+  it("el total sin filtros cuenta todas las citas, canceladas incluidas", () => {
+    expect(totalDelAlcance(citas, base)).toBe(5)
+  })
+  it("el conteo dice las citas y, aparte, las canceladas", () => {
+    const lista = citas.filter((c) => citaPasaFiltros(c, base))
+    expect(textoConteoCitas(lista, " en la semana")).toBe("4 citas en la semana · 1 cancelada")
+    expect(textoConteoCitas(lista.filter((c) => c.estado !== "Cancelada"), " hoy")).toBe("4 citas hoy")
+    expect(textoConteoCitas(lista.filter((c) => c.estado === "Cancelada"))).toBe("0 citas · 1 cancelada")
   })
 })
 
@@ -170,21 +175,21 @@ describe("atajos del periodo y búsqueda en todas las fechas", () => {
   const con = (filtro, extra = {}) => citas.filter((c) => citaPasaFiltros(c, { ...base, periodo: { filtro, desde: "", hasta: "" }, ...extra })).map((c) => c.id)
 
   it("'Semana' va de lunes a domingo e incluye los días ya pasados, como la vista Semana", () => {
-    expect(con("semana")).toEqual(["a", "b", "d"])
+    expect(con("semana")).toEqual(["a", "b", "d", "e"])
   })
   it("'Hoy' sigue el día que se ve, también si no es hoy (con las flechas)", () => {
     expect(con("hoy")).toEqual(["c"].slice(0, 0))
     expect(con("hoy", { rangos: { ...base.rangos, hoy: { desde: "2026-10-12", hasta: "2026-10-12" } } })).toEqual(["c"])
   })
   it("'Mes' va del 1 al último día del mes en curso", () => {
-    expect(con("mes")).toEqual(["a", "b", "c", "d", "f"])
+    expect(con("mes")).toEqual(["a", "b", "c", "d", "e", "f"])
   })
   it("'para reagendar' incluye canceladas y no asistidas aunque el estado esté en Todas", () => {
     expect(con("reagendar")).toEqual(["d", "e"])
   })
   it("la búsqueda mira todas las fechas e ignora el periodo; al borrarla, vuelve", () => {
     expect(con("semana", { texto: "paciente c" })).toEqual(["c"])
-    expect(con("semana", { texto: "" })).toEqual(["a", "b", "d"])
+    expect(con("semana", { texto: "" })).toEqual(["a", "b", "d", "e"])
   })
 })
 

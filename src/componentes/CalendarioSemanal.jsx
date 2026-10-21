@@ -268,7 +268,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                       }}
                     >
                       <div className="flex items-start justify-between gap-1">
-                        <p className="min-w-0 flex-1 truncate text-xs font-bold" style={{ color: color.texto }}>{b.cita.paciente}</p>
+                        <p className={"min-w-0 flex-1 truncate text-xs font-bold " + (b.cancelada ? "line-through" : "")} style={{ color: color.texto }}>{b.cita.paciente}</p>
                         {cobro && <Receipt size={12} className="mt-px shrink-0 text-amber-600" aria-label="Cobro pendiente" />}
                       </div>
                       {altoBloque >= 38 && (

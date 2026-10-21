@@ -616,12 +616,12 @@ export default function Inicio({
       const n = porConfirmar.length
       poner("pacientes", {
         id: "por-confirmar", cantidad: n,
-        texto: uno(n, "paciente de la web con los datos sin confirmar", "pacientes de la web con los datos sin confirmar"),
+        texto: uno(n, "paciente de la web con los datos sin verificar", "pacientes de la web con los datos sin verificar"),
         nombres: nombresResumidos(porConfirmar.map((p) => p.nombre)),
         casos: porConfirmar.map((p) => ({
           id: p.id, nombre: p.nombre,
           detalle: `Se registró por la web el ${fechaLegible(p.fechaRegistro) || "—"} · Cédula ${p.cedula || "—"}`,
-          accion: puedeV("pacientes", "editar") ? { etiqueta: "Confirmar datos", onClick: () => setConfirmarPaciente(p) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(p.id) },
+          accion: puedeV("pacientes", "editar") ? { etiqueta: "Verificar datos (registro web)", onClick: () => setConfirmarPaciente(p) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(p.id) },
         })),
       })
     }
@@ -833,7 +833,7 @@ export default function Inicio({
       pacientes={pacientes}
       setPacientes={setPacientes}
       onCerrar={() => setConfirmarPaciente(null)}
-      onConfirmado={(p) => { setConfirmarPaciente(null); onAviso?.(`Datos de ${p.nombre} confirmados.`) }}
+      onConfirmado={(p) => { setConfirmarPaciente(null); onAviso?.(`Datos de ${p.nombre} verificados.`) }}
     />
   )
 

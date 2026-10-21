@@ -203,7 +203,7 @@ describe("Inicio del administrador", () => {
     expect(screen.queryByText(/control sin agendar/)).not.toBeInTheDocument()
   })
 
-  it("pacientes de la web con datos sin confirmar: la ventana ofrece 'Confirmar datos'; el optómetra no los ve", () => {
+  it("pacientes de la web con datos sin verificar: la ventana ofrece 'Verificar datos (registro web)'; el optómetra no los ve", () => {
     const pacientes = [
       ...base.pacientes,
       { id: "p3", nombre: "Web Sin Confirmar", origen: "paciente", confirmadoRecepcion: false, cedula: "1710034065", telefono: "0991234567", correo: "w@x.com" },
@@ -212,16 +212,16 @@ describe("Inicio del administrador", () => {
     ]
     const { unmount } = render(<Inicio {...base} pacientes={pacientes} />)
     const fila = area("Pacientes")
-    expect(fila).toHaveTextContent("1 paciente de la web con los datos sin confirmar · Web Sin Confirmar")
+    expect(fila).toHaveTextContent("1 paciente de la web con los datos sin verificar · Web Sin Confirmar")
     expect(fila).not.toHaveTextContent(/Web Ya Confirmado|Registrado Por Recepción/)
-    fireEvent.click(within(fila).getByRole("button", { name: /datos sin confirmar/ }))
+    fireEvent.click(within(fila).getByRole("button", { name: /datos sin verificar/ }))
     const ventana = screen.getByRole("dialog", { name: /^Pacientes · / })
     expect(ventana).toHaveTextContent("Cédula 1710034065")
-    fireEvent.click(within(ventana).getByRole("button", { name: "Confirmar datos" }))
-    expect(screen.getByRole("dialog", { name: "Confirmar datos del paciente" })).toBeInTheDocument() // encima de la lista, que sigue abierta
+    fireEvent.click(within(ventana).getByRole("button", { name: "Verificar datos (registro web)" }))
+    expect(screen.getByRole("dialog", { name: "Verificar datos del paciente (registro web)" })).toBeInTheDocument() // encima de la lista, que sigue abierta
     unmount()
     render(<Inicio {...base} pacientes={pacientes} {...rol("optometra", PERMISOS_OPTOMETRA)} />)
-    expect(screen.queryByText(/datos sin confirmar/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/datos sin verificar/)).not.toBeInTheDocument()
   })
 
   it("un paciente que pidió eliminar su cuenta desde el portal aparece en «Requiere tu atención» del administrador, con su motivo; el optómetra no lo ve", () => {

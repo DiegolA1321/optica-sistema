@@ -106,7 +106,7 @@ export default function CalendarioMes({ mes, citasPorFecha, disponibilidad, coin
                           style={{ height: ALTO_ETIQUETA, backgroundColor: color.fondo, borderLeftColor: color.linea, color: color.texto, opacity: coincide && !esCoincidencia ? 0.3 : undefined }}
                         >
                           <span className="shrink-0 font-bold tabular-nums">{horaA12(minutosAHHMM(minutosDesdeMedianoche(c.hora)))}</span>
-                          <span className="min-w-0 flex-1 truncate font-semibold">{c.paciente}</span>
+                          <span className={"min-w-0 flex-1 truncate font-semibold " + (c.estado === "Cancelada" ? "line-through" : "")}>{c.paciente}</span>
                         </button>
                       )
                     })}
