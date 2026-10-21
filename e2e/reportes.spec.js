@@ -140,7 +140,7 @@ test('Exportar está ordenado por módulo, permite marcar varios y el inventario
   await page.getByRole('button', { name: 'Exportar', exact: true }).click()
   const ventana = page.getByRole('dialog', { name: 'Exportar' })
   await expect(ventana.getByRole('tab')).toHaveCount(6)
-  const pasos = { Resumen: ['Resumen mes a mes'], Citas: ['Citas del período', 'Inasistencias para reagendar'], 'Clínico': ['Consultas del período', 'Pacientes para campaña'], Ventas: ['Ventas para el contador', 'Cobros del período'], Laboratorios: ['Órdenes pendientes por laboratorio'], Inventario: ['Inventario actual', 'Movimientos del período'] }
+  const pasos = { Resumen: ['Resumen mes a mes'], Citas: ['Citas del período', 'Citas no efectuadas para reagendar'], 'Clínico': ['Consultas del período', 'Pacientes para campaña'], Ventas: ['Ventas para el contador', 'Cobros del período'], Laboratorios: ['Órdenes pendientes por laboratorio'], Inventario: ['Inventario actual', 'Movimientos del período'] }
   for (const [modulo, nombres] of Object.entries(pasos)) {
     await ventana.getByRole('tab', { name: new RegExp('^' + modulo) }).click()
     for (const nombre of nombres) await expect(ventana.getByText(nombre).first()).toBeVisible()
@@ -163,7 +163,7 @@ test('Exportar está ordenado por módulo, permite marcar varios y el inventario
 test('Cada bloque tiene su botón Exportar en el mismo lugar, con datos y detalle completo', async ({ page }) => {
   await irAReportes(page)
   await abrirPestana(page, 'Citas')
-  const boton = page.getByRole('button', { name: 'Exportar Inasistencia por mes' })
+  const boton = page.getByRole('button', { name: 'Exportar Citas no efectuadas por mes' })
   await boton.click()
   const menu = page.getByRole('menu')
   await expect(menu.getByRole('menuitem', { name: /Datos de la gráfica/ })).toBeVisible()
@@ -177,7 +177,7 @@ test('Cada bloque tiene su botón Exportar en el mismo lugar, con datos y detall
   const descarga = page.waitForEvent('download')
   await boton.click()
   await menu.getByRole('menuitem', { name: /Datos de la gráfica/ }).click()
-  expect((await descarga).suggestedFilename()).toMatch(/^inasistencia-por-mes-datos-.*.xlsx$/)
+  expect((await descarga).suggestedFilename()).toMatch(/^citas-no-efectuadas-por-mes-datos-.*.xlsx$/)
 })
 
 test('El optómetra ve solo lo suyo: sin la pestaña Ventas, sin filtro de profesional y sin montos', async ({ page }) => {

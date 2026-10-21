@@ -2621,7 +2621,7 @@ const ESTADOS_PENDIENTES = ["Pendiente", "En Espera", "En Atención"]
 
 function BadgeEstadoCita({ estado }) {
   return (
-    <span className={"rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO_CITA[estado] || "border-amber-200/60 bg-amber-50 text-amber-700")}>
+    <span className={"whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold " + (BADGE_ESTADO_CITA[estado] || "border-amber-200/60 bg-amber-50 text-amber-700")}>
       {etiquetaEstadoCita(estado)}
     </span>
   )
@@ -2675,7 +2675,7 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
   const otras = pendientes.slice(1)
   // El historial, como una tabla: Fecha | Motivo y profesional | Diagnóstico | Receta emitida (OD y OI) | Compra relacionada | Estado | flecha. Toda la fila abre el detalle de la cita.
   // En pantalla angosta las columnas se apilan, cada dato con su rótulo.
-  const COLUMNAS = "@[40rem]:grid-cols-[6.5rem_minmax(9.5rem,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_5.5rem_1rem]"
+  const COLUMNAS = "@[40rem]:grid-cols-[6.5rem_minmax(9.5rem,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_6.75rem_1rem]"
   const celda = (rotulo, valor) => (valor ? <p className="min-w-0 text-sm leading-snug text-slate-700"><span className="font-semibold text-slate-500 @[40rem]:hidden">{rotulo}: </span>{valor}</p> : <p className="min-w-0 text-sm text-slate-400"><span className="font-semibold @[40rem]:hidden">{rotulo}: </span>—</p>)
   const filaHistorial = (c) => {
     const k = consultaDe(c)

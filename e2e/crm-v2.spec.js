@@ -162,9 +162,10 @@ test('6 · Ninguna pestaña tiene desplazamiento horizontal a 1366×768', async 
 async function numerosDelInicioYDelCrm(page) {
   // El aviso puede quedar tras "Ver todo" (la tarjeta muestra tres): se lee en la ventana de avisos de Pacientes, que los trae todos.
   let textoInicio = ''
-  await expect(page.getByRole('region', { name: 'Requiere tu atención', exact: true })).toBeVisible({ timeout: 20_000 }) // el Inicio ya cargó (y con él, los contactos del CRM)
+  const areaPacientes = page.getByRole('region', { name: 'Requiere tu atención: Pacientes' })
+  await expect(areaPacientes).toBeVisible({ timeout: 20_000 }) // el Inicio ya cargó (y con él, los contactos del CRM)
   await page.waitForTimeout(1500)
-  const abrirAvisos = page.getByRole('button', { name: 'Abrir los avisos de Pacientes' })
+  const abrirAvisos = areaPacientes.getByRole('button', { name: /con el control vencido$/ })
   if (await abrirAvisos.count()) {
     await abrirAvisos.click()
     textoInicio = await page.getByRole('dialog').innerText()

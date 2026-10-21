@@ -35,7 +35,7 @@ const entrar = (page, cuenta) => iniciarSesion(page, cuenta, ENTORNO)
 const atencion = (page) => page.getByRole('region', { name: 'Requiere tu atención', exact: true })
 
 test.describe('Inicio del administrador', () => {
-  test('estructura nueva: Totales, Requiere tu atención por área, desenlace y citas, sin línea de resumen', async ({ page }) => {
+  test('estructura nueva: Totales, Requiere tu atención por área, desenlace y registro de actividad, sin línea de resumen ni lista de citas', async ({ page }) => {
     await entrar(page, 'ADMIN')
     await expect(main(page).getByRole('region', { name: 'Totales' })).toBeVisible({ timeout: 20_000 })
     const cuerpo = main(page)
@@ -44,9 +44,10 @@ test.describe('Inicio del administrador', () => {
     await expect(cuerpo.getByLabel('Resumen del día')).toHaveCount(0)
     await expect(cuerpo.getByText(/pendientes? que requieren? tu atención/)).toHaveCount(0)
     await expect(cuerpo.getByRole('region', { name: 'Totales' }).getByText('Pacientes sin atender')).toHaveCount(0)
-    // Lo que debe estar, en orden (I: Totales, Requiere tu atención, Desenlace, Citas del día)
+    await expect(cuerpo.getByRole('region', { name: 'Citas del día' })).toHaveCount(0) // el detalle de las citas es el módulo Citas: aquí solo los números
+    // Lo que debe estar, en orden: Totales, Requiere tu atención, Desenlace, Registro de actividad
     const titulos = await cuerpo.locator('h2').allInnerTexts()
-    const esperado = ['TOTALES', 'REQUIERE TU ATENCIÓN', 'DESENLACE DE LAS CITAS · HOY', 'CITAS DEL DÍA']
+    const esperado = ['TOTALES', 'REQUIERE TU ATENCIÓN', 'DESENLACE DE LAS CITAS · HOY', 'REGISTRO DE ACTIVIDAD']
     const pos = esperado.map((t) => titulos.findIndex((x) => x.toUpperCase() === t))
     expect.soft(pos.every((p) => p >= 0), `faltan secciones: ${JSON.stringify(titulos)}`).toBe(true)
     expect.soft([...pos].sort((a, b) => a - b), 'orden de las secciones').toEqual(pos)
@@ -58,83 +59,84 @@ test.describe('Inicio del administrador', () => {
     await capturar(page, 'admin-demo')
   })
 
-  test('el desenlace indica su período (Hoy por defecto) y lo cambia', async ({ page }) => {
+  test('el desenlace indica su período (Hoy por defecto) y lo cambia; "Ir a Citas" lleva al módulo', async ({ page }) => {
     await entrar(page, 'ADMIN')
     const cuerpo = main(page)
     await expect(cuerpo.getByRole('heading', { name: /Desenlace de las citas · hoy/i })).toBeVisible({ timeout: 20_000 })
-    await expect(cuerpo.getByRole('button', { name: 'Hoy', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    for (const [boton, titulo, lista] of [['Esta semana', /· esta semana/i, /Citas de la semana/i], ['Este mes', /· este mes/i, /Citas del mes/i], ['Todas', /· todas/i, /Todas las citas/i]]) {
-      await cuerpo.getByRole('button', { name: boton, exact: true }).click()
+    const periodo = cuerpo.getByRole('group', { name: 'Período del desenlace' })
+    await expect(periodo.getByRole('button', { name: 'Hoy', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    for (const [boton, titulo] of [['Esta semana', /· esta semana/i], ['Este mes', /· este mes/i], ['Todas', /· todas/i]]) {
+      await periodo.getByRole('button', { name: boton, exact: true }).click()
       await expect(cuerpo.getByRole('heading', { name: titulo })).toBeVisible()
-      await expect(cuerpo.getByRole('heading', { name: lista })).toBeVisible() // la lista sigue el mismo período
-      await expect(cuerpo.getByRole('button', { name: boton, exact: true })).toHaveAttribute('aria-pressed', 'true')
+      await expect(periodo.getByRole('button', { name: boton, exact: true })).toHaveAttribute('aria-pressed', 'true')
     }
+    await cuerpo.getByRole('button', { name: /^Ir a Citas/ }).click()
+    await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
   })
 
-  test('la tarjeta del desenlace filtra la lista y "Ver todas en Citas" abre Citas con ese filtro', async ({ page }) => {
+  test('la tarjeta del desenlace abre Citas con ese estado y ese período (el mismo número en las dos pantallas)', async ({ page }) => {
     await entrar(page, 'ADMIN')
     const cuerpo = main(page)
-    await cuerpo.getByRole('button', { name: 'Todas', exact: true }).click()
+    await cuerpo.getByRole('group', { name: 'Período del desenlace' }).getByRole('button', { name: 'Todas', exact: true }).click()
     const tarjeta = cuerpo.getByRole('button', { name: /^Atendidas:/ })
+    await expect(tarjeta).toBeVisible({ timeout: 20_000 })
+    const n = Number((await tarjeta.getAttribute('aria-label')).match(/(\d+)/)[1])
     await tarjeta.click()
-    await expect(tarjeta).toHaveAttribute('aria-pressed', 'true')
-    await expect(cuerpo.getByRole('heading', { name: /Todas las citas · Atendidas/i })).toBeVisible()
-    // Solo citas atendidas en la lista
-    const lista = cuerpo.getByRole('region', { name: 'Todas las citas' })
-    for (const estado of ['Pendiente', 'En espera', 'No efectuada', 'Cancelada']) await expect(lista.getByText(estado, { exact: true })).toHaveCount(0)
-    await lista.getByRole('button', { name: 'Ver atendidas en Citas' }).click()
     await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByText('Estado: Atendidas')).toBeVisible()
+    if (n > 0) await expect(page.getByRole('status').first()).toHaveText(new RegExp(`^${n} citas?`), { timeout: 15_000 })
   })
 
-  test('las tarjetas del desenlace se llaman Atendidas, No efectuadas y Canceladas', async ({ page }) => {
+  test('las tarjetas del desenlace se llaman Atendidas, No efectuadas, Pendientes y Canceladas', async ({ page }) => {
     await entrar(page, 'ADMIN')
     const cuerpo = main(page)
     await expect(cuerpo.getByRole('button', { name: /^No efectuadas:/ })).toBeVisible({ timeout: 20_000 })
     await expect(cuerpo.getByRole('button', { name: /^Canceladas:/ })).toBeVisible()
-    // Sin un filtro activo ninguna tarjeta está seleccionada (aunque el cursor pase por encima).
-    for (const nombre of [/^Atendidas:/, /^No efectuadas:/, /^Pendientes:/, /^Canceladas:/]) await expect(cuerpo.getByRole('button', { name: nombre })).toHaveAttribute('aria-pressed', 'false')
+    await expect(cuerpo.getByRole('button', { name: /^Atendidas:/ })).toBeVisible()
+    await expect(cuerpo.getByRole('button', { name: /^Pendientes:/ })).toBeVisible()
     await expect(cuerpo.getByText('No atendidas')).toHaveCount(0)
+    await expect(cuerpo.getByText('No asistió')).toHaveCount(0)
   })
 
-  test('"Requiere tu atención" es una línea por tipo de aviso, con su acción y su "Ver todo →" por área sin repetir el número; el stock bajo sale una sola vez', async ({ page }) => {
+  test('"Requiere tu atención" son tarjetitas por área (número grande y leyenda corta, hasta tres), sin nombres de pacientes; el stock bajo sale una sola vez', async ({ page }) => {
     await entrar(page, 'ADMIN')
     const bloque = atencion(page)
     await expect(bloque).toBeVisible({ timeout: 20_000 })
-    await expect(main(page).getByText(/productos? con stock bajo/)).toHaveCount(1)
     await expect(bloque).not.toContainText(/Ver todo \(/)
-    let lineas = 0
+    let tarjetitas = 0
     for (const area of ['Citas', 'Pacientes', 'Ventas', 'Inventario']) {
       const sub = bloque.getByRole('region', { name: `Requiere tu atención: ${area}` })
-      if (!(await sub.count())) continue // un área sin avisos se resume en la línea de "todo en orden"
-      const filas = sub.getByRole('listitem')
-      lineas += await filas.count()
-      for (const fila of await filas.all()) {
-        await expect.soft(fila, 'cada línea empieza con su número').toContainText(/^\d+ /)
-        expect.soft(await fila.getByRole('button').count(), 'cada línea lleva una sola acción').toBeLessThanOrEqual(1)
-      }
+      await expect(sub).toBeVisible()
+      const tarjetas = sub.getByRole('listitem')
+      const n = await tarjetas.count()
+      expect(n, `${area}: hasta tres tarjetitas`).toBeLessThanOrEqual(3)
+      tarjetitas += n
+      for (const t of await tarjetas.all()) await expect.soft(t, 'cada tarjetita empieza con su número').toContainText(/^\d+/)
+      if (n === 0) await expect(sub.getByText('Todo en orden').first()).toBeVisible()
       await expect(sub.getByRole('button', { name: `Ver todo en ${area}` })).toBeVisible()
     }
-    expect(lineas).toBeGreaterThan(0)
+    expect(tarjetitas).toBeGreaterThan(0)
+    // el stock bajo se dice una sola vez en todo el Inicio
+    await expect(main(page).getByRole('button', { name: /productos? con stock bajo$/ })).toHaveCount(1)
   })
 
-  test('"Ver todo" de Inventario abre la lista ya acotada al stock bajo', async ({ page }) => {
+  test('la tarjetita de Inventario abre su ventana y su enlace deja la lista acotada al stock bajo', async ({ page }) => {
     await entrar(page, 'ADMIN')
     const sub = atencion(page).getByRole('region', { name: 'Requiere tu atención: Inventario' })
     await expect(sub).toBeVisible({ timeout: 20_000 })
-    const verTodo = sub.getByRole('button', { name: /^Ver todo/ })
-    test.skip(await verTodo.count() === 0, 'Esta óptica no tiene productos con stock bajo')
-    await verTodo.click()
+    const tarjeta = sub.getByRole('button', { name: /con stock bajo$/ })
+    test.skip(await tarjeta.count() === 0, 'Esta óptica no tiene productos con stock bajo')
+    await tarjeta.click()
     await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Inventario · Stock bajo/ }).click()
     // Inventario abre con el filtro "Stock bajo" ya activo, visible como una etiqueta con su "x" (el stock bajo ya no es una tarjeta)
     await expect(page.getByRole('button', { name: 'Quitar el filtro Stock bajo' })).toBeVisible({ timeout: 15_000 })
   })
 
-  test('"Citas del día" muestra solo las de hoy', async ({ page }) => {
+  test('el Inicio del administrador no lista citas (solo números): las tarjetas llevan a Citas', async ({ page }) => {
     await entrar(page, 'ADMIN')
-    const lista = main(page).getByRole('region', { name: 'Citas del día' })
-    await expect(lista).toBeVisible({ timeout: 20_000 })
-    await expect(lista.getByText(/Anteriores|Últimas citas/)).toHaveCount(0)
+    await expect(main(page).getByRole('region', { name: 'Totales' })).toBeVisible({ timeout: 20_000 })
+    await expect(main(page).getByRole('region', { name: 'Citas del día' })).toHaveCount(0)
+    await expect(main(page).getByText(/Anteriores|Últimas citas/)).toHaveCount(0)
   })
 
   test("los atajos abren su formulario encima del Inicio, sin cambiar de módulo", async ({ page }) => {
@@ -207,9 +209,9 @@ test('Inicio de Paula con un paciente en espera: el siguiente paciente es quien 
 
 test('Inicio de Recepción y de Ventas con su bloque único', async ({ page }) => {
   await entrar(page, 'RECEPCION')
-  await expect(main(page).getByRole('region', { name: 'Requiere tu atención', exact: true })).toBeVisible({ timeout: 20_000 })
+  await expect(main(page).getByRole('region', { name: 'Requiere tu atención: Citas' })).toBeVisible({ timeout: 20_000 })
   // Recepción también puede ver el inventario: el aviso de stock bajo aparece una vez, sin "Reabastecer" (no edita).
-  await expect(main(page).getByText(/productos? con stock bajo/)).toHaveCount(1)
+  await expect(main(page).getByRole('button', { name: /productos? con stock bajo$/ })).toHaveCount(1)
   await expect(main(page).getByRole('button', { name: 'Reabastecer' })).toHaveCount(0)
   await capturar(page, 'recepcion')
 })
@@ -217,18 +219,18 @@ test('Inicio de Recepción y de Ventas con su bloque único', async ({ page }) =
 test('Inicio de Ventas', async ({ page }) => {
   await entrar(page, 'VENTAS')
   const cuerpo = main(page)
-  await expect(cuerpo.getByRole('region', { name: 'Requiere tu atención', exact: true })).toBeVisible({ timeout: 20_000 })
-  await expect(cuerpo.getByText(/productos? con stock bajo/)).toHaveCount(1)
-  await expect(cuerpo.getByText(/[oó]rden(es)? atrasadas?/).first()).toBeVisible()
+  await expect(cuerpo.getByRole('region', { name: 'Requiere tu atención: Ventas' })).toBeVisible({ timeout: 20_000 })
+  await expect(cuerpo.getByRole('button', { name: /productos? con stock bajo$/ })).toHaveCount(1)
+  await expect(cuerpo.getByRole('button', { name: /[oó]rden(es)? atrasadas?$/ }).first()).toBeVisible()
   await capturar(page, 'ventas')
 })
 
 // El mismo dato debe dar el mismo número en todos los roles (salvo el alcance "propio") y nunca calcularse con datos a medias.
 async function controlesVencidos(page, cuenta) {
   await entrar(page, cuenta)
-  const fila = page.getByRole('region', { name: 'Requiere tu atención', exact: true }).getByText(/con el control vencido/)
+  const fila = page.getByRole('region', { name: 'Requiere tu atención: Pacientes' }).getByRole('button', { name: /con el control vencido$/ })
   await expect(fila).toBeVisible({ timeout: 20_000 })
-  return Number((await fila.innerText()).match(/^(\d+)/)[1])
+  return Number((await fila.getAttribute('aria-label')).match(/^(\d+)/)[1])
 }
 test('los controles vencidos dan el mismo número en el administrador, Recepción y Paula', async ({ browser }) => {
   const numeros = {}
@@ -244,10 +246,10 @@ test('"N pacientes registrados sin ninguna consulta" coincide con "Sin consulta"
   await entrar(page, 'ADMIN')
   const bloque = atencion(page).getByRole('region', { name: 'Requiere tu atención: Pacientes' })
   await expect(bloque).toBeVisible({ timeout: 20_000 })
-  const aviso = bloque.getByText(/pacientes? registrados? sin ninguna consulta/)
+  const aviso = bloque.getByRole('button', { name: /pacientes? registrados? sin ninguna consulta$/ })
   // El bloque muestra solo los tres avisos más importantes: si este no entró, no hay nada que comparar (lo cubren las pruebas unitarias).
   test.skip((await aviso.count()) === 0, 'El aviso no está entre los tres primeros del bloque Pacientes')
-  const enInicio = Number((await aviso.first().innerText()).match(/^([0-9]+)/)[1])
+  const enInicio = Number((await aviso.first().getAttribute('aria-label')).match(/^([0-9]+)/)[1])
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
   const sinConsulta = page.getByRole('button', { name: /Sin consulta/ }).first()
   await expect(sinConsulta).toBeVisible({ timeout: 15_000 })

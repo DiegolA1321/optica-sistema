@@ -313,7 +313,9 @@ test('Citas y pacientes: corregir los datos de un paciente y cancelar su cita (p
   await page.getByLabel('Buscar cita: paciente o código').fill(nombre)
   await page.getByTitle('Ver el detalle de la cita').first().click()
   await page.getByRole('dialog').getByRole('button', { name: 'Cancelar cita' }).click()
-  await conEscritura(page, 'citas', 'cancelar cita', () => page.getByRole('dialog').last().getByRole('button', { name: /Cancelar cita|Sí/ }).last().click(), ['PATCH'])
+  // Cancelar pide el motivo (lista fija) y escribe con la función cancelar_cita, que deja quién y por qué.
+  await page.getByRole('dialog').last().getByRole('radio', { name: 'La óptica no puede atender' }).click()
+  await conEscritura(page, 'rpc/cancelar_cita', 'cancelar cita', () => page.getByRole('dialog').last().getByRole('button', { name: 'Sí, cancelar' }).click())
 })
 
 test('Usuarios: crear una cuenta nueva y desactivarla (perfiles: insert; cuenta de acceso y desactivación)', async ({ page }) => {

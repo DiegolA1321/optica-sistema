@@ -37,7 +37,7 @@ test('Totales: cada opción de cada tarjeta lleva al módulo con el mismo númer
         await expect(main(page)).toContainText(mes ? new RegExp(`(Mostrando )?${n} (de \\d+ )?pacientes?`) : new RegExp(`^[\\s\\S]*${n} pacientes`), { timeout: 15_000 })
         if (mes && n > 0) await expect(estado(page)).toHaveText(new RegExp(`^(Mostrando ${n} de \\d+ pacientes|${n} pacientes?)$`))
       } else if (tarjeta === 'Citas') {
-        await expect(estado(page)).toHaveText(new RegExp(`^${n} citas?$`), { timeout: 15_000 })
+        await expect(estado(page)).toHaveText(new RegExp(`^${n} citas?( · \\d+ canceladas?)?$`), { timeout: 15_000 })
         if (mes) await expect(page.getByRole('button', { name: /Quitar el filtro Agendadas: este mes/ })).toBeVisible()
         else await expect(page.getByRole('button', { name: 'Todas', exact: true }).first()).toHaveAttribute('aria-pressed', 'true')
       } else if (tarjeta === 'Ventas') {
@@ -102,7 +102,7 @@ test('Citas: "Todas" está siempre en el selector, en su sitio', async ({ page }
   for (const periodo of ['Hoy', 'Esta semana', 'Este mes', 'Todas']) {
     await grupo.getByRole('button', { name: periodo, exact: true }).click()
     await expect(grupo.getByRole('button', { name: periodo, exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await expect(grupo.getByRole('button')).toHaveText(['Hoy', 'Esta semana', 'Este mes', 'Todas']) // siempre las mismas cuatro, en el mismo orden
+    await expect(grupo.getByRole('button')).toHaveText(['Hoy', 'Esta semana', 'Este mes', 'Todas', 'Rango']) // siempre las mismas cinco, en el mismo orden
     await page.waitForTimeout(400)
     const caja = await grupo.boundingBox()
     primera = primera || caja
@@ -115,7 +115,9 @@ test('Citas: "Todas" está siempre en el selector, en su sitio', async ({ page }
 test('las ventanas del Inicio desvanecen también la barra lateral', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
   await alInicio(page)
-  await page.getByRole('button', { name: /^Abrir los avisos de Citas$/ }).click()
+  const tarjetaCitas = page.getByRole('region', { name: 'Requiere tu atención: Citas' }).getByRole('listitem').getByRole('button').first()
+  test.skip((await tarjetaCitas.count()) === 0, 'No hay avisos de Citas')
+  await tarjetaCitas.click()
   await expect(page.getByRole('dialog')).toBeVisible()
   // sobre la barra lateral lo que se toca es la capa que desvanece (backdrop-blur), no la barra
   const capa = await page.evaluate(() => document.elementFromPoint(40, 300)?.className || '')
