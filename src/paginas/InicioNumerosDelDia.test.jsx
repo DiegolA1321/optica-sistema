@@ -95,7 +95,7 @@ describe("Los números del día coinciden en todo el Inicio, con cualquier dato"
     }
   })
 
-  it("administrador: 'Citas del día' lista todas las del día (sin canceladas) y su número es el del desenlace", () => {
+  it("administrador: el desenlace cuenta las citas del día sin canceladas y no repite la lista de Citas", () => {
     const azar = semilla(7)
     for (let corrida = 0; corrida < 40; corrida++) {
       const citas = generarCitas(azar)
@@ -106,10 +106,8 @@ describe("Los números del día coinciden en todo el Inicio, con cualquier dato"
       const atendidas = vigentes.filter((c) => c.estado === "Atendida").length
       const noAsistio = vigentes.filter((c) => c.estado === "No Asistió").length
       expect([valorDe(desenlace, "Atendidas"), valorDe(desenlace, "No efectuadas"), valorDe(desenlace, "Pendientes")], contexto).toEqual([atendidas, noAsistio, vigentes.length - atendidas - noAsistio])
-      const lista = screen.getByRole("region", { name: "Citas del día" })
-      expect(lista.querySelectorAll(ID_FILAS).length, contexto).toBe(Math.min(vigentes.length, 8)) // se ven las primeras ocho; el resto está en Citas
-      if (vigentes.length > 8) expect(lista.textContent, contexto).toContain(`Primeras 8 de ${vigentes.length}`)
-      else if (vigentes.length > 0) expect(lista.textContent, contexto).toContain(cita(vigentes.length))
+      // el administrador no ve la lista de citas aquí abajo (es lo mismo que el módulo Citas): el número del desenlace es el que abre «Ir a Citas»
+      expect(screen.queryByRole("region", { name: "Citas del día" }), contexto).not.toBeInTheDocument()
       cleanup()
     }
   })

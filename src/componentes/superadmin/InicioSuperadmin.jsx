@@ -97,8 +97,8 @@ export default function InicioSuperadmin({ opticas, datos: datosReales, consulta
   const irASoporte = (urgencia) => () => onAbrir("soporte", { tab: "consultas", estado: "abiertas", urgencia, ...pruebaAcceso })
   const casoConsulta = (c, insignia) => ({ id: c.id, icono: LifeBuoy, nombre: `${codigoConsulta(c.numero)} · ${c.asunto}`, detalle: c.urgencia === "urgente" ? "Urgente" : undefined, insignia, accion: { etiqueta: "Abrir", navega: true, onClick: irASoporte(c.urgencia === "urgente" ? "urgente" : "") } })
   const filasSoporte = [
-    urgentes.length > 0 && { id: "urgentes", cantidad: urgentes.length, texto: urgentes.length === 1 ? "consulta urgente abierta" : "consultas urgentes abiertas", tono: "urgente", enlace: { texto: "Abrir en Soporte", onClick: irASoporte("urgente") }, casos: urgentes.map((c) => casoConsulta(c, { texto: "Urgente", tono: "urgente" })) },
-    esperan.length > 0 && { id: "esperan", cantidad: esperan.length, texto: esperan.length === 1 ? "consulta espera tu respuesta" : "consultas esperan tu respuesta", enlace: { texto: "Abrir las consultas abiertas", onClick: irASoporte("") }, casos: esperan.map((c) => casoConsulta(c, { texto: "Sin respuesta", tono: "aviso" })) },
+    urgentes.length > 0 && { id: "urgentes", cantidad: urgentes.length, corto: "urgentes abiertas", texto: urgentes.length === 1 ? "consulta urgente abierta" : "consultas urgentes abiertas", tono: "urgente", enlace: { texto: "Abrir en Soporte", onClick: irASoporte("urgente") }, casos: urgentes.map((c) => casoConsulta(c, { texto: "Urgente", tono: "urgente" })) },
+    esperan.length > 0 && { id: "esperan", cantidad: esperan.length, corto: "esperan respuesta", texto: esperan.length === 1 ? "consulta espera tu respuesta" : "consultas esperan tu respuesta", enlace: { texto: "Abrir las consultas abiertas", onClick: irASoporte("") }, casos: esperan.map((c) => casoConsulta(c, { texto: "Sin respuesta", tono: "aviso" })) },
   ].filter(Boolean)
   const cargandoUso = datos.cargando // mientras llega el uso no se afirma nada: ni «0 personas» ni «módulos sin uso»
   // Cada módulo con lo que la óptica decidió («No usamos este módulo») y lo que se le ofreció. Si lo usan, se cuenta como en uso aunque hayan dicho que no.
@@ -111,11 +111,11 @@ export default function InicioSuperadmin({ opticas, datos: datosReales, consulta
   const detalleDeModulo = (m) => (ayudaOfrecida(m.ofrecida?.ofrecidaEn).vigente ? "Ayuda ofrecida el " + fechaDe(m.ofrecida.ofrecidaEn) : "Nadie lo usó en los últimos 30 días")
   const filasOptica = [
     sinUsoModulos.length > 0 && {
-      id: "sin-uso", cantidad: sinUsoModulos.length, texto: sinUsoModulos.length === 1 ? "módulo sin uso en 30 días" : "módulos sin uso en 30 días", nombres: sinUsoModulos.map((m) => m.nombre).join(", "),
+      id: "sin-uso", cantidad: sinUsoModulos.length, corto: "módulos sin uso", texto: sinUsoModulos.length === 1 ? "módulo sin uso en 30 días" : "módulos sin uso en 30 días", nombres: sinUsoModulos.map((m) => m.nombre).join(", "),
       casos: sinUsoModulos.map((m) => ({ id: m.id, icono: ICONO_MODULO[m.id], nombre: m.nombre, detalle: detalleDeModulo(m), insignia: { texto: "Sin uso", tono: "neutro" }, accion: accionDeModulo(m) })),
     },
     accesosSoporte.length > 0 && {
-      id: "acceso-soporte", cantidad: accesosSoporte.length, texto: accesosSoporte.length === 1 ? "permiso de acceso del soporte activo" : "permisos de acceso del soporte activos",
+      id: "acceso-soporte", cantidad: accesosSoporte.length, corto: "accesos del soporte", texto: accesosSoporte.length === 1 ? "permiso de acceso del soporte activo" : "permisos de acceso del soporte activos",
       enlace: { texto: "Abrir en La óptica", onClick: () => onAbrir("opticas", { abrir: accesosSoporte[0].optica_id, estado: "Todas", ...pruebaAcceso }) },
       casos: accesosSoporte.map((x) => ({ id: x.id, icono: ShieldCheck, nombre: "Permiso para el soporte", detalle: `${x.concedido_nombre ? `Lo dio ${x.concedido_nombre} · ` : ""}vence ${fechaHoraLegible(x.vence_en)}`, insignia: { texto: "Activo", tono: "aviso" } })),
     },

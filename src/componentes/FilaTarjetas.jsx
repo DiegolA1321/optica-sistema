@@ -12,6 +12,15 @@ const COLORES = {
   red: { tile: "#FEE2E2", texto: "#DC2626" },
 }
 
+// Un tinte suave por tarjeta para los Totales (reunión del 20 oct., INI-1): distingue una tarjeta de otra sin competir con los colores de ESTADO (naranja pendiente, azul en
+// atención, verde atendida, rojo no efectuada, violeta en espera, gris cancelada), que por eso no se usan aquí.
+const TINTES = {
+  sky: { fondo: "#F2F9FD", borde: "#BFE3F6", tile: "#DCF0FB", texto: "#0369A1" },
+  indigo: { fondo: "#F4F5FF", borde: "#CBD0F7", tile: "#E3E6FC", texto: "#4338CA" },
+  teal: { fondo: "#F1FBF9", borde: "#A7E6DC", tile: "#D3F4EE", texto: "#0F766E" },
+  rose: { fondo: "#FFF5F8", borde: "#F9C9D8", tile: "#FDE2EA", texto: "#BE185D" },
+}
+
 // Una fila de tarjetas del Inicio (R52): todas hablan de lo mismo y el título de la fila lo dice
 // ("Totales", "Hoy", "Este mes"...). Cada tarjeta puede llevar a su módulo y tener un atajo que abre la acción.
 // - neutro: la baldosa del ícono es la misma (gris) en todas; el color queda para los estados (regla 14).
@@ -30,11 +39,12 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones, 
       <div className={"grid grid-cols-1 sm:grid-cols-2 " + (compacta ? "gap-2.5 " : "gap-3 ") + columnas}>
         {tarjetas.map((t) => {
           const Icono = t.icono
-          const c = COLORES[neutro ? "slate" : t.color || "slate"]
+          const tinte = t.tinte ? TINTES[t.tinte] : null
+          const c = tinte ? { tile: tinte.tile, texto: tinte.texto } : COLORES[neutro ? "slate" : t.color || "slate"]
           const accionable = typeof t.onClick === "function"
           const Contenedor = accionable ? "button" : "div"
           return (
-            <div key={t.id} className={"flex flex-col justify-between rounded-2xl border text-left transition-colors " + (compacta ? "p-3 " : "p-4 ") + (t.aparte ? "border-dashed border-slate-300 bg-slate-50/60 " : "bg-white shadow-sm ") + (t.seleccionada ? "border-blue-500 ring-1 ring-blue-500" : t.aparte ? "" : "border-slate-200/60 hover:border-slate-300")}>
+            <div key={t.id} style={tinte && !t.seleccionada ? { backgroundColor: tinte.fondo, borderColor: tinte.borde } : undefined} className={"flex flex-col justify-between rounded-2xl border text-left transition-colors " + (compacta ? "p-3 " : "p-4 ") + (t.aparte ? "border-dashed border-slate-300 bg-slate-50/60 " : tinte ? "shadow-sm " : "bg-white shadow-sm ") + (t.seleccionada ? "border-blue-500 ring-1 ring-blue-500" : t.aparte || tinte ? "" : "border-slate-200/60 hover:border-slate-300")}>
               <Contenedor
                 type={accionable ? "button" : undefined}
                 onClick={accionable ? t.onClick : undefined}

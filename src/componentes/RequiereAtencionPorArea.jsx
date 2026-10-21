@@ -1,38 +1,41 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { CheckCircle2, ArrowRight, ChevronRight, AlertCircle } from "lucide-react"
+import { CheckCircle2, ArrowRight, AlertCircle } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { Cascaron } from "./AtencionPaciente"
 
-// "Requiere tu atención" del Inicio: una tarjeta por área (Citas, Pacientes, Ventas, Inventario), nunca todo en una sola lista (I4).
-// Las tarjetas van en una cuadrícula de dos columnas y las de una misma fila tienen la misma altura. Cada una lleva su ícono, su título y
-// su número (el total de avisos del área); como máximo tres avisos (I5), una línea cada uno con su número, qué pasa y los nombres resumidos.
-// Un aviso, el encabezado de la tarjeta y "Ver todo →" abren la ventana estándar del sistema (regla 43) encima del Inicio, con una sección por
-// tipo de aviso, cada caso con su detalle y su acción, y el enlace "Abrir en …" que dice adónde lleva y con qué número (regla 42).
-// Al resolver un caso la lista y los números se actualizan: la ventana lee siempre los avisos actuales. Un área sin avisos dice "Todo en orden".
+// «Requiere tu atención» del Inicio (reunión del 20 oct., ATN-1): una tarjeta por área (Citas, Pacientes, Ventas, Inventario), nunca todo en una sola lista (I4), y dentro de
+// cada área, como máximo TRES tarjetitas: cada una con el número grande y debajo una leyenda corta («por contactar», «con stock bajo»), sin nombres de pacientes
+// (nadie lee tanto texto). Pulsar una tarjetita abre SU lista en la ventana estándar del sistema (regla 43), con cada caso, su detalle y su acción, y el enlace
+// «Abrir en …» que dice adónde lleva y con qué número (regla 42). «Ver todo» lleva al módulo (con el filtro del aviso cuando el área tiene un solo tipo de aviso).
+// Si hay más de tres tipos, «N más» abre la ventana con todas las del área. Al resolver un caso la lista y los números se actualizan: la ventana lee siempre los
+// avisos actuales. Un área sin avisos dice «Todo en orden» en una línea.
 //
-// bloques: [{ id, titulo, modulo, icono, filas, onVerTodo }]; onVerTodo lleva al módulo (se usa en el área que está en orden).
-// filas: [{ id, cantidad, texto, nombres?, tono?: "urgente", enlace?: { texto, onClick }, casos: [{ id, nombre, detalle?, icono?, insignia?: { texto, tono }, accion?: { etiqueta, onClick, navega? } }] }]
-// icono (opcional): el ícono de un caso que no es una persona (un módulo, un componente); sin él, se muestran las iniciales del nombre.
+// bloques: [{ id, titulo, modulo, icono, filas, onVerTodo }]; onVerTodo lleva al módulo.
+// filas: [{ id, cantidad, texto, corto?, tono?: "urgente", enlace?: { texto, onClick }, casos: [{ id, nombre, detalle?, icono?, insignia?: { texto, tono }, accion?: { etiqueta, onClick, navega? } }] }]
+// `texto` es la frase completa (nombre accesible y título de la ventana); `corto` es la leyenda de la tarjetita.
 export const AVISOS_POR_TARJETA = 3
 const INSIGNIA = { urgente: "border-red-200 bg-red-50 text-red-700", neutro: "border-slate-200 bg-slate-50 text-slate-600", aviso: "border-amber-200 bg-amber-50 text-amber-700" }
 const iniciales = (nombre = "") => nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?"
 
-function VentanaAvisos({ bloque, filaId, onCerrar }) {
+function VentanaAvisos({ bloque: bloqueCompleto, filaId, soloFila = false, onCerrar }) {
+  // Con soloFila la ventana es la lista de ESA tarjetita; sin ella, todas las del área (el botón «Requieren atención» de cada módulo, o «N más»).
+  const bloque = soloFila && filaId ? { ...bloqueCompleto, filas: bloqueCompleto.filas.filter((f) => f.id === filaId) } : bloqueCompleto
   const total = bloque.filas.reduce((n, f) => n + (f.cantidad ?? 1), 0)
   const refs = useRef({})
   useEffect(() => {
-    if (filaId && refs.current[filaId]) refs.current[filaId].scrollIntoView?.({ block: "start" })
-  }, [filaId])
+    if (filaId && !soloFila && refs.current[filaId]) refs.current[filaId].scrollIntoView?.({ block: "start" })
+  }, [filaId, soloFila])
   const ejecutar = (accion) => {
     if (accion.navega) onCerrar()
     accion.onClick()
   }
+  const unica = soloFila ? bloque.filas[0] : null
   return (
     <Cascaron
-      titulo={`${bloque.titulo} · ${total} ${total === 1 ? "aviso" : "avisos"}`}
-      subtitulo="Lo que requiere tu atención en esta área"
+      titulo={unica ? `${unica.cantidad ?? 1} ${unica.texto}` : `${bloque.titulo} · ${total} ${total === 1 ? "aviso" : "avisos"}`}
+      subtitulo={unica ? `Requiere tu atención · ${bloque.titulo}` : "Lo que requiere tu atención en esta área"}
       Icono={bloque.icono}
       onCerrar={onCerrar}
       pie={<>
@@ -43,9 +46,9 @@ function VentanaAvisos({ bloque, filaId, onCerrar }) {
       {bloque.filas.length === 0 ? (
         <p className="flex items-center gap-2 px-5 py-8 text-sm font-medium text-slate-600"><CheckCircle2 size={18} className="shrink-0 text-emerald-600" aria-hidden="true" /> Todo en orden: no queda nada pendiente en esta área.</p>
       ) : bloque.filas.map((f) => (
-        <section key={f.id} ref={(el) => { refs.current[f.id] = el }} aria-label={`${f.cantidad ?? 1} ${f.texto}`} className={"border-b border-slate-100 px-5 pb-2 pt-4 last:border-b-0 " + (f.id === filaId ? "bg-slate-50/70" : "")}>
+        <section key={f.id} ref={(el) => { refs.current[f.id] = el }} aria-label={`${f.cantidad ?? 1} ${f.texto}`} className={"border-b border-slate-100 px-5 pb-2 pt-4 last:border-b-0 " + (f.id === filaId && !soloFila ? "bg-slate-50/70" : "")}>
           <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h3 className="text-sm font-bold" style={{ color: INK }}>{f.cantidad ?? 1} {f.texto}</h3>
+            {!unica && <h3 className="text-sm font-bold" style={{ color: INK }}>{f.cantidad ?? 1} {f.texto}</h3>}
             {f.enlace && (
               <button type="button" onClick={() => { onCerrar(); f.enlace.onClick() }} className="ml-auto flex items-center gap-1 text-sm font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
                 {f.enlace.texto} <ArrowRight size={14} aria-hidden="true" />
@@ -104,7 +107,7 @@ export function BotonRequierenAtencion({ bloque }) {
 // todo quepa en una pantalla. lateral: lo que va a la derecha del título (por ejemplo, «Sistema y Soporte: todo en orden»).
 const COLUMNAS = { 1: "grid-cols-1", 2: "grid-cols-1 md:grid-cols-2 md:auto-rows-fr", 3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 md:auto-rows-fr" }
 export default function RequiereAtencionPorArea({ bloques, columnas = 2, compacto = false, lateral = null }) {
-  const [abierto, setAbierto] = useState(null) // { bloqueId, filaId }
+  const [abierto, setAbierto] = useState(null) // { bloqueId, filaId, soloFila }
   if (bloques.length === 0) return null
   const bloqueAbierto = abierto ? bloques.find((b) => b.id === abierto.bloqueId) : null
   return (
@@ -118,58 +121,55 @@ export default function RequiereAtencionPorArea({ bloques, columnas = 2, compact
           const Icono = b.icono
           const visibles = b.filas.slice(0, AVISOS_POR_TARJETA)
           const total = b.filas.reduce((n, f) => n + (f.cantidad ?? 1), 0)
-          const ocultos = b.filas.slice(AVISOS_POR_TARJETA).reduce((n, f) => n + (f.cantidad ?? 1), 0)
-          const abrir = (filaId = null) => setAbierto({ bloqueId: b.id, filaId })
-          const encabezado = (
-            <>
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><Icono size={18} aria-hidden="true" /></span>
-              <span className="text-base font-bold" style={{ color: INK }}>{b.titulo}</span>
-              {total > 0
-                ? <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-sm font-bold text-amber-700">{total}</span>
-                : <span className="ml-auto rounded-full bg-emerald-50 px-2.5 py-0.5 text-sm font-bold text-emerald-700">Todo en orden</span>}
-            </>
-          )
+          const mas = b.filas.length - visibles.length
+          // «Ver todo» lleva al módulo; si el área tiene un solo tipo de aviso con su filtro, lleva a esa lista filtrada.
+          const verTodo = b.filas.length === 1 && b.filas[0].enlace ? b.filas[0].enlace.onClick : b.onVerTodo
           return (
             <section key={b.id} aria-label={`Requiere tu atención: ${b.titulo}`} className="flex flex-col rounded-2xl border border-slate-200/60 bg-white shadow-sm">
-              {total > 0 ? (
-                <button type="button" onClick={() => abrir()} aria-label={`Abrir los avisos de ${b.titulo}`} className={"flex items-center gap-3 rounded-t-2xl border-b border-slate-100 px-4 text-left transition-colors hover:bg-slate-50 cursor-pointer " + (compacto ? "py-2" : "py-3")}>{encabezado}</button>
-              ) : (
-                <div className={"flex items-center gap-3 border-b border-slate-100 px-4 " + (compacto ? "py-2" : "py-3")}>{encabezado}</div>
-              )}
+              <div className={"flex items-center gap-3 border-b border-slate-100 px-4 " + (compacto ? "py-2" : "py-3")}>
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><Icono size={18} aria-hidden="true" /></span>
+                <span className="text-base font-bold" style={{ color: INK }}>{b.titulo}</span>
+                {total > 0
+                  ? <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-sm font-bold text-amber-700">{total}</span>
+                  : <span className="ml-auto rounded-full bg-emerald-50 px-2.5 py-0.5 text-sm font-bold text-emerald-700">Todo en orden</span>}
+              </div>
               {visibles.length > 0 ? (
-                <ul className="flex-1 divide-y divide-slate-100">
-                  {visibles.map((f) => (
-                    <li key={f.id}>
-                      <button type="button" onClick={() => abrir(f.id)} className={"flex w-full items-center gap-3 px-4 text-left transition-colors hover:bg-slate-50 cursor-pointer " + (compacto ? "py-1.5" : "py-2.5")}>
-                        <p className="min-w-0 flex-1 truncate text-sm text-slate-700">
-                          <span className={"font-bold " + (f.tono === "urgente" ? "text-red-700" : "")} style={f.tono === "urgente" ? undefined : { color: INK }}>{f.cantidad ?? 1}</span> {f.texto}
-                          {f.nombres && <span className="text-slate-500"> · {f.nombres}</span>}
-                        </p>
-                        <ChevronRight size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
-                      </button>
-                    </li>
-                  ))}
+                <ul className={"grid flex-1 gap-2.5 p-3 " + (visibles.length === 1 ? "grid-cols-1" : visibles.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
+                  {visibles.map((f) => {
+                    const urgente = f.tono === "urgente"
+                    return (
+                      <li key={f.id} className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => setAbierto({ bloqueId: b.id, filaId: f.id, soloFila: true })}
+                          aria-label={`${f.cantidad ?? 1} ${f.texto}`}
+                          className={"flex h-full w-full flex-col justify-between rounded-xl border px-3 py-2.5 text-left transition-colors cursor-pointer " + (urgente ? "border-red-200/70 bg-red-50/60 hover:bg-red-50" : "border-slate-200/70 bg-slate-50/60 hover:border-slate-300 hover:bg-slate-50")}
+                        >
+                          <span className={"font-serif text-3xl font-semibold leading-none " + (urgente ? "text-red-700" : "")} style={urgente ? undefined : { color: INK }}>{f.cantidad ?? 1}</span>
+                          <span className="mt-1.5 block text-sm leading-tight text-slate-600">{f.corto || f.texto}</span>
+                        </button>
+                      </li>
+                    )
+                  })}
                 </ul>
               ) : (
-                <p className="flex flex-1 items-center gap-2 px-4 py-4 text-sm text-slate-600"><CheckCircle2 size={16} className="shrink-0 text-emerald-600" aria-hidden="true" /> Nada pendiente en esta área.</p>
+                <p className="flex flex-1 items-center gap-2 px-4 py-4 text-sm font-medium text-slate-600"><CheckCircle2 size={16} className="shrink-0 text-emerald-600" aria-hidden="true" /> Todo en orden</p>
               )}
               <footer className={"flex items-center border-t border-slate-100 px-4 text-sm " + (compacto ? "py-1.5" : "py-2.5")}>
-                {ocultos > 0 && <span className="text-slate-500">{ocultos === 1 ? "1 elemento más" : `${ocultos} elementos más`}</span>}
-                {total > 0 ? (
-                  <button type="button" onClick={() => abrir()} aria-label={`Ver todo en ${b.titulo}`} className="ml-auto flex items-center gap-1 font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-                    Ver todo <ArrowRight size={14} aria-hidden="true" />
-                  </button>
-                ) : (
-                  <button type="button" onClick={b.onVerTodo} aria-label={`Ver todo en ${b.titulo}`} className="ml-auto flex items-center gap-1 font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-                    Ver todo <ArrowRight size={14} aria-hidden="true" />
+                {mas > 0 && (
+                  <button type="button" onClick={() => setAbierto({ bloqueId: b.id, filaId: null, soloFila: false })} aria-label={`Ver los ${mas} avisos más de ${b.titulo}`} className="font-semibold text-slate-500 transition-colors hover:text-slate-700 cursor-pointer">
+                    {mas === 1 ? "1 aviso más" : `${mas} avisos más`}
                   </button>
                 )}
+                <button type="button" onClick={verTodo} aria-label={`Ver todo en ${b.titulo}`} className="ml-auto flex items-center gap-1 font-bold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+                  Ver todo <ArrowRight size={14} aria-hidden="true" />
+                </button>
               </footer>
             </section>
           )
         })}
       </div>
-      {bloqueAbierto && <VentanaAvisos bloque={bloqueAbierto} filaId={abierto.filaId} onCerrar={() => setAbierto(null)} />}
+      {bloqueAbierto && <VentanaAvisos bloque={bloqueAbierto} filaId={abierto.filaId} soloFila={abierto.soloFila} onCerrar={() => setAbierto(null)} />}
     </section>
   )
 }

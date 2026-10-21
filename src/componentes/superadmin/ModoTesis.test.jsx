@@ -165,8 +165,8 @@ describe("Inicio del superadmin: requiere tu atención", () => {
     montar({ consultas: [consultaUrgente] })
     const atencion = await screen.findByRole("region", { name: "Requiere tu atención" })
     await within(atencion).findByRole("region", { name: "Requiere tu atención: Sistema" })
-    expect(within(atencion).getByRole("region", { name: "Requiere tu atención: Soporte" })).toHaveTextContent("1 consulta urgente abierta")
-    expect(within(atencion).getByRole("region", { name: "Requiere tu atención: Sistema" })).toHaveTextContent("1 componente lento")
+    expect(within(within(atencion).getByRole("region", { name: "Requiere tu atención: Soporte" })).getByRole("button", { name: "1 consulta urgente abierta" })).toBeInTheDocument()
+    expect(within(within(atencion).getByRole("region", { name: "Requiere tu atención: Sistema" })).getByRole("button", { name: "1 componente lento" })).toBeInTheDocument()
     expect(within(atencion).queryByRole("region", { name: "Requiere tu atención: La óptica" })).toBeNull()
     expect(atencion.textContent).toMatch(/La óptica: todo en orden/)
   })
@@ -176,7 +176,7 @@ describe("Inicio del superadmin: requiere tu atención", () => {
     const atencion = await screen.findByRole("region", { name: "Requiere tu atención" })
     await screen.findByText("Todo funciona correctamente")
     const optica = within(atencion).getByRole("region", { name: "Requiere tu atención: La óptica" })
-    expect(optica).toHaveTextContent("6 módulos sin uso en 30 días")
+    expect(within(optica).getByRole("button", { name: "6 módulos sin uso en 30 días" })).toBeInTheDocument()
     expect(atencion.textContent).toMatch(/Sistema y Soporte: todo en orden/)
   })
 })
@@ -187,12 +187,12 @@ describe("Inicio del superadmin: íconos en las ventanas", () => {
     montar({ datos: datos({ citas: ins("2026-10-10") }) })
     const atencion = await screen.findByRole("region", { name: "Requiere tu atención" })
     await within(atencion).findByRole("region", { name: "Requiere tu atención: Sistema" })
-    fireEvent.click(within(atencion).getByRole("button", { name: "Abrir los avisos de Sistema" }))
+    fireEvent.click(within(atencion).getByRole("button", { name: /componente/ }))
     const v = await screen.findByRole("dialog")
     expect(v.querySelector("svg.lucide-database")).not.toBeNull() // Datos
     expect(within(v).queryByText("D")).toBeNull()
     fireEvent.click(within(v).getAllByRole("button", { name: "Cerrar" }).at(-1))
-    fireEvent.click(within(atencion).getByRole("button", { name: "Abrir los avisos de La óptica" }))
+    fireEvent.click(within(atencion).getByRole("button", { name: /módulos sin uso/ }))
     const w = await screen.findByRole("dialog")
     expect(w.querySelector("svg.lucide-shopping-bag")).not.toBeNull() // Ventas
     expect(w.querySelector("svg.lucide-calendar")).toBeNull() // Citas está en uso: no aparece
@@ -336,7 +336,7 @@ describe("Inicio del superadmin: uso de la óptica y actividad reciente", () => 
     const atencion = await screen.findByRole("region", { name: "Requiere tu atención" })
     await screen.findByText("Todo funciona correctamente")
     await waitFor(() => expect(within(atencion).getByRole("region", { name: "Requiere tu atención: La óptica" })).toBeInTheDocument())
-    fireEvent.click(within(atencion).getByRole("button", { name: "Abrir los avisos de La óptica" }))
+    fireEvent.click(within(atencion).getByRole("button", { name: /módulos sin uso/ }))
     const v = await screen.findByRole("dialog")
     await waitFor(() => expect(within(v).getByText(/Ayuda ofrecida el 10 oct/)).toBeInTheDocument())
     expect(within(v).getAllByRole("button", { name: "Ofrecer ayuda" })).toHaveLength(5) // los otros cinco módulos sin uso; Ventas ya tiene ayuda ofrecida
@@ -351,7 +351,7 @@ describe("Inicio del superadmin: uso de la óptica y actividad reciente", () => 
     const fila = await within(lista).findByRole("button", { name: /^Ventas: No lo usan por decisión de la óptica/ })
     expect(fila.textContent).toMatch(/no lo usan por decisión de la óptica/)
     const atencion = screen.getByRole("region", { name: "Requiere tu atención" })
-    await waitFor(() => expect(atencion.textContent).toMatch(/5 módulos sin uso en 30 días/)) // eran 6: Ventas ya no cuenta
+    await waitFor(() => expect(within(atencion).getByRole("button", { name: /5 módulos sin uso en 30 días/ })).toBeInTheDocument()) // eran 6: Ventas ya no cuenta
     expect(atencion.textContent).not.toMatch(/Ventas/)
     fireEvent.click(fila)
     const v = await screen.findByRole("dialog", { name: "Ventas" })

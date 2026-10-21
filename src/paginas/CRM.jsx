@@ -90,18 +90,18 @@ export default function CRM({
     const casoContactar = (f, detalle) => ({ id: f.id, nombre: f.paciente.nombre, detalle, accion: puedeContactar && f.telefono ? { etiqueta: "Contactar", onClick: () => contactar(f, f.principal) } : null })
     const filasAv = []
     if (avisos.vuelven.length > 0) filasAv.push({
-      id: "vuelven", cantidad: avisos.vuelven.length, texto: uno(avisos.vuelven.length, "paciente que toca volver a contactar hoy", "pacientes que toca volver a contactar hoy"),
+      id: "vuelven", cantidad: avisos.vuelven.length, corto: "toca volver a contactar", texto: uno(avisos.vuelven.length, "paciente que toca volver a contactar hoy", "pacientes que toca volver a contactar hoy"),
       enlace: { texto: `Abrir en Para contactar (${filas.length})`, onClick: () => irA("contactar") },
       casos: avisos.vuelven.map((f) => casoContactar(f, `Pediste volver a contactarlo hoy · ${f.motivos[0].detalle}`)),
     })
     const cumple = avisos.cumpleHoy.filter((f) => !f.sinResultado)
     if (cumple.length > 0) filasAv.push({
-      id: "cumple-hoy", cantidad: cumple.length, texto: uno(cumple.length, "cumpleaños hoy sin saludar", "cumpleaños hoy sin saludar"),
+      id: "cumple-hoy", cantidad: cumple.length, corto: "cumpleaños sin saludar", texto: uno(cumple.length, "cumpleaños hoy sin saludar", "cumpleaños hoy sin saludar"),
       enlace: { texto: `Abrir en Para contactar · Cumpleaños (${contarPorMotivo(filas).por.cumpleanos})`, onClick: () => irA("contactar", "cumpleanos") },
       casos: cumple.map((f) => casoContactar(f, "Cumple años hoy")),
     })
     if (avisos.sinResultado.length > 0) filasAv.push({
-      id: "sin-resultado", cantidad: avisos.sinResultado.length, texto: uno(avisos.sinResultado.length, "contacto de días anteriores sin resultado anotado", "contactos de días anteriores sin resultado anotado"),
+      id: "sin-resultado", cantidad: avisos.sinResultado.length, corto: "sin resultado anotado", texto: uno(avisos.sinResultado.length, "contacto de días anteriores sin resultado anotado", "contactos de días anteriores sin resultado anotado"),
       casos: avisos.sinResultado.map((c) => ({
         id: c.id, nombre: nombreDe(c.pacienteId), detalle: `Contactado el ${fechaLegible(diaDeRegistro(c.creadoEn))} · ${MOTIVOS[c.motivo]?.corta || c.motivo}`,
         accion: puedeContactar ? { etiqueta: "Registrar resultado", navega: true, onClick: () => abrirResultadoDeContacto(c) } : null,

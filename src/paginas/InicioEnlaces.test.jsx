@@ -14,6 +14,7 @@ const base = {
   nombreUsuario: "Ana", pacientes: [], citas: [], consultas: [], inventario: [], pases: [], facturasVenta: [], abonos: [], ordenesLab: [],
 }
 const optometra = { usuario: { ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver", "crear"], consultas: ["ver", "crear"] } }, vista: { id: "r", nombre: "Rol", tipo: "rol", inicio: "optometra", permisos: { citas: ["ver", "crear"], consultas: ["ver", "crear"] }, alcance: {} } }
+const recepcion = { usuario: { ...base.usuario, rol: "asistente", permisosNivel: { citas: ["ver", "crear", "editar"], pacientes: ["ver"] } }, vista: { id: "r", nombre: "Rol", tipo: "rol", inicio: "recepcion", permisos: { citas: ["ver", "crear", "editar"], pacientes: ["ver"] }, alcance: {} } }
 const area = (nombre) => screen.getByRole("region", { name: `Requiere tu atención: ${nombre}` })
 const cita = (id, estado, extra = {}) => ({ id, fecha: hoy, hora: "09:00 AM", estado, paciente: "Paciente " + id, pacienteId: "p" + id, ...extra })
 
@@ -76,7 +77,7 @@ describe("Totales: lo que dice la tarjeta y lo que abre", () => {
   })
 })
 
-describe("Citas del día: lo que dice el enlace y lo que abre", () => {
+describe("Citas del día (recepción): lo que dice el enlace y lo que abre", () => {
   const citas = [cita("1", "Atendida"), cita("2", "No Asistió"), cita("3", "Pendiente"), cita("4", "En Espera"), cita("5", "Cancelada")]
   const casos = [
     [null, "Ver todas en Citas", ["todas", "hoy"]],
@@ -89,7 +90,7 @@ describe("Citas del día: lo que dice el enlace y lo que abre", () => {
   for (const [tarjeta, texto, esperado] of casos) {
     it(`${tarjeta ? String(tarjeta).slice(2, -2) : "sin tarjeta"}: «${texto}» abre ${JSON.stringify(esperado)}`, () => {
       const llamadas = []
-      render(<Inicio {...base} citas={citas} onVerCitas={(...a) => llamadas.push(a)} />)
+      render(<Inicio {...base} citas={citas} {...recepcion} onVerCitas={(...a) => llamadas.push(a)} />)
       if (tarjeta) fireEvent.click(screen.getByRole("button", { name: tarjeta }))
       fireEvent.click(within(screen.getByRole("region", { name: /^Citas del día/ })).getByRole("button", { name: texto }))
       expect(llamadas).toEqual([esperado])
@@ -116,21 +117,23 @@ describe("Agenda del optómetra: lo que dice el enlace y lo que abre", () => {
 describe("Requiere tu atención: la ventana y sus enlaces", () => {
   const reag = (n) => Array.from({ length: n }, (_, i) => cita("r" + i, "No Asistió", { fecha: dia(-2) }))
 
-  it("se abre desde el aviso, desde el encabezado y desde 'Ver todo'; se cierra con Escape y con Cerrar; es la ventana estándar", () => {
-    render(<Inicio {...base} citas={reag(2)} />)
+  it("se abre desde su tarjetita; se cierra con Escape y con Cerrar; es la ventana estándar; «Ver todo» no abre ventana: lleva al módulo", () => {
+    const vistas = []
+    render(<Inicio {...base} citas={reag(2)} setVista={(v) => vistas.push(v)} />)
     const citas = area("Citas")
-    for (const abrir of [() => within(citas).getByRole("button", { name: /2 citas por reagendar/ }), () => within(citas).getByRole("button", { name: "Abrir los avisos de Citas" }), () => within(citas).getByRole("button", { name: "Ver todo en Citas" })]) {
-      fireEvent.click(abrir())
-      const ventana = screen.getByRole("dialog", { name: "Citas · 2 avisos" })
+    for (const cerrar of ["escape", "cerrar"]) {
+      fireEvent.click(within(citas).getByRole("button", { name: /2 citas por reagendar/ }))
+      const ventana = screen.getByRole("dialog", { name: "2 citas por reagendar" })
       expect(ventana).toHaveAttribute("aria-modal", "true")
-      expect(within(ventana).getByRole("heading", { level: 2, name: "Citas · 2 avisos" })).toBeInTheDocument()
+      expect(within(ventana).getByRole("heading", { level: 2, name: "2 citas por reagendar" })).toBeInTheDocument()
       expect(within(ventana).getAllByRole("button", { name: "Cerrar" })).toHaveLength(2) // la X de la cabecera y el botón del pie
-      fireEvent.keyDown(document, { key: "Escape" })
+      if (cerrar === "escape") fireEvent.keyDown(document, { key: "Escape" })
+      else fireEvent.click(within(ventana).getAllByRole("button", { name: "Cerrar" })[1])
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     }
     fireEvent.click(within(citas).getByRole("button", { name: "Ver todo en Citas" }))
-    fireEvent.click(within(screen.getByRole("dialog")).getAllByRole("button", { name: "Cerrar" })[1])
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(vistas).toEqual(["citas"]) // el área tiene un solo tipo de aviso, pero sin enlace propio: va al módulo
   })
 
   it("al resolver un caso la lista y los números del Inicio se actualizan", () => {
@@ -138,9 +141,9 @@ describe("Requiere tu atención: la ventana y sus enlaces", () => {
     fireEvent.click(within(area("Citas")).getByRole("button", { name: /3 citas por reagendar/ }))
     expect(within(screen.getByRole("dialog")).getAllByRole("button", { name: "Reagendar" })).toHaveLength(3)
     rerender(<Inicio {...base} citas={reag(2)} /> ) // se resolvió un caso
-    const ventana = screen.getByRole("dialog", { name: "Citas · 2 avisos" })
+    const ventana = screen.getByRole("dialog", { name: "2 citas por reagendar" })
     expect(within(ventana).getAllByRole("button", { name: "Reagendar" })).toHaveLength(2)
-    expect(area("Citas")).toHaveTextContent("2 citas por reagendar")
+    expect(within(area("Citas")).getByRole("button", { name: "2 citas por reagendar" })).toBeInTheDocument()
     rerender(<Inicio {...base} citas={[]} />) // se resolvieron todos
     expect(screen.getByRole("dialog")).toHaveTextContent("Todo en orden")
   })
@@ -158,11 +161,12 @@ describe("Requiere tu atención: la ventana y sus enlaces", () => {
     expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Abrir en Citas · En atención (2)" })).toBeInTheDocument()
     fireEvent.keyDown(document, { key: "Escape" })
     // Ventas: "Órdenes listas" cuenta las dos listas (una ya avisada); el aviso, solo la que falta avisar. Saldos: por paciente
-    fireEvent.click(within(area("Ventas")).getByRole("button", { name: "Abrir los avisos de Ventas" }))
-    const ventas = screen.getByRole("dialog", { name: /^Ventas · / })
-    expect(ventas).toHaveTextContent("1 orden de laboratorio lista sin avisar al paciente")
-    expect(within(ventas).getByRole("button", { name: "Abrir en Ventas · Listas sin avisar (1)" })).toBeInTheDocument()
-    expect(ventas).toHaveTextContent("2 ventas con saldo · 1 paciente")
+    fireEvent.click(within(area("Ventas")).getByRole("button", { name: /orden de laboratorio lista sin avisar al paciente/ }))
+    const ordenes = screen.getByRole("dialog", { name: "1 orden de laboratorio lista sin avisar al paciente" })
+    expect(within(ordenes).getByRole("button", { name: "Abrir en Ventas · Listas sin avisar (1)" })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: "Escape" })
+    fireEvent.click(within(area("Ventas")).getByRole("button", { name: /ventas con saldo/ }))
+    const ventas = screen.getByRole("dialog", { name: /2 ventas con saldo · 1 paciente/ })
     expect(within(ventas).getByRole("button", { name: "Abrir en Ventas · Saldos por cobrar (1 paciente)" })).toBeInTheDocument()
   })
 
@@ -223,7 +227,7 @@ describe("Botón 'Requieren atención' de cada módulo", () => {
 
 describe("Textos del estado de la cita", () => {
   it("'No efectuada' se escribe igual en la lista de citas del día (no 'No Asistió')", () => {
-    render(<Inicio {...base} citas={[cita("1", "No Asistió"), cita("2", "En Espera", { hora: "10:00 AM" })]} />)
+    render(<Inicio {...base} citas={[cita("1", "No Asistió"), cita("2", "En Espera", { hora: "10:00 AM" })]} {...recepcion} />)
     const lista = screen.getByRole("region", { name: /^Citas del día/ })
     expect(within(lista).getByText("No efectuada")).toBeInTheDocument()
     expect(within(lista).getByText("En espera")).toBeInTheDocument()
@@ -244,24 +248,23 @@ describe("Ventas: 'Requieren atención' lo que dice / lo que abre", () => {
   const ordenesLab = [lab(1), lab(2), lab(3), lab(4, { pacienteAvisadoEn: "2026-10-01T10:00:00Z" })] // cuatro listas, tres sin avisar
   const consultas = [{ id: "c1", pacienteId: "p1", fecha: hoy }, { id: "c2", pacienteId: "p2", fecha: hoy }, { id: "c3", pacienteId: "p2", fecha: hoy }]
 
-  const abrirAvisos = (props) => {
+  // Abre la lista de la tarjetita de Ventas que se llama así.
+  const abrirAvisos = (props, nombre) => {
     render(<Inicio {...base} pacientes={pacientes} pases={pases} ordenesLab={ordenesLab} consultas={consultas} {...props} />)
-    fireEvent.click(within(area("Ventas")).getByRole("button", { name: "Abrir los avisos de Ventas" }))
-    return screen.getByRole("dialog", { name: /^Ventas · / })
+    fireEvent.click(within(area("Ventas")).getByRole("button", { name: nombre }))
+    return screen.getByRole("dialog", { name: nombre })
   }
 
   it("'1 paciente espera su venta hace más de 30 días' abre Por vender con el filtro 'Más de 30 días (1)'", () => {
     const pedidos = []
-    const ventana = abrirAvisos({ onVerCola: (...a) => pedidos.push(a) })
-    expect(ventana).toHaveTextContent("1 paciente espera su venta hace más de 30 días")
+    const ventana = abrirAvisos({ onVerCola: (...a) => pedidos.push(a) }, "1 paciente espera su venta hace más de 30 días")
     fireEvent.click(within(ventana).getByRole("button", { name: "Abrir en Ventas · Más de 30 días (1)" }))
     expect(pedidos).toEqual([["mas30"]])
   })
 
   it("'3 órdenes listas sin avisar' abre Órdenes con el filtro 'Listas sin avisar (3)'", () => {
     const pedidos = []
-    const ventana = abrirAvisos({ onVerOrdenes: (...a) => pedidos.push(a) })
-    expect(ventana).toHaveTextContent("3 órdenes de laboratorio listas sin avisar a los pacientes")
+    const ventana = abrirAvisos({ onVerOrdenes: (...a) => pedidos.push(a) }, "3 órdenes de laboratorio listas sin avisar a los pacientes")
     fireEvent.click(within(ventana).getByRole("button", { name: "Abrir en Ventas · Listas sin avisar (3)" }))
     expect(pedidos).toEqual([["sinavisar"]])
   })

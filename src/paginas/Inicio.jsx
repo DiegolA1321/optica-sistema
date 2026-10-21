@@ -41,6 +41,7 @@ import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta }
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import FilaTarjetas from "../componentes/FilaTarjetas"
 import RequiereAtencionPorArea, { BotonRequierenAtencion } from "../componentes/RequiereAtencionPorArea"
+import AvisosInicio from "../componentes/AvisosInicio"
 import VentanaTotal from "../componentes/VentanaTotal"
 import ParaEmpezar from "../componentes/ParaEmpezar"
 import VentanaActividad from "../componentes/VentanaActividad"
@@ -295,13 +296,12 @@ export default function Inicio({
       titulo="Totales"
       descripcion="Todo lo registrado y lo nuevo de este mes"
       acciones={atajosAdmin}
-      neutro
       compacta
       tarjetas={[
-        { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, onClick: () => setTotalAbierto("pacientes") },
-        { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, onClick: () => setTotalAbierto("citas") },
-        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} vendido este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, onClick: () => setTotalAbierto("ventas") },
-        { id: "productos", titulo: "Productos", valor: productosActivos.length, desc: `+${productosEsteMes} este mes`, icono: Package, onClick: () => setTotalAbierto("productos") },
+        { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, tinte: "sky", onClick: () => setTotalAbierto("pacientes") },
+        { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, tinte: "indigo", onClick: () => setTotalAbierto("citas") },
+        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} vendido este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, tinte: "teal", onClick: () => setTotalAbierto("ventas") },
+        { id: "productos", titulo: "Productos", valor: productosActivos.length, desc: `+${productosEsteMes} este mes`, icono: Package, tinte: "rose", onClick: () => setTotalAbierto("productos") },
       ].filter(Boolean)}
     />
   )
@@ -311,6 +311,15 @@ export default function Inicio({
   const NOMBRE_TARJETA = { atendida: "Atendidas", noAsistio: "No efectuadas", pendiente: "Pendientes", cancelada: "Canceladas" }
   const enAtencionN = desenlace.enAtencion
   const elegirTarjeta = (id) => setTarjeta((actual) => (actual === id ? null : id))
+  // El administrador no ve el detalle de las citas aquí abajo (es lo mismo que el módulo Citas): sus cuatro tarjetas llevan a Citas con ese mismo estado y período (regla 42).
+  const resumenSolo = plantilla === "administrador"
+  const estadoEnCitas = { atendida: "atendida", noAsistio: "noAsistio", pendiente: "abiertas", cancelada: "cancelada" }
+  const irACitas = (estado = "todas") => () => (onVerCitas ? onVerCitas(estado, periodo) : setVista?.("citas"))
+  const botonIrACitas = (
+    <button type="button" onClick={irACitas()} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 cursor-pointer">
+      Ir a Citas <ArrowRight size={14} aria-hidden="true" />
+    </button>
+  )
   const selectorPeriodo = (
     <div role="group" aria-label="Período del desenlace" className="flex flex-wrap rounded-lg border border-slate-200/60 bg-white p-0.5">
       {PERIODOS_DESENLACE.map(([id, etiqueta]) => (
@@ -319,12 +328,12 @@ export default function Inicio({
     </div>
   )
   // Igual que en el administrador: tocar una tarjeta lista debajo esas citas (las propias, en la vista de quien atiende).
-  const tarjetaDe = (clave, extra) => ({ ...extra, seleccionada: tarjeta === clave, onClick: () => elegirTarjeta(clave) })
+  const tarjetaDe = (clave, extra) => (resumenSolo ? { ...extra, onClick: irACitas(estadoEnCitas[clave]) } : { ...extra, seleccionada: tarjeta === clave, onClick: () => elegirTarjeta(clave) })
   const filaDesenlace = (
     <FilaTarjetas
       titulo={`${esVistaOptometra ? "Desenlace de mis citas" : "Desenlace de las citas"} · ${ETIQUETA_PERIODO[periodo]}`}
       descripcion={tarjeta ? `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"} · ${NOMBRE_TARJETA[tarjeta].toLowerCase()}` : desenlace.canceladas > 0 ? `${desenlace.canceladas} ${desenlace.canceladas === 1 ? "cancelada aparte" : "canceladas aparte"}` : undefined}
-      acciones={selectorPeriodo}
+      acciones={<div className="flex flex-wrap items-center gap-2">{selectorPeriodo}{botonIrACitas}</div>}
       compacta
       tarjetas={[
         tarjetaDe("atendida", { id: "atendidas", titulo: "Atendidas", valor: desenlace.atendidas, desc: enAtencionN > 0 ? `${enAtencionN} en atención ahora` : undefined, icono: CheckCircle2, color: "green" }),
@@ -555,7 +564,7 @@ export default function Inicio({
       const n = atencionesVista.length
       const abiertasEnCitas = citasVista.filter((c) => c.estado === "En Atención").length
       poner("citas", {
-        id: "atenciones", cantidad: n, tono: "urgente",
+        id: "atenciones", cantidad: n, tono: "urgente", corto: "atenciones abiertas",
         texto: uno(n, "atención abierta de un día anterior", "atenciones abiertas de días anteriores"),
         nombres: nombresResumidos(atencionesVista.map(({ cita }) => cita.paciente)),
         enlace: { texto: `Abrir en Citas · En atención (${abiertasEnCitas})`, onClick: enCitas("enAtencion", "siempre") },
@@ -570,7 +579,7 @@ export default function Inicio({
     if (incControlesPorAgendar && sinAgendar.length > 0) {
       const n = sinAgendar.length
       poner("citas", {
-        id: "controles-sin-agendar", cantidad: n,
+        id: "controles-sin-agendar", cantidad: n, corto: "controles sin agendar",
         texto: uno(n, "control sin agendar", "controles sin agendar"),
         nombres: nombresResumidos(sinAgendar.map((x) => x.paciente.nombre)),
         enlace: { texto: `Abrir en Pacientes · Control sin agendar (${n})`, onClick: enPacientes({ rapido: "ControlSinAgendar" }) },
@@ -586,7 +595,7 @@ export default function Inicio({
       const grupos = citasPorReasignar(citas, disponibilidad, hoyISO())
       const n = grupos.reduce((suma, g) => suma + g.citas.length, 0)
       if (n > 0) poner("citas", {
-        id: "ausencias", cantidad: n,
+        id: "ausencias", cantidad: n, corto: "citas por reasignar",
         texto: uno(n, "cita por reasignar por una ausencia", "citas por reasignar por ausencias"),
         nombres: nombresResumidos(grupos.map((g) => `${g.personaNombre || etiquetaMiembro(equipo, g.personaId)} el ${formatoFecha(g.fecha, "medioSinAnio")}`)),
         casos: grupos.flatMap((g) => g.citas.map((c) => ({
@@ -599,7 +608,7 @@ export default function Inicio({
     if (incCanceladas && paraReagendar.length > 0) {
       const n = paraReagendar.length
       poner("citas", {
-        id: "reagendar", cantidad: n,
+        id: "reagendar", cantidad: n, corto: "por reagendar",
         texto: uno(n, "cita por reagendar", "citas por reagendar"),
         nombres: nombresResumidos(paraReagendar.map((c) => c.paciente)),
         enlace: { texto: `Abrir en Citas · Para reagendar (${n})`, onClick: enCitas("todas", "reagendar") },
@@ -615,7 +624,7 @@ export default function Inicio({
     if (incPorConfirmar && porConfirmar.length > 0) {
       const n = porConfirmar.length
       poner("pacientes", {
-        id: "por-confirmar", cantidad: n,
+        id: "por-confirmar", cantidad: n, corto: "datos sin verificar",
         texto: uno(n, "paciente de la web con los datos sin verificar", "pacientes de la web con los datos sin verificar"),
         nombres: nombresResumidos(porConfirmar.map((p) => p.nombre)),
         casos: porConfirmar.map((p) => ({
@@ -629,7 +638,7 @@ export default function Inicio({
       const n = solicitudesEliminacion.length
       const nombreDe2 = (id) => pacientes.find((p) => p.id === id)?.nombre || "Paciente"
       poner("pacientes", {
-        id: "eliminacion", cantidad: n,
+        id: "eliminacion", cantidad: n, corto: "piden eliminar su cuenta",
         texto: uno(n, "paciente pidió eliminar su cuenta", "pacientes pidieron eliminar su cuenta"),
         nombres: nombresResumidos(solicitudesEliminacion.map((x) => nombreDe2(x.pacienteId))),
         casos: solicitudesEliminacion.map((x) => ({
@@ -641,7 +650,7 @@ export default function Inicio({
       })
     }
     if (incControles && hayInactivos) poner("pacientes", {
-      id: "controles", cantidad: inactivos.length,
+      id: "controles", cantidad: inactivos.length, corto: "con control vencido",
       texto: esVistaOptometra ? "de tus pacientes con el control vencido" : uno(inactivos.length, "paciente con el control vencido", "pacientes con el control vencido"),
       nombres: nombresResumidos(inactivos.map(({ paciente }) => paciente.nombre)),
       enlace: puedeV("crm", "ver") ? { texto: `Abrir en CRM · Control vencido (${inactivos.length})`, onClick: abrirCrm({ filtro: "control_vencido" }) } : undefined,
@@ -653,7 +662,7 @@ export default function Inicio({
     })
     // Un paciente cambió su teléfono o su correo desde su portal: «Marta Zambrano actualizó su teléfono». Se queda hasta que se marca como visto.
     if (puedeV("pacientes", "ver") && avisosContacto.length > 0) poner("pacientes", {
-      id: "contacto-actualizado", cantidad: avisosContacto.length,
+      id: "contacto-actualizado", cantidad: avisosContacto.length, corto: "cambiaron su contacto",
       texto: uno(avisosContacto.length, "paciente actualizó su contacto desde su portal", "pacientes actualizaron su contacto desde su portal"),
       nombres: nombresResumidos(avisosContacto.map((a) => nombreDe(a.pacienteId))),
       casos: avisosContacto.map((a) => ({ id: a.id, nombre: nombreDe(a.pacienteId), detalle: textoAvisoContacto(nombreDe(a.pacienteId), a.campos).replace(/^.*? actualizó /, "Actualizó "), accion: { etiqueta: "Visto", onClick: () => onAtenderAvisoContacto?.(a.id) } })),
@@ -661,13 +670,13 @@ export default function Inicio({
     // Un paciente pidió sus medidas (distancia pupilar y montaje) desde su portal: el aviso se quita al marcarla atendida en su perfil.
     const pidenMedidas = pacientes.filter((p) => p.medidasSolicitadasEn)
     if (puedeV("pacientes", "ver") && pidenMedidas.length > 0) poner("pacientes", {
-      id: "medidas-solicitadas", cantidad: pidenMedidas.length,
+      id: "medidas-solicitadas", cantidad: pidenMedidas.length, corto: "piden sus medidas",
       texto: uno(pidenMedidas.length, "paciente pidió sus medidas de montaje desde su portal", "pacientes pidieron sus medidas de montaje desde su portal"),
       nombres: nombresResumidos(pidenMedidas.map((p) => p.nombre)),
       casos: pidenMedidas.map((p) => ({ id: p.id, nombre: p.nombre, detalle: "Pidió su distancia pupilar y medidas de montaje", accion: { etiqueta: "Responder", navega: true, onClick: () => onVerPerfilPaciente?.(p.id, "graduacion") } })),
     })
     if (incSinConsulta && sinAtender > 0) poner("pacientes", {
-      id: "sin-consulta", cantidad: sinAtender,
+      id: "sin-consulta", cantidad: sinAtender, corto: "sin consulta",
       texto: uno(sinAtender, "paciente registrado sin ninguna consulta", "pacientes registrados sin ninguna consulta"),
       enlace: { texto: `Abrir en Pacientes · Sin consulta (${sinAtender})`, onClick: enPacientes({ correccion: "Sin evaluación" }) },
       casos: pacientesSinConsulta.map((p) => ({
@@ -679,7 +688,7 @@ export default function Inicio({
     if (incCumple && cumpleaneros.length > 0) {
       const hoyN = cumpleaneros.filter((c) => c.esHoy).length
       poner("pacientes", {
-        id: "cumple", cantidad: cumpleaneros.length,
+        id: "cumple", cantidad: cumpleaneros.length, corto: "cumpleaños cercanos",
         texto: hoyN === 0 ? uno(cumpleaneros.length, "cumpleaños cercano", "cumpleaños cercanos") : hoyN === cumpleaneros.length ? "cumpleaños hoy" : `cumpleaños (${hoyN} hoy)`,
         nombres: nombresResumidos(cumpleaneros.map((c) => c.nombre)),
         casos: cumpleaneros.map((c) => ({
@@ -692,7 +701,7 @@ export default function Inicio({
     // Quien lleva más de 30 días esperando su venta pasa aquí para contactarlo o cerrarlo con "No compró"; nunca se cierra solo.
     // Pagos por transferencia que los pacientes reportan desde su portal: esperan que Ventas revise el comprobante (el mismo número que en Ventas · Cobros y saldos).
     if (incSaldos && pagosPorVerificar.length > 0) poner("ventas", {
-      id: "pagos-por-verificar", cantidad: pagosPorVerificar.length,
+      id: "pagos-por-verificar", cantidad: pagosPorVerificar.length, corto: "pagos por verificar",
       texto: uno(pagosPorVerificar.length, "pago por transferencia por verificar", "pagos por transferencia por verificar"),
       nombres: nombresResumidos(pagosPorVerificar.map((p) => p.pacienteNombre || nombreDe(p.pacienteId))),
       enlace: { texto: `Abrir en Ventas · Pagos por verificar (${pagosPorVerificar.length})`, onClick: () => onVerSaldos?.() },
@@ -701,7 +710,7 @@ export default function Inicio({
     // Lo que un paciente pide desde su portal («Solicitar lentes nuevos») cuenta mientras nadie lo toma; a los 30 días lo cuenta la línea de abajo (no se cuenta dos veces).
     const solicitudesPortal = incSaldos ? solicitudesNuevasDelPortal(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
     if (solicitudesPortal.length > 0) poner("ventas", {
-      id: "solicitudes-portal", cantidad: solicitudesPortal.length,
+      id: "solicitudes-portal", cantidad: solicitudesPortal.length, corto: "piden lentes",
       texto: uno(solicitudesPortal.length, "paciente pidió lentes nuevos desde su portal", "pacientes pidieron lentes nuevos desde su portal"),
       nombres: nombresResumidos(solicitudesPortal.map(({ pase }) => nombreDe(pase.pacienteId))),
       enlace: { texto: `Abrir en Ventas · Desde el portal (${solicitudesPortal.length})`, onClick: () => onVerCola?.("portal") },
@@ -713,7 +722,7 @@ export default function Inicio({
     })
     const esperanMucho = incSaldos ? pacientesParaSeguimiento(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
     if (esperanMucho.length > 0) poner("ventas", {
-      id: "esperan-venta", cantidad: esperanMucho.length,
+      id: "esperan-venta", cantidad: esperanMucho.length, corto: "esperan su venta",
       texto: uno(esperanMucho.length, `paciente espera su venta hace más de ${DIAS_PARA_SEGUIMIENTO} días`, `pacientes esperan su venta hace más de ${DIAS_PARA_SEGUIMIENTO} días`),
       nombres: nombresResumidos(esperanMucho.map(({ pase }) => nombreDe(pase.pacienteId))),
       enlace: { texto: `Abrir en Ventas · Más de ${DIAS_PARA_SEGUIMIENTO} días (${esperanMucho.length})`, onClick: () => onVerCola?.("mas30") },
@@ -725,7 +734,7 @@ export default function Inicio({
     })
     if (incOrdenes && listasSinAvisar.length > 0) {
       poner("ventas", {
-        id: "ordenes-listas", cantidad: listasSinAvisar.length,
+        id: "ordenes-listas", cantidad: listasSinAvisar.length, corto: "listas sin avisar",
         texto: uno(listasSinAvisar.length, "orden de laboratorio lista sin avisar al paciente", "órdenes de laboratorio listas sin avisar a los pacientes"),
         nombres: nombresResumidos(listasSinAvisar.map((o) => nombreDe(o.pacienteId))),
         enlace: { texto: `Abrir en Ventas · Listas sin avisar (${listasSinAvisar.length})`, onClick: () => onVerOrdenes?.("sinavisar") },
@@ -737,7 +746,7 @@ export default function Inicio({
       })
     }
     if (incOrdenes && atrasadas.length > 0) poner("ventas", {
-      id: "ordenes-atrasadas", cantidad: atrasadas.length, tono: "urgente",
+      id: "ordenes-atrasadas", cantidad: atrasadas.length, tono: "urgente", corto: "órdenes atrasadas",
       texto: uno(atrasadas.length, "orden atrasada", "órdenes atrasadas"),
       nombres: nombresResumidos([...new Set(atrasadas.map((o) => o.laboratorio || "Sin laboratorio"))]),
       enlace: { texto: `Abrir en Ventas · Órdenes atrasadas (${atrasadas.length})`, onClick: () => onVerOrdenes?.("atrasadas") },
@@ -750,7 +759,7 @@ export default function Inicio({
     })
     if (incSaldos && saldos.ventas > 0) {
       poner("ventas", {
-        id: "saldos", cantidad: saldos.ventas,
+        id: "saldos", cantidad: saldos.ventas, corto: "ventas con saldo",
         texto: textoSaldosSinNumero(saldos),
         enlace: { texto: `Abrir en Ventas · Saldos por cobrar (${saldos.pacientes} ${saldos.pacientes === 1 ? "paciente" : "pacientes"})`, onClick: () => onVerSaldos?.() },
         casos: facturasConSaldo.map(({ f, saldo }) => ({
@@ -761,7 +770,7 @@ export default function Inicio({
       })
     }
     if (incStock && productosBajoStock.length > 0) poner("inventario", {
-      id: "stock", cantidad: productosBajoStock.length,
+      id: "stock", cantidad: productosBajoStock.length, corto: "con stock bajo",
       texto: uno(productosBajoStock.length, "producto con stock bajo", "productos con stock bajo"),
       nombres: nombresResumidos(productosBajoStock.map((p) => `${p.nombre} (${p.stock})`)),
       enlace: { texto: `Abrir en Inventario · Stock bajo (${productosBajoStock.length})`, onClick: () => (onVerStockBajo ? onVerStockBajo() : setVista?.("inventario")) },
@@ -787,6 +796,8 @@ export default function Inicio({
     veInventario && plantilla !== "optometra" && { id: "inventario", titulo: "Inventario", modulo: "Inventario", icono: Package, filas: filasDe("inventario"), onVerTodo: () => setVista?.("inventario") },
   ].filter(Boolean)
   const bRequiereAreas = <RequiereAtencionPorArea bloques={bloquesAtencion} />
+  // Lo que el administrador publica para su personal (el administrador no es destinatario de los suyos: a él no se le dibuja nada).
+  const bAvisos = usuario?.id && !esAdmin ? <AvisosInicio usuario={usuario} /> : null
   // Óptica recién creada: el administrador ve por dónde empezar en vez de cuatro "Todo en orden" (R17).
   const opticaSinDatos = !cargaInicial && pacientes.length === 0 && citas.length === 0 && inventario.length === 0
   const bParaEmpezar = <ParaEmpezar pasos={[
@@ -892,10 +903,7 @@ export default function Inicio({
           {filaTotales}
           {opticaSinDatos && bParaEmpezar}
           {bRequiereAreas}
-          <div className="space-y-3">
-            {filaDesenlace}
-            {bCitasPeriodo}
-          </div>
+          {filaDesenlace}
           {bActividad}
         </>
       )}
@@ -903,14 +911,15 @@ export default function Inicio({
       {plantilla === "optometra" && (
         <>
           <div className="flex justify-end">{atajosAdmin}</div>
+          <div className="space-y-3">
+            {filaDesenlace}
+            {/* Hoy sin tarjeta elegida la lista sería su agenda de abajo repetida: solo aparece al elegir tarjeta o un período mayor */}
+            {(tarjeta || periodo !== "hoy") && bCitasPeriodo}
+          </div>
           {bDiaOptometra}
           {bAgendaOptometra}
           {bRequiereAreas}
-          <div className="space-y-3">
-            {filaDesenlace}
-            {/* Hoy sin tarjeta elegida la lista sería su agenda de arriba repetida: solo aparece al elegir tarjeta o un período mayor */}
-            {(tarjeta || periodo !== "hoy") && bCitasPeriodo}
-          </div>
+          {bAvisos}
         </>
       )}
 
@@ -918,6 +927,7 @@ export default function Inicio({
         <>
           <div className="flex justify-end">{atajosAdmin}</div>
           {bRequiereAreas}
+          {bAvisos}
           {filaDesenlace}
           {bCitasPeriodo}
         </>
@@ -927,6 +937,7 @@ export default function Inicio({
         <>
           {filaVender}
           {bRequiereAreas}
+          {bAvisos}
           {bListaVender}
         </>
       )}
@@ -935,6 +946,7 @@ export default function Inicio({
         <>
           {veVentas ? filaVender : <div className="flex justify-end">{atajosAdmin}</div>}
           {bRequiereAreas}
+          {bAvisos}
           {veCitas && filaDesenlace}
           {veCitas && bCitasPeriodo}
           {veVentas && bListaVender}
