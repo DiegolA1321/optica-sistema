@@ -11,7 +11,7 @@ export const ESTADOS_FILTRO = [
   { id: "enEspera", etiqueta: "En espera" },
   { id: "enAtencion", etiqueta: "En atención" },
   { id: "atendida", etiqueta: "Atendidas" },
-  { id: "noAsistio", etiqueta: "No asistió" },
+  { id: "noAsistio", etiqueta: "No efectuada" },
   { id: "cancelada", etiqueta: "Canceladas" },
 ]
 
@@ -26,7 +26,7 @@ export const periodosFiltro = () => [
 ]
 
 // Grupo "Tarea" del panel Filtrar: los atajos por tarea de recepción. "Por confirmar" = las citas abiertas del próximo día de
-// atención que aún no están confirmadas; "Para reagendar" = no asistió o canceladas por el paciente, sin cita nueva.
+// atención que aún no están confirmadas; "Para reagendar" = no efectuada o canceladas por el paciente, sin cita nueva.
 // Elegir una reemplaza al periodo de la Lista; "Todas" (la primera opción) vuelve al periodo.
 export const tareasFiltro = (diaConfirmar) => [
   { id: "ninguna", etiqueta: "Todas" },
@@ -74,12 +74,12 @@ export function esPrimeraVez(cita, consultas = []) {
   )
 }
 
-// Solo se cancela lo que todavía no empezó: no lo atendido, ni lo cancelado, ni lo que no asistió (queda como registro
-// de inasistencia), ni lo que está en atención (ahí se "deja de atender").
+// Solo se cancela lo que todavía no empezó: no lo atendido, ni lo cancelado, ni lo no efectuado (queda como registro
+// de cita no efectuada), ni lo que está en atención (ahí se "deja de atender").
 export const puedeCancelarCita = (cita) => ["Pendiente", "En Espera"].includes(cita.estado)
 
 // Qué acciones ofrece cada estado. Atender solo tiene sentido en lo que sigue abierto; una cita ya atendida o
-// cancelada no se edita; una que no asistió solo muestra su estado y ofrece agendar otra.
+// cancelada no se edita; una no efectuada solo muestra su estado y ofrece agendar otra.
 export const puedeAtenderCita = (cita) => ["Pendiente", "En Espera", "En Atención"].includes(cita.estado)
 // «Ingresar» (o «Atender») solo aparece si la cita es de HOY o es una pendiente de un día anterior que no se atendió (y retomar una atención abierta). Una cita futura no se atiende: muestra «Próxima cita: [fecha]».
 // La misma regla en la Agenda, el perfil del paciente (cabecera y pestaña Citas) y el detalle de la cita.

@@ -156,7 +156,7 @@ test('Inventario dice el stock bajo una sola vez: solo en "Requieren atención" 
   await expect(page.getByRole('button', { name: /Requieren atención|Todo en orden/ })).toBeVisible()
 })
 
-test('el estado se escribe "No asistió" también en el Inicio del optómetra y las tarjetas sin casos dicen "Ver todo"', async ({ page }) => {
+test('el estado se escribe "No efectuada" también en el Inicio del optómetra y las tarjetas sin casos dicen "Ver todo"', async ({ page }) => {
   await iniciarSesion(page, 'OPTOMETRA')
   await alInicio(page)
   await expect(main(page).getByText(/No Asistió|En Espera|En Atención/)).toHaveCount(0)

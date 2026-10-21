@@ -51,7 +51,7 @@ export function controlesSinAgendar(pacientes = [], consultas = [], citas = []) 
   return resultado.sort((a, b) => a.fechaControl - b.fechaControl)
 }
 
-// Citas "para reagendar": las que el paciente no asistió o las que el propio paciente canceló, y nadie retomó.
+// Citas "para reagendar": las no efectuadas o las que el propio paciente canceló, y nadie retomó.
 // Una por paciente (la más reciente), de los últimos `dias` días o futuras, y solo si esa persona no tiene otra cita
 // activa ni atendida posterior. Las más antiguas primero. Las canceladas por recepción no cuentan: recepción ya lo sabe.
 export const requiereReagendar = (c) => c.estado === "No Asistió" || (c.estado === "Cancelada" && c.canceladaPor === "paciente")

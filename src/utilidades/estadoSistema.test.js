@@ -105,7 +105,7 @@ describe("datos de muestra y nombres de tareas", () => {
     expect(m.historial.filter((h) => h.componente === "datos")).toHaveLength(30)
   })
   it("las tareas se llaman en voz de la persona", () => {
-    expect(nombreTarea("marcar_no_asistio_automatico")).toBe("Marcar «No asistió»")
+    expect(nombreTarea("marcar_no_asistio_automatico")).toBe("Marcar «No efectuada»")
     expect(cadaCuanto("*/15 * * * *")).toBe("cada 15 minutos")
   })
 })

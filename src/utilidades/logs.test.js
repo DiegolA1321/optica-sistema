@@ -18,7 +18,7 @@ describe("detalleActividad", () => {
     expect(detalleActividad("Rafael Cedeño · cita antigua sin paciente identificable (limpieza de la Demo)")).toBe("")
     expect(detalleActividad("E2E Montura l8cci")).toBe("")
     expect(detalleActividad("19 feb 2028 · 09:00-13:00 · E2E ausencia de prueba")).toBe("")
-    expect(detalleActividad("la inasistencia fue real; no es una cita activa")).toBe("")
+    expect(detalleActividad("la cita no efectuada fue real; no es una cita activa")).toBe("")
     expect(detalleActividad("script de migración 0102")).toBe("")
     expect(detalleActividad("cita 45f4aa4c-23bd-43ca-a18a-27eba20c4945")).toBe("")
   })

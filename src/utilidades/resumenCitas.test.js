@@ -4,7 +4,7 @@ import { contarCitas, citasPorMes, diaMasFrecuente } from "./resumenCitas"
 const c = (estado, fecha = "2026-10-01") => ({ estado, fecha })
 
 describe("contarCitas", () => {
-  it("separa atendidas, no asistió, pendientes y canceladas", () => {
+  it("separa atendidas, no efectuada, pendientes y canceladas", () => {
     const r = contarCitas([c("Atendida"), c("Atendida"), c("No Asistió"), c("Pendiente"), c("En Espera"), c("En Atención"), c("Cancelada")])
     expect(r).toEqual({ atendidas: 2, noAsistio: 1, pendientes: 3, canceladas: 1 })
   })

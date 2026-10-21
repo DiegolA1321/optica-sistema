@@ -77,7 +77,7 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
   const triage = cita.triage && (cita.triage.sintomas?.length > 0 || cita.triage.detalle)
     ? [cita.triage.sintomas?.join(", "), cita.triage.desdeCuando, cita.triage.detalle].filter(Boolean).join(" · ")
     : null
-  // Cambios de estado a mano (la recepción): "Llegó" solo el día de la cita; "No asistió" solo mientras sigue pendiente y
+  // Cambios de estado a mano (la recepción): "Llegó" solo el día de la cita; "No efectuada" solo mientras sigue pendiente y
   // ya pasó su hora (el sistema la marca sola a los 10 minutos; "En espera" no se marca sola).
   const puedeLlego = !!onLlego && cita.estado === "Pendiente" && cita.fecha === hoyISO()
   const puedeNoLlego = !!onNoLlego && cita.estado === "En Espera"
@@ -304,7 +304,7 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
             )}
             {puedeNoAsistio && (
               <button type="button" disabled={marcandoEstado} onClick={() => onNoAsistio(cita)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200/70 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
-                <UserX size={14} aria-hidden="true" /> No asistió
+                <UserX size={14} aria-hidden="true" /> No efectuada
               </button>
             )}
             {puedeConfirmar && (

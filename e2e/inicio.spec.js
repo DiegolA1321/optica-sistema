@@ -81,19 +81,19 @@ test.describe('Inicio del administrador', () => {
     await expect(cuerpo.getByRole('heading', { name: /Todas las citas · Atendidas/i })).toBeVisible()
     // Solo citas atendidas en la lista
     const lista = cuerpo.getByRole('region', { name: 'Todas las citas' })
-    for (const estado of ['Pendiente', 'En espera', 'No asistió', 'Cancelada']) await expect(lista.getByText(estado, { exact: true })).toHaveCount(0)
+    for (const estado of ['Pendiente', 'En espera', 'No efectuada', 'Cancelada']) await expect(lista.getByText(estado, { exact: true })).toHaveCount(0)
     await lista.getByRole('button', { name: 'Ver atendidas en Citas' }).click()
     await expect(page.getByRole('heading', { name: 'Citas médicas' })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByText('Estado: Atendidas')).toBeVisible()
   })
 
-  test('las tarjetas del desenlace se llaman Atendidas, No asistieron y Canceladas', async ({ page }) => {
+  test('las tarjetas del desenlace se llaman Atendidas, No efectuadas y Canceladas', async ({ page }) => {
     await entrar(page, 'ADMIN')
     const cuerpo = main(page)
-    await expect(cuerpo.getByRole('button', { name: /^No asistieron:/ })).toBeVisible({ timeout: 20_000 })
+    await expect(cuerpo.getByRole('button', { name: /^No efectuadas:/ })).toBeVisible({ timeout: 20_000 })
     await expect(cuerpo.getByRole('button', { name: /^Canceladas:/ })).toBeVisible()
     // Sin un filtro activo ninguna tarjeta está seleccionada (aunque el cursor pase por encima).
-    for (const nombre of [/^Atendidas:/, /^No asistieron:/, /^Pendientes:/, /^Canceladas:/]) await expect(cuerpo.getByRole('button', { name: nombre })).toHaveAttribute('aria-pressed', 'false')
+    for (const nombre of [/^Atendidas:/, /^No efectuadas:/, /^Pendientes:/, /^Canceladas:/]) await expect(cuerpo.getByRole('button', { name: nombre })).toHaveAttribute('aria-pressed', 'false')
     await expect(cuerpo.getByText('No atendidas')).toHaveCount(0)
   })
 

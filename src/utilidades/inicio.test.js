@@ -156,7 +156,7 @@ describe("Períodos del desenlace y lista del Inicio", () => {
 })
 
 describe("desenlace: las partes suman el total", () => {
-  it("atendidas + no asistieron + pendientes = registradas, y las canceladas van aparte", () => {
+  it("atendidas + no efectuadas + pendientes = registradas, y las canceladas van aparte", () => {
     const citas = [cita({ estado: "Atendida" }), cita({ estado: "Atendida" }), cita({ estado: "No Asistió" }), cita({ estado: "Pendiente" }), cita({ estado: "En Espera" }), cita({ estado: "En Atención" }), cita({ estado: "Cancelada" })]
     const r = resumenPeriodo(citas, "hoy")
     expect(r).toMatchObject({ registradas: 6, atendidas: 2, noAtendidas: 1, pendientes: 3, canceladas: 1, enAtencion: 1 })

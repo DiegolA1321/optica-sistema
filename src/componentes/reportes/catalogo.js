@@ -39,8 +39,8 @@ export function catalogoExportaciones(r, rango, { incluirNoCompraron = false } =
 
   const items = [
     // ── Resumen ──
-    { id: "resumen-meses", modulo: "resumen", nombre: "Resumen mes a mes", linea: "Consultas, pacientes nuevos, citas, inasistencia y lo vendido y cobrado de cada mes del período.",
-      modelo: () => lista("Resumen mes a mes", [col("Mes", (m) => m.etiqueta), col("Consultas", (m) => m.m.cons.length, "entero"), col("Pacientes nuevos", (m) => m.m.nuevos.length, "entero"), col("Citas", (m) => m.m.programadas.length, "entero"), col("No asistió", (m) => m.m.noAsistio.length, "entero"), col("Tasa de inasistencia", (m) => m.m.tasaInasist, "tasa"), ...(montos ? [col("Vendido", (m) => m.m.vc.vendido, "dinero"), col("Cobrado", (m) => m.m.vc.cobrado, "dinero")] : [])], meses.map((x) => ({ ...x, m: delRango(x) })), false) },
+    { id: "resumen-meses", modulo: "resumen", nombre: "Resumen mes a mes", linea: "Consultas, pacientes nuevos, citas, citas no efectuadas y lo vendido y cobrado de cada mes del período.",
+      modelo: () => lista("Resumen mes a mes", [col("Mes", (m) => m.etiqueta), col("Consultas", (m) => m.m.cons.length, "entero"), col("Pacientes nuevos", (m) => m.m.nuevos.length, "entero"), col("Citas", (m) => m.m.programadas.length, "entero"), col("No efectuadas", (m) => m.m.noAsistio.length, "entero"), col("Tasa de citas no efectuadas", (m) => m.m.tasaInasist, "tasa"), ...(montos ? [col("Vendido", (m) => m.m.vc.vendido, "dinero"), col("Cobrado", (m) => m.m.vc.cobrado, "dinero")] : [])], meses.map((x) => ({ ...x, m: delRango(x) })), false) },
     pdf("resumen", "Resumen"),
 
     // ── Citas ──
@@ -50,10 +50,10 @@ export function catalogoExportaciones(r, rango, { incluirNoCompraron = false } =
         col("Origen", (c) => (c.origen === "paciente" ? "Web" : "Recepción")), col("Visita", (c) => (coincideSeguimiento(c, "primera", historial) ? "Primera vez" : "Seguimiento")),
         col("Profesional", profesional), col("Estado", (c) => etiquetaEstadoCita(c.estado)), col("Cancelada por", (c) => (c.estado !== "Cancelada" ? "" : c.canceladaPor === "paciente" ? "El paciente" : "La óptica")),
       ], [...citasEnRango].sort((a, b) => (a.fecha + a.hora < b.fecha + b.hora ? -1 : 1))) },
-    { id: "citas-inasistencias", modulo: "citas", nombre: "Inasistencias para reagendar", linea: "Las citas en que el paciente no asistió, con su teléfono, para contactarlo.",
+    { id: "citas-inasistencias", modulo: "citas", nombre: "Citas no efectuadas para reagendar", linea: "Las citas que no se efectuaron, con el teléfono del paciente, para contactarlo.",
       modelo: () => lista("Inasistencias del período", [col("Fecha", (c) => c.fecha, "fecha"), col("Hora", (c) => c.hora), col("Paciente", (c) => c.paciente), col("Teléfono", (c) => c.telefono), col("Motivo", (c) => c.motivo), col("Profesional", profesional)], citasEnRango.filter((c) => c.estado === "No Asistió")) },
-    { id: "citas-tasa-mes", modulo: "citas", nombre: "Inasistencia mes a mes", linea: "Cuántas citas hubo cada mes y qué porcentaje no asistió.",
-      modelo: () => lista("Inasistencia mes a mes", [col("Mes", (x) => x.etiqueta), col("Citas", (x) => x.m.programadas.length, "entero"), col("Atendidas", (x) => x.m.atendidas.length, "entero"), col("No asistió", (x) => x.m.noAsistio.length, "entero"), col("Canceladas", (x) => x.m.canceladas.length, "entero"), col("Tasa de inasistencia", (x) => x.m.tasaInasist, "tasa")], meses.map((x) => ({ ...x, m: delRango(x) })), false) },
+    { id: "citas-tasa-mes", modulo: "citas", nombre: "Citas no efectuadas mes a mes", linea: "Cuántas citas hubo cada mes y qué porcentaje no se efectuó.",
+      modelo: () => lista("Citas no efectuadas mes a mes", [col("Mes", (x) => x.etiqueta), col("Citas", (x) => x.m.programadas.length, "entero"), col("Atendidas", (x) => x.m.atendidas.length, "entero"), col("No efectuadas", (x) => x.m.noAsistio.length, "entero"), col("Canceladas", (x) => x.m.canceladas.length, "entero"), col("Tasa de citas no efectuadas", (x) => x.m.tasaInasist, "tasa")], meses.map((x) => ({ ...x, m: delRango(x) })), false) },
     pdf("citas", "Citas"),
 
     // ── Clínico ──

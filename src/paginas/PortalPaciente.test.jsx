@@ -321,7 +321,7 @@ describe("Mis citas", () => {
     expect(within(historial).getByRole("heading", { name: "2026" })).toBeInTheDocument()
     expect(within(historial).getByRole("heading", { name: "2025" })).toBeInTheDocument()
     expect(within(historial).getByRole("status", { name: "Estado: Atendida" }).firstChild.className).toMatch(/166534/)
-    expect(within(historial).getByRole("status", { name: "Estado: No asistió" }).firstChild.className).toMatch(/B42318/)
+    expect(within(historial).getByRole("status", { name: "Estado: No efectuada" }).firstChild.className).toMatch(/B42318/)
     expect(within(historial).getByRole("status", { name: "Estado: Cancelada" }).firstChild.className).toMatch(/slate/)
   })
   it("Reagendar y Cancelar aparecen solo en la cita pendiente y cuando la política lo permite", async () => {

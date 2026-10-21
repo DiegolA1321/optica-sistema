@@ -5,7 +5,7 @@ export const COMPONENTES = [
   { id: "sesion", nombre: "Inicio de sesión", para: "Que el personal y los pacientes puedan entrar.", referencia: "Se verifica que las cuentas de acceso respondan y que haya al menos una cuenta activa." },
   { id: "datos", nombre: "Datos", para: "Que la base de datos responda, y qué tan rápido.", referencia: "Se mide cuánto tardan consultas reales a las tablas del sistema." },
   { id: "archivos", nombre: "Archivos", para: "Que se puedan subir y descargar fotos, facturas y adjuntos.", referencia: "Se verifica que el servicio de archivos responda y que existan sus cinco carpetas." },
-  { id: "tareas", nombre: "Tareas automáticas", para: "Que se ejecuten las tareas programadas (marcar «No asistió», recordatorios).", referencia: "Se revisa cuándo corrió cada tarea y si su última ejecución falló." },
+  { id: "tareas", nombre: "Tareas automáticas", para: "Que se ejecuten las tareas programadas (marcar «No efectuada», recordatorios).", referencia: "Se revisa cuándo corrió cada tarea y si su última ejecución falló." },
   { id: "correo", nombre: "Correo", para: "Que salgan los recordatorios y saludos por correo.", referencia: "Se verifica que haya clave y remitente propio, y que no se rechacen envíos." },
 ]
 
@@ -101,7 +101,7 @@ const QUE_HACER = {
     lento: ["Suele ser pasajero: espera la próxima verificación.", "Si se repite, revisa Supabase → Storage → Logs."],
   },
   tareas: {
-    con_fallas: ["Mira abajo qué tarea falló o se retrasó y cuándo corrió por última vez.", "En Supabase → Database → Cron revisa su última ejecución y su mensaje de error.", "Mientras tanto «No asistió» y los recordatorios no se marcan solos: se pueden marcar a mano."],
+    con_fallas: ["Mira abajo qué tarea falló o se retrasó y cuándo corrió por última vez.", "En Supabase → Database → Cron revisa su última ejecución y su mensaje de error.", "Mientras tanto «No efectuada» y los recordatorios no se marcan solos: se pueden marcar a mano."],
     lento: ["Una tarea se está retrasando: espera la próxima verificación.", "Si sigue igual, revisa Supabase → Database → Cron."],
   },
   correo: {
@@ -177,7 +177,7 @@ export function usoDeMuestra(opticaId, ahora = Date.now()) {
 
 // Cómo se llaman las tareas programadas en voz de la persona (no los nombres internos).
 export const NOMBRE_TAREA = {
-  marcar_no_asistio_automatico: "Marcar «No asistió»",
+  marcar_no_asistio_automatico: "Marcar «No efectuada»",
   recordatorios_citas_diarios: "Recordatorios de citas",
   saludos_cumpleanos_diarios: "Saludos de cumpleaños",
   limpiar_limite_solicitudes: "Limpieza de solicitudes públicas",

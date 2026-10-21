@@ -15,7 +15,7 @@ const DE_A = 10
 const COLUMNAS = "@[740px]/portal:grid-cols-[116px_minmax(0,1.15fr)_minmax(0,1.15fr)_minmax(0,1.3fr)_150px]"
 const etiquetaApilada = (t) => <span className="font-semibold text-pt-marino @[740px]/portal:hidden">{t}: </span>
 const PERIODOS = [["ano", "Último año"], ["todas", "Todas"], ["fechas", "Elegir fechas"]]
-const ESTADOS = [["Atendida", "Atendidas"], ["No Asistió", "No asistió"], ["Cancelada", "Canceladas"]]
+const ESTADOS = [["Atendida", "Atendidas"], ["No Asistió", "No efectuadas"], ["Cancelada", "Canceladas"]]
 const CHIP = (activo) => "inline-flex min-h-11 items-center rounded-full px-5 text-base font-semibold transition-colors cursor-pointer " + (activo ? "bg-pt-azul text-white" : "border border-pt-borde bg-white text-pt-marino hover:bg-pt-fondo")
 
 // Mis citas (diseño aprobado): la próxima en estilo boleto, y «Tus visitas anteriores» agrupadas por año (cada fila abre su detalle) con los mismos estados y colores del módulo de Citas.
@@ -40,7 +40,7 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
   const resumenVisita = (c) => {
     const d = det(c.id)
     const quien = d?.profesional || ""
-    if (c.estado === "No Asistió") return "No pudiste venir"
+    if (c.estado === "No Asistió") return "Cita no efectuada"
     if (c.estado === "Cancelada") return "Cancelaste esta cita"
     if (c.estado !== "Atendida") return quien
     if (detalle.disponible && !d?.calificacion) return null
@@ -89,7 +89,7 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
           </div>
         )}
         {historial.length === 0 ? (
-          <p className="mt-3 text-base text-pt-texto">Aquí aparecen tus citas atendidas, las que no asististe y las canceladas.</p>
+          <p className="mt-3 text-base text-pt-texto">Aquí aparecen tus citas atendidas, las que no se efectuaron y las canceladas.</p>
         ) : (
           <div className="mt-4 space-y-5">
             {filtradas.length === 0 && (

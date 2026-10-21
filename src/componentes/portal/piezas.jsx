@@ -39,7 +39,7 @@ export const TituloPagina = ({ children, subtitulo, accion, className = "" }) =>
   </div>
 )
 
-// Insignia (píldora sin borde, fondo suave): el color significa lo mismo que en el sistema del personal (verde listo o atendida, naranja pendiente, rojo no asistió, gris cerrada).
+// Insignia (píldora sin borde, fondo suave): el color significa lo mismo que en el sistema del personal (verde listo o atendida, naranja pendiente, rojo no efectuada, gris cerrada).
 const TONOS = {
   verde: "bg-[#E3F4EA] text-[#166534]",
   ambar: "bg-[#FDEBD3] text-pt-ambar",
@@ -52,7 +52,7 @@ export function Insignia({ tono = "gris", children, className = "" }) {
   return <span className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-3.5 py-[3px] text-base font-semibold leading-snug ${TONOS[tono]} ${className}`}>{children}</span>
 }
 
-// El estado de una cita, con el nombre y el color del módulo de Citas (Pendiente naranja, En atención azul, Atendida verde, No asistió rojo, En espera violeta, Cancelada gris).
+// El estado de una cita, con el nombre y el color del módulo de Citas (Pendiente naranja, En atención azul, Atendida verde, No efectuada rojo, En espera violeta, Cancelada gris).
 const TONO_ESTADO = { Pendiente: "ambar", "En Espera": "violeta", "En Atención": "azul", Atendida: "verde", "No Asistió": "rojo", Cancelada: "gris" }
 // `enCalendario`: el paciente ya la agregó a su calendario; el estado lo dice una sola vez, en la misma etiqueta («Confirmada · en tu calendario»).
 export function EstadoCita({ estado, confirmada = false, sinIcono = false, enCalendario = false }) {

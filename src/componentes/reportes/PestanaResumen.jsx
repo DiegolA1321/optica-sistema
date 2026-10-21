@@ -47,9 +47,9 @@ export default function PestanaResumen({ r }) {
           onClick: () => abrir({ titulo: "Pacientes nuevos", valor: act.nuevos.length, icono: UserPlus, columnas: cols.pacienteNuevo, filas: act.nuevos, abrirEn: d.pacientesNuevos(), pestana: "clinico" }),
         }, act.nuevos.length, ant.nuevos.length)}
         {tarjeta({
-          titulo: "Tasa de inasistencia", valor: pct(act.tasaInasist), sub: act.tasaInasist == null ? "Sin citas en el período" : undefined,
-          ayuda: "De las citas del período que no se cancelaron, cuántas terminaron en No asistió. Es la misma cifra que la pestaña Citas.",
-          onClick: () => abrir({ titulo: `No asistió: ${act.noAsistio.length} de ${act.programadas.length} citas`, valor: pct(act.tasaInasist), icono: CalendarX, columnas: cols.cita, filas: act.noAsistio, abrirEn: d.citas("noAsistio"), pestana: "citas" }),
+          titulo: "Tasa de citas no efectuadas", valor: pct(act.tasaInasist), sub: act.tasaInasist == null ? "Sin citas en el período" : undefined,
+          ayuda: "De las citas del período que no se cancelaron, cuántas terminaron en No efectuadas. Es la misma cifra que la pestaña Citas.",
+          onClick: () => abrir({ titulo: `No efectuadas: ${act.noAsistio.length} de ${act.programadas.length} citas`, valor: pct(act.tasaInasist), icono: CalendarX, columnas: cols.cita, filas: act.noAsistio, abrirEn: d.citas("noAsistio"), pestana: "citas" }),
         }, act.tasaInasist ?? undefined, ant.tasaInasist, { buenoSiSube: false, puntos: true })}
         {!ocultarMontos && tarjeta({
           titulo: "Tasa de captación", valor: pct(act.captacion), sub: act.captacion == null ? "Sin atendidos con receta" : undefined,

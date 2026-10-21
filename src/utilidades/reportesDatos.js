@@ -114,7 +114,7 @@ const DIAS_SEMANA = [{ id: 1, etiqueta: "Lun" }, { id: 2, etiqueta: "Mar" }, { i
 const diaDeSemana = (iso) => { const [a, m, d] = iso.split("-").map(Number); return new Date(a, m - 1, d).getDay() }
 export const horaDeCita = (c) => Math.floor(minutosDesdeMedianoche(c.hora) / 60)
 
-// Cuadrícula día × hora: cuántas inasistencias hubo en cada celda y de cuántas citas (sin canceladas).
+// Cuadrícula día × hora: cuántas citas no efectuadas hubo en cada celda y de cuántas citas (sin canceladas).
 export function cuadriculaInasistencias(citasPeriodo) {
   const prog = citasPeriodo.filter((c) => c.estado !== "Cancelada" && c.fecha && c.hora)
   if (prog.length === 0) return { dias: [], horas: [], celdas: new Map(), max: 0 }
@@ -134,7 +134,7 @@ export function cuadriculaInasistencias(citasPeriodo) {
   return { dias, horas, celdas, max: Math.max(0, ...[...celdas.values()].map((x) => x.noAsistio.length)) }
 }
 
-// Tasa de inasistencia mes a mes (con los filtros, sin acotar al período).
+// Tasa de citas no efectuadas mes a mes (con los filtros, sin acotar al período).
 export function tendenciaInasistencia(citasF, hoy = ahoraEcuador(), n = 12) {
   return ultimosMeses(n, hoy).map((m) => {
     const delMes = citasF.filter((c) => enRango(c.fecha, m) && c.estado !== "Cancelada")
@@ -143,7 +143,7 @@ export function tendenciaInasistencia(citasF, hoy = ahoraEcuador(), n = 12) {
   })
 }
 
-// Citas del período agrupadas por una clave (origen, visita, profesional): cuántas, cuántas se atendieron y cuántas no asistieron.
+// Citas del período agrupadas por una clave (origen, visita, profesional): cuántas, cuántas se atendieron y cuántas no efectuadas.
 export function resumenCitasPor(citasPeriodo, claves, claveDe) {
   const filas = claves.map((k) => ({ ...k, citas: [], atendidas: [], noAsistio: [] }))
   const por = new Map(filas.map((x) => [x.id, x]))

@@ -53,7 +53,7 @@ export function minutosHastaCita(cita, ahora = ahoraEcuador()) {
   return dias * 1440 + minutosDesdeMedianoche(cita.hora) - (ahora.getHours() * 60 + ahora.getMinutes())
 }
 
-// ¿Ya pasó la hora agendada de la cita? (para ofrecer "No asistió" manual
+// ¿Ya pasó la hora agendada de la cita? (para ofrecer "No efectuada" manual
 // solo mientras la cita sigue pendiente tras su hora)
 export function yaPasoLaHora(cita, ahora = ahoraEcuador()) {
   const hoy = fechaAISO(ahora)

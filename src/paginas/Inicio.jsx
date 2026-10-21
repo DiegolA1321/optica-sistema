@@ -308,7 +308,7 @@ export default function Inicio({
 
   // ─── Desenlace de las citas + lista: un solo control (el período y, si se quiere, la tarjeta) para las dos cosas ───
   const ETIQUETA_PERIODO = { hoy: "hoy", semana: "esta semana", mes: "este mes", siempre: "todas" }
-  const NOMBRE_TARJETA = { atendida: "Atendidas", noAsistio: "No asistieron", pendiente: "Pendientes", cancelada: "Canceladas" }
+  const NOMBRE_TARJETA = { atendida: "Atendidas", noAsistio: "No efectuadas", pendiente: "Pendientes", cancelada: "Canceladas" }
   const enAtencionN = desenlace.enAtencion
   const elegirTarjeta = (id) => setTarjeta((actual) => (actual === id ? null : id))
   const selectorPeriodo = (
@@ -328,7 +328,7 @@ export default function Inicio({
       compacta
       tarjetas={[
         tarjetaDe("atendida", { id: "atendidas", titulo: "Atendidas", valor: desenlace.atendidas, desc: enAtencionN > 0 ? `${enAtencionN} en atención ahora` : undefined, icono: CheckCircle2, color: "green" }),
-        tarjetaDe("noAsistio", { id: "noAsistieron", titulo: "No asistieron", valor: desenlace.noAtendidas, icono: UserX, color: "red" }),
+        tarjetaDe("noAsistio", { id: "noAsistieron", titulo: "No efectuadas", valor: desenlace.noAtendidas, icono: UserX, color: "red" }),
         tarjetaDe("pendiente", { id: "pendientes", titulo: "Pendientes", valor: desenlace.pendientes, icono: Clock, color: "amber" }),
         tarjetaDe("cancelada", { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: "Aparte", icono: Ban, color: "slate", aparte: true }),
       ]}
@@ -605,7 +605,7 @@ export default function Inicio({
         enlace: { texto: `Abrir en Citas · Para reagendar (${n})`, onClick: enCitas("todas", "reagendar") },
         casos: paraReagendar.map((c) => ({
           id: c.id, nombre: c.paciente,
-          insignia: c.estado === "No Asistió" ? { texto: "No asistió", tono: "urgente" } : { texto: "Canceló el paciente", tono: "neutro" },
+          insignia: c.estado === "No Asistió" ? { texto: "No efectuada", tono: "urgente" } : { texto: "Canceló el paciente", tono: "neutro" },
           detalle: `${fechaLegible(c.fecha)}, ${c.hora}${c.motivo ? ` · ${c.motivo}` : ""}`,
           // Una cita sin paciente registrado no se puede reagendar desde aquí: se abre en su día.
           accion: c.pacienteId && puedeAgendar ? { etiqueta: "Reagendar", onClick: () => onReagendarCancelada?.(c) } : { etiqueta: "Ver cita", navega: true, onClick: enCitas("todas", "dia", c.fecha) },

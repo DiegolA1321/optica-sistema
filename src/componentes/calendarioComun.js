@@ -10,7 +10,7 @@ const COLOR_ESTADO = {
   "En Espera": { linea: "#7c3aed", fondo: "#ede9fe", texto: "#4c1d95", etiqueta: "En espera" },
   "En Atención": { linea: "#2563eb", fondo: "#dbeafe", texto: "#1e3a8a", etiqueta: "En atención" },
   Atendida: { linea: "#059669", fondo: "#bbf7d0", texto: "#064e3b", etiqueta: "Atendida" },
-  "No Asistió": { linea: "#dc2626", fondo: "#fecaca", texto: "#7f1d1d", etiqueta: "No asistió" },
+  "No Asistió": { linea: "#dc2626", fondo: "#fecaca", texto: "#7f1d1d", etiqueta: "No efectuada" },
   Cancelada: { linea: "#94a3b8", fondo: "#e2e8f0", texto: "#475569", etiqueta: "Cancelada" },
 }
 const COLOR_PENDIENTE = { linea: "#d97706", fondo: "#fde68a", texto: "#78350f", etiqueta: "Pendiente" }

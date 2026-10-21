@@ -39,7 +39,7 @@ describe("coincideEstado", () => {
     expect(coincideEstado({ estado: "Pendiente" }, "enEspera", ahora)).toBe(false)
     expect(coincideEstado({ estado: "En Espera" }, "todas", ahora)).toBe(true)
   })
-  it("noAsistio: solo las citas marcadas No asistió", () => {
+  it("noAsistio: solo las citas marcadas No efectuada", () => {
     expect(coincideEstado({ estado: "No Asistió" }, "noAsistio", ahora)).toBe(true)
     expect(coincideEstado({ estado: "Pendiente", fecha: "2026-10-05", hora: "9:00" }, "noAsistio", ahora)).toBe(false)
     expect(coincideEstado({ estado: "Atendida" }, "noAsistio", ahora)).toBe(false)
@@ -94,15 +94,15 @@ describe("puedeCancelarCita", () => {
 
 describe("acciones según el estado de la cita", () => {
   const c = (estado) => ({ estado })
-  it("solo se atiende lo que sigue abierto: no lo atendido, cancelado ni lo que no asistió", () => {
+  it("solo se atiende lo que sigue abierto: no lo atendido, cancelado ni lo que no efectuada", () => {
     for (const e of ["Pendiente", "En Espera", "En Atención"]) expect(puedeAtenderCita(c(e))).toBe(true)
     for (const e of ["Atendida", "Cancelada", "No Asistió"]) expect(puedeAtenderCita(c(e))).toBe(false)
   })
-  it("solo se edita lo que sigue abierto: no lo atendido, cancelado ni lo que no asistió", () => {
+  it("solo se edita lo que sigue abierto: no lo atendido, cancelado ni lo que no efectuada", () => {
     for (const e of ["Atendida", "Cancelada", "No Asistió"]) expect(puedeEditarCita(c(e))).toBe(false)
     for (const e of ["Pendiente", "En Espera", "En Atención"]) expect(puedeEditarCita(c(e))).toBe(true)
   })
-  it("quien no asistió ofrece agendar otra cita; el resto no", () => {
+  it("quien no efectuada ofrece agendar otra cita; el resto no", () => {
     expect(puedeAgendarOtraCita(c("No Asistió"))).toBe(true)
     expect(puedeAgendarOtraCita(c("Atendida"))).toBe(true)
     expect(puedeAgendarOtraCita(c("Pendiente"))).toBe(false)

@@ -81,7 +81,7 @@ describe("Citas del día: lo que dice el enlace y lo que abre", () => {
   const casos = [
     [null, "Ver todas en Citas", ["todas", "hoy"]],
     [/^Atendidas:/, "Ver atendidas en Citas", ["atendida", "hoy"]],
-    [/^No asistieron:/, "Ver no asistieron en Citas", ["noAsistio", "hoy"]],
+    [/^No efectuadas:/, "Ver no efectuadas en Citas", ["noAsistio", "hoy"]],
     [/^Canceladas:/, "Ver canceladas en Citas", ["cancelada", "hoy"]],
     // Pendientes agrupa tres estados que Citas no tiene juntos: el enlace abre todas las del período y lo dice
     [/^Pendientes:/, "Ver todas las del período en Citas", ["todas", "hoy"]],
@@ -222,10 +222,10 @@ describe("Botón 'Requieren atención' de cada módulo", () => {
 })
 
 describe("Textos del estado de la cita", () => {
-  it("'No asistió' se escribe igual en la lista de citas del día (no 'No Asistió')", () => {
+  it("'No efectuada' se escribe igual en la lista de citas del día (no 'No Asistió')", () => {
     render(<Inicio {...base} citas={[cita("1", "No Asistió"), cita("2", "En Espera", { hora: "10:00 AM" })]} />)
     const lista = screen.getByRole("region", { name: /^Citas del día/ })
-    expect(within(lista).getByText("No asistió")).toBeInTheDocument()
+    expect(within(lista).getByText("No efectuada")).toBeInTheDocument()
     expect(within(lista).getByText("En espera")).toBeInTheDocument()
     expect(lista.textContent).not.toMatch(/No Asistió|En Espera/)
   })

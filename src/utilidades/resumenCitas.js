@@ -3,7 +3,7 @@ import { nombreMes } from "./formatoFecha"
 
 const PENDIENTES = ["Pendiente", "En Espera", "En Atención"]
 
-// Atendidas, no asistió, pendientes (incluye en espera y en atención) y canceladas.
+// Atendidas, no efectuadas, pendientes (incluye en espera y en atención) y canceladas.
 export function contarCitas(citas) {
   const conteo = { atendidas: 0, noAsistio: 0, pendientes: 0, canceladas: 0 }
   for (const c of citas) {

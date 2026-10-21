@@ -19,7 +19,7 @@ describe("citas del portal", () => {
   it("las próximas van por fecha y hora (12 h) y no incluyen lo resuelto", () => {
     expect(citasProximas(citas).map((c) => c.id)).toEqual([6, 2, 1])
   })
-  it("el historial trae atendidas, no asistió y canceladas, de la más reciente a la más antigua", () => {
+  it("el historial trae atendidas, no efectuada y canceladas, de la más reciente a la más antigua", () => {
     expect(citasHistorial(citas).map((c) => c.id)).toEqual([5, 3, 4])
   })
   it("todo estado tiene su nota en palabras sencillas", () => {

@@ -57,7 +57,7 @@ export const etiquetaComparacion = (previo, hoy) => `vs. ${textoRango(previo, ho
 export const diaDe = (valor) => (!valor ? "" : String(valor).includes("T") ? fechaAISO(aEcuador(valor)) : String(valor).slice(0, 10))
 export const enRango = (valor, rango) => { const d = diaDe(valor); return !!d && d >= rango.inicio && d <= rango.fin }
 
-// Variación frente al período anterior. `buenoSiSube`: más ventas es bueno; más inasistencias es malo.
+// Variación frente al período anterior. `buenoSiSube`: más ventas es bueno; más citas no efectuadas es malo.
 // `puntos`: tasas (se resta, no se divide). Con una base pequeña (`baseMinima`) no se da un porcentaje que exagere
 // ("+400 %" por pasar de 1 a 5): se dice el valor anterior ("antes 1").
 export function variacion(actual, previo, { buenoSiSube = true, puntos = false, baseMinima = 10, formato = (n) => String(n) } = {}) {

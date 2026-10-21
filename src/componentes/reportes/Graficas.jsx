@@ -75,12 +75,12 @@ export function BarraRepartida({ segmentos, onElegir }) {
   )
 }
 
-// Cuadrícula día × hora de las inasistencias: cada celda dice cuántas hubo; más rojo = más inasistencias.
+// Cuadrícula día × hora de las citas no efectuadas: cada celda dice cuántas hubo; más rojo = más citas no efectuadas.
 export function CuadriculaDiaHora({ cuadricula, onElegir }) {
   const { dias, horas, celdas, max } = cuadricula
   return (
     <table className="w-full table-fixed border-separate border-spacing-1 text-sm">
-      <caption className="sr-only">Inasistencias por día de la semana y hora</caption>
+      <caption className="sr-only">Citas no efectuadas por día de la semana y hora</caption>
       <thead>
         <tr>
           <th scope="col" className="w-12" />
@@ -96,7 +96,7 @@ export function CuadriculaDiaHora({ cuadricula, onElegir }) {
               if (!c) return <td key={h} className="h-9 rounded-md bg-slate-50 text-center text-xs text-slate-300" aria-label="Sin citas">·</td>
               const n = c.noAsistio.length
               const intensidad = max > 0 ? n / max : 0
-              const tip = `${d.etiqueta} ${hora(`${h}:00`)}: ${n} no asistió de ${c.citas.length} cita${c.citas.length === 1 ? "" : "s"}`
+              const tip = `${d.etiqueta} ${hora(`${h}:00`)}: ${n} no efectuada${n === 1 ? "" : "s"} de ${c.citas.length} cita${c.citas.length === 1 ? "" : "s"}`
               return (
                 <td key={h} className="p-0">
                   <Sugerencia texto={tip} as="div">

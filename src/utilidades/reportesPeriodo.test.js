@@ -38,7 +38,7 @@ describe("períodos de Reportes", () => {
 })
 
 describe("variación frente al período anterior", () => {
-  it("más ventas es bueno (verde) y más inasistencias es malo (rojo)", () => {
+  it("más ventas es bueno (verde) y más citas no efectuadas es malo (rojo)", () => {
     expect(variacion(150, 100)).toMatchObject({ flecha: "↑", tono: "bueno", texto: "50%" })
     expect(variacion(150, 100, { buenoSiSube: false })).toMatchObject({ flecha: "↑", tono: "malo" })
     expect(variacion(50, 100)).toMatchObject({ flecha: "↓", tono: "malo", texto: "50%" })

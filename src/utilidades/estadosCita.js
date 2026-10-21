@@ -1,6 +1,6 @@
 // Qué estados tiene sentido ponerle a mano a una cita ("Corregir estado (excepción)" en Citas): el estado cambia solo según lo que ocurre en
 // la visita, y esto solo sirve para deshacer un error. Una cita de un día que todavía no llega no puede estar en atención, atendida ni
-// marcada como "No asistió": solo pendiente o cancelada. (Así una cita futura no queda "En atención" por una corrección a mano.)
+// marcada como "No efectuada": solo pendiente o cancelada. (Así una cita futura no queda "En atención" por una corrección a mano.)
 import { hoyISO } from "./disponibilidad"
 
 export const ESTADOS_DE_CITA = ["En Atención", "Pendiente", "Atendida", "No Asistió", "Cancelada"]
@@ -14,13 +14,13 @@ export function estadosCorregibles(cita, hoy = hoyISO()) {
 
 export const estadoCorregibleEs = (cita, estado, hoy = hoyISO()) => estado === cita?.estado || estadosCorregibles(cita, hoy).includes(estado)
 
-// Cómo se escribe cada estado de cita en pantalla: una sola fuente, así "No asistió" es igual en todo el sistema. El valor guardado
+// Cómo se escribe cada estado de cita en pantalla: una sola fuente, así "No efectuada" es igual en todo el sistema. El valor guardado
 // ("No Asistió", "En Atención"...) es un dato interno y no se muestra tal cual.
-const ETIQUETA_ESTADO = { Pendiente: "Pendiente", "En Espera": "En espera", "En Atención": "En atención", Atendida: "Atendida", "No Asistió": "No asistió", Cancelada: "Cancelada" }
+const ETIQUETA_ESTADO = { Pendiente: "Pendiente", "En Espera": "En espera", "En Atención": "En atención", Atendida: "Atendida", "No Asistió": "No efectuada", Cancelada: "Cancelada" }
 export const etiquetaEstadoCita = (estado) => ETIQUETA_ESTADO[estado] || estado || "Pendiente"
 
 // Los colores de cada estado de cita (regla 14): una sola tabla para quien la muestre fuera del módulo de Citas (el portal del paciente la usa).
-// Pendiente = naranja, En espera = violeta, En atención = azul, Atendida = verde, No asistió = rojo, Cancelada = gris.
+// Pendiente = naranja, En espera = violeta, En atención = azul, Atendida = verde, No efectuada = rojo, Cancelada = gris.
 export const CLASE_ESTADO_CITA = {
   Pendiente: "border-amber-200/60 bg-amber-50 text-amber-700",
   "En Espera": "border-violet-200/60 bg-violet-50 text-violet-700",

@@ -47,7 +47,7 @@ describe("Reportes: el Resumen responde cómo le fue a la óptica", () => {
   it("tiene seis tarjetas en el orden del recorrido y compara con el mismo tramo del mes anterior", () => {
     render(<Reportes usuario={admin} {...datos} />)
     const nombres = botonesLista().slice(0, 6).map((t) => t.split(":")[0])
-    expect(nombres).toEqual(["Consultas realizadas", "Pacientes nuevos", "Tasa de inasistencia", "Tasa de captación", "Vendido", "Ingreso por consulta"])
+    expect(nombres).toEqual(["Consultas realizadas", "Pacientes nuevos", "Tasa de citas no efectuadas", "Tasa de captación", "Vendido", "Ingreso por consulta"])
     expect(screen.getAllByText("vs. 1 al 12 sept").length).toBe(6)
   })
 
@@ -118,14 +118,14 @@ describe("Reportes: Ventas", () => {
 })
 
 describe("Reportes: Citas", () => {
-  it("las citas se reparten en atendidas, no asistió y pendientes; las canceladas van aparte", () => {
+  it("las citas se reparten en atendidas, no efectuada y pendientes; las canceladas van aparte", () => {
     render(<Reportes usuario={admin} {...datos} />)
     pestana("Citas")
     expect(tarjeta("Citas")).toHaveAccessibleName("Citas: 3. Ver la lista")
     expect(tarjeta("Atendidas")).toHaveAccessibleName("Atendidas: 2. Ver la lista")
-    expect(tarjeta("No asistió")).toHaveAccessibleName("No asistió: 1. Ver la lista")
+    expect(tarjeta("No efectuadas")).toHaveAccessibleName("No efectuadas: 1. Ver la lista")
     expect(tarjeta("Canceladas")).toHaveAccessibleName("Canceladas: 1. Ver la lista")
-    expect(tarjeta("Tasa de inasistencia")).toHaveAccessibleName("Tasa de inasistencia: 33%. Ver la lista")
+    expect(tarjeta("Tasa de citas no efectuadas")).toHaveAccessibleName("Tasa de citas no efectuadas: 33%. Ver la lista")
   })
 
   it("filtrar por origen Web cambia los números, se ve como etiqueta y 'Abrir en Citas' lleva el mismo filtro", () => {
@@ -152,10 +152,10 @@ describe("Reportes: Citas", () => {
     expect(screen.queryByRole("combobox", { name: "Profesional" })).not.toBeInTheDocument()
   })
 
-  it("la cuadrícula día × hora muestra las inasistencias y se pulsa", () => {
+  it("la cuadrícula día × hora muestra las citas no efectuadas y se pulsa", () => {
     render(<Reportes usuario={admin} {...datos} />)
     pestana("Citas")
-    fireEvent.click(screen.getByRole("button", { name: /Mar 10:00 AM: 1 no asistió de 1 cita/ }))
+    fireEvent.click(screen.getByRole("button", { name: /Mar 10:00 AM: 1 no efectuada de 1 cita/ }))
     expect(within(ventana()).getAllByRole("row")).toHaveLength(2)
   })
 })
@@ -235,7 +235,7 @@ describe("Reportes: Exportar", () => {
     const v = abrirExportar()
     expect(v.getAllByRole("tab").map((t) => t.textContent.replace(/\d+$/, ""))).toEqual(["Resumen", "Citas", "Clínico", "Ventas", "Laboratorios", "Inventario"])
     modulo(v, "Citas")
-    for (const t of ["Citas del período", "Inasistencias para reagendar", "Inasistencia mes a mes", "Esta pestaña en PDF"]) expect(v.getByText(t)).toBeInTheDocument()
+    for (const t of ["Citas del período", "Citas no efectuadas para reagendar", "Citas no efectuadas mes a mes", "Esta pestaña en PDF"]) expect(v.getByText(t)).toBeInTheDocument()
     modulo(v, "Clínico")
     for (const t of ["Consultas del período", "Diagnósticos por mes", "Pacientes para campaña"]) expect(v.getByText(t)).toBeInTheDocument()
     modulo(v, "Ventas")
@@ -255,7 +255,7 @@ describe("Reportes: Exportar", () => {
     modulo(v, "Citas")
     fireEvent.click(v.getByRole("checkbox", { name: "Citas del período" }))
     expect(v.getByRole("button", { name: "Exportar" })).toBeEnabled()
-    fireEvent.click(v.getByRole("checkbox", { name: "Inasistencia mes a mes" }))
+    fireEvent.click(v.getByRole("checkbox", { name: "Citas no efectuadas mes a mes" }))
     modulo(v, "Ventas")
     fireEvent.click(v.getByRole("checkbox", { name: "Cobros del período" }))
     expect(v.getByRole("button", { name: "Exportar (3)" })).toBeEnabled()
@@ -292,7 +292,7 @@ describe("Reportes: Exportar", () => {
   it("cada gráfica y tabla tiene su botón Exportar con dos opciones: los datos y el detalle completo", () => {
     render(<Reportes usuario={admin} {...datos} />)
     pestana("Citas")
-    fireEvent.click(screen.getByRole("button", { name: "Exportar Inasistencia por mes" }))
+    fireEvent.click(screen.getByRole("button", { name: "Exportar Citas no efectuadas por mes" }))
     const menu = within(screen.getByRole("menu"))
     expect(menu.getByRole("menuitem", { name: /Datos de la gráfica/ })).toBeInTheDocument()
     expect(menu.getByRole("menuitem", { name: /Detalle completo/ })).toBeInTheDocument()

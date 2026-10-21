@@ -137,7 +137,7 @@ describe("Inicio del administrador", () => {
     fireEvent.click(within(area("Citas")).getByRole("button", { name: /1 cita por reagendar/ }))
     const ventana = screen.getByRole("dialog", { name: "Citas · 1 aviso" })
     expect(ventana).toHaveTextContent("Paciente Cuatro")
-    expect(ventana).toHaveTextContent("No asistió")
+    expect(ventana).toHaveTextContent("No efectuada")
     fireEvent.click(within(ventana).getByRole("button", { name: "Reagendar" }))
     expect(reagendadas).toEqual(["cn"])
     expect(screen.getByRole("dialog", { name: "Citas · 1 aviso" })).toBeInTheDocument() // resolver un caso no cierra la lista
@@ -280,7 +280,7 @@ describe("Desenlace del administrador", () => {
     expect(region).toHaveTextContent("1 cancelada aparte")
     expect(region).not.toHaveTextContent(/citas? = /)
     expect(within(region).getByRole("button", { name: /^Atendidas: 1/ })).toBeInTheDocument()
-    expect(within(region).getByRole("button", { name: /^No asistieron: 0/ })).toBeInTheDocument()
+    expect(within(region).getByRole("button", { name: /^No efectuadas: 0/ })).toBeInTheDocument()
     expect(within(region).getByRole("button", { name: /^Pendientes: 2/ })).toBeInTheDocument()
     expect(within(region).getByRole("button", { name: /^Canceladas: 1\. Aparte/ })).toBeInTheDocument()
   })
@@ -288,20 +288,20 @@ describe("Desenlace del administrador", () => {
   it("sin un filtro activo ninguna tarjeta del desenlace está seleccionada; al tocar una queda seleccionada solo esa", () => {
     render(<Inicio {...base} />)
     const region = screen.getByRole("region", { name: "Desenlace de las citas · hoy" })
-    const tarjetas = within(region).getAllByRole("button", { name: /^(Atendidas|No asistieron|Pendientes|Canceladas):/ })
+    const tarjetas = within(region).getAllByRole("button", { name: /^(Atendidas|No efectuadas|Pendientes|Canceladas):/ })
     expect(tarjetas).toHaveLength(4)
     for (const t of tarjetas) {
       expect(t).toHaveAttribute("aria-pressed", "false")
       expect(t.parentElement.className).not.toMatch(/ring-1|border-blue-500/)
     }
     expect(screen.getByRole("region", { name: "Citas del día" })).not.toHaveTextContent(/Citas del día · /) // sin filtro, el título no nombra ninguno
-    fireEvent.click(within(region).getByRole("button", { name: /^No asistieron:/ }))
-    const despues = within(region).getAllByRole("button", { name: /^(Atendidas|No asistieron|Pendientes|Canceladas):/ })
+    fireEvent.click(within(region).getByRole("button", { name: /^No efectuadas:/ }))
+    const despues = within(region).getAllByRole("button", { name: /^(Atendidas|No efectuadas|Pendientes|Canceladas):/ })
     expect(despues.filter((t) => t.getAttribute("aria-pressed") === "true")).toHaveLength(1)
-    expect(within(region).getByRole("button", { name: /^No asistieron:/ })).toHaveAttribute("aria-pressed", "true")
-    expect(screen.getByRole("region", { name: "Citas del día" })).toHaveTextContent("Citas del día · No asistieron")
-    fireEvent.click(within(region).getByRole("button", { name: /^No asistieron:/ })) // tocarla otra vez quita el filtro
-    for (const t of within(region).getAllByRole("button", { name: /^(Atendidas|No asistieron|Pendientes|Canceladas):/ })) expect(t).toHaveAttribute("aria-pressed", "false")
+    expect(within(region).getByRole("button", { name: /^No efectuadas:/ })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("region", { name: "Citas del día" })).toHaveTextContent("Citas del día · No efectuadas")
+    fireEvent.click(within(region).getByRole("button", { name: /^No efectuadas:/ })) // tocarla otra vez quita el filtro
+    for (const t of within(region).getAllByRole("button", { name: /^(Atendidas|No efectuadas|Pendientes|Canceladas):/ })) expect(t).toHaveAttribute("aria-pressed", "false")
   })
 
   it("cambia de período con el selector y lo dice en el título", () => {

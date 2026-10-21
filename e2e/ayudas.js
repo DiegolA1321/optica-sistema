@@ -116,7 +116,7 @@ const hora12 = (d) => `${String(d.getHours() % 12 === 0 ? 12 : d.getHours() % 12
 const hoyLocalISO = (diasDespues = 0) => { const d = new Date(); d.setDate(d.getDate() + diasDespues); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 
 // Crea un paciente "E Dos E ..." y una cita de HOY asignada a Paula (pendiente, media hora más tarde, o a las 11:50 PM
-// si ya es tarde: nunca pasada, para que el proceso de "No asistió" no la toque). Devuelve el nombre del paciente.
+// si ya es tarde: nunca pasada, para que el proceso de "No efectuada" no la toque). Devuelve el nombre del paciente.
 // Con `diasDespues` > 0 la cita es de otro día (a las 09:MM AM de ese día), para probar "¿Atenderla hoy?".
 export async function crearCitaDeHoyParaPaula(entorno = 'E2E', { diasDespues = 0, estado = 'Pendiente' } = {}) {
   const { createClient } = await import('@supabase/supabase-js')
@@ -207,7 +207,7 @@ export async function prepararAvisosInicio(entorno = 'E2E') {
     const facturaId = Array.isArray(factura) ? factura[0].id : factura.id
     falla('orden atrasada', (await cliente.rpc('crear_orden_laboratorio', { p_factura_id: facturaId, p_datos: { tipo_lente: 'monofocal', fecha_prometida: '2020-01-20', laboratorio: LAB } })).error)
   }
-  // Área Citas de "Requiere tu atención" (una cita a la que no asistió y sigue sin reagendar) y una cita atendida para la lista del desenlace:
+  // Área Citas de "Requiere tu atención" (una cita a la que no efectuada y sigue sin reagendar) y una cita atendida para la lista del desenlace:
   // se crean aquí para que Inicio no dependa de lo que dejen otras pruebas. Si ya hay una reciente, no se repite.
   const citaDe = async (nombre, estado, dias, hora) => {
     const pacienteId = await pacienteDe(nombre)

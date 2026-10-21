@@ -102,7 +102,7 @@ const CONSULTA_ANCHO_SEMANA = "(min-width: 1024px)"
 function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDetalle, fechaRealPorCitaId, marcandoEstadoId, cobroPendiente, onAtender, onCobrar }) {
   const resuelta = cita.estado === "Atendida" || cita.estado === "No Asistió" || cita.estado === "Cancelada"
   // "Atender" está disponible en toda cita que no esté ya Atendida o
-  // Cancelada: pendiente, en espera, en atención, "No asistió" (la paciente llegó 12
+  // Cancelada: pendiente, en espera, en atención, "No efectuada" (la paciente llegó 12
   // minutos tarde) o de otro día (la de mañana que se atiende hoy). La fecha
   // agendada no cambia — la fecha real queda en la consulta (cita_id).
   // Sin onAtender (rol sin permiso para crear fichas clínicas) no se ofrece el botón.
@@ -172,7 +172,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
             </div>
           ) : cita.estado === "No Asistió" ? (
             <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
-              <UserX size={12} /> No asistió
+              <UserX size={12} /> No efectuada
             </span>
           ) : cita.estado === "Cancelada" ? (
             <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
@@ -299,7 +299,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     else if (abrioSobreInicio.current) onOverlayCerrado?.()
   }, [modalAbierto]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Desde una tarjeta del Inicio ("Atendidas", "No asistieron"...): abre la lista ya filtrada por ese estado.
+  // Desde una tarjeta del Inicio ("Atendidas", "No efectuadas"...): abre la lista ya filtrada por ese estado.
   // estadoInicial es el estado ("atendida"...) o { estado, periodo }: con periodo "mes" la lista se acota a este mes
   // (igual que la tarjeta del Inicio) y con "siempre" no se acota por fecha.
   useEffect(() => {
@@ -547,7 +547,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     setModalAbierto(true)
   }
 
-  // "Agendar otra cita" para quien no asistió: abre el mismo modal de agendar con el paciente ya elegido.
+  // "Agendar otra cita" para quien no tuvo su cita: abre el mismo modal de agendar con el paciente ya elegido.
   const agendarOtraCita = (cita) => {
     const paciente = cita.pacienteId ? pacientes.find((p) => p.id === cita.pacienteId) : null
     abrirModal()
@@ -703,7 +703,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
 
   // ── Cambios de estado desde el detalle de la cita (la recepción). El detalle queda abierto y muestra el estado
   // nuevo; el aviso es flotante porque el banner de la página queda detrás del modal. "Llegó" = "En espera": el
-  // optómetra lo ve en su Inicio y cuenta en "En sala de espera"; el proceso automático de "No asistió" solo toca
+  // optómetra lo ve en su Inicio y cuenta en "En sala de espera"; el proceso automático de "No efectuada" solo toca
   // las citas "Pendiente", así que una cita en espera no se marca sola. ──
   const cambiarEstadoDesdeDetalle = async (cita, nuevoEstado, mensaje) => {
     const ok = await marcarEstado(cita.id, nuevoEstado)
@@ -711,7 +711,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   }
   const marcarLlego = (cita) => cambiarEstadoDesdeDetalle(cita, "En Espera", `${cita.paciente} llegó: la cita pasa a "En espera".`)
   const marcarNoLlego = (cita) => cambiarEstadoDesdeDetalle(cita, "Pendiente", `La cita de ${cita.paciente} vuelve a "Pendiente".`)
-  const marcarNoAsistio = (cita) => cambiarEstadoDesdeDetalle(cita, "No Asistió", `La cita de ${cita.paciente} se marcó como "No asistió".`)
+  const marcarNoAsistio = (cita) => cambiarEstadoDesdeDetalle(cita, "No Asistió", `La cita de ${cita.paciente} se marcó como "No efectuada".`)
 
   // ── Pasa la cita a "En Atención" y abre la ficha clínica del paciente ya
   // vinculado. Si la cita no tiene paciente vinculado (primera cita
@@ -1101,7 +1101,7 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
   const { grupos, gruposAnteriores } = useMemo(() => {
     const hoy = hoyISO()
     if (hayRango || (["hoy", "semana", "mes", "confirmar", "reagendar"].includes(filtro) && !busqueda.trim())) return { grupos: agruparPorDia(ordenarCitas(resultado)), gruposAnteriores: [] }
-    // Atendidas, canceladas y No asistió son historial: de la más reciente a la
+    // Atendidas, canceladas y No efectuada son historial: de la más reciente a la
     // más antigua, todas a la vista, sin esconder lo pasado en "Anteriores".
     if (ESTADOS_DE_HISTORIAL.includes(estadoFiltro)) {
       return { grupos: agruparPorDia(ordenarCitas(resultado, true)), gruposAnteriores: [] }

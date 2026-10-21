@@ -47,8 +47,8 @@ describe("mover una cita a hoy antes de atenderla", () => {
 })
 
 describe("cómo se escribe el estado de una cita", () => {
-  it("'No asistió', 'En atención' y 'En espera' se escriben igual en todo el sistema; el valor guardado no se muestra tal cual", () => {
-    expect(etiquetaEstadoCita("No Asistió")).toBe("No asistió")
+  it("'No efectuada', 'En atención' y 'En espera' se escriben igual en todo el sistema; el valor guardado no se muestra tal cual", () => {
+    expect(etiquetaEstadoCita("No Asistió")).toBe("No efectuada")
     expect(etiquetaEstadoCita("En Atención")).toBe("En atención")
     expect(etiquetaEstadoCita("En Espera")).toBe("En espera")
     expect(etiquetaEstadoCita("Atendida")).toBe("Atendida")

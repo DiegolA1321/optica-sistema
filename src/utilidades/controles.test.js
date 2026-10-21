@@ -54,7 +54,7 @@ describe("controlesSinAgendar", () => {
     const cita = { id: "k1", pacienteId: "p1", paciente: "Ana Pérez", fecha: "2026-11-06", estado: "Pendiente" }
     expect(controlesSinAgendar([paciente], [consulta()], [cita])).toHaveLength(0)
   })
-  it("si la cita del control se canceló o no asistió, vuelve a aparecer", () => {
+  it("si la cita del control se canceló o no efectuada, vuelve a aparecer", () => {
     for (const estado of ["Cancelada", "No Asistió"]) {
       const cita = { id: "k1", pacienteId: "p1", paciente: "Ana Pérez", fecha: "2026-11-06", estado }
       expect(controlesSinAgendar([paciente], [consulta({ controlAgenda: "ahora" })], [cita])).toHaveLength(1)
@@ -113,11 +113,11 @@ describe("citasParaReagendar", () => {
     expect(citasParaReagendar([cancelada("c1", "2026-10-05"), { id: "c9", fecha: "2026-10-12", estado: "Pendiente", pacienteId: "p1", paciente: "Ana" }], { hoy })).toEqual([])
     expect(citasParaReagendar([cancelada("c1", "2026-10-05"), { id: "c9", fecha: "2026-10-06", estado: "Atendida", pacienteId: "p1", paciente: "Ana" }], { hoy })).toEqual([])
   })
-  it("una cita posterior cancelada o que no asistió no cuenta como reagendada: queda la más reciente", () => {
+  it("una cita posterior cancelada o que no efectuada no cuenta como reagendada: queda la más reciente", () => {
     const r = citasParaReagendar([cancelada("c1", "2026-10-05"), { id: "c9", fecha: "2026-10-06", estado: "No Asistió", pacienteId: "p1", paciente: "Ana" }], { hoy })
     expect(r.map((c) => c.id)).toEqual(["c9"])
   })
-  it("incluye a quienes no asistieron, y no a quienes ya fueron atendidos después", () => {
+  it("incluye a quienes no efectuadas, y no a quienes ya fueron atendidos después", () => {
     const noAsistio = (id, fecha, extra = {}) => ({ id, fecha, hora: "09:00 AM", estado: "No Asistió", paciente: "Luis", pacienteId: "p2", ...extra })
     expect(citasParaReagendar([noAsistio("n1", "2026-10-06")], { hoy }).map((c) => c.id)).toEqual(["n1"])
     expect(citasParaReagendar([noAsistio("n1", "2026-10-06"), { id: "a1", fecha: "2026-10-07", estado: "Atendida", pacienteId: "p2", paciente: "Luis" }], { hoy })).toEqual([])

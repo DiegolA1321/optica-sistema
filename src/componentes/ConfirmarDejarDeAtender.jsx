@@ -26,13 +26,13 @@ export default function ConfirmarDejarDeAtender({ cita, usuario, setCitas, onCan
     setCitas?.((prev) => prev.map((c) => (c.id === cita.id ? { ...c, estado: "Pendiente", atendidoPor: null } : c)))
     registrarLog(usuario, "citas", "Dejó de atender una cita abierta", cita.paciente)
     setTrabajando(false)
-    onHecho?.(antigua ? `La cita de ${cita.paciente} volvió a pendiente; como su fecha ya pasó, el sistema la marcará como No asistió.` : `Dejaste de atender a ${cita.paciente}. La cita sigue agendada.`)
+    onHecho?.(antigua ? `La cita de ${cita.paciente} volvió a pendiente; como su fecha ya pasó, el sistema la marcará como No efectuada.` : `Dejaste de atender a ${cita.paciente}. La cita sigue agendada.`)
   }
 
   return (
     <ConfirmarEliminarModal
       titulo="¿Dejar de atender?"
-      mensaje={`La cita de ${cita.paciente} vuelve a pendiente y deja de figurar como en atención.${antigua ? " Como su fecha ya pasó, el sistema la marcará como No asistió." : ""}${error ? " " + error : ""}`}
+      mensaje={`La cita de ${cita.paciente} vuelve a pendiente y deja de figurar como en atención.${antigua ? " Como su fecha ya pasó, el sistema la marcará como No efectuada." : ""}${error ? " " + error : ""}`}
       etiquetaConfirmar="Sí, dejar de atender"
       eliminando={trabajando}
       onCancelar={onCancelar}

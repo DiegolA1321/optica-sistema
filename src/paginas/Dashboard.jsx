@@ -261,7 +261,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [atajoInicio, setAtajoInicio] = useState(null)
   // Control a agendar desde el aviso de Inicio: { pacienteId, fecha, asignadoA } (fecha recomendada y quien atendió la consulta).
   const [controlParaAgendar, setControlParaAgendar] = useState(null)
-  // Desde las tarjetas del Inicio: abre Citas ya filtrada por estado (atendidas, no asistieron, canceladas...)
+  // Desde las tarjetas del Inicio: abre Citas ya filtrada por estado (atendidas, no efectuadas, canceladas...)
   const [estadoCitasInicial, setEstadoCitasInicial] = useState(null)
   // Cita que el Inicio manda a atender: Citas abre su resumen y de ahí la ficha (el mismo flujo de "Atender" de Citas).
   const [citaParaAtender, setCitaParaAtender] = useState(null)

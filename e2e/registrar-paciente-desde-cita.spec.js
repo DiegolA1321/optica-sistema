@@ -37,7 +37,7 @@ test('Por registrar: el detalle ofrece "Registrar paciente" y vincula sin cambia
   const { nombre } = await crearCita({ estado: 'No Asistió', motivo: 'Consulta General' })
   await iniciarSesion(page, 'ADMIN', 'E2E')
   let detalle = await abrirDetalle(page, nombre)
-  await expect(detalle.getByRole('status', { name: 'Estado: No asistió' })).toBeVisible()
+  await expect(detalle.getByRole('status', { name: 'Estado: No efectuada' })).toBeVisible()
   await expect(detalle.getByRole('region', { name: 'Cambiar el estado de la cita' })).toHaveCount(0)
   await detalle.getByRole('button', { name: 'Registrar paciente' }).click()
 
@@ -51,7 +51,7 @@ test('Por registrar: el detalle ofrece "Registrar paciente" y vincula sin cambia
   await expect(page.getByText('Paciente registrado y vinculado a la cita.')).toBeVisible({ timeout: 15_000 })
 
   detalle = await abrirDetalle(page, nombre)
-  await expect(detalle.getByRole('status', { name: 'Estado: No asistió' })).toBeVisible()
+  await expect(detalle.getByRole('status', { name: 'Estado: No efectuada' })).toBeVisible()
   await expect(detalle.getByRole('button', { name: 'Registrar paciente' })).toHaveCount(0)
   await expect(detalle.getByRole('link', { name: 'Ver perfil' })).toBeVisible()
 })

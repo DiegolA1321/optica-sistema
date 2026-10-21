@@ -7,9 +7,9 @@ export const AYUDA_POR_MODULO = [
     modulo: "citas", nombre: "Citas",
     preguntas: [
       { p: "¿Cómo agendo una cita?", r: "En Citas médicas, pulsa «Gestionar cita». Elige al paciente (o «Añadir nuevo paciente»), el motivo y un horario libre; los horarios ocupados salen tachados. Si el paciente ya está en el local, marca «Atender ahora»." },
-      { p: "¿Qué significa cada estado de una cita?", r: "Pendiente (naranja): agendada. En espera (violeta): el paciente llegó. En atención (azul): se abrió su ficha. Atendida (verde): la ficha se guardó. No asistió (rojo) y Cancelada (gris) cierran la cita sin atención." },
+      { p: "¿Qué significa cada estado de una cita?", r: "Pendiente (naranja): agendada. En espera (violeta): el paciente llegó. En atención (azul): se abrió su ficha. Atendida (verde): la ficha se guardó. No efectuada (rojo) y Cancelada (gris) cierran la cita sin atención." },
       { p: "Llegó un paciente, ¿qué hago?", r: "Abre la cita y pulsa «Llegó»: pasa a «En espera» y el optómetra la ve en su Inicio. Para atenderla, «Atender» abre directo la ficha clínica y la cita pasa sola a «En atención»." },
-      { p: "¿Por qué una cita se marcó «No asistió» sola?", r: "Si pasan 10 minutos de la hora agendada y la cita sigue Pendiente, el sistema la marca como «No asistió». Si el paciente sí vino, cámbiala desde el detalle de la cita. Las que están «En espera» nunca se marcan solas." },
+      { p: "¿Por qué una cita se marcó «No efectuada» sola?", r: "Si pasan 10 minutos de la hora agendada y la cita sigue Pendiente, el sistema la marca como «No efectuada». Si el paciente sí vino, cámbiala desde el detalle de la cita. Las que están «En espera» nunca se marcan solas." },
       { p: "¿Cómo cancelo o cambio una cita?", r: "Abre la cita y usa «Editar» para cambiar fecha u hora, o «Cancelar». Una cita cancelada no se borra: queda como Cancelada (se ve con el filtro Estado: Canceladas) y, si el paciente la canceló, aparece en «Para reagendar»." },
       { p: "No me deja agendar en un día, ¿por qué?", r: "El día puede estar cerrado (feriado u otro motivo) o no tener horarios libres. Quien tiene permiso de editar el horario de la óptica puede abrirlo con «Abrir este día» desde las citas del día." },
     ],

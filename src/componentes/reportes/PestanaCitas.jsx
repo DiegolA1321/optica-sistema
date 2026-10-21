@@ -35,7 +35,7 @@ export default function PestanaCitas({ r }) {
 
   const abrirCitas = (titulo, lista, destino, columnas = cols.cita, valor = lista.length) => abrir({ titulo, valor, icono: CalendarDays, columnas, filas: lista, abrirEn: destino })
   // Los datos y el detalle de una tabla de grupos (origen, visita, profesional).
-  const datosGrupos = (etiqueta, grupos) => () => ({ columnas: [col(etiqueta, (g) => g.etiqueta), col("Citas", (g) => g.citas.length, "entero"), col("Atendidas", (g) => g.atendidas.length, "entero"), col("No asistió", (g) => g.noAsistio.length, "entero"), col("Tasa de inasistencia", (g) => g.tasa, "tasa")], filas: grupos })
+  const datosGrupos = (etiqueta, grupos) => () => ({ columnas: [col(etiqueta, (g) => g.etiqueta), col("Citas", (g) => g.citas.length, "entero"), col("Atendidas", (g) => g.atendidas.length, "entero"), col("No efectuadas", (g) => g.noAsistio.length, "entero"), col("Tasa de citas no efectuadas", (g) => g.tasa, "tasa")], filas: grupos })
   const detalleGrupos = (etiqueta, grupos) => () => ({ columnas: [col(etiqueta, (c) => c.__grupo), ...cols.cita], filas: grupos.flatMap((g) => g.citas.map((c) => ({ ...c, __grupo: g.etiqueta }))) })
   const canceladasPaciente = act.canceladas.filter((c) => c.canceladaPor === "paciente").length
 
@@ -47,35 +47,35 @@ export default function PestanaCitas({ r }) {
     <>
       <Seccion titulo="Citas del período">
         <div className={REJILLA_TARJETAS}>
-          {tarjeta({ titulo: "Citas", valor: act.programadas.length, ayuda: "Citas con fecha en el período, sin las canceladas (esas se cuentan aparte). Es la suma de Atendidas, No asistió y Pendientes.", onClick: () => abrirCitas("Citas del período", act.programadas, dc("todas")) }, act.programadas.length, ant.programadas.length)}
+          {tarjeta({ titulo: "Citas", valor: act.programadas.length, ayuda: "Citas con fecha en el período, sin las canceladas (esas se cuentan aparte). Es la suma de Atendidas, No efectuadas y Pendientes.", onClick: () => abrirCitas("Citas del período", act.programadas, dc("todas")) }, act.programadas.length, ant.programadas.length)}
           {tarjeta({ titulo: "Atendidas", valor: act.atendidas.length, ayuda: "Citas en las que el paciente fue atendido: la ficha clínica se guardó.", onClick: () => abrirCitas("Atendidas", act.atendidas, dc("atendida")) }, act.atendidas.length, ant.atendidas.length)}
-          {tarjeta({ titulo: "No asistió", valor: act.noAsistio.length, ayuda: "Citas en las que el paciente no llegó. Se marcan solas pasados 10 minutos de la hora.", onClick: () => abrirCitas("No asistió", act.noAsistio, dc("noAsistio")) }, act.noAsistio.length, ant.noAsistio.length, { buenoSiSube: false })}
+          {tarjeta({ titulo: "No efectuadas", valor: act.noAsistio.length, ayuda: "Citas que no se realizaron: nadie las abrió antes de terminar su horario o la atención se inició y no se terminó. Se marcan solas.", onClick: () => abrirCitas("No efectuadas", act.noAsistio, dc("noAsistio")) }, act.noAsistio.length, ant.noAsistio.length, { buenoSiSube: false })}
           {tarjeta({ titulo: "Pendientes", valor: act.pendientes.length, ayuda: "Citas todavía por atender: pendientes, en espera o en atención.", onClick: () => abrirCitas("Pendientes", act.pendientes, dc("abiertas")) }, act.pendientes.length, ant.pendientes.length, { buenoSiSube: false })}
           {tarjeta({ titulo: "Canceladas", aparte: true, valor: act.canceladas.length, sub: `${canceladasPaciente} paciente · ${act.canceladas.length - canceladasPaciente} óptica`, ayuda: "Citas canceladas por el paciente o por la óptica. No suman en las demás tarjetas.", onClick: () => abrirCitas("Canceladas", act.canceladas, dc("cancelada"), cols.citaCancelada) })}
-          {tarjeta({ titulo: "Tasa de inasistencia", valor: pct(act.tasaInasist), sub: act.tasaInasist == null ? "Sin citas en el período" : undefined, ayuda: "De las citas del período que no se cancelaron, cuántas terminaron en No asistió.", onClick: () => abrir({ titulo: `No asistió: ${act.noAsistio.length} de ${act.programadas.length} citas`, valor: pct(act.tasaInasist), icono: Percent, columnas: cols.cita, filas: act.noAsistio, abrirEn: dc("noAsistio") }) }, act.tasaInasist ?? undefined, ant.tasaInasist, { buenoSiSube: false, puntos: true })}
+          {tarjeta({ titulo: "Tasa de citas no efectuadas", valor: pct(act.tasaInasist), sub: act.tasaInasist == null ? "Sin citas en el período" : undefined, ayuda: "De las citas del período que no se cancelaron, cuántas terminaron en No efectuada.", onClick: () => abrir({ titulo: `No efectuada: ${act.noAsistio.length} de ${act.programadas.length} citas`, valor: pct(act.tasaInasist), icono: Percent, columnas: cols.cita, filas: act.noAsistio, abrirEn: dc("noAsistio") }) }, act.tasaInasist ?? undefined, ant.tasaInasist, { buenoSiSube: false, puntos: true })}
         </div>
       </Seccion>
 
       <Seccion titulo="Cuándo fallan los pacientes">
-        <Caja titulo="Inasistencia por mes" exportar={r.bloque("Inasistencia por mes", () => ({ columnas: [col("Mes", (m) => m.etiqueta), col("Citas", (m) => m.programadas.length, "entero"), col("No asistió", (m) => m.noAsistio.length, "entero"), col("Tasa de inasistencia", (m) => m.tasa, "tasa")], filas: tendencia }), () => ({ columnas: cols.cita, filas: tendencia.flatMap((m) => m.programadas) }))} ayuda="Porcentaje de citas (sin las canceladas) que terminaron en No asistió, mes a mes, en los últimos 12 meses con los filtros elegidos.">
+        <Caja titulo="Citas no efectuadas por mes" exportar={r.bloque("Citas no efectuadas por mes", () => ({ columnas: [col("Mes", (m) => m.etiqueta), col("Citas", (m) => m.programadas.length, "entero"), col("No efectuadas", (m) => m.noAsistio.length, "entero"), col("Tasa de citas no efectuadas", (m) => m.tasa, "tasa")], filas: tendencia }), () => ({ columnas: cols.cita, filas: tendencia.flatMap((m) => m.programadas) }))} ayuda="Porcentaje de citas (sin las canceladas) que terminaron en No efectuada, mes a mes, en los últimos 12 meses con los filtros elegidos.">
           <BarrasMes
-            datos={tendencia.map((m) => ({ clave: m.clave, etiqueta: m.etiqueta, valor: m.tasa ?? 0, texto: pct(m.tasa), color: "#dc2626", tip: m.programadas.length ? `${m.etiqueta}: ${m.noAsistio.length} no asistió de ${m.programadas.length} citas (${m.tasa}%)` : `${m.etiqueta}: sin citas`, m }))}
-            onElegir={(b) => abrir({ titulo: `No asistió · ${b.etiqueta}: ${b.m.noAsistio.length} de ${b.m.programadas.length} citas`, valor: pct(b.m.tasa), icono: CalendarX, columnas: cols.cita, filas: b.m.noAsistio, abrirEn: dc("noAsistio", {}, b.m) })}
+            datos={tendencia.map((m) => ({ clave: m.clave, etiqueta: m.etiqueta, valor: m.tasa ?? 0, texto: pct(m.tasa), color: "#dc2626", tip: m.programadas.length ? `${m.etiqueta}: ${m.noAsistio.length} no efectuadas de ${m.programadas.length} citas (${m.tasa}%)` : `${m.etiqueta}: sin citas`, m }))}
+            onElegir={(b) => abrir({ titulo: `No efectuadas · ${b.etiqueta}: ${b.m.noAsistio.length} de ${b.m.programadas.length} citas`, valor: pct(b.m.tasa), icono: CalendarX, columnas: cols.cita, filas: b.m.noAsistio, abrirEn: dc("noAsistio", {}, b.m) })}
           />
         </Caja>
-        <Caja titulo="Inasistencias por día y hora" exportar={r.bloque("Inasistencias por día y hora",
-          () => ({ columnas: [col("Día", (x) => x.dia), col("Hora", (x) => x.hora), col("Citas", (x) => x.citas, "entero"), col("No asistió", (x) => x.noAsistio, "entero"), col("Tasa de inasistencia", (x) => x.tasa, "tasa")], filas: cuadricula.dias.flatMap((d) => cuadricula.horas.map((h) => { const c = cuadricula.celdas.get(`${d.id}-${h}`); return c ? { dia: d.etiqueta, hora: hora(`${h}:00`), citas: c.citas.length, noAsistio: c.noAsistio.length, tasa: porcentaje(c.noAsistio.length, c.citas.length) } : null }).filter(Boolean)) }),
-          () => ({ columnas: cols.cita, filas: act.programadas }))} ayuda="Cuántas veces el paciente no llegó en cada día de la semana y hora, en el período. Cuanto más rojo, más inasistencias: ahí conviene reforzar los recordatorios.">
+        <Caja titulo="Citas no efectuadas por día y hora" exportar={r.bloque("Citas no efectuadas por día y hora",
+          () => ({ columnas: [col("Día", (x) => x.dia), col("Hora", (x) => x.hora), col("Citas", (x) => x.citas, "entero"), col("No efectuadas", (x) => x.noAsistio, "entero"), col("Tasa de citas no efectuadas", (x) => x.tasa, "tasa")], filas: cuadricula.dias.flatMap((d) => cuadricula.horas.map((h) => { const c = cuadricula.celdas.get(`${d.id}-${h}`); return c ? { dia: d.etiqueta, hora: hora(`${h}:00`), citas: c.citas.length, noAsistio: c.noAsistio.length, tasa: porcentaje(c.noAsistio.length, c.citas.length) } : null }).filter(Boolean)) }),
+          () => ({ columnas: cols.cita, filas: act.programadas }))} ayuda="Cuántas citas no se efectuaron en cada día de la semana y hora, en el período. Cuanto más rojo, más citas no efectuadas: ahí conviene reforzar los recordatorios.">
           {cuadricula.dias.length === 0
             ? <SinResultados texto="No hay citas en este período para armar la cuadrícula. Prueba con un período más largo." acciones={[{ etiqueta: "Ver este año", onClick: () => r.setPeriodo("anio") }]} />
-            : <CuadriculaDiaHora cuadricula={cuadricula} onElegir={({ dia, hora: h, celda, tip }) => abrir({ titulo: `No asistió · ${dia.etiqueta} ${hora(`${h}:00`)}: ${celda.noAsistio.length} de ${celda.citas.length} citas`, valor: celda.noAsistio.length, icono: CalendarX, columnas: cols.cita, filas: celda.noAsistio, abrirEn: dc("noAsistio"), filtros: `${tip} · ${r.filtrosTexto}` })} />}
+            : <CuadriculaDiaHora cuadricula={cuadricula} onElegir={({ dia, hora: h, celda, tip }) => abrir({ titulo: `No efectuadas · ${dia.etiqueta} ${hora(`${h}:00`)}: ${celda.noAsistio.length} de ${celda.citas.length} citas`, valor: celda.noAsistio.length, icono: CalendarX, columnas: cols.cita, filas: celda.noAsistio, abrirEn: dc("noAsistio"), filtros: `${tip} · ${r.filtrosTexto}` })} />}
         </Caja>
       </Seccion>
 
       <Seccion titulo="Quién viene">
         <div className="grid gap-3 lg:grid-cols-2">
-          <TablaDeGrupos titulo="Por origen" exportar={r.bloque("Citas por origen", datosGrupos("Origen", porOrigen), detalleGrupos("Origen", porOrigen))} ayuda="De dónde llegó la cita: Web (la reservó el paciente) o Recepción (la agendó el personal). Mismo criterio que el filtro Origen de Citas." grupos={porOrigen} etiquetaGrupo="Origen" abrirLista={(g, lista, nombre, valor) => abrirCitas(`${g.etiqueta} · ${nombre}`, lista, dc(nombre === "No asistió" ? "noAsistio" : nombre === "Atendidas" ? "atendida" : "todas", { origen: g.id }), cols.cita, valor)} />
-          <TablaDeGrupos titulo="Por tipo de visita" exportar={r.bloque("Citas por tipo de visita", datosGrupos("Visita", porVisita), detalleGrupos("Visita", porVisita))} ayuda="Primera vez: el paciente no tenía ninguna atención antes de esa cita. Seguimiento: ya se había atendido. Mismo criterio que el filtro Visita de Citas." grupos={porVisita} etiquetaGrupo="Visita" abrirLista={(g, lista, nombre, valor) => abrirCitas(`${g.etiqueta} · ${nombre}`, lista, dc(nombre === "No asistió" ? "noAsistio" : nombre === "Atendidas" ? "atendida" : "todas", { visita: g.id }), cols.cita, valor)} />
+          <TablaDeGrupos titulo="Por origen" exportar={r.bloque("Citas por origen", datosGrupos("Origen", porOrigen), detalleGrupos("Origen", porOrigen))} ayuda="De dónde llegó la cita: Web (la reservó el paciente) o Recepción (la agendó el personal). Mismo criterio que el filtro Origen de Citas." grupos={porOrigen} etiquetaGrupo="Origen" abrirLista={(g, lista, nombre, valor) => abrirCitas(`${g.etiqueta} · ${nombre}`, lista, dc(nombre === "No efectuadas" ? "noAsistio" : nombre === "Atendidas" ? "atendida" : "todas", { origen: g.id }), cols.cita, valor)} />
+          <TablaDeGrupos titulo="Por tipo de visita" exportar={r.bloque("Citas por tipo de visita", datosGrupos("Visita", porVisita), detalleGrupos("Visita", porVisita))} ayuda="Primera vez: el paciente no tenía ninguna atención antes de esa cita. Seguimiento: ya se había atendido. Mismo criterio que el filtro Visita de Citas." grupos={porVisita} etiquetaGrupo="Visita" abrirLista={(g, lista, nombre, valor) => abrirCitas(`${g.etiqueta} · ${nombre}`, lista, dc(nombre === "No efectuadas" ? "noAsistio" : nombre === "Atendidas" ? "atendida" : "todas", { visita: g.id }), cols.cita, valor)} />
         </div>
       </Seccion>
 
@@ -105,8 +105,8 @@ export default function PestanaCitas({ r }) {
 
       {esAdmin && (
         <Seccion titulo="Por profesional">
-          <Caja titulo="Citas, atendidas e inasistencias por profesional" exportar={r.bloque("Citas por profesional", datosGrupos("Profesional", porProfesional), detalleGrupos("Profesional", porProfesional))} ayuda="Cada cita cuenta para una sola persona: quien la atendió o, si todavía no, a quien está asignada. Mismo criterio que el filtro Profesional de Citas.">
-            <TablaDeGrupos grupos={porProfesional} etiquetaGrupo="Profesional" sinCaja abrirLista={(g, lista, nombre, valor) => abrirCitas(`${g.etiqueta} · ${nombre}`, lista, dc(nombre === "No asistió" ? "noAsistio" : nombre === "Atendidas" ? "atendida" : "todas", { profesional: g.real || "ninguno" }), cols.cita, valor)} />
+          <Caja titulo="Citas, atendidas y no efectuadas por profesional" exportar={r.bloque("Citas por profesional", datosGrupos("Profesional", porProfesional), detalleGrupos("Profesional", porProfesional))} ayuda="Cada cita cuenta para una sola persona: quien la atendió o, si todavía no, a quien está asignada. Mismo criterio que el filtro Profesional de Citas.">
+            <TablaDeGrupos grupos={porProfesional} etiquetaGrupo="Profesional" sinCaja abrirLista={(g, lista, nombre, valor) => abrirCitas(`${g.etiqueta} · ${nombre}`, lista, dc(nombre === "No efectuadas" ? "noAsistio" : nombre === "Atendidas" ? "atendida" : "todas", { profesional: g.real || "ninguno" }), cols.cita, valor)} />
           </Caja>
         </Seccion>
       )}
@@ -114,17 +114,17 @@ export default function PestanaCitas({ r }) {
   )
 }
 
-// Una tabla de grupos de citas (origen, visita o profesional): citas, atendidas, no asistió y su tasa. Cada número se pulsa.
+// Una tabla de grupos de citas (origen, visita o profesional): citas, atendidas, no efectuadas y su tasa. Cada número se pulsa.
 function TablaDeGrupos({ titulo, ayuda, grupos, etiquetaGrupo, abrirLista, exportar, sinCaja = false }) {
   const tabla = (
-    <TablaNumeros titulos={[etiquetaGrupo, "Citas", "Atendidas", "No asistió", "Tasa"]} anchoNumeros={86} etiqueta={titulo || etiquetaGrupo}>
+    <TablaNumeros titulos={[etiquetaGrupo, "Citas", "Atendidas", "No efectuadas", "Tasa"]} anchoNumeros={86} etiqueta={titulo || etiquetaGrupo}>
       {grupos.map((g) => (
         <tr key={g.id}>
           <th scope="row" className="truncate py-2 pr-2 text-left font-semibold text-slate-700" title={g.etiqueta}>{g.etiqueta}</th>
           <td className="px-1 text-right"><NumeroPulsable valor={g.citas.length} nombre={`${g.etiqueta}: ${g.citas.length} citas. Ver la lista`} onClick={() => abrirLista(g, g.citas, "Citas")} /></td>
           <td className="px-1 text-right"><NumeroPulsable valor={g.atendidas.length} nombre={`${g.etiqueta}: ${g.atendidas.length} atendidas. Ver la lista`} onClick={() => abrirLista(g, g.atendidas, "Atendidas")} /></td>
-          <td className="px-1 text-right"><NumeroPulsable valor={g.noAsistio.length} nombre={`${g.etiqueta}: ${g.noAsistio.length} no asistió. Ver la lista`} onClick={() => abrirLista(g, g.noAsistio, "No asistió")} /></td>
-          <td className="px-1 text-right"><NumeroPulsable valor={g.noAsistio.length} texto={pct(g.tasa)} nombre={`${g.etiqueta}: tasa de inasistencia ${pct(g.tasa)}. Ver la lista`} onClick={() => abrirLista(g, g.noAsistio, "No asistió", pct(g.tasa))} /></td>
+          <td className="px-1 text-right"><NumeroPulsable valor={g.noAsistio.length} nombre={`${g.etiqueta}: ${g.noAsistio.length} no efectuadas. Ver la lista`} onClick={() => abrirLista(g, g.noAsistio, "No efectuadas")} /></td>
+          <td className="px-1 text-right"><NumeroPulsable valor={g.noAsistio.length} texto={pct(g.tasa)} nombre={`${g.etiqueta}: tasa de citas no efectuadas ${pct(g.tasa)}. Ver la lista`} onClick={() => abrirLista(g, g.noAsistio, "No efectuadas", pct(g.tasa))} /></td>
         </tr>
       ))}
     </TablaNumeros>

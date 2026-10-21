@@ -2905,10 +2905,10 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
   const tarjetas = [
     { clave: "pendientes", etiqueta: "Pendientes", valor: conteo.pendientes, clase: "text-amber-700", punto: "bg-amber-500" },
     { clave: "atendidas", etiqueta: "Atendidas", valor: conteo.atendidas, clase: "text-emerald-700", punto: "bg-emerald-500" },
-    { clave: "noAsistio", etiqueta: "No asistió", valor: conteo.noAsistio, clase: "text-red-700", punto: "bg-red-500" },
+    { clave: "noAsistio", etiqueta: "No efectuadas", valor: conteo.noAsistio, clase: "text-red-700", punto: "bg-red-500" },
     { clave: "canceladas", etiqueta: "Canceladas", valor: conteo.canceladas, clase: "text-slate-600", punto: "bg-slate-400" },
   ]
-  const titulosCita = { pendientes: "Citas pendientes", atendidas: "Citas atendidas", noAsistio: "Citas a las que no asistió", canceladas: "Citas canceladas" }
+  const titulosCita = { pendientes: "Citas pendientes", atendidas: "Citas atendidas", noAsistio: "Citas no efectuadas", canceladas: "Citas canceladas" }
   const consultaVentana = citaVentana ? consultaDe(citaVentana) || citaVentana._consulta : null
   return (
     <div className="space-y-4">

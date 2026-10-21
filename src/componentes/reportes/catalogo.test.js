@@ -108,11 +108,11 @@ describe("Exportaciones por fechas", () => {
     expect(m.filas[2].celdas.slice(9)).toEqual(["Cancelada", "El paciente"])
     expect(h.data[ENCABEZADO_FILAS + 1][0]).toMatchObject({ type: Date, format: "dd/mm/yyyy" })
   })
-  it("las inasistencias traen solo a quien no asistió, con su teléfono", () => {
+  it("las citas no efectuadas traen solo esas citas, con el teléfono del paciente", () => {
     const m = item(base, "citas-inasistencias").modelo()
     expect(m.filas.map((f) => f.celdas[2])).toEqual(["Beto Ríos"])
   })
-  it("la inasistencia mes a mes da la tasa de cada mes como porcentaje", () => {
+  it("las citas no efectuadas mes a mes dan la tasa de cada mes como porcentaje", () => {
     const m = item(base, "citas-tasa-mes").modelo()
     expect(m.filas.map((f) => f.celdas.at(-1))).toEqual([0, 100]) // sept: 0 de 1; oct: 1 de 1 (la cancelada no cuenta)
   })

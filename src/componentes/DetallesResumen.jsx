@@ -218,11 +218,11 @@ export function PanelCumple({ fechaNacimiento, diasCumple, edad, saludoAnio, ani
 const TEXTO_ESTADO = {
   pendientes: { vacio: ["Sin citas pendientes", "Cuando se agende una cita nueva aparecerá aquí."] },
   atendidas: { vacio: ["Sin citas atendidas", "Las citas aparecen aquí cuando se guarda su ficha clínica."] },
-  noAsistio: { vacio: ["Nunca ha faltado a una cita", "Se marca \"No asistió\" cuando pasan 10 minutos de la hora sin que el paciente llegue."] },
+  noAsistio: { vacio: ["Nunca ha faltado a una cita", "Se marca \"No efectuada\" al terminar el horario de la cita si nadie la abrió."] },
   canceladas: { vacio: ["Sin citas canceladas", "Aquí verás las citas que se cancelaron antes de la fecha."] },
 }
 const NOTA_ESTADO = {
-  noAsistio: "No llegó dentro de los 10 minutos de tolerancia.",
+  noAsistio: "No se realizó: nadie abrió la cita antes de terminar su horario, o la atención se inició y no se terminó.",
   canceladas: "La cita se canceló antes de la fecha.",
 }
 

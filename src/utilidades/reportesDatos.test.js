@@ -152,7 +152,7 @@ describe("Embudo de captación (R40) con los atendidos con receta", () => {
   })
 })
 
-describe("Citas: inasistencia por día y hora, por origen y por visita", () => {
+describe("Citas: cita no efectuada por día y hora, por origen y por visita", () => {
   const citas = [
     { id: "1", fecha: "2026-10-05", hora: "09:00 AM", estado: "No Asistió", origen: "paciente" }, // lunes
     { id: "2", fecha: "2026-10-12", hora: "09:30 AM", estado: "Atendida", origen: "staff" }, // lunes
@@ -160,7 +160,7 @@ describe("Citas: inasistencia por día y hora, por origen y por visita", () => {
     { id: "4", fecha: "2026-10-06", hora: "03:15 PM", estado: "Cancelada", origen: "staff" }, // las canceladas no entran
     { id: "5", fecha: "2026-10-11", hora: "10:00 AM", estado: "Atendida", origen: "staff" }, // domingo
   ]
-  it("la cuadrícula cuenta las inasistencias de cada celda y de cuántas citas, sin canceladas", () => {
+  it("la cuadrícula cuenta las citas no efectuadas de cada celda y de cuántas citas, sin canceladas", () => {
     const c = cuadriculaInasistencias(citas)
     expect(c.celdas.get("1-9").citas).toHaveLength(2)
     expect(c.celdas.get("1-9").noAsistio).toHaveLength(1)
@@ -174,7 +174,7 @@ describe("Citas: inasistencia por día y hora, por origen y por visita", () => {
   it("sin citas no hay cuadrícula", () => {
     expect(cuadriculaInasistencias([]).dias).toEqual([])
   })
-  it("por origen: cuántas citas, cuántas atendidas, cuántas no asistió y la tasa", () => {
+  it("por origen: cuántas citas, cuántas atendidas, cuántas no efectuada y la tasa", () => {
     const filas = resumenCitasPor(citas, ORIGENES, (c) => c.origen)
     const web = filas.find((x) => x.id === "paciente")
     const rec = filas.find((x) => x.id === "staff")

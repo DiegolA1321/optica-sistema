@@ -55,10 +55,10 @@ describe("Los números del día coinciden en todo el Inicio, con cualquier dato"
       const contexto = `corrida ${corrida}: ${JSON.stringify(citas.map((c) => [c.fecha === hoy ? "hoy" : c.fecha, c.estado, c.asignadoA || "-", c.atendidoPor || "-"]))}`
       const { container } = render(<Inicio {...base} citas={citas} {...optometra} />)
 
-      // 1. Desenlace de hoy: "N citas = atendidas + no asistieron + pendientes"; las partes suman el total; las canceladas aparte
+      // 1. Desenlace de hoy: "N citas = atendidas + no efectuadas + pendientes"; las partes suman el total; las canceladas aparte
       const desenlace = screen.getByRole("region", { name: "Desenlace de mis citas · hoy" })
       // las tres tarjetas muestran esas partes y suman el total (la cuenta ya no se escribe: cada número se lee una sola vez)
-      expect([valorDe(desenlace, "Atendidas"), valorDe(desenlace, "No asistieron"), valorDe(desenlace, "Pendientes")], contexto).toEqual([esperados.atendidas, esperados.noAsistio, esperados.pendientes])
+      expect([valorDe(desenlace, "Atendidas"), valorDe(desenlace, "No efectuadas"), valorDe(desenlace, "Pendientes")], contexto).toEqual([esperados.atendidas, esperados.noAsistio, esperados.pendientes])
       expect(esperados.atendidas + esperados.noAsistio + esperados.pendientes, contexto).toBe(esperados.total)
       if (esperados.canceladas > 0) expect(desenlace.textContent, contexto).toContain(`${esperados.canceladas} ${esperados.canceladas === 1 ? "cancelada aparte" : "canceladas aparte"}`)
 
@@ -105,7 +105,7 @@ describe("Los números del día coinciden en todo el Inicio, con cualquier dato"
       const desenlace = screen.getByRole("region", { name: "Desenlace de las citas · hoy" })
       const atendidas = vigentes.filter((c) => c.estado === "Atendida").length
       const noAsistio = vigentes.filter((c) => c.estado === "No Asistió").length
-      expect([valorDe(desenlace, "Atendidas"), valorDe(desenlace, "No asistieron"), valorDe(desenlace, "Pendientes")], contexto).toEqual([atendidas, noAsistio, vigentes.length - atendidas - noAsistio])
+      expect([valorDe(desenlace, "Atendidas"), valorDe(desenlace, "No efectuadas"), valorDe(desenlace, "Pendientes")], contexto).toEqual([atendidas, noAsistio, vigentes.length - atendidas - noAsistio])
       const lista = screen.getByRole("region", { name: "Citas del día" })
       expect(lista.querySelectorAll(ID_FILAS).length, contexto).toBe(Math.min(vigentes.length, 8)) // se ven las primeras ocho; el resto está en Citas
       if (vigentes.length > 8) expect(lista.textContent, contexto).toContain(`Primeras 8 de ${vigentes.length}`)

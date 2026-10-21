@@ -24,7 +24,7 @@ export function atencionesAbiertasAntiguas(citas = [], hoy = ahoraEcuador()) {
 export const textoAtencionAbierta = (dias) => `Abierta hace ${dias} día${dias === 1 ? "" : "s"}`
 
 // Deja de atender la cita: vuelve a Pendiente y deja de figurar quien atendía.
-// Si su fecha ya pasó, el sistema la marcará como "No asistió" solo.
+// Si su fecha ya pasó, el sistema la marcará como "No efectuada" solo.
 export async function dejarDeAtenderCita(cita) {
   if (!supabase) return { error: null }
   // Con .select(): una cita que no se pudo cambiar (la base la rechazó sin error) no se da por cambiada.

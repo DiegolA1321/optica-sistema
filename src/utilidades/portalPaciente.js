@@ -34,7 +34,7 @@ export function identidadDeLaOptica(opticaPublica) {
 }
 
 // ── Citas ──
-// El mismo criterio de "próximas" que usa el personal: todo lo que no está resuelto (atendida, no asistió, cancelada).
+// El mismo criterio de "próximas" que usa el personal: todo lo que no está resuelto (atendida, no efectuada, cancelada).
 export const ESTADOS_RESUELTOS = ["Atendida", "No Asistió", "Cancelada"]
 export const esCitaProxima = (c) => !ESTADOS_RESUELTOS.includes(c.estado)
 const porFechaYHora = (a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
@@ -47,7 +47,7 @@ export const NOTA_ESTADO_CITA = {
   "En Espera": "Ya llegaste: te llamarán en un momento.",
   "En Atención": "Te están atendiendo ahora.",
   Atendida: "Ya te atendimos.",
-  "No Asistió": "No llegaste a esta cita. Puedes agendar otra.",
+  "No Asistió": "Esta cita no se efectuó. Puedes agendar otra.",
   Cancelada: "Esta cita se canceló. Puedes agendar otra.",
 }
 
