@@ -2,6 +2,7 @@ import React from "react"
 import { describe, it, expect } from "vitest"
 import { render, screen, fireEvent, within } from "@testing-library/react"
 import Inicio from "./Inicio"
+import { TONOS } from "../componentes/RequiereAtencionPorArea"
 import { listaParaContactar, fechaEnDias } from "../utilidades/crmContactos"
 import { hoyISO } from "../utilidades/disponibilidad"
 
@@ -71,12 +72,24 @@ describe("Inicio del administrador", () => {
     expect(screen.queryByLabelText("Resumen del día")).not.toBeInTheDocument()
   })
 
-  it("Totales: cada tarjeta lleva su propio tinte suave (no los colores de estado)", () => {
+  it("Totales: son informativos, con el azul suave del criterio de color (no los colores de estado)", () => {
     render(<Inicio {...base} />)
     const totales = screen.getByRole("region", { name: "Totales" })
-    const fondos = within(totales).getAllByRole("button", { name: /: / }).map((b) => b.parentElement.style.backgroundColor)
-    expect(fondos.every(Boolean)).toBe(true)
-    expect(new Set(fondos).size).toBe(4) // cuatro tintes distintos
+    const tarjetas = within(totales).getAllByRole("button", { name: /: / }).map((b) => b.parentElement)
+    expect(tarjetas.length).toBe(4)
+    for (const t of tarjetas) {
+      expect(t.style.backgroundColor).toBe("rgb(239, 246, 255)") // #EFF6FF
+      expect(t.style.borderLeftWidth).toBe("4px") // la franja se nota
+    }
+  })
+
+  it("Requiere tu atención: rojo suave para lo urgente, ámbar para lo pendiente, azul para lo informativo", () => {
+    expect(Object.keys(TONOS)).toEqual(["urgente", "pendiente", "info"])
+    const color = (t) => t.fondo
+    expect(new Set(Object.values(TONOS).map(color)).size).toBe(3)
+    expect(TONOS.urgente.franja).toBe("#DC2626")
+    expect(TONOS.pendiente.franja).toBe("#D97706")
+    expect(TONOS.info.franja).toBe("#2563EB")
   })
 
   it("el selector de período usa el color del sistema, no el negro", () => {

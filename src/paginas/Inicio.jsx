@@ -307,10 +307,10 @@ export default function Inicio({
       acciones={atajosAdmin}
       compacta
       tarjetas={[
-        { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, tinte: "sky", onClick: () => setTotalAbierto("pacientes") },
-        { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, tinte: "indigo", onClick: () => setTotalAbierto("citas") },
-        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} vendido este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, tinte: "teal", onClick: () => setTotalAbierto("ventas") },
-        { id: "productos", titulo: "Productos", valor: productosActivos.length, desc: `+${productosEsteMes} este mes`, icono: Package, tinte: "rose", onClick: () => setTotalAbierto("productos") },
+        { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, tinte: "info", onClick: () => setTotalAbierto("pacientes") },
+        { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, tinte: "info", onClick: () => setTotalAbierto("citas") },
+        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} vendido este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, tinte: "info", onClick: () => setTotalAbierto("ventas") },
+        { id: "productos", titulo: "Productos", valor: productosActivos.length, desc: `+${productosEsteMes} este mes`, icono: Package, tinte: "info", onClick: () => setTotalAbierto("productos") },
       ].filter(Boolean)}
     />
   )
@@ -691,7 +691,7 @@ export default function Inicio({
       const n = solicitudesEliminacion.length
       const nombreDe2 = (id) => pacientes.find((p) => p.id === id)?.nombre || "Paciente"
       poner("pacientes", {
-        id: "eliminacion", cantidad: n, corto: uno(n, "pide eliminar su cuenta", "piden eliminar su cuenta"),
+        id: "eliminacion", tono: "urgente", cantidad: n, corto: uno(n, "pide eliminar su cuenta", "piden eliminar su cuenta"),
         texto: uno(n, "paciente pidió eliminar su cuenta", "pacientes pidieron eliminar su cuenta"),
         nombres: nombresResumidos(solicitudesEliminacion.map((x) => nombreDe2(x.pacienteId))),
         casos: solicitudesEliminacion.map((x) => ({
@@ -719,7 +719,7 @@ export default function Inicio({
     }
     // Un paciente cambió su teléfono o su correo desde su portal: «Marta Zambrano actualizó su teléfono». Se queda hasta que se marca como visto.
     if (puedeV("pacientes", "ver") && avisosContacto.length > 0) poner("pacientes", {
-      id: "contacto-actualizado", cantidad: avisosContacto.length, corto: uno(avisosContacto.length, "cambió su contacto", "cambiaron su contacto"),
+      id: "contacto-actualizado", tono: "info", cantidad: avisosContacto.length, corto: uno(avisosContacto.length, "cambió su contacto", "cambiaron su contacto"),
       texto: uno(avisosContacto.length, "paciente actualizó su contacto desde su portal", "pacientes actualizaron su contacto desde su portal"),
       nombres: nombresResumidos(avisosContacto.map((a) => nombreDe(a.pacienteId))),
       casos: avisosContacto.map((a) => ({ id: a.id, nombre: nombreDe(a.pacienteId), detalle: textoAvisoContacto(nombreDe(a.pacienteId), a.campos).replace(/^.*? actualizó /, "Actualizó "), accion: { etiqueta: "Visto", onClick: () => onAtenderAvisoContacto?.(a.id) } })),
@@ -736,7 +736,7 @@ export default function Inicio({
     if (dSinConsulta?.hay) {
       const n = dSinConsulta.visibles.length
       poner("pacientes", {
-        id: "sin-consulta", cantidad: n, corto: "sin consulta",
+        id: "sin-consulta", tono: "info", cantidad: n, corto: "sin consulta",
         texto: uno(n, "paciente registrado sin ninguna consulta", "pacientes registrados sin ninguna consulta"),
         enlace: { texto: `Abrir en Pacientes · Sin consulta (${dSinConsulta.total})`, onClick: enPacientes({ correccion: "Sin evaluación" }) },
         casos: dSinConsulta.visibles.map((p) => ({
@@ -750,7 +750,7 @@ export default function Inicio({
     if (incCumple && cumpleaneros.length > 0) {
       const hoyN = cumpleaneros.filter((c) => c.esHoy).length
       poner("pacientes", {
-        id: "cumple", cantidad: cumpleaneros.length, corto: uno(cumpleaneros.length, "cumpleaños cercano", "cumpleaños cercanos"),
+        id: "cumple", tono: "info", cantidad: cumpleaneros.length, corto: uno(cumpleaneros.length, "cumpleaños cercano", "cumpleaños cercanos"),
         texto: hoyN === 0 ? uno(cumpleaneros.length, "cumpleaños cercano", "cumpleaños cercanos") : hoyN === cumpleaneros.length ? "cumpleaños hoy" : `cumpleaños (${hoyN} hoy)`,
         nombres: nombresResumidos(cumpleaneros.map((c) => c.nombre)),
         casos: cumpleaneros.map((c) => ({
@@ -800,7 +800,7 @@ export default function Inicio({
     })
     if (incOrdenes && listasSinAvisar.length > 0) {
       poner("ventas", {
-        id: "ordenes-listas", cantidad: listasSinAvisar.length, corto: uno(listasSinAvisar.length, "lista sin avisar", "listas sin avisar"),
+        id: "ordenes-listas", tono: "info", cantidad: listasSinAvisar.length, corto: uno(listasSinAvisar.length, "lista sin avisar", "listas sin avisar"),
         texto: uno(listasSinAvisar.length, "orden de laboratorio lista sin avisar al paciente", "órdenes de laboratorio listas sin avisar a los pacientes"),
         nombres: nombresResumidos(listasSinAvisar.map((o) => nombreDe(o.pacienteId))),
         enlace: { texto: `Abrir en Ventas · Listas sin avisar (${listasSinAvisar.length})`, onClick: () => onVerOrdenes?.("sinavisar") },

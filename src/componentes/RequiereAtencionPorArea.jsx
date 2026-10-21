@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { CheckCircle2, ArrowRight, AlertCircle } from "lucide-react"
+import { CheckCircle2, ArrowRight, AlertCircle, AlertTriangle, Clock, Info } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { Cascaron } from "./AtencionPaciente"
 import MotivoDeCancelacion from "./MotivoDeCancelacion"
@@ -161,7 +161,15 @@ export function BotonRequierenAtencion({ bloque }) {
 
 // columnas: 1, 2 (el Inicio de la óptica) o 3 (el Inicio del superadmin, que solo muestra las áreas con avisos). compacto: menos aire, para que
 // todo quepa en una pantalla. lateral: lo que va a la derecha del título (por ejemplo, «Sistema y Soporte: todo en orden»).
-const COLUMNAS = { 1: "grid-cols-1", 2: "grid-cols-1 md:grid-cols-2 md:auto-rows-fr", 3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 md:auto-rows-fr" }
+// El color de cada tarjetita dice qué tan urgente es (el mismo criterio que los Totales del Inicio): rojo suave = urgente (atrasadas, atenciones abiertas), ámbar = pendiente
+// (lo que hay que hacer), azul = informativo. Fondo suave + borde + franja a la izquierda + ícono, con el número en el tono oscuro (contraste de 5:1 o más).
+export const TONOS = {
+  urgente: { fondo: "#FEF2F2", borde: "#FCA5A5", franja: "#DC2626", numero: "#B91C1C", Icono: AlertTriangle, nombre: "Urgente" },
+  pendiente: { fondo: "#FFFBEB", borde: "#FCD34D", franja: "#D97706", numero: "#B45309", Icono: Clock, nombre: "Pendiente" },
+  info: { fondo: "#EFF6FF", borde: "#93C5FD", franja: "#2563EB", numero: "#1D4ED8", Icono: Info, nombre: "Informativo" },
+}
+// Un área ocupa todo el ancho hasta las pantallas muy anchas: así cada tarjetita tiene sitio para su leyenda en UNA línea.
+const COLUMNAS = { 1: "grid-cols-1", 2: "grid-cols-1 2xl:grid-cols-2 2xl:auto-rows-fr", 3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 md:auto-rows-fr" }
 export default function RequiereAtencionPorArea({ bloques, columnas = 2, compacto = false, lateral = null }) {
   const [abierto, setAbierto] = useState(null) // { bloqueId, filaId, soloFila }
   if (bloques.length === 0) return null
@@ -192,17 +200,22 @@ export default function RequiereAtencionPorArea({ bloques, columnas = 2, compact
               {visibles.length > 0 ? (
                 <ul className={"grid flex-1 gap-2.5 p-3 " + (visibles.length === 1 ? "grid-cols-1" : visibles.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
                   {visibles.map((f) => {
-                    const urgente = f.tono === "urgente"
+                    const tono = TONOS[f.tono] || TONOS.pendiente
                     return (
                       <li key={f.id} className="min-w-0">
                         <button
                           type="button"
                           onClick={() => setAbierto({ bloqueId: b.id, filaId: f.id, soloFila: true })}
                           aria-label={`${f.cantidad ?? 1} ${f.texto}`}
-                          className={"flex h-full w-full flex-col justify-between rounded-xl border px-3 py-2.5 text-left transition-colors cursor-pointer " + (urgente ? "border-red-200/70 bg-red-50/60 hover:bg-red-50" : "border-slate-200/70 bg-slate-50/60 hover:border-slate-300 hover:bg-slate-50")}
+                          title={tono.nombre}
+                          style={{ backgroundColor: tono.fondo, borderColor: tono.borde, borderLeftColor: tono.franja }}
+                          className="flex h-full w-full flex-col justify-between gap-2 rounded-xl border border-l-4 px-3.5 py-3 text-left transition-colors hover:brightness-[0.98] cursor-pointer"
                         >
-                          <span className={"font-serif text-3xl font-semibold leading-none " + (urgente ? "text-red-700" : "")} style={urgente ? undefined : { color: INK }}>{f.cantidad ?? 1}</span>
-                          <span className="mt-1.5 block text-sm leading-tight text-slate-600">{f.corto || f.texto}</span>
+                          <span className="flex items-start justify-between gap-2">
+                            <span className="font-heading text-[28px] font-bold leading-none" style={{ color: tono.numero }}>{f.cantidad ?? 1}</span>
+                            <tono.Icono size={16} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color: tono.franja }} />
+                          </span>
+                          <span className="block text-sm font-medium leading-snug text-slate-700">{f.corto || f.texto}</span>
                         </button>
                       </li>
                     )

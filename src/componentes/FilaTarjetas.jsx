@@ -12,13 +12,10 @@ const COLORES = {
   red: { tile: "#FEE2E2", texto: "#DC2626" },
 }
 
-// Un tinte suave por tarjeta para los Totales (reunión del 20 oct., INI-1): distingue una tarjeta de otra sin competir con los colores de ESTADO (naranja pendiente, azul en
-// atención, verde atendida, rojo no efectuada, violeta en espera, gris cancelada), que por eso no se usan aquí.
+// Los Totales son informativos: azul suave (fondo + borde + franja + ícono), el mismo criterio de color que «Requiere tu atención» (rojo = urgente, ámbar = pendiente, azul = informativo).
+// Se distinguen por su ícono y su título; los colores de ESTADO (ámbar pendiente, azul en atención, verde atendida, rojo no efectuada, violeta en espera, gris cancelada) siguen siendo de las citas.
 const TINTES = {
-  sky: { fondo: "#F2F9FD", borde: "#BFE3F6", tile: "#DCF0FB", texto: "#0369A1" },
-  indigo: { fondo: "#F4F5FF", borde: "#CBD0F7", tile: "#E3E6FC", texto: "#4338CA" },
-  teal: { fondo: "#F1FBF9", borde: "#A7E6DC", tile: "#D3F4EE", texto: "#0F766E" },
-  rose: { fondo: "#FFF5F8", borde: "#F9C9D8", tile: "#FDE2EA", texto: "#BE185D" },
+  info: { fondo: "#EFF6FF", borde: "#93C5FD", franja: "#2563EB", tile: "#DBEAFE", texto: "#1D4ED8" },
 }
 
 // Una fila de tarjetas del Inicio (R52): todas hablan de lo mismo y el título de la fila lo dice
@@ -44,7 +41,7 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones, 
           const accionable = typeof t.onClick === "function"
           const Contenedor = accionable ? "button" : "div"
           return (
-            <div key={t.id} style={tinte && !t.seleccionada ? { backgroundColor: tinte.fondo, borderColor: tinte.borde } : undefined} className={"flex flex-col justify-between rounded-2xl border text-left transition-colors " + (compacta ? "p-3 " : "p-4 ") + (t.aparte ? "border-dashed border-slate-300 bg-slate-50/60 " : tinte ? "shadow-sm " : "bg-white shadow-sm ") + (t.seleccionada ? "border-blue-500 ring-1 ring-blue-500" : t.aparte || tinte ? "" : "border-slate-200/60 hover:border-slate-300")}>
+            <div key={t.id} style={tinte && !t.seleccionada ? { backgroundColor: tinte.fondo, borderColor: tinte.borde, borderLeftColor: tinte.franja, borderLeftWidth: 4 } : undefined} className={"flex flex-col justify-between rounded-2xl border text-left transition-colors " + (compacta ? "p-3 " : "p-4 ") + (t.aparte ? "border-dashed border-slate-300 bg-slate-50/60 " : tinte ? "shadow-sm " : "bg-white shadow-sm ") + (t.seleccionada ? "border-blue-500 ring-1 ring-blue-500" : t.aparte || tinte ? "" : "border-slate-200/60 hover:border-slate-300")}>
               <Contenedor
                 type={accionable ? "button" : undefined}
                 onClick={accionable ? t.onClick : undefined}
@@ -68,8 +65,8 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones, 
                   <>
                     <span className="min-w-0 space-y-0.5">
                       <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">{t.titulo}</span>
-                      <span className="block font-serif text-3xl font-semibold leading-tight" style={{ color: INK }}>{t.valor}</span>
-                      {t.desc && <span className="block text-xs text-slate-500">{t.desc}</span>}
+                      <span className={"block leading-tight " + (tinte ? "font-heading text-[28px] font-bold" : "font-serif text-3xl font-semibold")} style={{ color: tinte ? tinte.texto : INK }}>{t.valor}</span>
+                      {t.desc && <span className={"block text-sm " + (tinte ? "text-slate-700" : "text-xs text-slate-500")}>{t.desc}</span>}
                     </span>
                     {Icono && <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ background: c.tile, color: c.texto }}><Icono size={21} aria-hidden="true" /></span>}
                   </>
