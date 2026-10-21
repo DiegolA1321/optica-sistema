@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react"
 import { Plus, CalendarClock } from "lucide-react"
 import { etiquetaEstadoCita } from "../utilidades/estadosCita"
-import { fechaAISO, hoyISO, nombreDeDiaCerrado, minutosDesdeMedianoche, horaA12 } from "../utilidades/disponibilidad"
+import { fechaAISO, hoyISO, nombreDeDiaCerrado, minutosDesdeMedianoche, horaA12, horarioEfectivo, diaAbierto } from "../utilidades/disponibilidad"
 import { formatoFecha, diaSemanaCorto } from "../utilidades/formatoFecha"
 import { minutosAHHMM } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
@@ -10,8 +10,8 @@ import { LeyendaEstados } from "./CalendarioSemanal"
 
 // Calendario mensual (vista Mes de Citas). Presentacional, como la vista
 // Semana: cada día muestra sus citas como etiquetas con la hora y el paciente,
-// del color de su estado, y "+N más" cuando no caben. Un clic en el día lleva a
-// esa semana; un clic en una etiqueta abre la misma tarjeta con acciones.
+// del color de su estado, y "+N más" cuando no caben. Un clic en el día (de hoy en adelante y abierto) abre "Gestionar cita" con ese día elegido; un clic en el NÚMERO del día
+// abre la ventana del día (sus citas, y abrirlo o cerrarlo); un clic en una etiqueta abre la misma tarjeta con acciones.
 
 const DIAS = [1, 2, 3, 4, 5, 6, 0].map(diaSemanaCorto) // lunes primero
 const ALTO_TITULO = 40
@@ -24,7 +24,7 @@ const ALTO_CABECERA = 22
 const RELLENO_VERTICAL = 6
 const ALTO_FILA_MIN = RELLENO_VERTICAL + ALTO_CABECERA + MIN_ETIQUETAS * ALTO_ETIQUETA + (MIN_ETIQUETAS - 1) * SEPARACION
 
-export default function CalendarioMes({ mes, citasPorFecha, disponibilidad, coincide, onDiaClick, onAbrirDetalle, onAgendar }) {
+export default function CalendarioMes({ mes, citasPorFecha, disponibilidad, coincide, onDiaClick, onDiaDetalle, onAbrirDetalle, onAgendar, puedeAgendar = true }) {
   const refSeccion = useRef(null)
   const altoSeccion = useAlturaDisponible(refSeccion)
   const hoy = hoyISO()
@@ -69,20 +69,25 @@ export default function CalendarioMes({ mes, citasPorFecha, disponibilidad, coin
               const resto = ordenadas.length - caben
               const esHoy = iso === hoy
               const nombreDia = nombreDeDiaCerrado(iso, disponibilidad)
+              const agendable = puedeAgendar && iso >= hoy && diaAbierto(horarioEfectivo(iso, disponibilidad))
               return (
                 <div
                   key={iso}
                   onClick={() => onDiaClick?.(iso)}
                   className={"min-w-0 overflow-hidden border-l border-slate-100 px-1 py-[3px] transition-colors first:border-l-0 cursor-pointer hover:bg-slate-50/80 " + (esHoy ? "bg-blue-50/40" : !delMes ? "bg-slate-50/60" : "")}
-                  title="Ver las citas de este día"
+                  title={agendable ? "Gestionar cita en este día" : "Ver las citas de este día"}
                 >
                   <div className="mb-0.5 flex h-5 items-center justify-between gap-1">
-                    <span
-                      className={"grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs font-bold " + (esHoy ? "text-white" : delMes ? "text-slate-700" : "text-slate-400")}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); (onDiaDetalle || onDiaClick)?.(iso) }}
+                      title="Ver las citas de este día"
+                      aria-label={`Ver las citas del ${formatoFecha(iso, "diaMes")}`}
+                      className={"grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs font-bold transition-colors hover:ring-2 hover:ring-blue-200 cursor-pointer " + (esHoy ? "text-white" : delMes ? "text-slate-700" : "text-slate-400")}
                       style={esHoy ? { background: "linear-gradient(135deg,#22D3EE,#2563EB)" } : undefined}
                     >
                       {numero}
-                    </span>
+                    </button>
                     {resto > 0 && (
                       <span className="rounded px-1 text-xs font-bold leading-4 text-blue-700">+{resto} más</span>
                     )}

@@ -1222,12 +1222,17 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
     abrirModal()
     setFecha(iso)
   }
-  // Pulsar un día de Semana o Mes: de hoy en adelante y con la óptica abierta, "Gestionar cita" se abre con ese día ya elegido y sus horarios disponibles.
-  // Un día pasado o cerrado abre la ventana "Citas del día" (que explica por qué y, a quien puede, ofrece abrirlo).
+  // Pulsar un día del Mes (o una hora libre de la Semana): de hoy en adelante y con la óptica abierta, "Gestionar cita" se abre con ese día ya elegido y sus horarios disponibles.
+  // Un día pasado o cerrado, el número del día (Mes) y el encabezado del día (Semana) abren la ventana "Citas del día": sus citas, por qué está cerrado y, a quien puede,
+  // abrirlo, cerrarlo o ponerle nombre de feriado.
+  const esAgendable = (iso) => iso >= hoyISO() && puede(usuario, "citas", "crear") && diaAbierto(horarioEfectivo(iso, disponibilidad))
   const alPulsarDia = (iso) => {
-    const agendable = iso >= hoyISO() && puede(usuario, "citas", "crear") && diaAbierto(horarioEfectivo(iso, disponibilidad))
-    if (agendable) agendarDesdeDia(iso, null)
+    if (esAgendable(iso)) agendarDesdeDia(iso, null)
     else setDiaModal({ iso, minutos: null })
+  }
+  const alPulsarHueco = (iso, minutos) => {
+    if (minutos != null && esAgendable(iso)) agendarDesdeDia(iso, minutos)
+    else setDiaModal({ iso, minutos })
   }
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c) — un hook por
@@ -1480,9 +1485,9 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
           cobroPendienteIds={pendientesPorCita}
           citasVisibles={resultado}
           aviso={avisoBusquedaSemana}
-          onDiaClick={alPulsarDia}
+          onDiaClick={(iso) => setDiaModal({ iso, minutos: null })}
           onAbrirDetalle={abrirDetalle}
-          onHuecoLibre={(iso, minutos) => setDiaModal({ iso, minutos })}
+          onHuecoLibre={alPulsarHueco}
           onMover={pedirMovimiento}
           onAgendar={() => abrirModal()}
         />
@@ -1492,6 +1497,8 @@ export default function Citas({ avisosDelModulo = null, usuario, onAviso, setDis
           disponibilidad={disponibilidad}
           citasPorFecha={gruposCalendario}
           onDiaClick={alPulsarDia}
+          onDiaDetalle={(iso) => setDiaModal({ iso, minutos: null })}
+          puedeAgendar={puede(usuario, "citas", "crear")}
           onAbrirDetalle={abrirDetalle}
           onAgendar={() => abrirModal()}
         />
