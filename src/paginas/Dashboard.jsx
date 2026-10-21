@@ -808,6 +808,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onRestaurar={restaurarAviso}
             seguimientoContacto={seguimientoContacto}
             onContactarPaciente={contactarPaciente}
+            onWhatsAppPaciente={(paciente, mensaje) => { abrirWhatsApp(paciente.telefono, mensaje); mostrarAviso(`WhatsApp abierto para ${paciente.nombre}.`) }}
             onReagendarCancelada={(cita) => { setControlParaAgendar({ heredaDeCitaId: cita.id, heredaDeEstado: cita.estado, pacienteId: cita.pacienteId, fecha: cita.fecha, asignadoA: cita.asignadoA || "", motivo: cita.motivo || "" }); setAtajoInicio("citas") }}
             onCrearPacienteRapido={() => setAtajoInicio("pacientes")}
             onCrearProductoRapido={() => setAtajoInicio("inventario")}

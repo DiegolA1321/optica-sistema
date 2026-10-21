@@ -72,24 +72,39 @@ describe("Inicio del administrador", () => {
     expect(screen.queryByLabelText("Resumen del día")).not.toBeInTheDocument()
   })
 
-  it("Totales: son informativos, con el azul suave del criterio de color (no los colores de estado)", () => {
+  it("Totales: fondo blanco como el resto del sistema; el color va solo en el ícono de cada uno (pacientes azul, citas violeta, ventas verde, productos ámbar)", () => {
     render(<Inicio {...base} />)
     const totales = screen.getByRole("region", { name: "Totales" })
     const tarjetas = within(totales).getAllByRole("button", { name: /: / }).map((b) => b.parentElement)
     expect(tarjetas.length).toBe(4)
     for (const t of tarjetas) {
-      expect(t.style.backgroundColor).toBe("rgb(239, 246, 255)") // #EFF6FF
-      expect(t.style.borderLeftWidth).toBe("4px") // la franja se nota
+      expect(t.style.backgroundColor).toBe("") // sin fondo propio: el blanco de las demás tarjetas
+      expect(t.className).toContain("bg-white")
     }
+    const baldosas = tarjetas.map((t) => t.querySelector("[style*='background']").style.background)
+    expect(new Set(baldosas).size).toBe(4) // cada total, su color
   })
 
-  it("Requiere tu atención: rojo suave para lo urgente, ámbar para lo pendiente, azul para lo informativo", () => {
+  it("Requiere tu atención: el color solo informa — rojo para lo urgente, ámbar para lo pendiente, azul para lo informativo; el número va en rojo solo si es urgente", () => {
     expect(Object.keys(TONOS)).toEqual(["urgente", "pendiente", "info"])
-    const color = (t) => t.fondo
-    expect(new Set(Object.values(TONOS).map(color)).size).toBe(3)
+    expect(new Set(Object.values(TONOS).map((t) => t.franja)).size).toBe(3)
     expect(TONOS.urgente.franja).toBe("#DC2626")
-    expect(TONOS.pendiente.franja).toBe("#D97706")
+    expect(TONOS.pendiente.franja).toBe("#B45309")
     expect(TONOS.info.franja).toBe("#2563EB")
+    expect(TONOS.urgente.numero).toBe("#B91C1C")
+    expect(TONOS.pendiente.numero).toBe(TONOS.info.numero) // el texto normal
+    expect(TONOS.urgente.numero).not.toBe(TONOS.pendiente.numero)
+  })
+
+  it("Requiere tu atención: cada área apila sus avisos en filas (ícono, número, leyenda, flecha) y toda la fila se puede pulsar", () => {
+    render(<Inicio {...base} consultas={[{ id: "k9", pacienteId: "p1", paciente: "Paciente Uno", fecha: "2020-01-01", motivo: "Control", proximoControlDias: 30 }]} />)
+    const filas = within(area("Pacientes")).getAllByRole("listitem")
+    expect(filas.length).toBeGreaterThan(0)
+    for (const li of filas) {
+      const boton = within(li).getByRole("button")
+      expect(boton.className).toContain("w-full")
+      expect(boton.className).toContain("items-center")
+    }
   })
 
   it("el selector de período usa el color del sistema, no el negro", () => {
@@ -475,13 +490,15 @@ describe("Inicio del optómetra", () => {
     sinTarj(/sin ninguna consulta/)
     fireEvent.click(within(area("Pacientes")).getByRole("button", { name: /de tus pacientes con el control vencido/ }))
     const ventana = screen.getByRole("dialog", { name: /de tus pacientes con el control vencido/ })
-    expect(within(ventana).queryByRole("button", { name: "Ver en CRM" })).not.toBeInTheDocument() // sin permiso de CRM para escribir: solo ve al paciente
+    expect(within(ventana).queryByRole("button", { name: "Agendar control" })).not.toBeInTheDocument() // sin permiso para crear citas: solo ve al paciente
     expect(within(ventana).getByRole("button", { name: "Ver paciente" })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /Agregar producto/ })).not.toBeInTheDocument()
     unmount()
-    render(<Inicio {...props} {...rol("optometra", { citas: ["ver"], inventario: ["ver", "crear", "editar"], crm: ["ver", "crear"], pacientes: ["ver"] })} />)
+    render(<Inicio {...props} {...rol("optometra", { citas: ["ver", "crear"], inventario: ["ver", "crear", "editar"], crm: ["ver", "crear"], pacientes: ["ver"] })} />)
     fireEvent.click(within(area("Pacientes")).getByRole("button", { name: /de tus pacientes con el control vencido/ }))
-    expect(within(screen.getByRole("dialog", { name: /de tus pacientes con el control vencido/ })).getByRole("button", { name: "Ver en CRM" })).toBeInTheDocument()
+    const ventanaCitas = screen.getByRole("dialog", { name: /de tus pacientes con el control vencido/ })
+    expect(within(ventanaCitas).getByRole("button", { name: "Agendar control" })).toBeInTheDocument()
+    expect(within(ventanaCitas).queryByRole("button", { name: "Ver en CRM" })).not.toBeInTheDocument() // el CRM no resuelve el aviso
     expect(screen.getByRole("button", { name: /Agregar producto/ })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Reabastecer" })).not.toBeInTheDocument()
   })

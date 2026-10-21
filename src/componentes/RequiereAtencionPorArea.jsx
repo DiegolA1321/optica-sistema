@@ -161,15 +161,15 @@ export function BotonRequierenAtencion({ bloque }) {
 
 // columnas: 1, 2 (el Inicio de la óptica) o 3 (el Inicio del superadmin, que solo muestra las áreas con avisos). compacto: menos aire, para que
 // todo quepa en una pantalla. lateral: lo que va a la derecha del título (por ejemplo, «Sistema y Soporte: todo en orden»).
-// El color de cada tarjetita dice qué tan urgente es (el mismo criterio que los Totales del Inicio): rojo suave = urgente (atrasadas, atenciones abiertas), ámbar = pendiente
-// (lo que hay que hacer), azul = informativo. Fondo suave + borde + franja a la izquierda + ícono, con el número en el tono oscuro (contraste de 5:1 o más).
+// El color solo informa (fondo blanco como el resto del sistema): un ícono de color junto al número dice qué tan urgente es el aviso. Rojo = urgente (atrasadas, atenciones abiertas),
+// ámbar = pendiente (lo que hay que hacer), azul = informativo. El número va en rojo solo si es urgente; si no, en el color de texto normal. Los tonos pasan 4.5:1 sobre blanco.
 export const TONOS = {
-  urgente: { fondo: "#FEF2F2", borde: "#FCA5A5", franja: "#DC2626", numero: "#B91C1C", Icono: AlertTriangle, nombre: "Urgente" },
-  pendiente: { fondo: "#FFFBEB", borde: "#FCD34D", franja: "#D97706", numero: "#B45309", Icono: Clock, nombre: "Pendiente" },
-  info: { fondo: "#EFF6FF", borde: "#93C5FD", franja: "#2563EB", numero: "#1D4ED8", Icono: Info, nombre: "Informativo" },
+  urgente: { franja: "#DC2626", numero: "#B91C1C", Icono: AlertTriangle, nombre: "Urgente" },
+  pendiente: { franja: "#B45309", numero: INK, Icono: Clock, nombre: "Pendiente" },
+  info: { franja: "#2563EB", numero: INK, Icono: Info, nombre: "Informativo" },
 }
-// Un área ocupa todo el ancho hasta las pantallas muy anchas: así cada tarjetita tiene sitio para su leyenda en UNA línea.
-const COLUMNAS = { 1: "grid-cols-1", 2: "grid-cols-1 2xl:grid-cols-2 2xl:auto-rows-fr", 3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 md:auto-rows-fr" }
+// Dos áreas por fila (Citas y Pacientes arriba, Ventas e Inventario abajo), las dos de cada fila con la misma altura. Dentro de cada área, filas apiladas.
+const COLUMNAS = { 1: "grid-cols-1", 2: "grid-cols-1 lg:grid-cols-2 lg:auto-rows-fr", 3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 md:auto-rows-fr" }
 export default function RequiereAtencionPorArea({ bloques, columnas = 2, compacto = false, lateral = null }) {
   const [abierto, setAbierto] = useState(null) // { bloqueId, filaId, soloFila }
   if (bloques.length === 0) return null
@@ -193,36 +193,31 @@ export default function RequiereAtencionPorArea({ bloques, columnas = 2, compact
               <div className={"flex items-center gap-3 border-b border-slate-100 px-4 " + (compacto ? "py-2" : "py-3")}>
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><Icono size={18} aria-hidden="true" /></span>
                 <span className="text-base font-bold" style={{ color: INK }}>{b.titulo}</span>
-                {total > 0
-                  ? <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-sm font-bold text-amber-700">{total}</span>
-                  : <span className="ml-auto rounded-full bg-emerald-50 px-2.5 py-0.5 text-sm font-bold text-emerald-700">Todo en orden</span>}
+                {total > 0 && <span className="ml-auto rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-bold text-slate-700">{total}</span>}
               </div>
               {visibles.length > 0 ? (
-                <ul className={"grid flex-1 gap-2.5 p-3 " + (columnas === 3 ? (visibles.length === 1 ? "grid-cols-1" : visibles.length === 2 ? "grid-cols-2" : "grid-cols-3") : "grid-cols-1 sm:grid-cols-3")}>
+                <ul className="flex-1 divide-y divide-slate-100 px-1.5 py-1">
                   {visibles.map((f) => {
                     const tono = TONOS[f.tono] || TONOS.pendiente
                     return (
-                      <li key={f.id} className="min-w-0">
+                      <li key={f.id}>
                         <button
                           type="button"
                           onClick={() => setAbierto({ bloqueId: b.id, filaId: f.id, soloFila: true })}
                           aria-label={`${f.cantidad ?? 1} ${f.texto}`}
-                          title={tono.nombre}
-                          style={{ backgroundColor: tono.fondo, borderColor: tono.borde, borderLeftColor: tono.franja }}
-                          className="flex h-full w-full flex-col justify-between gap-2 rounded-xl border border-l-4 px-3.5 py-3 text-left transition-colors hover:brightness-[0.98] cursor-pointer"
+                          className="group flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer"
                         >
-                          <span className="flex items-start justify-between gap-2">
-                            <span className="font-heading text-[28px] font-bold leading-none" style={{ color: tono.numero }}>{f.cantidad ?? 1}</span>
-                            <tono.Icono size={16} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color: tono.franja }} />
-                          </span>
-                          <span className="block text-sm font-medium leading-snug text-slate-700">{f.corto || f.texto}</span>
+                          <tono.Icono size={16} aria-hidden="true" className="shrink-0" style={{ color: tono.franja }} />
+                          <span className="min-w-[2.25rem] shrink-0 font-heading text-[26px] font-bold leading-none" style={{ color: tono.numero }}>{f.cantidad ?? 1}</span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700" title={f.corto || f.texto}>{f.corto || f.texto}</span>
+                          <ArrowRight size={16} aria-hidden="true" className="shrink-0 text-slate-400 transition-colors group-hover:text-slate-600" />
                         </button>
                       </li>
                     )
                   })}
                 </ul>
               ) : (
-                <p className="flex flex-1 items-center gap-2 px-4 py-4 text-sm font-medium text-slate-600"><CheckCircle2 size={16} className="shrink-0 text-emerald-600" aria-hidden="true" /> Todo en orden</p>
+                <p className="flex flex-1 items-center gap-2 px-4 py-3.5 text-sm font-medium text-slate-600"><CheckCircle2 size={16} className="shrink-0 text-emerald-600" aria-hidden="true" /> Todo en orden</p>
               )}
               <footer className={"flex items-center border-t border-slate-100 px-4 text-sm " + (compacto ? "py-1.5" : "py-2.5")}>
                 {mas > 0 && (

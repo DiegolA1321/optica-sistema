@@ -27,7 +27,8 @@ import {
   UserPlus,
 } from "lucide-react"
 import ConfirmarDatosPacienteModal from "../componentes/ConfirmarDatosPacienteModal"
-import { listaParaContactar } from "../utilidades/crmContactos"
+import { listaParaContactar, armarMensaje, plantillaDe } from "../utilidades/crmContactos"
+import { esInactivo } from "../utilidades/fidelizacion"
 import { controlesSinAgendar, asignadoDelControl, citasParaReagendar } from "../utilidades/controles"
 import { fechaAISO, hoyISO, esHoy } from "../utilidades/disponibilidad"
 import { citasPorReasignar } from "../utilidades/reasignacion"
@@ -90,6 +91,7 @@ export default function Inicio({
   onRestaurar, // async (tipo, clave) → { error? }
   seguimientoContacto = new Map(), // por cita por contactar: { motivo, contactadaEn, sinSeguimiento }
   onContactarPaciente, // (cita, mensaje) → abre WhatsApp y deja la cita como «contactada»
+  onWhatsAppPaciente, // (paciente, mensaje) → abre WhatsApp con el mensaje ya redactado
   onCrearPacienteRapido,
   onCrearProductoRapido,
   onReabastecerProducto,
@@ -307,10 +309,10 @@ export default function Inicio({
       acciones={atajosAdmin}
       compacta
       tarjetas={[
-        { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, tinte: "info", onClick: () => setTotalAbierto("pacientes") },
-        { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, tinte: "info", onClick: () => setTotalAbierto("citas") },
-        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} vendido este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, tinte: "info", onClick: () => setTotalAbierto("ventas") },
-        { id: "productos", titulo: "Productos", valor: productosActivos.length, desc: `+${productosEsteMes} este mes`, icono: Package, tinte: "info", onClick: () => setTotalAbierto("productos") },
+        { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, color: "azul", onClick: () => setTotalAbierto("pacientes") },
+        { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, color: "violet", onClick: () => setTotalAbierto("citas") },
+        veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} vendido este mes · ${ventasMes.cantidad} ${ventasMes.cantidad === 1 ? "venta" : "ventas"}`, icono: ShoppingBag, color: "green", onClick: () => setTotalAbierto("ventas") },
+        { id: "productos", titulo: "Productos", valor: productosActivos.length, desc: `+${productosEsteMes} este mes`, icono: Package, color: "amber", onClick: () => setTotalAbierto("productos") },
       ].filter(Boolean)}
     />
   )
@@ -708,11 +710,15 @@ export default function Inicio({
       poner("pacientes", {
         id: "controles", cantidad: n, corto: "con control vencido",
         texto: esVistaOptometra ? "de tus pacientes con el control vencido" : uno(n, "paciente con el control vencido", "pacientes con el control vencido"),
-        enlace: puedeV("crm", "ver") ? { texto: `Abrir en CRM · Control vencido (${dVencido.total})`, onClick: abrirCrm({ filtro: "control_vencido" }) } : undefined,
+        // «Ver todo» lleva a Pacientes con el filtro «Control vencido» (resolver el aviso es agendar el control, no mirar el CRM).
+        enlace: puedeV("pacientes", "ver") ? { texto: `Abrir en Pacientes · Control vencido (${pacientes.filter((p) => esInactivo(p, consultas)).length})`, onClick: enPacientes({ rapido: "ControlVencido" }) } : undefined,
         casos: dVencido.visibles.map(({ paciente, dias }) => ({
           id: paciente.id, nombre: paciente.nombre,
           detalle: `Control vencido hace ${dias} ${dias === 1 ? "día" : "días"}`,
-          accion: puedeV("crm", "crear") ? { etiqueta: "Ver en CRM", navega: true, onClick: abrirCrm({ filtro: "control_vencido" }) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
+          acciones: [
+            puedeAgendar ? { etiqueta: "Agendar control", onClick: () => onAgendarControl?.(paciente, hoyISO(), undefined) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
+            ...(onWhatsAppPaciente && paciente.telefono ? [{ etiqueta: "WhatsApp", onClick: () => onWhatsAppPaciente(paciente, armarMensaje(plantillaDe("control_vencido"), { paciente, opticaNombre, consultas })) }] : []),
+          ],
         })),
         ...dVencido.extra,
       })

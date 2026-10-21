@@ -5,6 +5,7 @@ import { INK, GRAD_MARCA } from "@/lib/tema"
 
 const COLORES = {
   slate: { tile: "#F1F5F9", texto: "#475569" },
+  azul: { tile: "#DBEAFE", texto: "#1D4ED8" },
   blue: { tile: GRAD_MARCA, texto: "#fff" },
   green: { tile: "#DCFCE7", texto: "#15803D" },
   amber: { tile: "#FEF3C7", texto: "#D97706" },
@@ -12,12 +13,7 @@ const COLORES = {
   red: { tile: "#FEE2E2", texto: "#DC2626" },
 }
 
-// Los Totales son informativos: azul suave (fondo + borde + franja + ícono), el mismo criterio de color que «Requiere tu atención» (rojo = urgente, ámbar = pendiente, azul = informativo).
-// Se distinguen por su ícono y su título; los colores de ESTADO (ámbar pendiente, azul en atención, verde atendida, rojo no efectuada, violeta en espera, gris cancelada) siguen siendo de las citas.
-const TINTES = {
-  info: { fondo: "#EFF6FF", borde: "#93C5FD", franja: "#2563EB", tile: "#DBEAFE", texto: "#1D4ED8" },
-}
-
+// Fondo blanco en todas: el color solo informa. El ícono de cada total lleva su propio color suave (pacientes azul, citas violeta, ventas verde, productos ámbar).
 // Una fila de tarjetas del Inicio (R52): todas hablan de lo mismo y el título de la fila lo dice
 // ("Totales", "Hoy", "Este mes"...). Cada tarjeta puede llevar a su módulo y tener un atajo que abre la acción.
 // - neutro: la baldosa del ícono es la misma (gris) en todas; el color queda para los estados (regla 14).
@@ -36,12 +32,11 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones, 
       <div className={"grid grid-cols-1 sm:grid-cols-2 " + (compacta ? "gap-2.5 " : "gap-3 ") + columnas}>
         {tarjetas.map((t) => {
           const Icono = t.icono
-          const tinte = t.tinte ? TINTES[t.tinte] : null
-          const c = tinte ? { tile: tinte.tile, texto: tinte.texto } : COLORES[neutro ? "slate" : t.color || "slate"]
+          const c = COLORES[neutro ? "slate" : t.color || "slate"]
           const accionable = typeof t.onClick === "function"
           const Contenedor = accionable ? "button" : "div"
           return (
-            <div key={t.id} style={tinte && !t.seleccionada ? { backgroundColor: tinte.fondo, borderColor: tinte.borde, borderLeftColor: tinte.franja, borderLeftWidth: 4 } : undefined} className={"flex flex-col justify-between rounded-2xl border text-left transition-colors " + (compacta ? "p-3 " : "p-4 ") + (t.aparte ? "border-dashed border-slate-300 bg-slate-50/60 " : tinte ? "shadow-sm " : "bg-white shadow-sm ") + (t.seleccionada ? "border-blue-500 ring-1 ring-blue-500" : t.aparte || tinte ? "" : "border-slate-200/60 hover:border-slate-300")}>
+            <div key={t.id} className={"flex flex-col justify-between rounded-2xl border text-left transition-colors " + (compacta ? "p-3 " : "p-4 ") + (t.aparte ? "border-dashed border-slate-300 bg-slate-50/60 " : "bg-white shadow-sm ") + (t.seleccionada ? "border-blue-500 ring-1 ring-blue-500" : t.aparte ? "" : "border-slate-200/60 hover:border-slate-300")}>
               <Contenedor
                 type={accionable ? "button" : undefined}
                 onClick={accionable ? t.onClick : undefined}
@@ -65,8 +60,8 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones, 
                   <>
                     <span className="min-w-0 space-y-0.5">
                       <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">{t.titulo}</span>
-                      <span className={"block leading-tight " + (tinte ? "font-heading text-[28px] font-bold" : "font-serif text-3xl font-semibold")} style={{ color: tinte ? tinte.texto : INK }}>{t.valor}</span>
-                      {t.desc && <span className={"block text-sm " + (tinte ? "text-slate-700" : "text-xs text-slate-500")}>{t.desc}</span>}
+                      <span className="block font-serif text-3xl font-semibold leading-tight" style={{ color: INK }}>{t.valor}</span>
+                      {t.desc && <span className="block text-xs text-slate-500">{t.desc}</span>}
                     </span>
                     {Icono && <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ background: c.tile, color: c.texto }}><Icono size={21} aria-hidden="true" /></span>}
                   </>
