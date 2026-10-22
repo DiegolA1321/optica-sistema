@@ -23,6 +23,7 @@ test('Control vencido: Agendar control, WhatsApp y Descartar; el enlace lleva a 
   await expect(caso.getByRole('button', { name: /^Descartar el aviso de / })).toBeVisible()
   await expect(ventana.getByRole('button', { name: /Ver en CRM/ })).toHaveCount(0)
   fs.mkdirSync('docs/ronda2-capturas', { recursive: true })
+  await page.waitForTimeout(700) // que termine de aparecer la ventana
   await page.screenshot({ path: 'docs/ronda2-capturas/control-vencido.png' })
 
   // «Agendar control»: «Gestionar cita» con el paciente y el motivo de control ya elegidos.
@@ -31,6 +32,7 @@ test('Control vencido: Agendar control, WhatsApp y Descartar; el enlace lleva a 
   await expect(gestionar).toBeVisible({ timeout: 20_000 })
   await expect(gestionar.getByRole('textbox', { name: /buscar por nombre o cédula/ })).toHaveValue('E Dos E Control Vencido')
   await expect(gestionar.getByRole('combobox', { name: 'Motivo del examen' }).locator('option:checked')).toHaveText('Examen de Control')
+  await page.waitForTimeout(700)
   await page.screenshot({ path: 'docs/ronda2-capturas/control-vencido-agendar.png' })
   await page.keyboard.press('Escape')
 

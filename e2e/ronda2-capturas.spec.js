@@ -90,6 +90,11 @@ test('Inicio de cada perfil y una lista de «Requiere tu atención»', async ({ 
     await iniciarSesion(page, cuenta, 'E2E')
     await expect(page.locator('main').first().getByRole('region', { name: /Totales|Desenlace de mis citas|Desenlace de las citas|Para vender/ }).first()).toBeVisible({ timeout: 20_000 })
     await foto(page, `inicio-${archivo}`)
+    if (cuenta === 'OPTOMETRA') {
+      // Su «Requiere tu atención» queda debajo de la agenda: se baja hasta el final.
+      await page.evaluate(() => document.querySelectorAll('*').forEach((el) => { if (el.scrollHeight > el.clientHeight + 40 && getComputedStyle(el).overflowY !== 'visible') el.scrollTop = el.scrollHeight }))
+      await foto(page, 'inicio-optometra-abajo')
+    }
     if (cuenta === 'ADMIN') {
       await page.getByRole('region', { name: 'Requiere tu atención: Inventario' }).getByRole('button', { name: /stock bajo/ }).first().click()
       await foto(page, 'requiere-atencion-lista')

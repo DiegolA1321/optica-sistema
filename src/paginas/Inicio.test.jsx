@@ -311,7 +311,7 @@ describe("Desenlace del administrador", () => {
     expect(within(region).getByRole("button", { name: /^Atendidas: 1/ })).toBeInTheDocument()
     expect(within(region).getByRole("button", { name: /^No efectuadas: 0/ })).toBeInTheDocument()
     expect(within(region).getByRole("button", { name: /^Pendientes: 2/ })).toBeInTheDocument()
-    expect(within(region).getByRole("button", { name: /^Canceladas: 1\. Aparte/ })).toBeInTheDocument()
+    expect(within(region).getByRole("button", { name: /^Canceladas: 1\. 1 cancelada aparte/ })).toBeInTheDocument()
   })
 
   it("las tarjetas del desenlace del administrador llevan a Citas con su mismo estado y período, y no hay lista debajo", () => {

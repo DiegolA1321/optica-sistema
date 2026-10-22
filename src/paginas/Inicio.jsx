@@ -267,10 +267,10 @@ export default function Inicio({
   // Las tarjetas solo llevan a su lista (un clic en cualquier parte). Las acciones de crear van aparte, como atajos, para
   // que una misma tarjeta no haga dos cosas distintas según dónde se toque.
   const atajosAdmin = (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Atajos">
-      {puedeV("pacientes", "crear") && <button type="button" onClick={onCrearPacienteRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Registrar paciente</button>}
-      {puedeV("citas", "crear") && <button type="button" onClick={onAgendarRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Agendar cita</button>}
-      {puedeV("inventario", "crear") && <button type="button" onClick={onCrearProductoRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Agregar producto</button>}
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Atajos">
+      {puedeV("pacientes", "crear") && <button type="button" onClick={onCrearPacienteRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Registrar paciente</button>}
+      {puedeV("citas", "crear") && <button type="button" onClick={onAgendarRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Agendar cita</button>}
+      {puedeV("inventario", "crear") && <button type="button" onClick={onCrearProductoRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Agregar producto</button>}
     </div>
   )
   // Cuánto se dio de alta este mes: cada total lo dice junto al número, con la misma lógica en las tres tarjetas.
@@ -325,14 +325,14 @@ export default function Inicio({
   const estadoEnCitas = { atendida: "atendida", noAsistio: "noAsistio", pendiente: "abiertas", cancelada: "cancelada" }
   const irACitas = (estado = "todas") => () => (onVerCitas ? onVerCitas(estado, periodo) : setVista?.("citas"))
   const botonIrACitas = (
-    <button type="button" onClick={irACitas()} className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
+    <button type="button" onClick={irACitas()} className="flex items-center gap-1.5 text-[13px] font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
       Ir a Citas <ArrowRight size={14} aria-hidden="true" />
     </button>
   )
   const selectorPeriodo = (
     <div role="group" aria-label="Período del desenlace" className="flex flex-wrap items-center gap-1">
       {PERIODOS_DESENLACE.map(([id, etiqueta]) => (
-        <button key={id} type="button" aria-pressed={periodo === id} onClick={() => setPeriodo(id)} className={"rounded-full px-4 py-1.5 text-sm font-semibold transition-colors cursor-pointer " + (periodo === id ? "text-white" : "text-slate-600 hover:text-slate-900")} style={periodo === id ? { background: GRAD_MARCA } : undefined}>{etiqueta}</button>
+        <button key={id} type="button" aria-pressed={periodo === id} onClick={() => setPeriodo(id)} className={"rounded-full px-3.5 py-1 text-[13px] font-semibold transition-colors cursor-pointer " + (periodo === id ? "text-white" : "text-slate-600 hover:text-slate-900")} style={periodo === id ? { background: GRAD_MARCA } : undefined}>{etiqueta}</button>
       ))}
     </div>
   )
@@ -341,7 +341,7 @@ export default function Inicio({
   const filaDesenlace = (
     <FilaTarjetas
       titulo={`${esVistaOptometra ? "Desenlace de mis citas" : "Desenlace de las citas"} · ${ETIQUETA_PERIODO[periodo]}`}
-      descripcion={tarjeta ? `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"} · ${NOMBRE_TARJETA[tarjeta].toLowerCase()}` : desenlace.canceladas > 0 ? `${desenlace.canceladas} ${desenlace.canceladas === 1 ? "cancelada aparte" : "canceladas aparte"}` : undefined}
+      descripcion={tarjeta ? `${citasLista.length} ${citasLista.length === 1 ? "cita" : "citas"} · ${NOMBRE_TARJETA[tarjeta].toLowerCase()}` : undefined}
       acciones={<div className="flex flex-wrap items-center gap-3">{selectorPeriodo}{botonIrACitas}</div>}
       variante="desenlace"
       compacta
@@ -349,7 +349,7 @@ export default function Inicio({
         tarjetaDe("atendida", { id: "atendidas", titulo: "Atendidas", valor: desenlace.atendidas, desc: enAtencionN > 0 ? `${enAtencionN} en atención ahora` : undefined, icono: CheckCircle2, color: "green" }),
         tarjetaDe("noAsistio", { id: "noAsistieron", titulo: "No efectuadas", valor: desenlace.noAtendidas, icono: UserX, color: "red" }),
         tarjetaDe("pendiente", { id: "pendientes", titulo: "Pendientes", valor: desenlace.pendientes, icono: Clock, color: "amber" }),
-        tarjetaDe("cancelada", { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: "Aparte", icono: Ban, color: "slate" }),
+        tarjetaDe("cancelada", { id: "canceladas", titulo: "Canceladas", valor: desenlace.canceladas, desc: desenlace.canceladas > 0 ? `${desenlace.canceladas} ${desenlace.canceladas === 1 ? "cancelada aparte" : "canceladas aparte"}` : "Aparte", icono: Ban, color: "slate" }),
       ]}
     />
   )
@@ -692,7 +692,7 @@ export default function Inicio({
     if (dVencido?.hay) {
       const n = dVencido.visibles.length
       poner("pacientes", {
-        id: "controles", cantidad: n, corto: "con control vencido",
+        id: "controles", cantidad: n, corto: "control vencido",
         texto: esVistaOptometra ? "de tus pacientes con el control vencido" : uno(n, "paciente con el control vencido", "pacientes con el control vencido"),
         // «Ver todo» lleva a Pacientes con el filtro «Control vencido» (resolver el aviso es agendar el control, no mirar el CRM).
         enlace: puedeV("pacientes", "ver") ? { texto: `Abrir en Pacientes · Control vencido (${pacientes.filter((p) => esInactivo(p, consultas)).length})`, onClick: enPacientes({ rapido: "ControlVencido" }) } : undefined,
@@ -717,7 +717,7 @@ export default function Inicio({
     // Un paciente pidió sus medidas (distancia pupilar y montaje) desde su portal: el aviso se quita al marcarla atendida en su perfil.
     const pidenMedidas = pacientes.filter((p) => p.medidasSolicitadasEn)
     if (puedeV("pacientes", "ver") && pidenMedidas.length > 0) poner("pacientes", {
-      id: "medidas-solicitadas", cantidad: pidenMedidas.length, corto: uno(pidenMedidas.length, "pide sus medidas", "piden sus medidas"),
+      id: "medidas-solicitadas", tono: "info", cantidad: pidenMedidas.length, corto: uno(pidenMedidas.length, "pide sus medidas", "piden sus medidas"),
       texto: uno(pidenMedidas.length, "paciente pidió sus medidas de montaje desde su portal", "pacientes pidieron sus medidas de montaje desde su portal"),
       nombres: nombresResumidos(pidenMedidas.map((p) => p.nombre)),
       casos: pidenMedidas.map((p) => ({ id: p.id, nombre: p.nombre, detalle: "Pidió su distancia pupilar y medidas de montaje", accion: { etiqueta: "Responder", navega: true, onClick: () => onVerPerfilPaciente?.(p.id, "graduacion") } })),
@@ -790,7 +790,7 @@ export default function Inicio({
     })
     if (incOrdenes && listasSinAvisar.length > 0) {
       poner("ventas", {
-        id: "ordenes-listas", tono: "info", cantidad: listasSinAvisar.length, corto: uno(listasSinAvisar.length, "lista sin avisar", "listas sin avisar"),
+        id: "ordenes-listas", cantidad: listasSinAvisar.length, corto: uno(listasSinAvisar.length, "lentes sin avisar", "lentes sin avisar"),
         texto: uno(listasSinAvisar.length, "orden de laboratorio lista sin avisar al paciente", "órdenes de laboratorio listas sin avisar a los pacientes"),
         nombres: nombresResumidos(listasSinAvisar.map((o) => nombreDe(o.pacienteId))),
         enlace: { texto: `Abrir en Ventas · Listas sin avisar (${listasSinAvisar.length})`, onClick: () => onVerOrdenes?.("sinavisar") },

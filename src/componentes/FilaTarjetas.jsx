@@ -41,7 +41,7 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones, 
           const accionable = typeof t.onClick === "function"
           const Contenedor = accionable ? "button" : "div"
           return (
-            <div key={t.id} className={"flex flex-col justify-between rounded-2xl border text-left transition-colors " + (variante === "totales" ? "px-5 py-4 " : variante === "desenlace" ? "px-5 py-3.5 " : compacta ? "p-3 " : "p-4 ") + (t.aparte && !conAire ? "border-dashed border-slate-300 bg-slate-50/60 " : "bg-white shadow-sm ") + (t.seleccionada ? "border-blue-500 ring-1 ring-blue-500" : t.aparte && !conAire ? "" : "border-slate-200/70 hover:border-slate-300")}>
+            <div key={t.id} className={"flex flex-col justify-between rounded-2xl border text-left transition-colors " + (variante === "totales" ? "px-3.5 py-3 " : variante === "desenlace" ? "px-4 py-3 " : compacta ? "p-3 " : "p-4 ") + (t.aparte && !conAire ? "border-dashed border-slate-300 bg-slate-50/60 " : "bg-white shadow-sm ") + (t.seleccionada ? "border-blue-500 ring-1 ring-blue-500" : t.aparte && !conAire ? "" : "border-slate-200/70 hover:border-slate-300")}>
               <Contenedor
                 type={accionable ? "button" : undefined}
                 onClick={accionable ? t.onClick : undefined}
@@ -53,17 +53,18 @@ export default function FilaTarjetas({ titulo, descripcion, tarjetas, acciones, 
                   <span className="flex w-full items-center justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-2.5">
                       <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: PUNTOS[t.color] || PUNTOS.slate }} />
-                      <span className="truncate text-[15px] text-slate-600">{t.titulo}</span>
+                      <span className="truncate text-sm text-slate-600">{t.titulo}</span>
                     </span>
-                    <span className="font-serif text-[28px] font-bold leading-none" style={{ color: INK }}>{t.valor}</span>
+                    <span className="font-serif text-[22px] font-bold leading-none" style={{ color: INK }}>{t.valor}</span>
+                    {t.desc && <span className="sr-only">{t.desc}</span>}
                   </span>
                 ) : variante === "totales" ? (
-                  <span className="flex w-full items-center gap-4">
-                    {Icono && <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl" style={{ background: c.tile, color: c.texto }}><Icono size={22} aria-hidden="true" /></span>}
-                    <span className="min-w-0">
-                      <span className="block text-xs font-semibold uppercase tracking-wider text-slate-500">{t.titulo}</span>
-                      <span className="block truncate font-serif text-[30px] font-bold leading-tight" style={{ color: INK }}>{t.valor}</span>
-                      {t.desc && <span className="block truncate text-sm text-slate-500">{t.desc}</span>}
+                  <span className="flex w-full items-center gap-2.5">
+                    {Icono && <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-lg" style={{ background: c.tile, color: c.texto }}><Icono size={17} aria-hidden="true" /></span>}
+                    <span className="min-w-0 flex-1 whitespace-nowrap">
+                      <span className="block truncate text-xs font-semibold uppercase tracking-wider text-slate-500">{t.titulo}</span>
+                      <span className="block font-serif text-[22px] font-bold leading-tight" style={{ color: INK }}>{t.valor}</span>
+                      {t.desc && <span className="block text-[12.5px] text-slate-500">{t.desc}</span>}
                     </span>
                   </span>
                 ) : compacta ? (

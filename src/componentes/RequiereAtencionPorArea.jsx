@@ -187,8 +187,8 @@ export default function RequiereAtencionPorArea({ bloques, compacto = false, lat
           // «Ver en [módulo]» lleva al módulo; si el área tiene un solo tipo de aviso con su filtro, lleva a esa lista filtrada.
           const verTodo = b.filas.length === 1 && b.filas[0].enlace ? b.filas[0].enlace.onClick : b.onVerTodo
           return (
-            <section key={b.id} aria-label={`Requiere tu atención: ${b.titulo}`} className={"flex min-w-0 flex-col px-5 " + (compacto ? "py-3 " : "py-5 ") + (n > 0 ? "border-t border-slate-100 sm:border-t-0 sm:border-l sm:max-lg:odd:border-l-0 lg:border-l " : "")}>
-              <h3 className="mb-2 flex items-center gap-2 text-base font-bold" style={{ color: INK }}>
+            <section key={b.id} aria-label={`Requiere tu atención: ${b.titulo}`} className={"flex min-w-0 flex-col px-4 " + (compacto ? "py-3 " : "py-4 ") + (n > 0 ? "border-t border-slate-100 sm:border-t-0 sm:border-l sm:max-lg:odd:border-l-0 lg:border-l " : "")}>
+              <h3 className="mb-1.5 flex items-center gap-2 text-[15px] font-bold" style={{ color: INK }}>
                 <Icono size={16} aria-hidden="true" className="shrink-0 text-slate-500" /> {b.titulo}
               </h3>
               {visibles.length > 0 ? (
@@ -202,18 +202,18 @@ export default function RequiereAtencionPorArea({ bloques, compacto = false, lat
                           onClick={() => setAbierto({ bloqueId: b.id, filaId: f.id, soloFila: true })}
                           aria-label={`${f.cantidad ?? 1} ${f.texto}`}
                           title={`${tono.nombre}: ${f.texto}`}
-                          className="grid w-full grid-cols-[0.5rem_2.25rem_minmax(0,1fr)] items-center gap-x-2.5 rounded-lg py-2 text-left transition-colors hover:bg-slate-50 cursor-pointer"
+                          className="grid w-full grid-cols-[0.4rem_1.75rem_minmax(0,1fr)] items-center gap-x-2 rounded-lg py-2 text-left transition-colors hover:bg-slate-50 cursor-pointer"
                         >
-                          <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: tono.punto }} />
-                          <span className="text-right font-serif text-[22px] font-bold leading-none" style={{ color: tono.numero }}>{f.cantidad ?? 1}</span>
-                          <span className="truncate text-[15px] text-slate-700">{f.corto || f.texto}</span>
+                          <span aria-hidden="true" className="h-[7px] w-[7px] rounded-full" style={{ backgroundColor: tono.punto }} />
+                          <span className="text-right font-serif text-[20px] font-bold leading-none" style={{ color: tono.numero }}>{f.cantidad ?? 1}</span>
+                          <span className="truncate text-[13px] text-slate-700">{f.corto || f.texto}</span>
                         </button>
                       </li>
                     )
                   })}
                 </ul>
               ) : (
-                <p className="flex flex-1 items-start gap-2 py-2 text-[15px] text-slate-600"><CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" aria-hidden="true" /> Todo en orden</p>
+                <p className="flex flex-1 items-start gap-2 py-1.5 text-[13px] text-slate-600"><CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" aria-hidden="true" /> Todo en orden</p>
               )}
               <div className="mt-3 flex items-center gap-3 text-sm">
                 <button type="button" onClick={verTodo} aria-label={`Ver todo en ${b.titulo}`} className="flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">

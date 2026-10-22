@@ -75,14 +75,24 @@ test('Registro de actividad: ventana estándar con buscador y filtros; al cerrar
 test('"Requieren atención" de cada módulo muestra el mismo número que su tarjeta del Inicio, en la misma ventana', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
   await alInicio(page)
+  // El número de un área es la suma de sus filas (si alguna queda en «+N más», la suma no es completa y solo se compara el del botón del módulo con su ventana).
   const numeros = {}
+  const completa = {}
   for (const area of ['Citas', 'Pacientes', 'Ventas', 'Inventario']) {
     const tarjeta = page.getByRole('region', { name: `Requiere tu atención: ${area}` })
-    numeros[area] = Number((await tarjeta.getByText(/^\d+$/).first().innerText().catch(() => '0')) || 0)
+    const textos = await tarjeta.locator('li button span.font-serif').allInnerTexts()
+    numeros[area] = textos.reduce((s, t) => s + Number(t || 0), 0)
+    completa[area] = (await tarjeta.getByRole('button', { name: /avisos más de/ }).count()) === 0
   }
   const menu = { Citas: 'Citas médicas', Pacientes: 'Pacientes', Ventas: 'Ventas', Inventario: 'Inventario' }
-  for (const [area, n] of Object.entries(numeros)) {
+  for (const [area, suma] of Object.entries(numeros)) {
     await page.getByRole('button', { name: menu[area], exact: true }).first().click()
+    let n = suma
+    if (!completa[area]) {
+      const rotulo = await page.getByRole('button', { name: /^Requieren atención: \d+$/ }).getAttribute('aria-label')
+      n = Number(rotulo.replace(/\D/g, ''))
+      expect(n).toBeGreaterThan(suma)
+    }
     if (n === 0) { await expect(main(page).getByText('Todo en orden').first()).toBeVisible({ timeout: 15_000 }); continue }
     const boton = page.getByRole('button', { name: `Requieren atención: ${n}` })
     await expect(boton).toBeVisible({ timeout: 15_000 })
