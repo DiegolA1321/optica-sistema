@@ -69,8 +69,9 @@ import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPend
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido, generarClaveTemporal } from "../utilidades/validaciones"
 import { minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
-import { linkWhatsApp, abrirWhatsApp } from "../utilidades/whatsapp"
-import { medidasDelPaciente, mensajeMedidas } from "../utilidades/medidasMontaje"
+import { linkWhatsApp } from "../utilidades/whatsapp"
+import { medidasDelPaciente } from "../utilidades/medidasMontaje"
+import { useEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import { agudezaConLentes } from "../utilidades/agudeza"
 import { puedeIngresarCita } from "../utilidades/filtrosCitas"
 import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
@@ -200,6 +201,7 @@ function MiniaturaAdjunto({ path }) {
 
 export default function Pacientes({ avisosDelModulo = null, alcancePropio = false, usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, onReagendarCita }) {
   const opticaId = usuario?.opticaId
+  const escribirPorWhatsApp = useEscribirPorWhatsApp()
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
   const [cedula, setCedula] = useState("")
@@ -911,6 +913,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       motivo: agendarMotivo,
       asignadoA: agendarAsignado,
       estado: atenderInmediato ? "En Atención" : "Pendiente",
+      origen: atenderInmediato ? "presencial" : null,
     })
     setGuardandoCita(false)
     if (error) {
@@ -1856,7 +1859,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                 medidas={medidasPedidas}
                 puedeEscribirWhatsApp={!!pacienteHistorial.telefono && pacienteHistorial.telefono !== "Sin Teléfono"}
                 ocupado={cerrandoMedidas}
-                onWhatsApp={() => abrirWhatsApp(pacienteHistorial.telefono, mensajeMedidas({ paciente: pacienteHistorial, opticaNombre: nombreOptica, dp: medidasPedidas.dp, altura: medidasPedidas.altura }))}
+                onWhatsApp={() => escribirPorWhatsApp({ paciente: pacienteHistorial, motivo: "medidas_montaje", contexto: { medidas: medidasPedidas } })}
                 onMarcarEnviadas={() => responderMedidas(pacienteHistorial, { resultado: "enviadas", dp: medidasPedidas.dp || null, altura: medidasPedidas.altura || null }, "Marcaste las medidas como enviadas.")}
                 onAgendar={puedeAgendar ? () => { abrirAgendar(pacienteHistorial); setAgendarMotivo(motivosConsulta.find((m) => /medida/i.test(m)) || ""); setMedidasAlAgendar(pacienteHistorial.id) } : undefined}
               />

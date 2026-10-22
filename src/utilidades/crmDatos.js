@@ -13,7 +13,7 @@ export const mapContacto = (r) => ({
   creadoPor: r.creado_por || null, creadoPorNombre: r.creado_por_nombre || "", creadoEn: r.creado_en,
 })
 export const mapCampana = (r) => ({ id: r.id, nombre: r.nombre, grupo: r.grupo, mensaje: r.mensaje, creadaPorNombre: r.creada_por_nombre || "", creadaEn: r.creada_en })
-export const plantillasDeFilas = (filas = []) => Object.fromEntries(filas.map((f) => [f.motivo, f.texto]))
+export const plantillasDeFilas = (filas) => Object.fromEntries((Array.isArray(filas) ? filas : []).map((f) => [f.motivo, f.texto]))
 
 // El motivo de un contacto de campaña sale del grupo (igual que en el servidor).
 export const motivoDeCampana = (grupo) => GRUPOS_CAMPANA[grupo]?.motivo || MOTIVO_PROMOCION
@@ -39,17 +39,27 @@ export function useCrmDatos({ usuario, alCambiarPermisos, habilitado = true }) {
     if (!conBase) { setCargando(false); return }
     setCargando(true)
     setError("")
-    const [c, k, p] = await Promise.all([
+    const [c, k] = await Promise.all([
       supabase.from("crm_contactos").select("*").eq("optica_id", opticaId).order("creado_en", { ascending: false }).limit(MAX_CONTACTOS),
       supabase.from("crm_campanas").select("*").eq("optica_id", opticaId).order("creada_en", { ascending: false }),
-      supabase.from("crm_plantillas").select("motivo, texto").eq("optica_id", opticaId),
     ])
     if (!vivo.current) return
-    if (c.error || k.error || p.error) setError("No se pudo cargar el CRM. Revisa tu conexión e intenta de nuevo.")
-    else setDatos({ contactos: (c.data || []).map(mapContacto), campanas: (k.data || []).map(mapCampana), plantillas: plantillasDeFilas(p.data) })
+    if (c.error || k.error) setError("No se pudo cargar el CRM. Revisa tu conexión e intenta de nuevo.")
+    else setDatos((d) => ({ ...d, contactos: (c.data || []).map(mapContacto), campanas: (k.data || []).map(mapCampana) }))
     setCargando(false)
   }, [conBase, opticaId])
   useEffect(() => { cargar() }, [cargar])
+
+  // Los textos de las plantillas los lee todo el personal (los avisos de Inicio, Citas, Pacientes y Ventas escriben con ellas aunque la persona no vea el CRM): por la función del
+  // servidor, que entrega solo los textos. Si falla, los avisos usan el mensaje base (no se rompe nada). Se vuelve a pedir al guardar una plantilla.
+  const cargarPlantillas = useCallback(async () => {
+    if (!supabase || !opticaId) return
+    let { data, error: e } = await supabase.rpc("plantillas_de_avisos")
+    // Sin la función (o si falla), quien ve el CRM las lee de su tabla; quien no, usa el mensaje base.
+    if (e) ({ data, error: e } = await supabase.from("crm_plantillas").select("motivo, texto").eq("optica_id", opticaId))
+    if (vivo.current && !e) setDatos((d) => ({ ...d, plantillas: plantillasDeFilas(data) }))
+  }, [opticaId])
+  useEffect(() => { cargarPlantillas() }, [cargarPlantillas])
 
   // Cada acción devuelve { ok, error?, id? } para que la pantalla avise con palabras del usuario.
   const contactar = useCallback(async ({ paciente, motivo, canal = "whatsapp", mensaje = "", campanaId = null, resultado = null, volverEl = null }) => {
@@ -70,6 +80,23 @@ export function useCrmDatos({ usuario, alCambiarPermisos, habilitado = true }) {
     if (resultado === "no_desea_mensajes") alCambiarPermisos?.(paciente.id, { aceptaRecordatorios: false, aceptaPromociones: false })
     return { ok: true, id }
   }, [conBase, datos.campanas, usuario?.id, usuario?.nombre, alCambiarPermisos])
+
+  // El contacto de un aviso (WhatsApp desde el Inicio, Citas, Pacientes o Ventas): queda en el Seguimiento igual que uno hecho desde el CRM. El permiso que se pide es el del módulo del
+  // aviso, no «CRM: crear» (migración 0135).
+  const contactarDeAviso = useCallback(async ({ paciente, motivo, mensaje = "" }) => {
+    let id = idLocal()
+    if (supabase && opticaId) {
+      const { data, error: e } = await supabase.rpc("registrar_contacto_de_aviso", { p_paciente_id: paciente.id, p_motivo: motivo, p_mensaje: mensaje || null })
+      if (e || !data) return { ok: false, error: textoDeError(e) }
+      id = data
+    }
+    const nuevo = {
+      id, pacienteId: paciente.id, motivo, canal: "whatsapp", mensaje, campanaId: null, resultado: null, volverEl: null, resultadoEn: null, resultadoPorNombre: "",
+      creadoPor: usuario?.id || null, creadoPorNombre: usuario?.nombre || "", creadoEn: new Date().toISOString(),
+    }
+    setDatos((d) => ({ ...d, contactos: [nuevo, ...d.contactos] }))
+    return { ok: true, id }
+  }, [opticaId, usuario?.id, usuario?.nombre])
 
   const anotarResultado = useCallback(async (contacto, resultado, volverEl = null) => {
     if (conBase) {
@@ -110,5 +137,5 @@ export function useCrmDatos({ usuario, alCambiarPermisos, habilitado = true }) {
     return { ok: true }
   }, [conBase])
 
-  return { ...datos, cargando, error, recargar: cargar, contactar, anotarResultado, crearCampana, guardarPlantilla }
+  return { ...datos, cargando, error, recargar: cargar, contactar, contactarDeAviso, anotarResultado, crearCampana, guardarPlantilla }
 }

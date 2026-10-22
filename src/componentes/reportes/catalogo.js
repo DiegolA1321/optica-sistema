@@ -10,6 +10,7 @@ import { nombreMes } from "../../utilidades/formatoFecha"
 import { enRango, mesesDelRango } from "../../utilidades/reportesPeriodo"
 import { metricasDelPeriodo, resumenLaboratorios } from "../../utilidades/reportesDatos"
 import { movimientosDelRango } from "../../utilidades/reportesInventario"
+import { etiquetaOrigenCita } from "../../utilidades/filtrosCitas"
 import { lineasDeProducto, masVendidas, monturasSinVender, DIAS_SIN_VENDER } from "../../utilidades/inventarioKardex"
 import { modeloDeLista, modeloVentasContador, modeloSinFacturaElectronica, modeloCobros, modeloCampana, modeloInventario, modeloOrdenesPendientes } from "../../utilidades/reportesExcel"
 
@@ -47,7 +48,7 @@ export function catalogoExportaciones(r, rango, { incluirNoCompraron = false } =
     { id: "citas-detalle", modulo: "citas", nombre: "Citas del período", linea: "Todas las citas con su paciente, motivo, origen, visita, profesional y estado.",
       modelo: () => lista("Citas del período", [
         col("Fecha", (c) => c.fecha, "fecha"), col("Hora", (c) => c.hora), col("Paciente", (c) => c.paciente), col("Cédula", (c) => c.cedula), col("Teléfono", (c) => c.telefono), col("Motivo", (c) => c.motivo),
-        col("Origen", (c) => (c.origen === "paciente" ? "Web" : "Recepción")), col("Visita", (c) => (coincideSeguimiento(c, "primera", historial) ? "Primera vez" : "Seguimiento")),
+        col("Origen", (c) => etiquetaOrigenCita(c.origen)), col("Visita", (c) => (coincideSeguimiento(c, "primera", historial) ? "Primera vez" : "Seguimiento")),
         col("Profesional", profesional), col("Estado", (c) => etiquetaEstadoCita(c.estado)), col("Cancelada por", (c) => (c.estado !== "Cancelada" ? "" : c.canceladaPor === "paciente" ? "El paciente" : "La óptica")),
       ], [...citasEnRango].sort((a, b) => (a.fecha + a.hora < b.fecha + b.hora ? -1 : 1))) },
     { id: "citas-inasistencias", modulo: "citas", nombre: "Citas no efectuadas para reagendar", linea: "Las citas que no se efectuaron, con el teléfono del paciente, para contactarlo.",

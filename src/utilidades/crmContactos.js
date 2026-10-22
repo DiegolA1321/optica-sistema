@@ -19,7 +19,20 @@ export const MOTIVOS = {
 // El que se muestra primero (y el que da el mensaje) cuando un paciente cumple varios: el más específico o más urgente.
 export const ORDEN_MOTIVOS = ["sin_visitar", "control_vencido", "cumpleanos", "postventa", "control_proximo"]
 export const MOTIVO_PROMOCION = "promocion"
-export const ETIQUETA_MOTIVO = { ...Object.fromEntries(Object.values(MOTIVOS).map((m) => [m.id, m.corta])), [MOTIVO_PROMOCION]: "Promoción" }
+// Los motivos de los avisos que ofrecen WhatsApp (migración 0135): no arman la lista «Para contactar» (esa la arman los de arriba), pero cada uno tiene su plantilla editable y su contacto
+// queda en el Seguimiento. control_vencido ya es un motivo de arriba y se comparte: el mensaje del aviso del Inicio es el mismo del CRM.
+export const MOTIVOS_DE_AVISO = {
+  cita_no_efectuada: { id: "cita_no_efectuada", etiqueta: "Cita no efectuada", corta: "Cita no efectuada" },
+  cita_reagendada: { id: "cita_reagendada", etiqueta: "Cita reagendada", corta: "Cita reagendada" },
+  lentes_listos: { id: "lentes_listos", etiqueta: "Lentes listos para retirar", corta: "Lentes listos" },
+  medidas_montaje: { id: "medidas_montaje", etiqueta: "Medidas de montaje pedidas", corta: "Medidas de montaje" },
+  por_vender: { id: "por_vender", etiqueta: "Recibió su diagnóstico y no ha comprado", corta: "Por vender" },
+}
+export const ETIQUETA_MOTIVO = {
+  ...Object.fromEntries(Object.values(MOTIVOS).map((m) => [m.id, m.corta])),
+  ...Object.fromEntries(Object.values(MOTIVOS_DE_AVISO).map((m) => [m.id, m.corta])),
+  [MOTIVO_PROMOCION]: "Promoción",
+}
 
 export const DIAS_CONTROL_PROXIMO = 30 // el control vence dentro de los próximos 30 días
 export const DIAS_SIN_VISITAR = 365 // más de 12 meses sin visitar
@@ -203,12 +216,22 @@ export const PLANTILLAS_BASE = {
   sin_visitar: "Hola {nombre}, te saludamos de {óptica}. Hace tiempo no te vemos y queremos saber cómo estás. ¿Agendamos una revisión de tu vista?",
   postventa: "Hola {nombre}, te escribimos de {óptica}. ¿Cómo te has adaptado a tus lentes nuevos? Si sientes alguna molestia, cuéntanos y lo revisamos.",
   [MOTIVO_PROMOCION]: "Hola {nombre}, en {óptica} tenemos una promoción para ti. Escríbenos y te contamos los detalles.",
+  cita_no_efectuada: "Hola {nombre}, te escribimos de {óptica}. No pudimos atenderte en tu cita del {fecha_de_la_cita}. Cuéntanos qué día y hora te quedan bien y la reagendamos.",
+  cita_reagendada: "Hola {nombre}, te escribimos de {óptica} para avisarte que tu cita fue reagendada. Nueva fecha: {fecha_de_la_cita}. Cualquier duda, contáctanos por aquí.",
+  lentes_listos: "Hola {nombre}, te escribimos de {óptica}: tus lentes (orden {orden}) ya están listos para retirar. Te esperamos.",
+  medidas_montaje: "Hola {nombre}, te escribimos de {óptica}. Estas son las medidas que nos pediste para tus lentes:\n{medidas}\nCualquier duda, escríbenos.",
+  por_vender: "Hola {nombre}, te escribimos de {óptica}. Quedamos pendientes de los lentes que te recomendó el optómetra: ¿pudiste revisar tu proforma o quieres que te ayudemos con tu compra? Con gusto te atendemos.",
 }
 export const VARIABLES_PLANTILLA = [
   { id: "{nombre}", ayuda: "Nombre del paciente, como está guardado" },
   { id: "{óptica}", ayuda: "Nombre de tu óptica" },
   { id: "{fecha_del_control}", ayuda: "Fecha de su próximo control" },
+  { id: "{fecha_de_la_cita}", ayuda: "Día y hora de la cita", solo: ["cita_no_efectuada", "cita_reagendada"] },
+  { id: "{orden}", ayuda: "Número de la orden de lentes", solo: ["lentes_listos"] },
+  { id: "{medidas}", ayuda: "La distancia pupilar y la altura de montaje que ya existen", solo: ["medidas_montaje"] },
 ]
+// Las variables que se ofrecen al editar la plantilla de un motivo: las de siempre y las propias de ese motivo. Sin motivo (una campaña), solo las de siempre.
+export const variablesDe = (motivo) => VARIABLES_PLANTILLA.filter((v) => !v.solo || (motivo && v.solo.includes(motivo)))
 export const MAX_PLANTILLA = 500
 
 // Los mensajes que salen solos van por correo. Se enciende cuando la óptica tenga su correo configurado (igual que el correo de la factura electrónica).
@@ -234,14 +257,24 @@ export function insertarEnCursor(texto, variable, inicio, fin) {
 // El texto de una plantilla: la de la óptica si la editó, la base si no.
 export const plantillaDe = (motivo, guardadas = {}) => (guardadas[motivo] && guardadas[motivo].trim() ? guardadas[motivo] : PLANTILLAS_BASE[motivo] || PLANTILLAS_BASE.control_vencido)
 
-export function armarMensaje(plantilla, { paciente, opticaNombre, consultas = [] } = {}) {
+// Lo propio de un aviso va en el segundo argumento: cita ({ fecha, hora }), orden (el número ya escrito) y medidas ({ dp, altura }). Con `ejemplo`, las variables de esos avisos llevan
+// un dato de muestra (la vista previa de la plantilla en el CRM).
+export function armarMensaje(plantilla, { paciente, opticaNombre, consultas = [], cita = null, orden = "", medidas = null, ejemplo = false } = {}) {
   const control = paciente ? fechaProximoControl(paciente, consultas) : null
   const textoControl = control ? formatoFecha(fechaAISO(control), "medio") : "pronto"
+  const textoCita = cita?.fecha ? `${formatoFecha(cita.fecha, "calendario", { enFrase: true })}${cita.hora ? ` a las ${cita.hora}` : ""}` : ejemplo ? "martes 20 de octubre a las 04:00 PM" : "tu cita"
+  const conUnidad = (t) => (/mm\s*$/i.test(String(t).trim()) ? String(t).trim() : `${String(t).trim()} mm`)
+  const lineasMedidas = [medidas?.dp && `• Distancia pupilar: ${conUnidad(medidas.dp)}`, medidas?.altura && `• Altura de montaje: ${conUnidad(medidas.altura)}`].filter(Boolean).join("\n")
+  const textoMedidas = lineasMedidas || (ejemplo ? "• Distancia pupilar: 62 mm\n• Altura de montaje: 18 mm" : "")
   return alNombreActual(plantilla)
     .replaceAll("{nombre}", paciente?.nombre || "")
     .replaceAll("{óptica}", opticaNombre || "tu óptica")
     .replaceAll("{fecha_del_control}", textoControl)
-    .replace(/\s+([,.!?])/g, "$1")
+    .replaceAll("{fecha_de_la_cita}", textoCita)
+    .replaceAll("{orden}", orden || (ejemplo ? "000012" : ""))
+    .replaceAll("{medidas}", textoMedidas)
+    .replace(/[ \t]+([,.!?])/g, "$1")
+    .replace(/ {2,}/g, " ")
     .trim()
 }
 

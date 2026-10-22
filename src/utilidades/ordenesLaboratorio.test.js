@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   numeroOrden, estaAtrasada, estadoVisible, diasDeAtraso, ordenesListasSinAvisar, atrasosPorLaboratorio, laboratoriosUsados,
-  datosInicialesOrden, datosParaRpc, validarOrden, mensajeLentesListos, armarHtmlOrdenLaboratorio, armarHtmlOrdenPaciente, observacionesParaLaboratorio,
+  datosInicialesOrden, datosParaRpc, validarOrden, armarHtmlOrdenLaboratorio, armarHtmlOrdenPaciente, observacionesParaLaboratorio,
 } from "./ordenesLaboratorio"
 
 const hoy = new Date(2026, 9, 6, 10)
@@ -58,13 +58,6 @@ describe("ordenesLaboratorio", () => {
     expect(validarOrden({ tipoLente: "monofocal", fechaPrometida: "" })).toMatch(/fecha/i)
     expect(validarOrden({ tipoLente: "monofocal", fechaPrometida: "2026-10-20" })).toBe("")
     expect(datosParaRpc(datosInicialesOrden(null)).tipo_lente).toBe("monofocal")
-  })
-
-  it("el mensaje de WhatsApp usa el nombre, la óptica y el número", () => {
-    const m = mensajeLentesListos({ paciente: { nombre: "Ana Pérez" }, opticaNombre: "Visión", orden: orden() })
-    expect(m).toContain("Hola, Ana Pérez")
-    expect(m).toContain("Visión")
-    expect(m).toContain("OL-0007")
   })
 
   it("la copia del laboratorio lleva la receta completa y no lleva precios", () => {

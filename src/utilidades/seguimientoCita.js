@@ -16,6 +16,7 @@ export const TITULO_EVENTO = {
   cancelada: "Cancelada",
   no_efectuada: "No efectuada",
   volvio_pendiente: "Volvió a pendiente",
+  volvio_en_espera: "Volvió a la sala de espera",
   contactada: "Contactada",
   descartada: "Descartada",
   sin_seguimiento: "Sin seguimiento",
@@ -23,7 +24,7 @@ export const TITULO_EVENTO = {
 }
 
 // «Web», «Recepción» o «Portal»: por dónde se agendó (los valores de la base: web, portal, recepcion; y los de la columna origen para las citas anteriores).
-export const ORIGEN_AGENDADA = { web: "Web", paciente: "Web", portal: "Portal del paciente", recepcion: "Recepción", staff: "Recepción" }
+export const ORIGEN_AGENDADA = { web: "Web", paciente: "Web", portal: "Portal del paciente", recepcion: "Recepción", staff: "Recepción", presencial: "Presencial" }
 
 export const QUIEN_CANCELO = { paciente: "El paciente", recepcion: "El personal" }
 
@@ -62,6 +63,7 @@ export function detalleDeEvento(e) {
   if (e.tipo === "sin_seguimiento") lineas.push(`Pasaron ${d.dias || 30} días sin que se atendiera ni se reagendara`)
   if (["cancelada", "no_efectuada", "descartada"].includes(e.tipo) && d.motivo) lineas.push(d.detalle ? `${d.motivo}: ${d.detalle}` : d.motivo)
   if (e.tipo === "volvio_pendiente" && d.de) lineas.push(`Estaba «${etiquetaEstadoCita(d.de)}»`)
+  if (e.tipo === "volvio_en_espera") lineas.push("Se dejó de atender; el borrador de la ficha se conserva")
   return lineas
 }
 

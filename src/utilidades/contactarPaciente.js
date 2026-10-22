@@ -24,18 +24,6 @@ export function motivoDeLaCita(cita, seguimiento) {
   return cita.estado === "No Asistió" ? "El paciente no asistió" : "El paciente canceló su cita"
 }
 
-// El mensaje de WhatsApp ya redactado, según lo que pasó. Va con el nombre de la óptica y la fecha y hora de la cita.
-export function mensajeContacto({ cita, motivo, opticaNombre }) {
-  const optica = opticaNombre || "la óptica"
-  const cuando = `${formatoFecha(cita.fecha, "calendario", { enFrase: true })} a las ${cita.hora}`
-  const nombre = cita.paciente
-  const cierre = "Cuéntanos qué día y hora te quedan bien y la reagendamos."
-  if (/no se terminó/i.test(motivo)) return `Hola ${nombre}, te escribimos de ${optica}. Tu atención del ${cuando} quedó sin terminar y queremos completarla. ${cierre}`
-  if (/no fue atendido/i.test(motivo)) return `Hola ${nombre}, te escribimos de ${optica}. Sentimos no haber podido atenderte el ${cuando}. ${cierre}`
-  if (cita.estado === "Cancelada") return `Hola ${nombre}, te escribimos de ${optica}. Vimos que cancelaste tu cita del ${cuando}. Si quieres agendar otra, ${cierre.charAt(0).toLowerCase()}${cierre.slice(1)}`
-  return `Hola ${nombre}, te escribimos de ${optica}. Vimos que no pudiste venir a tu cita del ${cuando}. ${cierre}`
-}
-
 // Seguimiento de las citas por contactar: el motivo de cada una, cuándo se le escribió y si ya está «sin seguimiento». Se vuelve a leer cuando cambian las citas (o cada minuto).
 export function useSeguimientoDeContacto(citas, habilitado) {
   const ids = useMemo(() => citasParaReagendar(citas).map((c) => c.id), [citas])

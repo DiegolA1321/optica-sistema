@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabaseClient"
-import { linkWhatsApp } from "../../utilidades/whatsapp"
+import { useEscribirPorWhatsApp } from "../EscribirPorWhatsApp"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../../utilidades/permisos"
 import { imprimirHtml, datosOpticaProforma } from "../../utilidades/proforma"
 import { registrarLog } from "../../utilidades/logs"
 import { puede } from "../../utilidades/permisosUi"
 import { numeroComprobante } from "../../utilidades/comprobantes"
 import { saldoFactura, saldoPacienteFacturas } from "../../utilidades/abonos"
-import { ETIQUETA_ESTADO, numeroOrden, armarHtmlOrdenDosCopias, mensajeLentesListos } from "../../utilidades/ordenesLaboratorio"
+import { ETIQUETA_ESTADO, numeroOrden, armarHtmlOrdenDosCopias } from "../../utilidades/ordenesLaboratorio"
 import { siguienteAccionOrden, ESTADO_ANTERIOR } from "../../utilidades/ventasModulo"
 import OrdenLaboratorioModal from "../OrdenLaboratorioModal"
 import EntregaConSaldoModal from "../EntregaConSaldoModal"
@@ -19,6 +19,7 @@ import DetalleOrden from "./DetalleOrden"
 // volver al estado anterior) en un solo lugar (regla 18): lo usan la pestaña Órdenes de laboratorio del módulo, el detalle de un comprobante y
 // la pestaña de órdenes del perfil del paciente. `ventanas` son las ventanas que abren esas acciones; quien llama las dibuja una sola vez.
 export function useOrdenesLab({ ordenes, setOrdenes, pacientes = [], equipo = [], usuario, facturas = [], abonos = [], pacienteFijo = null, onAbonar, onAviso, onVerComprobante }) {
+  const escribirPorWhatsApp = useEscribirPorWhatsApp()
   const puedeEditar = puede(usuario, "ventas", "editar")
   const puedeCrear = puede(usuario, "ventas", "crear")
   const [trabajando, setTrabajando] = useState(null)
@@ -65,10 +66,10 @@ export function useOrdenesLab({ ordenes, setOrdenes, pacientes = [], equipo = []
     const { data, error } = supabase ? await supabase.rpc("registrar_aviso_paciente", { p_orden_id: o.id }) : { data: new Date().toISOString(), error: null }
     setTrabajando(null)
     if (error) { falla(error, "No se pudo registrar el aviso. Revisa tu conexión e intenta de nuevo."); return }
-    window.open(linkWhatsApp(p.telefono, mensajeLentesListos({ paciente: p, opticaNombre: usuario?.opticaNombre, orden: o })), "_blank", "noopener")
+    // La plantilla «Lentes listos» del CRM; el contacto queda en el Seguimiento del CRM (el aviso flotante lo dice).
+    escribirPorWhatsApp({ paciente: p, motivo: "lentes_listos", contexto: { orden: numeroOrden(o.numero) } })
     reemplazar(o.id, { pacienteAvisadoEn: data, pacienteAvisadoPor: usuario?.id || null })
     registrarLog(usuario, "ventas", "Avisó al paciente que sus lentes están listos", `${p.nombre} · ${numeroOrden(o.numero)}`)
-    onAviso?.(`Aviso a ${p.nombre} abierto en WhatsApp.`)
   }
 
   const imprimir = (o) => imprimirHtml(armarHtmlOrdenDosCopias({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOptica, paciente: pacienteDe(o) || {}, orden: { ...o, facturaNumero: facturaDe(o)?.numero != null ? numeroComprobante(facturaDe(o).numero) : "" } }))

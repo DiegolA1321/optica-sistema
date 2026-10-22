@@ -32,11 +32,12 @@ export const inicialesDe = (nombre) => {
 }
 
 // Inserta la cita (o, sin base conectada, le da un id local). Devuelve { cita } o { error: texto }.
-export async function registrarCita(supabase, opticaId, paciente, { fecha, hora, duracionMinutos = null, motivo, asignadoA = null, estado = "Pendiente" }) {
+// `origen`: "presencial" cuando el paciente llegó sin cita y se le abre una al momento («Atender ahora»); si no, no se manda y la cita queda como de recepción.
+export async function registrarCita(supabase, opticaId, paciente, { fecha, hora, duracionMinutos = null, motivo, asignadoA = null, estado = "Pendiente", origen = null }) {
   const cita = {
     pacienteId: paciente.id, paciente: paciente.nombre, cedula: paciente.cedula, telefono: paciente.telefono,
     fecha, hora, duracionMinutos, motivo, asignadoA: asignadoA || null, atendidoPor: null,
-    iniciales: inicialesDe(paciente.nombre), estado,
+    iniciales: inicialesDe(paciente.nombre), estado, origen: origen || "staff",
   }
   if (supabase && opticaId) {
     const { data, error } = await supabase
@@ -45,7 +46,7 @@ export async function registrarCita(supabase, opticaId, paciente, { fecha, hora,
         optica_id: opticaId,
         paciente_id: typeof paciente.id === "string" ? paciente.id : null,
         paciente: cita.paciente, cedula: cita.cedula, telefono: cita.telefono,
-        fecha, hora, duracion_minutos: duracionMinutos, motivo, estado, asignado_a: cita.asignadoA,
+        fecha, hora, duracion_minutos: duracionMinutos, motivo, estado, asignado_a: cita.asignadoA, ...(origen ? { origen } : {}),
       })
       .select()
       .single()

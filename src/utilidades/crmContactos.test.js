@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
   motivosDe, listaParaContactar, contarPorMotivo, filtrarPorMotivo, avisosDelCrm, estadoDelMotivo, resultadoEfectivo, citaPosterior,
   aceptaRecordatorios, aceptaPromociones, puedeContactarPor, permisoDeMotivo, armarMensaje, plantillaDe, PLANTILLAS_BASE,
-  destinatariosCampana, resumenSeguimiento, rankingReferidores, rankingFrecuentes, rankingPuntaje, fechaEnDias, MOTIVO_PROMOCION, insertarEnCursor, VARIABLES_PLANTILLA,
+  destinatariosCampana, resumenSeguimiento, rankingReferidores, rankingFrecuentes, rankingPuntaje, fechaEnDias, MOTIVO_PROMOCION, insertarEnCursor, VARIABLES_PLANTILLA, variablesDe, MOTIVOS_DE_AVISO, ETIQUETA_MOTIVO,
 } from "./crmContactos"
 import { diasCumpleEnVentana, esInactivo } from "./fidelizacion"
 import { hoyISO } from "./disponibilidad"
@@ -273,9 +273,40 @@ describe("mensajes", () => {
   it("sin cursor conocido va al final", () => {
     expect(insertarEnCursor("Hola", "{nombre}").texto).toBe("Hola {nombre}")
   })
-  it("las tres variables tienen nombre claro y explicación", () => {
-    expect(VARIABLES_PLANTILLA.map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}"])
+  it("las variables tienen nombre claro y explicación; las propias de un aviso solo se ofrecen en su motivo", () => {
+    expect(VARIABLES_PLANTILLA.map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}", "{fecha_de_la_cita}", "{orden}", "{medidas}"])
     expect(VARIABLES_PLANTILLA.every((v) => v.ayuda.length > 5)).toBe(true)
+    expect(variablesDe("cumpleanos").map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}"])
+    expect(variablesDe().map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}"])
+    expect(variablesDe("cita_no_efectuada").map((v) => v.id)).toContain("{fecha_de_la_cita}")
+    expect(variablesDe("cita_no_efectuada").map((v) => v.id)).not.toContain("{medidas}")
+    expect(variablesDe("medidas_montaje").map((v) => v.id)).toContain("{medidas}")
+    expect(variablesDe("lentes_listos").map((v) => v.id)).toContain("{orden}")
+  })
+  it("cada motivo de aviso tiene su plantilla base, su etiqueta y usa solo variables que existen", () => {
+    const ids = VARIABLES_PLANTILLA.map((v) => v.id)
+    for (const m of Object.keys(MOTIVOS_DE_AVISO)) {
+      expect(PLANTILLAS_BASE[m], m).toBeTruthy()
+      expect(ETIQUETA_MOTIVO[m], m).toBeTruthy()
+      for (const usada of PLANTILLAS_BASE[m].match(/{[^}]+}/g) || []) expect(ids, `${m} usa ${usada}`).toContain(usada)
+    }
+  })
+  it("los avisos arman su mensaje con lo propio de cada uno", () => {
+    const paciente = { nombre: "Rosa Bravo Cedeño" }
+    const cita = armarMensaje(plantillaDe("cita_no_efectuada"), { paciente, opticaNombre: "Óptica Sol", cita: { fecha: "2026-10-20", hora: "04:00 PM" } })
+    expect(cita).toBe("Hola Rosa Bravo Cedeño, te escribimos de Óptica Sol. No pudimos atenderte en tu cita del martes, 20 de octubre a las 04:00 PM. Cuéntanos qué día y hora te quedan bien y la reagendamos.")
+    expect(armarMensaje(plantillaDe("lentes_listos"), { paciente, opticaNombre: "Visión", orden: "OL-0007" })).toContain("(orden OL-0007)")
+    const medidas = armarMensaje(plantillaDe("medidas_montaje"), { paciente, opticaNombre: "Solna", medidas: { dp: "62", altura: "18 mm" } })
+    expect(medidas).toContain("• Distancia pupilar: 62 mm\n• Altura de montaje: 18 mm")
+    expect(medidas).not.toContain("18 mm mm")
+    expect(armarMensaje(plantillaDe("medidas_montaje"), { paciente, opticaNombre: "Solna", medidas: { dp: "62", altura: "" } })).not.toContain("Altura")
+  })
+  it("la plantilla que la óptica personalizó manda sobre la base también en los avisos", () => {
+    const propia = armarMensaje(plantillaDe("lentes_listos", { lentes_listos: "{nombre}, ya puedes pasar por tus lentes a {óptica}." }), { paciente: { nombre: "Ana" }, opticaNombre: "Visión" })
+    expect(propia).toBe("Ana, ya puedes pasar por tus lentes a Visión.")
+  })
+  it("con ejemplo, las variables de un aviso llevan un dato de muestra", () => {
+    expect(armarMensaje("{fecha_de_la_cita} · {orden} · {medidas}", { ejemplo: true })).toContain("martes 20 de octubre a las 04:00 PM · 000012 · • Distancia pupilar")
   })
   it("el control vencido es un recordatorio de salud, no una promoción", () => {
     expect(PLANTILLAS_BASE.control_vencido).not.toMatch(/promoci|oferta|descuento/i)

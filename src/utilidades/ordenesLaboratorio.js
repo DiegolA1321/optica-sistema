@@ -138,11 +138,6 @@ export function validarOrden(d) {
 export const tratamientos = (o) => [o.antirreflejo && "Antirreflejo", o.filtroAzul && "Filtro azul", o.fotocromatico && "Fotocromático", o.otrosTratamientos].filter(Boolean)
 const tipoLabel = (id) => TIPOS_LENTE.find((t) => t.id === id)?.label || id
 
-export function mensajeLentesListos({ paciente, opticaNombre, orden }) {
-  const nombre = String(paciente?.nombre || "").trim()
-  return `Hola${nombre ? `, ${nombre}` : ""}, te escribimos de ${opticaNombre || "tu óptica"}: tus lentes (orden ${numeroOrden(orden.numero)}) ya están listos para retirar. Te esperamos.`
-}
-
 const escapar = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
 const v = (t) => (t && String(t).trim() ? escapar(t) : "—")
 // Medida en milímetros (DP y altura): "62" → "62 mm"; si ya trae la unidad, se deja igual.

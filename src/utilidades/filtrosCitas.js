@@ -30,11 +30,14 @@ export const tareasFiltro = () => [
   { id: "reagendar", etiqueta: "Contactar al paciente" },
 ]
 
+// Por dónde nació la cita: la reservó el paciente en la web, la agendó recepción, o el paciente llegó sin cita y se le abrió una al momento («Atender ahora»: Presencial, migración 0136).
 export const ORIGENES_FILTRO = [
   { id: "todos", etiqueta: "Todos" },
   { id: "paciente", etiqueta: "Web" },
   { id: "staff", etiqueta: "Recepción" },
+  { id: "presencial", etiqueta: "Presencial" },
 ]
+export const etiquetaOrigenCita = (origen) => ORIGENES_FILTRO.find((o) => o.id === origen)?.etiqueta || "Recepción"
 
 export const SEGUIMIENTO_FILTRO = [
   { id: "todos", etiqueta: "Todos" },

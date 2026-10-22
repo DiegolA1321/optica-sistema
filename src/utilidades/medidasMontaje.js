@@ -12,12 +12,6 @@ export function medidasDelPaciente({ consultas = [], ordenes = [] } = {}) {
   return { dp, altura, faltan: !dp || !altura, hayAlgo: !!(dp || altura) }
 }
 
-export function mensajeMedidas({ paciente, opticaNombre, dp, altura }) {
-  const nombre = limpio(paciente?.nombre)
-  const lineas = [dp && `• Distancia pupilar: ${conUnidad(dp)}`, altura && `• Altura de montaje: ${conUnidad(altura)}`].filter(Boolean)
-  return `Hola${nombre ? `, ${nombre}` : ""}, te escribimos de ${opticaNombre || "tu óptica"}. Estas son las medidas que nos pediste para tus lentes:\n${lineas.join("\n")}\nCualquier duda, escríbenos.`
-}
-
 // Lo que el portal recibe de mi_solicitud_medidas_paciente → forma que usa la pantalla.
 export function mapSolicitudMedidas(d) {
   if (!d || typeof d !== "object") return null

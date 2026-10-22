@@ -11,10 +11,10 @@ import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, BOTON_CERRAR, plural }
 import { dinero } from "../../utilidades/formatoMoneda"
 import { fechaLegible } from "../../utilidades/formatoFecha"
 import { coincideTexto } from "../../utilidades/busqueda"
-import { linkWhatsApp } from "../../utilidades/whatsapp"
+import { useEscribirPorWhatsApp } from "../EscribirPorWhatsApp"
 import { registrarLog } from "../../utilidades/logs"
 import { diasEnEspera, etiquetaMotivo, esDelPortal, etiquetaInteres } from "../../utilidades/pasesVenta"
-import { FILTROS_POR_VENDER, DIAS_PARA_SEGUIMIENTO, listaPorVender, llevaProforma, lineaDiagnosticoYLente, diagnosticoCorto, textoDiasEspera, mensajeSeguimientoVenta } from "../../utilidades/ventasModulo"
+import { FILTROS_POR_VENDER, DIAS_PARA_SEGUIMIENTO, listaPorVender, llevaProforma, lineaDiagnosticoYLente, diagnosticoCorto, textoDiasEspera } from "../../utilidades/ventasModulo"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
 
 // Las mismas columnas en el encabezado y en cada fila, para que nada baile entre filtros (regla 1).
@@ -27,6 +27,7 @@ export default function PestanaPorVender({ v, usuario, puedeVender, onVerPacient
   const [filtro, setFiltro] = useState(FILTROS_POR_VENDER.some((f) => f.id === filtroInicial) ? filtroInicial : "todos")
   const [texto, setTexto] = useState("")
   const [detalle, setDetalle] = useState(null) // { item, descartado }
+  const escribirPorWhatsApp = useEscribirPorWhatsApp()
   const hoy = useMemo(() => ahoraEcuador(), [])
   const nocompraron = filtro === "nocompraron"
 
@@ -43,7 +44,7 @@ export default function PestanaPorVender({ v, usuario, puedeVender, onVerPacient
   const escribir = (item) => {
     const tel = item.paciente?.telefono
     if (!tel) return
-    window.open(linkWhatsApp(tel, mensajeSeguimientoVenta({ paciente: item.paciente, opticaNombre: usuario?.opticaNombre, conProforma: llevaProforma(item) })), "_blank", "noopener")
+    escribirPorWhatsApp({ paciente: item.paciente, motivo: "por_vender" })
     registrarLog(usuario, "ventas", "Escribió por WhatsApp a un paciente por vender", item.paciente?.nombre || "")
   }
 

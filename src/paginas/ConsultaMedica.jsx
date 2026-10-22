@@ -19,7 +19,7 @@ import { antecedentesRelevantes, textoAntecedentes } from "../utilidades/anteced
 import { lineasCobroConsulta } from "../utilidades/costosConsulta"
 import ConfirmarFichaModal from "../componentes/ConfirmarFichaModal"
 import { Cascaron, DetalleAtencion } from "../componentes/AtencionPaciente"
-import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
+import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
@@ -68,8 +68,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   // Lo que cambió al abrir la ficha de una cita: el estado anterior (si pasó a "En atención") y si se registró quién atiende. Sirve para "Dejar de atender".
   const aperturaCita = useRef({ estado: null, atendido: false })
   const [mostrarDejarDeAtender, setMostrarDejarDeAtender] = useState(false)
-  const [dejandoDeAtender, setDejandoDeAtender] = useState(false)
-  const [errorDejarDeAtender, setErrorDejarDeAtender] = useState("")
   // Si la óptica no ofrece progresión, no tiene sentido pedir la adición (configurable en Configuración)
   const manejaProgresion = parametrizacion?.manejaProgresion !== false
 
@@ -158,29 +156,11 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     registrarLog(usuario, "ventas", "Cobró la atención desde la ficha clínica", `${dinero((Number(factura.montoTotal) || 0))}`)
   }
 
-  // "Dejar de atender" (R32): no se pospone. Lo que no se guardó se pierde y la cita queda como estaba.
-  const dejarDeAtender = async () => {
-    setDejandoDeAtender(true)
-    setErrorDejarDeAtender("")
-    const cita = citaDeLaVisita
-    const estadoDestino = aperturaCita.current.estado || (cita?.estado === "En Atención" ? "Pendiente" : null)
-    const cambios = {}
-    if (estadoDestino && cita?.estado !== estadoDestino) cambios.estado = estadoDestino
-    if (cita?.atendidoPor && cita.atendidoPor === usuario?.id) cambios.atendido_por = null
-    if (supabase && citaEnAtencionId && Object.keys(cambios).length > 0) {
-      const { error } = await supabase.from("citas").update(cambios).eq("id", citaEnAtencionId)
-      if (error) {
-        setErrorDejarDeAtender("No se pudo devolver la cita a su estado anterior. Revisa tu conexión e intenta de nuevo.")
-        setDejandoDeAtender(false)
-        return
-      }
-    }
-    setCitas?.((prev) => prev.map((c) => (c.id === citaEnAtencionId ? { ...c, ...(cambios.estado ? { estado: cambios.estado } : {}), ...("atendido_por" in cambios ? { atendidoPor: null } : {}) } : c)))
+  // «Dejar de atender»: la cita vuelve a «En espera» (mismo día) o queda «No efectuada» (día pasado), lo decide el servidor, y el borrador de la ficha se CONSERVA para retomarla.
+  const alDejarDeAtender = (mensaje) => {
     registrarLog(usuario, "consultas", "Dejó de atender a un paciente", pacienteSeleccionado)
-    borrarBorrador(clave)
     onCambiosSinGuardarChange?.(false)
-    onAviso?.(`Dejaste de atender a ${pacienteSeleccionado}. La cita sigue agendada.`)
-    setDejandoDeAtender(false)
+    onAviso?.(mensaje)
     setMostrarDejarDeAtender(false)
     ;(onCerrar || onVolver)?.()
   }
@@ -672,7 +652,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
           </button>
           <div className="flex items-center gap-1">
             {citaEnAtencionId && !fichaGuardada && (
-              <button type="button" onClick={() => { setErrorDejarDeAtender(""); setMostrarDejarDeAtender(true) }} title="Salir sin guardar: la cita se mantiene agendada"
+              <button type="button" onClick={() => setMostrarDejarDeAtender(true)} title="Salir de la ficha: el borrador se conserva y la cita vuelve a «En espera»"
                 className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-red-50 hover:text-red-700 cursor-pointer">
                 <LogOut size={14} aria-hidden="true" /> Dejar de atender
               </button>
@@ -1015,9 +995,9 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       </div>
 
       {mostrarDejarDeAtender && (
-        <ConfirmarEliminarModal titulo="¿Dejar de atender?" mensaje={`Lo que no guardaste de la ficha se perderá y la cita de ${pacienteSeleccionado || "este paciente"} se mantiene agendada.${errorDejarDeAtender ? " " + errorDejarDeAtender : ""}`}
-          etiquetaConfirmar="Sí, dejar de atender" eliminando={dejandoDeAtender} onCancelar={() => setMostrarDejarDeAtender(false)} onConfirmar={dejarDeAtender} />
+        <ConfirmarDejarDeAtender cita={citaDeLaVisita || { id: citaEnAtencionId, paciente: pacienteSeleccionado || "este paciente", fecha: hoyISO(), hora: "" }} setCitas={setCitas} onCancelar={() => setMostrarDejarDeAtender(false)} onHecho={alDejarDeAtender} />
       )}
+
 
       {mostrarConfirmarGuardar && (
         <ConfirmarFichaModal paciente={pacienteSeleccionado} diagnostico={[f.diagnosticoCategorias.join(", "), f.diagnostico.trim()].filter(Boolean).join(" — ")} lenteRecomendado={f.recomendarLente ? f.lenteRecomendado : ""} usaLentes={f.usaLentes}

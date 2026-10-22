@@ -7,6 +7,7 @@ import { INK } from "@/lib/tema"
 import { agudezaConLentes } from "../utilidades/agudeza"
 import { fechaLegible, fechaHoraLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { profesionalDeCita } from "../utilidades/profesionalCita"
+import { etiquetaOrigenCita } from "../utilidades/filtrosCitas"
 import { DetalleAtencion, SinInformacion, Cascaron } from "./AtencionPaciente"
 import { CORREO_AUTOMATICO_ACTIVO } from "../utilidades/crmContactos"
 
@@ -244,7 +245,7 @@ export function PanelCitasEstado({ estado, citas, equipo, consultaDe, onVerAtenc
               {estado === "atendidas" && consulta && onVerAtencion && <button type="button" onClick={() => onVerAtencion(c)} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">Ver atención <ChevronRight size={14} aria-hidden="true" /></button>}
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              {[pro && "Profesional: " + pro, "Origen: " + (c.origen === "paciente" ? "Web" : "Recepción"), agendada && "Agendada el " + agendada].filter(Boolean).join(" · ")}
+              {[pro && "Profesional: " + pro, "Origen: " + etiquetaOrigenCita(c.origen), agendada && "Agendada el " + agendada].filter(Boolean).join(" · ")}
             </p>
             {estado === "atendidas" && consulta && <p className="mt-1 text-xs text-slate-600"><span className="font-semibold">Diagnóstico:</span> {consulta.diagnostico || (consulta.diagnosticoCategorias || []).join(", ") || "sin registrar"}</p>}
             {NOTA_ESTADO[estado] && <p className="mt-1 text-xs text-slate-600">{NOTA_ESTADO[estado]}</p>}

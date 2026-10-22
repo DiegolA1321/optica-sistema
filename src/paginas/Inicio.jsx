@@ -25,7 +25,7 @@ import {
   CalendarOff,
   UserPlus,
 } from "lucide-react"
-import { listaParaContactar, armarMensaje, plantillaDe } from "../utilidades/crmContactos"
+import { listaParaContactar, puedeContactarPor } from "../utilidades/crmContactos"
 import { esInactivo } from "../utilidades/fidelizacion"
 import { controlesSinAgendar, asignadoDelControl, citasParaReagendar } from "../utilidades/controles"
 import { fechaAISO, hoyISO, esHoy } from "../utilidades/disponibilidad"
@@ -42,7 +42,8 @@ import FilaTarjetas from "../componentes/FilaTarjetas"
 import RequiereAtencionPorArea, { BotonRequierenAtencion } from "../componentes/RequiereAtencionPorArea"
 import AvisosInicio from "../componentes/AvisosInicio"
 import { particionarDescartados, TIPOS_DESCARTABLES } from "../utilidades/avisosDescartados"
-import { citasPorContactar, motivoDeLaCita, mensajeContacto, TIPO_AVISO_CONTACTAR } from "../utilidades/contactarPaciente"
+import { citasPorContactar, motivoDeLaCita, TIPO_AVISO_CONTACTAR } from "../utilidades/contactarPaciente"
+import { useEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import VentanaTotal from "../componentes/VentanaTotal"
 import ParaEmpezar from "../componentes/ParaEmpezar"
 import VentanaActividad from "../componentes/VentanaActividad"
@@ -88,8 +89,7 @@ export default function Inicio({
   onDescartar, // async (tipo, clave, motivo, detalle) → { error? }
   onRestaurar, // async (tipo, clave) → { error? }
   seguimientoContacto = new Map(), // por cita por contactar: { motivo, contactadaEn, sinSeguimiento }
-  onContactarPaciente, // (cita, mensaje) → abre WhatsApp y deja la cita como «contactada»
-  onWhatsAppPaciente, // (paciente, mensaje) → abre WhatsApp con el mensaje ya redactado
+  onContactarPaciente, // (cita) → abre WhatsApp con la plantilla del CRM, lo anota en el Seguimiento del CRM y deja la cita como «contactada»
   onCrearPacienteRapido,
   onCrearProductoRapido,
   onReabastecerProducto,
@@ -131,6 +131,7 @@ export default function Inicio({
   // RLS es la red de seguridad real si algún día cambia el gate del lado
   // del cliente.
   const esAdmin = usuario?.rol === "admin"
+  const escribirPorWhatsApp = useEscribirPorWhatsApp()
   const listasSinAvisar = useMemo(() => ordenesListasSinAvisar(ordenesLab), [ordenesLab])
   const atrasadas = useMemo(() => ordenesAtrasadas(ordenesLab), [ordenesLab])
   // D4 (reunión 29 sept.): "optómetra" es un flag (perfiles.es_optometra) que
@@ -649,7 +650,7 @@ export default function Inicio({
           const acciones = []
           // Una cita sin paciente registrado no se puede reagendar desde aquí: se abre en su día.
           acciones.push(c.pacienteId && puedeAgendar ? { etiqueta: "Reagendar", onClick: () => onReagendarCancelada?.(c) } : { etiqueta: "Ver cita", navega: true, onClick: enCitas("todas", "dia", c.fecha) })
-          if (puedeEscribir && c.telefono) acciones.push({ etiqueta: "Escribir por WhatsApp", onClick: () => onContactarPaciente(c, mensajeContacto({ cita: c, motivo, opticaNombre })) })
+          if (puedeEscribir && c.telefono) acciones.push({ etiqueta: "Escribir por WhatsApp", onClick: () => onContactarPaciente(c) })
           return {
             id: c.id, nombre: c.paciente,
             insignia: c.estado === "No Asistió" ? { texto: "No efectuada", tono: "urgente" } : { texto: "Canceló el paciente", tono: "neutro" },
@@ -701,7 +702,7 @@ export default function Inicio({
           detalle: `Control vencido hace ${dias} ${dias === 1 ? "día" : "días"}`,
           acciones: [
             puedeAgendar ? { etiqueta: "Agendar control", onClick: () => onAgendarControl?.(paciente, hoyISO(), undefined) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
-            ...(onWhatsAppPaciente && paciente.telefono ? [{ etiqueta: "WhatsApp", onClick: () => onWhatsAppPaciente(paciente, armarMensaje(plantillaDe("control_vencido"), { paciente, opticaNombre, consultas })) }] : []),
+            ...(puedeV("pacientes", "ver") && paciente.telefono && puedeContactarPor(paciente, "control_vencido") ? [{ etiqueta: "WhatsApp", onClick: () => escribirPorWhatsApp({ paciente, motivo: "control_vencido" }) }] : []),
           ],
         })),
         ...dVencido.extra,

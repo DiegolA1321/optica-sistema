@@ -23,12 +23,19 @@ export function atencionesAbiertasAntiguas(citas = [], hoy = ahoraEcuador()) {
 
 export const textoAtencionAbierta = (dias) => `Abierta hace ${dias} día${dias === 1 ? "" : "s"}`
 
-// Deja de atender la cita: vuelve a Pendiente y deja de figurar quien atendía.
-// Si su fecha ya pasó, el sistema la marcará como "No efectuada" solo.
+// Qué pasa al «Dejar de atender» (lo decide el servidor, dejar_de_atender_cita, con el día de Ecuador; aquí solo se anticipa para explicarlo en la ventana):
+//   · el mismo día de la cita: vuelve a «En espera» (el paciente puede seguir ahí) y el borrador de la ficha se conserva;
+//   · si el día ya pasó: queda «No efectuada» con el motivo «La atención se interrumpió» y pasa a «Contactar al paciente».
+export const MOTIVO_ATENCION_INTERRUMPIDA = "La atención se interrumpió"
+export const destinoAlDejarDeAtender = (cita, hoy = ahoraEcuador()) => (cita?.fecha && cita.fecha < fechaAISO(hoy) ? "No Asistió" : "En Espera")
+
+// Deja de atender la cita. Devuelve { estado } con el estado en que quedó, o { error }. Si la cita ya no estaba «En atención» (otra persona la cerró), no toca nada y lo dice (yaNoEstaba).
 export async function dejarDeAtenderCita(cita) {
-  if (!supabase) return { error: null }
-  // Con .select(): una cita que no se pudo cambiar (la base la rechazó sin error) no se da por cambiada.
-  const { data, error } = await supabase.from("citas").update({ estado: "Pendiente", atendido_por: null }).eq("id", cita.id).select("id")
-  if (!error && Array.isArray(data) && data.length === 0) return { error: { code: "42501", message: "La cita no se pudo cambiar." } }
-  return { error }
+  if (!supabase) return { estado: destinoAlDejarDeAtender(cita), yaNoEstaba: false }
+  const { data, error } = await supabase.rpc("dejar_de_atender_cita", { p_cita_id: cita.id })
+  if (error) return { error }
+  return { estado: data, yaNoEstaba: data !== "En Espera" && data !== "No Asistió" }
 }
+
+// Lo que cambia en la cita de la pantalla tras dejar de atender.
+export const cambiosAlDejarDeAtender = (estado) => (estado === "En Espera" ? { estado, atendidoPor: null } : { estado })

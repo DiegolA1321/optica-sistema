@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { citasPorContactar, motivoDeLaCita, mensajeContacto, heredarBorrador, TIPO_AVISO_CONTACTAR } from "./contactarPaciente"
+import { citasPorContactar, motivoDeLaCita, heredarBorrador, TIPO_AVISO_CONTACTAR } from "./contactarPaciente"
 import { particionarDescartados, descarteVigente, claveDescarte } from "./avisosDescartados"
 import { claveBorrador, guardarBorrador, leerBorrador } from "./borradorFicha"
 import { hoyISO } from "./disponibilidad"
@@ -29,15 +29,6 @@ describe("Contactar al paciente", () => {
     expect(motivoDeLaCita(cita({}), seg)).toBe("La atención se inició y no se terminó")
     expect(motivoDeLaCita(cita({}), new Map())).toBe("El paciente no asistió")
     expect(motivoDeLaCita(cita({ estado: "Cancelada" }), new Map())).toBe("El paciente canceló su cita")
-  })
-
-  it("el mensaje de WhatsApp cambia según lo que pasó y nombra la óptica", () => {
-    const sinTerminar = mensajeContacto({ cita: cita({}), motivo: "La atención se inició y no se terminó", opticaNombre: "Óptica Sol" })
-    expect(sinTerminar).toMatch(/Hola Ana Pérez/)
-    expect(sinTerminar).toMatch(/Óptica Sol/)
-    expect(sinTerminar).toMatch(/sin terminar/)
-    expect(mensajeContacto({ cita: cita({ estado: "Cancelada" }), motivo: "x" })).toMatch(/cancelaste/)
-    expect(mensajeContacto({ cita: cita({}), motivo: "El paciente no asistió" })).toMatch(/no pudiste venir/)
   })
 })
 

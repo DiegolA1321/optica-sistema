@@ -77,7 +77,7 @@ import VentanaAvisosInternos from "../componentes/soporte/VentanaAvisosInternos"
 import { listaParaContactar } from "../utilidades/crmContactos"
 import { useAvisosDescartados } from "../utilidades/avisosDescartados"
 import { useSeguimientoDeContacto, registrarContacto } from "../utilidades/contactarPaciente"
-import { abrirWhatsApp } from "../utilidades/whatsapp"
+import { ProveedorEscribirPorWhatsApp, crearEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 
 
 // ─── Paleta de firma ───
@@ -132,10 +132,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // Avisos descartados (con motivo) y seguimiento de «Contactar al paciente»: se comparten entre el Inicio y Citas para que el número sea el mismo.
   const { descartes, descartar: descartarAviso, restaurar: restaurarAviso } = useAvisosDescartados(usuario?.opticaId, !!usuario?.opticaId && opticaActiva)
   const seguimientoContacto = useSeguimientoDeContacto(citas, !!usuario?.opticaId && opticaActiva)
-  const contactarPaciente = (cita, mensaje) => {
-    abrirWhatsApp(cita.telefono, mensaje)
-    registrarContacto(cita.id, "whatsapp")
-    mostrarAviso(`WhatsApp abierto para ${cita.paciente}. Queda anotado en el seguimiento de la cita.`)
+  // «Escribir por WhatsApp» de una cita no efectuada o cancelada: la plantilla del CRM, el contacto en el Seguimiento del CRM y la nota en el seguimiento de la cita.
+  const contactarPaciente = (cita) => {
+    const paciente = pacientes.find((p) => p.id === cita.pacienteId) || { id: cita.pacienteId, nombre: cita.paciente, telefono: cita.telefono }
+    const r = escribirPorWhatsApp({ paciente, telefono: cita.telefono, motivo: "cita_no_efectuada", contexto: { cita } })
+    if (!r.sinTelefono) registrarContacto(cita.id, "whatsapp")
   }
   const { avisos: avisosContacto, atender: atenderAvisoContacto } = useAvisosContacto(usuario?.opticaId, puede(usuario, "pacientes", "ver"))
   // Pagos por transferencia que los pacientes reportan desde su portal (migración 0131): Ventas los revisa y el Inicio los cuenta.
@@ -158,6 +159,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     usuario, habilitado: puede(usuario, "crm", "ver"),
     alCambiarPermisos: (id, cambios) => setPacientes((prev) => prev.map((p) => (p.id === id ? { ...p, ...cambios } : p))),
   })
+  // Todo aviso con «WhatsApp» escribe con la plantilla del CRM y deja su contacto en el Seguimiento (un solo camino: EscribirPorWhatsApp.jsx).
+  const escribirPorWhatsApp = useMemo(
+    () => crearEscribirPorWhatsApp({ plantillas: crm.plantillas, opticaNombre: usuario?.opticaNombre, consultas, contactarDeAviso: crm.contactarDeAviso, avisar: (m) => mostrarAviso(m) }),
+    [crm.plantillas, crm.contactarDeAviso, usuario?.opticaNombre, consultas],
+  )
   const paraContactar = useMemo(() => (crm.cargando ? null : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos: crm.contactos })), [crm.cargando, crm.contactos, pacientes, consultas, ordenesLab, citas])
   const textoAvisosVentas = `${avisosVentas} ${avisosVentas === 1 ? "aviso" : "avisos"} en Ventas`
   // Vista activa (R50): quien tiene más de un rol, o es administrador y también atiende, elige desde el
@@ -808,7 +814,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onRestaurar={restaurarAviso}
             seguimientoContacto={seguimientoContacto}
             onContactarPaciente={contactarPaciente}
-            onWhatsAppPaciente={(paciente, mensaje) => { abrirWhatsApp(paciente.telefono, mensaje); mostrarAviso(`WhatsApp abierto para ${paciente.nombre}.`) }}
             onReagendarCancelada={(cita) => { setControlParaAgendar({ heredaDeCitaId: cita.id, heredaDeEstado: cita.estado, pacienteId: cita.pacienteId, fecha: cita.fecha, asignadoA: cita.asignadoA || "", motivo: cita.motivo || "" }); setAtajoInicio("citas") }}
             onCrearPacienteRapido={() => setAtajoInicio("pacientes")}
             onCrearProductoRapido={() => setAtajoInicio("inventario")}
@@ -833,6 +838,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
 
   return (
+    <ProveedorEscribirPorWhatsApp value={escribirPorWhatsApp}>
     <div className="flex h-screen bg-slate-50 font-sans">
       {verAvisosInternos && <VentanaAvisosInternos usuario={usuario} onCerrar={() => setVerAvisosInternos(false)} />}
       {dialogoAtenderInicio}
@@ -1218,5 +1224,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         />
       )}
     </div>
+    </ProveedorEscribirPorWhatsApp>
   )
 }

@@ -157,7 +157,7 @@ export function resumenCitasPor(citasPeriodo, claves, claveDe) {
   }
   return filas.map((x) => ({ ...x, tasa: porcentaje(x.noAsistio.length, x.citas.length) }))
 }
-export const ORIGENES = [{ id: "paciente", etiqueta: "Web" }, { id: "staff", etiqueta: "Recepción" }]
+export const ORIGENES = [{ id: "paciente", etiqueta: "Web" }, { id: "staff", etiqueta: "Recepción" }, { id: "presencial", etiqueta: "Presencial" }]
 export const VISITAS = [{ id: "primera", etiqueta: "Primera vez" }, { id: "seguimiento", etiqueta: "Seguimiento" }]
 
 // Controles que vencían en el período y cuántos se agendaron. Un control vence a los `proximoControlDias` de la consulta

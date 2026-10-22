@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { medidasDelPaciente, mensajeMedidas, mapSolicitudMedidas, medidaConUnidad } from "./medidasMontaje"
+import { medidasDelPaciente, mapSolicitudMedidas, medidaConUnidad } from "./medidasMontaje"
 
 describe("medidasDelPaciente", () => {
   it("toma la DP de la receta más reciente que la tenga y la altura de la última orden que la tenga", () => {
@@ -14,18 +14,6 @@ describe("medidasDelPaciente", () => {
   it("sin orden de lentes falta la altura; sin nada, no hay qué enviar", () => {
     expect(medidasDelPaciente({ consultas: [{ fecha: "2026-09-01", medidas: { dp: "62" } }], ordenes: [] })).toMatchObject({ dp: "62", altura: "", faltan: true, hayAlgo: true })
     expect(medidasDelPaciente({})).toMatchObject({ faltan: true, hayAlgo: false })
-  })
-})
-
-describe("mensajeMedidas", () => {
-  it("redacta solo las medidas que existen, con unidad", () => {
-    const m = mensajeMedidas({ paciente: { nombre: "Rosa Bravo" }, opticaNombre: "Óptica Solna", dp: "62", altura: "18 mm" })
-    expect(m).toContain("Hola, Rosa Bravo")
-    expect(m).toContain("Óptica Solna")
-    expect(m).toContain("Distancia pupilar: 62 mm")
-    expect(m).toContain("Altura de montaje: 18 mm")
-    expect(m).not.toContain("18 mm mm")
-    expect(mensajeMedidas({ paciente: {}, opticaNombre: "", dp: "62", altura: "" })).not.toContain("Altura")
   })
 })
 

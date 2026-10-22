@@ -18,6 +18,8 @@ import { abrirWhatsApp } from "../../utilidades/whatsapp"
 const NOMBRE_MOTIVO_PLANTILLA = {
   control_vencido: "Control vencido", control_proximo: "Control que vence pronto", cumpleanos: "Cumpleaños", sin_visitar: "Reactivación (sin visitar hace más de 12 meses)",
   postventa: "Seguimiento después de la compra", promocion: "Promoción",
+  cita_no_efectuada: "Cita no efectuada (Contactar al paciente)", cita_reagendada: "Cita reagendada", lentes_listos: "Lentes listos para retirar",
+  medidas_montaje: "Medidas de montaje pedidas", por_vender: "Recibió su diagnóstico y no ha comprado",
 }
 const CAMPO = "w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
 
@@ -196,6 +198,11 @@ const CUANDO_SE_USA = {
   sin_visitar: "Recordatorio de salud para quien lleva más de 12 meses sin venir.",
   postventa: "Recordatorio de salud unos días después de entregar los lentes.",
   promocion: "Para campañas de ofertas. Solo va a quien aceptó promociones y saludos.",
+  cita_no_efectuada: "Desde «Contactar al paciente» (Inicio y Citas): una cita que no se efectuó o que el paciente canceló.",
+  cita_reagendada: "Al avisarle por WhatsApp que su cita cambió de fecha u hora.",
+  lentes_listos: "Desde el aviso «lentes listos» de Ventas y del Inicio.",
+  medidas_montaje: "Cuando el paciente pidió sus medidas desde el portal y se le envían por WhatsApp.",
+  por_vender: "Desde Ventas, a quien recibió su diagnóstico y todavía no compra.",
 }
 
 function InterruptorAutomatico({ activo, puedeEditar, onCambiar }) {
@@ -252,8 +259,8 @@ export function VentanaPlantillas({ plantillas, opticaNombre, puedeEditar, cumpl
                 </div>
                 {puedeEditar && !esBase && <button type="button" onClick={() => setBorrador((b) => ({ ...b, [m]: PLANTILLAS_BASE[m] }))} className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"><RotateCcw size={12} aria-hidden="true" /> Volver al mensaje base</button>}
               </div>
-              <EditorMensaje id={`plantilla-${m}`} ayudaId={`plantilla-${m}-largo`} valor={borrador[m]} soloLectura={!puedeEditar} onCambio={(t) => setBorrador((b) => ({ ...b, [m]: t }))} />
-              <p className="text-xs text-slate-500">Ejemplo: {armarMensaje(borrador[m], { paciente: { nombre: "Rosa Bravo Cedeño" }, opticaNombre })}</p>
+              <EditorMensaje id={`plantilla-${m}`} ayudaId={`plantilla-${m}-largo`} motivo={m} valor={borrador[m]} soloLectura={!puedeEditar} onCambio={(t) => setBorrador((b) => ({ ...b, [m]: t }))} />
+              <p className="text-xs text-slate-500">Ejemplo: {armarMensaje(borrador[m], { paciente: { nombre: "Rosa Bravo Cedeño" }, opticaNombre, ejemplo: true })}</p>
               {m === "cumpleanos" && <InterruptorAutomatico activo={cumpleAuto} puedeEditar={puedeEditar} onCambiar={onCumpleAuto} />}
             </div>
           )

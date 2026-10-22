@@ -54,6 +54,7 @@ import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/errore
 import { puede } from "../utilidades/permisosUi"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
+import { useEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
@@ -507,6 +508,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
       motivo,
       asignadoA,
       estado: atenderInmediato ? "En Atención" : "Pendiente",
+      origen: atenderInmediato ? "presencial" : null,
     })
     if (errorInsert) {
       setError(errorInsert)
@@ -938,14 +940,11 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
     setReagendada(citaActualizada)
   }
 
-  // Mismo formato de link (con prefijo +593) que ya usa CRM.jsx para sus avisos por WhatsApp
+  // Avisar por WhatsApp que la cita cambió: la plantilla «Cita reagendada» del CRM, y el contacto queda en el Seguimiento del CRM.
+  const escribirPorWhatsApp = useEscribirPorWhatsApp()
   const avisarReagendoWhatsApp = (cita) => {
-    let numeroLimpio = (cita.telefono || "").replace(/\D/g, "")
-    if (numeroLimpio.startsWith("0")) numeroLimpio = "593" + numeroLimpio.substring(1)
-    if (!numeroLimpio.startsWith("593") && numeroLimpio.length === 9) numeroLimpio = "593" + numeroLimpio
-    const texto = `Hola ${cita.paciente}, te escribimos de ${usuario?.opticaNombre || "tu óptica"} para avisarte que tu cita fue reagendada. Nueva fecha: ${fechaLegible(cita.fecha)} a las ${cita.hora}. Cualquier duda, contáctanos por aquí.`
-    const url = `https://api.whatsapp.com/send?phone=${numeroLimpio}&text=${encodeURIComponent(texto)}`
-    window.open(url, "_blank")
+    const paciente = pacientes.find((p) => p.id === cita.pacienteId) || { id: cita.pacienteId, nombre: cita.paciente, telefono: cita.telefono }
+    escribirPorWhatsApp({ paciente, telefono: cita.telefono, motivo: "cita_reagendada", contexto: { cita } })
   }
 
   // ── Reagendar arrastrando una cita pendiente en el calendario semanal: el
