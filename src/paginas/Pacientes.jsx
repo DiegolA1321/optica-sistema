@@ -1344,7 +1344,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                 </tr>
               ) : (
                 pacientesVisibles.map((paciente, indiceFila) => {
-                  const visita = ultimaVisita(paciente, consultas)
+                  // La última visita es la última CONSULTA (no su fecha de registro): quien nunca fue atendido dice «Sin consultas».
+                  const visita = puedeVerFichas && contarConsultas(paciente, consultas) > 0 ? ultimaVisita(paciente, consultas) : null
                   const siguiente = proximaCita.get(paciente.id)
                   const activa = indiceFila === filaActiva
                   // Badges contextuales de alto valor — lo que recepción
@@ -1444,7 +1445,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       <td className="px-5 py-4 text-slate-600">
                         <div className="flex items-center gap-1.5">
                           <Clock size={13} className="text-slate-500" aria-hidden="true" />
-                          <span>{visita ? fechaLegible(fechaAISO(visita)) : <span className="text-slate-400">Sin consultas</span>}</span>
+                          <span>{visita ? fechaLegible(fechaAISO(visita)) : <span className="text-slate-400">{puedeVerFichas ? "Sin consultas" : "—"}</span>}</span>
                         </div>
                       </td>
 
