@@ -351,7 +351,8 @@ const GraficaEsfera = ({ puntos, paciente, nombre }) => {
   )
 }
 
-export function VentanaHistoriaOjo({ recetas, lado, version = "paciente", actualId, onElegir, onCerrar }) {
+// `onLado` (solo el perfil del personal): muestra un interruptor OI · OD para pasar de un ojo al otro sin cerrar la ventana.
+export function VentanaHistoriaOjo({ recetas, lado, version = "paciente", actualId, onElegir, onCerrar, onLado }) {
   const paciente = version === "paciente"
   const nombre = NOMBRE_SIN_DATOS[lado]
   const sigla = lado === "od" ? "OD" : "OI"
@@ -361,6 +362,11 @@ export function VentanaHistoriaOjo({ recetas, lado, version = "paciente", actual
   const COL = "@[30rem]:grid @[30rem]:grid-cols-[minmax(0,1.5fr)_4.5rem_4.5rem_3.5rem_4.5rem] @[30rem]:items-center @[30rem]:gap-x-3 px-4"
   return (
     <Cascaron pantallaCompletaEnCelular titulo={paciente ? `Historia de tu ${nombre}` : `Historia de este ojo · ${sigla}`} subtitulo={paciente ? "Todas tus recetas y cómo cambió tu esfera." : "Todas las recetas del paciente y la esfera en el tiempo."} Icono={Glasses} ancho="max-w-2xl" onCerrar={onCerrar} capa="z-[60]"
+      derecha={onLado ? (
+        <div role="group" aria-label="Ojo" className="inline-flex rounded-lg bg-slate-100 p-0.5">
+          {[["oi", "OI"], ["od", "OD"]].map(([l, t]) => <button key={l} type="button" aria-pressed={lado === l} onClick={() => onLado(l)} className={"rounded-md px-3 py-1 text-sm font-semibold transition-colors cursor-pointer " + (lado === l ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}>{t}</button>)}
+        </div>
+      ) : undefined}
       pie={<><span /><button type="button" onClick={onCerrar} className={paciente ? "inline-flex min-h-12 items-center rounded-xl border-[1.5px] border-slate-300/80 bg-white px-5 text-base font-semibold text-pt-marino hover:bg-slate-50 cursor-pointer" : "rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"}>Cerrar</button></>}>
       <div className="space-y-4 p-5">
         <section aria-label="Esfera en el tiempo" className="rounded-2xl border border-slate-200/60 p-3">

@@ -1,11 +1,12 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Printer, Stethoscope, GitCompare, ClipboardList } from "lucide-react"
+import { Stethoscope, ClipboardList, GitCompare } from "lucide-react"
 import { INK } from "@/lib/tema"
 import SelectorLista from "../SelectorLista"
 import { Cascaron, DetalleAtencion } from "../AtencionPaciente"
 import { GraduacionVigente, VentanaHistoriaOjo } from "./Graduacion"
+import { TarjetasDiagnostico, RefraccionPerfil } from "./DiagnosticoCompacto"
 import { edadEnAnios } from "../../utilidades/edad"
 import { formatoFecha } from "../../utilidades/formatoFecha"
 import { recetasDe } from "../../utilidades/graduacion"
@@ -18,7 +19,7 @@ import { compararDiagnosticos, rotuloDeConsulta, tieneRefraccion } from "../../u
 // (con los ojos ilustrados), la salud ocular si la hay, el diagnóstico y las indicaciones— con el selector de consulta arriba. Un interruptor de dos opciones cambia entre la vista técnica y la
 // vista para el paciente (palabras simples, la misma del portal). «Comparar diagnósticos» pone dos consultas lado a lado; «Imprimir diagnóstico» saca la hoja de la óptica con todo el diagnóstico
 // (con la receta dentro si hubo refracción). Una consulta sin refracción muestra su diagnóstico igual, sin huecos.
-const BOTON = "inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+const BOTON = "inline-flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 cursor-pointer"
 const viñetas = (t = "") => t.split(/\n+|(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])/).map((x) => x.trim()).filter(Boolean)
 
 export default function DiagnosticoPerfil({ consultas = [], paciente, usuario, parametrizacion }) {
@@ -51,22 +52,22 @@ export default function DiagnosticoPerfil({ consultas = [], paciente, usuario, p
   const indicaciones = viñetas(consulta.indicaciones)
 
   return (
-    <div className="@container space-y-5">
-      {/* Una sola fila compacta: título, selector de consulta, interruptor de vista y las dos acciones. El selector es lo que se encoge; nada baja a una segunda fila. */}
-      <div className="flex flex-nowrap items-center gap-2">
-        <h1 className="shrink-0 whitespace-nowrap text-base font-bold text-slate-900">Diagnóstico</h1>
+    <div className="@container space-y-4">
+      {/* Una sola fila compacta, en su tarjeta: título, selector de consulta, interruptor de vista y las dos acciones. El selector es lo que se encoge; en pantalla angosta la fila pasa a dos líneas. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-slate-200/60 bg-white px-5 py-3 shadow-sm">
+        <h1 className="shrink-0 whitespace-nowrap text-base font-bold" style={{ color: INK }}>Diagnóstico</h1>
         <div className="min-w-[8rem] max-w-[17rem] flex-1">
           <SelectorLista id="diagnostico-consulta" etiqueta="Consulta" valor={String(consulta.id)} onChange={setId} options={lista.map((c, i) => ({ id: String(c.id), etiqueta: rotuloDeConsulta(c, i === 0) }))} />
         </div>
-        <div role="group" aria-label="Cómo ver el diagnóstico" className="ml-auto inline-flex shrink-0 rounded-lg border border-slate-300 bg-slate-50 p-0.5">
-          {[["tecnica", "Vista técnica"], ["paciente", "Vista para el paciente"]].map(([k, t]) => (
-            <button key={k} type="button" aria-pressed={vista === k} onClick={() => setVista(k)} className={"min-h-9 whitespace-nowrap rounded-md px-2.5 text-[13px] font-semibold transition-colors cursor-pointer " + (vista === k ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800")}>{t}</button>
-          ))}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Cómo ver el diagnóstico" className="inline-flex shrink-0 rounded-lg bg-slate-100 p-0.5">
+            {[["tecnica", "Vista técnica"], ["paciente", "Para el paciente"]].map(([k, t]) => (
+              <button key={k} type="button" aria-pressed={vista === k} onClick={() => setVista(k)} className={"min-h-9 whitespace-nowrap rounded-md px-3 text-sm font-semibold transition-colors cursor-pointer " + (vista === k ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}>{t}</button>
+            ))}
+          </div>
+          {lista.length > 1 && <button type="button" onClick={() => setComparando(true)} className={BOTON}>Comparar</button>}
+          <button type="button" onClick={imprimir} className="inline-flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-700 cursor-pointer">Imprimir diagnóstico</button>
         </div>
-        {lista.length > 1 && <button type="button" onClick={() => setComparando(true)} className={BOTON}><GitCompare size={14} aria-hidden="true" /> Comparar diagnósticos</button>}
-        <button type="button" onClick={imprimir} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[13px] font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
-          <Printer size={14} aria-hidden="true" /> Imprimir diagnóstico
-        </button>
       </div>
 
       {simple ? (
@@ -85,15 +86,14 @@ export default function DiagnosticoPerfil({ consultas = [], paciente, usuario, p
           )}
         </div>
       ) : (
-        <div className="rounded-2xl border border-slate-200/60 bg-white">
-          <DetalleAtencion
-            consulta={consulta}
-            secciones={["diagnostico", "agudeza", "refraccion", "examen", "indicaciones"]}
-            refraccion={hayRefraccion ? <GraduacionVigente receta={consulta} anterior={anterior} version="personal" onOjo={setHistoriaOjo} /> : null}
-          />
+        <div className="space-y-4">
+          <TarjetasDiagnostico consulta={consulta} />
+          {hayRefraccion && <RefraccionPerfil receta={consulta} anterior={anterior} onOjo={setHistoriaOjo} />}
+          {/* El examen y la salud ocular, solo si se registraron. */}
+          <div className="hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm has-[section]:block"><DetalleAtencion consulta={consulta} secciones={["examen"]} /></div>
         </div>
       )}
-      {historiaOjo && <VentanaHistoriaOjo recetas={recetas} lado={historiaOjo} version={simple ? "paciente" : "personal"} actualId={consulta.id} onElegir={(rid) => { setId(String(rid)); setHistoriaOjo(null) }} onCerrar={() => setHistoriaOjo(null)} />}
+      {historiaOjo && <VentanaHistoriaOjo recetas={recetas} lado={historiaOjo} version={simple ? "paciente" : "personal"} actualId={consulta.id} onElegir={(rid) => { setId(String(rid)); setHistoriaOjo(null) }} onCerrar={() => setHistoriaOjo(null)} onLado={simple ? undefined : setHistoriaOjo} />}
       {comparando && <VentanaCompararDiagnosticos consultas={lista} idInicial={String(consulta.id)} onCerrar={() => setComparando(false)} />}
     </div>
   )

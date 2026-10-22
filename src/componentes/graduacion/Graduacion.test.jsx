@@ -181,12 +181,12 @@ describe("La pestaña «Diagnóstico» del perfil del personal", () => {
     expect(document.body.textContent).toContain("Usa tus lentes todo el día.")
   })
 
-  it("los botones se llaman «Comparar diagnósticos» e «Imprimir diagnóstico» (no «recetas»)", () => {
+  it("los botones se llaman «Comparar» e «Imprimir diagnóstico» (no «recetas»)", () => {
     render(<DiagnosticoPerfil {...props} />)
-    expect(screen.getByRole("button", { name: "Comparar diagnósticos" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Comparar" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Imprimir diagnóstico" })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /Comparar dos recetas|Imprimir receta/ })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Comparar diagnósticos" }))
+    fireEvent.click(screen.getByRole("button", { name: "Comparar" }))
     const v = screen.getByRole("dialog", { name: "Comparar diagnósticos" })
     expect(v).toHaveTextContent("Control en 6 meses.")
     expect(v).toHaveTextContent("Usa tus lentes todo el día.")
@@ -196,8 +196,8 @@ describe("La pestaña «Diagnóstico» del perfil del personal", () => {
     render(<DiagnosticoPerfil {...props} />)
     expect(screen.getByRole("button", { name: "Vista técnica" })).toHaveAttribute("aria-pressed", "true")
     expect(screen.queryByRole("button", { name: "Explicar al paciente" })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Vista para el paciente" }))
-    expect(screen.getByRole("button", { name: "Vista para el paciente" })).toHaveAttribute("aria-pressed", "true")
+    fireEvent.click(screen.getByRole("button", { name: "Para el paciente" }))
+    expect(screen.getByRole("button", { name: "Para el paciente" })).toHaveAttribute("aria-pressed", "true")
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("Tienes miopía leve")
     expect(screen.getByRole("region", { name: "Lo que te indicó tu optómetra" })).toHaveTextContent("Usa tus lentes todo el día.")
     fireEvent.click(screen.getByRole("button", { name: "Vista técnica" }))
@@ -210,7 +210,7 @@ describe("La pestaña «Diagnóstico» del perfil del personal", () => {
     expect(document.body.textContent).toContain("Descansar la vista cada hora.")
     expect(screen.queryByRole("region", { name: "Ojo derecho" })).not.toBeInTheDocument()
     expect(screen.queryByText("Refracción final")).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Comparar diagnósticos" })).not.toBeInTheDocument() // con una sola consulta no hay con qué comparar
+    expect(screen.queryByRole("button", { name: "Comparar" })).not.toBeInTheDocument() // con una sola consulta no hay con qué comparar
   })
 
   it("sin ninguna consulta dice qué pasa en vez de quedar vacío", () => {
