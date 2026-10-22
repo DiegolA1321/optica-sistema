@@ -91,7 +91,7 @@ export async function seleccionarPorTexto(select, patron) {
 export async function agendarCitaParaPaula(page, { nombre, cedula, telefono }, entorno = 'E2E') {
   await iniciarSesion(page, 'RECEPCION', entorno)
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()
-  await page.getByRole('button', { name: 'Gestionar cita' }).click()
+  await page.getByRole('button', { name: 'Gestionar cita' }).first().click()
   const form = page.getByRole('dialog')
   await form.getByRole('button', { name: 'Añadir nuevo paciente' }).click()
   await form.getByPlaceholder('Nombre completo').fill(nombre)

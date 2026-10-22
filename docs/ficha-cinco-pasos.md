@@ -1,5 +1,17 @@
 # Ficha clínica en cinco pasos — dónde quedó cada campo (19 oct. 2026)
 
+> **21 oct. 2026 (Ronda 3b): la ficha pasó de cinco a TRES pasos** (lo pidió el ingeniero). Los campos son los mismos; cambia cómo se agrupan:
+> 1. **Anamnesis** (igual).
+> 2. **Examen**: cinco bloques plegables, todos cerrados al entrar, cada uno con su estado («Sin registrar» o «Registrado» + un resumen de una línea): **Agudeza visual** (la tabla de letras y la de cerca) · **Lentes actuales y distancia pupilar** · **Refracción** (objetiva, queratometría, refracción final con transposición, adición, prisma y la agudeza con la receta nueva) · **Cover test y motilidad** · **Salud ocular** (biomicroscopía, fondo de ojo, PIO, test de color). Lo que antes era «Agudeza visual», «Refracción» y «Salud ocular» (pasos 2, 3 y 4 de abajo) son ahora esos bloques.
+> 3. **Diagnóstico y receta** (igual), con la **vista previa del documento al lado** (la misma hoja del «Imprimir diagnóstico» del perfil, con la receta incluida si hubo refracción).
+>
+> **Casi todo es opcional:** solo son obligatorios el motivo y el diagnóstico (y el control, salvo «Tratamiento finalizado»). Si se registra algo de la refracción final, se exigen los dos ojos o «Ojo no evaluado» con su motivo (el bloque se abre solo para mostrar qué falta). La agudeza ya no es obligatoria. Siguen la validación de rangos, la transposición, los signos, la sugerencia de diagnóstico y el guardado automático.
+> **Sin encabezado grande:** queda la fila del paciente (con la fecha de la consulta) y la barra de los tres pasos (el título «Ficha clínica» queda solo para lectores de pantalla).
+> **Terminar atención** abre el documento del diagnóstico con **Descargar PDF**, **Imprimir** y **Cerrar**; si no se descargó, se puede después con «Imprimir diagnóstico» desde la ficha, el detalle de la cita y la pestaña Diagnóstico del perfil.
+> **El borrador vive en la base de datos** (tabla `fichas_borradores`, migración 0138, cifrado como las fichas): se recupera desde cualquier computadora, dura 7 días, la cita reagendada lo hereda (`heredar_borrador_ficha`) y se borra al terminar o descartar. Las fichas guardadas antes se siguen viendo igual en el perfil, el diagnóstico y el portal.
+> El resto de este documento describe la ficha de cinco pasos y se conserva como referencia de dónde quedó cada campo.
+
+
 **La ficha debe validarla la optómetra de la óptica** (orden de las pruebas, campos, opciones y rangos) antes de darla por buena.
 
 Pasos: 1 Anamnesis · 2 Agudeza visual · 3 Refracción · 4 Salud ocular (opcional) · 5 Diagnóstico y receta. La barra deja ir a cualquiera; «Siguiente» solo sugiere el orden. A la derecha, un panel fijo con el contexto del paciente (en el paso 5, la vista previa de la receta).

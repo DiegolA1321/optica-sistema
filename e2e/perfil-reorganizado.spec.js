@@ -64,20 +64,30 @@ test('cabecera con los botones de dos en dos, Resumen con avisos arriba, Citas c
   await expect(page.getByText('Órdenes de laboratorio')).toHaveCount(0)
   await expect(pestanas.nth(0)).toHaveAttribute('aria-selected', 'true')
 
-  // Resumen: sin los conteos de citas ni la gráfica; sin «Estado de corrección» (no tiene refracción); «Compras» (no «Compras / lentes»); la fidelización al final, una sola vez
+  // Resumen: solo los avisos y la fidelización (nivel y puntos, referidos y cumpleaños) en un bloque compacto; las tarjetas clínicas y las compras están en sus pestañas
   await expect(page.getByRole('region', { name: 'Citas del paciente' })).toHaveCount(0)
   await expect(page.getByText('Estado de corrección')).toHaveCount(0)
   await expect(page.getByText('Compras / lentes')).toHaveCount(0)
-  await expect(page.getByText('Última consulta')).toBeVisible()
-  await expect(page.getByText('Puntaje de fidelidad'), 'la fidelidad aparece una sola vez, en Resumen').toHaveCount(1)
+  await expect(page.getByText('Última consulta')).toHaveCount(0)
+  await expect(page.getByText('Total comprado')).toHaveCount(0)
+  const fidelizacion = page.getByRole('region', { name: 'Fidelización' })
+  await expect(fidelizacion, 'la fidelización aparece una sola vez, en Resumen').toHaveCount(1)
+  await expect(fidelizacion).toContainText('Nivel y puntos')
+  await expect(fidelizacion).toContainText('Referidos')
+  await expect(fidelizacion).toContainText(/\d+ de \w+ \((en \d+ días?|es hoy)\)/)
   await foto(page, 'perfil-resumen')
 
-  // Citas: dos bloques lado a lado (conteos y tendencia) y debajo el historial con todas las citas
+  // Citas: arriba las tarjetas clínicas (próximo control y última consulta; el estado de corrección solo con refracción), debajo los conteos y la tendencia lado a lado y al final el historial
   await pestanas.nth(1).click()
+  const clinicas = page.getByRole('region', { name: 'Información clínica' })
+  await expect(clinicas).toContainText('Última consulta')
+  await expect(clinicas).toContainText('Próximo control')
+  await expect(clinicas).not.toContainText('Estado de corrección')
   const conteos = page.getByRole('region', { name: 'Citas del paciente' })
   const tendencia = page.getByRole('region', { name: 'Tendencia de las citas' })
   await expect(conteos).toBeVisible()
   await expect(tendencia).toBeVisible()
+  expect((await clinicas.boundingBox()).y, 'las tarjetas clínicas van arriba de los conteos').toBeLessThan((await conteos.boundingBox()).y)
   const [bc, bt] = [await conteos.boundingBox(), await tendencia.boundingBox()]
   expect(Math.abs(bc.y - bt.y), 'los conteos y la tendencia van lado a lado').toBeLessThan(4)
   expect(bt.x).toBeGreaterThan(bc.x)
@@ -167,7 +177,7 @@ test('«Atender ahora» desde la cabecera: crea la cita presencial para este mom
   await page.getByRole('button', { name: 'Atender ahora' }).first().click()
   // entra directo a la ficha clínica, con la cita recién creada
   await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 25_000 })
-  await expect(page.getByText('Paso 1 de 5')).toBeVisible()
+  await expect(page.getByText('Paso 1 de 3')).toBeVisible()
   await expect(page.getByText(/Cita presencial creada para/)).toBeVisible()
   // sin historial previo la ficha avisa que es su primera consulta
   await page.getByRole('button', { name: 'Entendido, completar antecedentes' }).click()
@@ -194,9 +204,10 @@ test('Resumen, Citas y Diagnóstico de un paciente con historial (Demo, solo lec
     await expect(page.getByRole('tab', { name: /Resumen/ })).toBeVisible({ timeout: 8_000 })
   }).toPass({ timeout: 60_000 })
   await page.getByRole('tab', { name: /Resumen/ }).click()
-  await expect(page.getByText('Última consulta')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Fidelización' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Citas del paciente' })).toHaveCount(0)
   await page.getByRole('tab', { name: /Citas/ }).click()
+  await expect(page.getByText('Última consulta')).toBeVisible()
   await expect(page.getByRole('region', { name: 'Citas del paciente' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Tendencia de las citas' })).toBeVisible()
   await page.getByRole('tab', { name: /Diagnóstico/ }).click()
@@ -216,6 +227,6 @@ test('«Atender ahora» del menú de la lista entra a la ficha', async ({ page }
   await page.locator('tr', { hasText: nombre }).getByRole('button', { name: 'Más acciones' }).click()
   await page.getByRole('button', { name: 'Atender ahora' }).click()
   await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 25_000 })
-  await expect(page.getByText('Paso 1 de 5')).toBeVisible()
+  await expect(page.getByText('Paso 1 de 3')).toBeVisible()
   await cancelarCitasDePrueba([nombre])
 })

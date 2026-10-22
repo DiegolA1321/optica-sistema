@@ -112,10 +112,11 @@ test.describe('Perfil del paciente: atender desde la cabecera', () => {
     const ingresar = page.getByRole('button', { name: 'Atender', exact: true }).first() // el de la cabecera (la pestaña Citas lleva el suyo)
     await expect(ingresar).toBeVisible()
     await expect(page.getByRole('button', { name: 'Atender ahora' })).toHaveCount(0) // con cita de hoy se atiende esa, no se crea otra
-    // el botón está en la cabecera, encima de las pestañas
+    // el botón está en la cabecera, en la misma fila que las pestañas y a su derecha
     const caja = await ingresar.boundingBox()
     const pestanas = await page.getByRole('tablist', { name: 'Secciones del paciente' }).boundingBox()
-    expect(caja.y).toBeLessThan(pestanas.y)
+    expect(Math.abs((caja.y + caja.height / 2) - (pestanas.y + pestanas.height / 2)), 'Atender en la fila de las pestañas').toBeLessThan(30)
+    expect(caja.x, 'Atender a la derecha de las pestañas').toBeGreaterThan(pestanas.x + pestanas.width - 2)
     await ingresar.click()
     await expect(page.getByRole('heading', { name: 'Ficha clínica' })).toBeVisible({ timeout: 30_000 })
     await expect(page.getByText(nombre).first()).toBeVisible()

@@ -54,7 +54,7 @@ test('Inicio: «Requiere tu atención» ordena rojo, ámbar y azul, y el desenla
   await foto(page, 'inicio-administrador')
 })
 
-test('Pacientes: cuatro tarjetas que filtran con su mismo número, seis filtros con explicación y las columnas nuevas', async ({ page }) => {
+test('Pacientes: cuatro tarjetas que filtran con su mismo número, «Filtrar» solo con lo que no tiene tarjeta y las columnas nuevas', async ({ page }) => {
   test.setTimeout(150_000)
   await prepararAvisosInicio('E2E')
   await iniciarSesion(page, 'ADMIN', 'E2E')
@@ -64,10 +64,12 @@ test('Pacientes: cuatro tarjetas que filtran con su mismo número, seis filtros 
   const tarjetas = ['Total de pacientes', 'Nuevos este mes', 'Con control vencido', 'Con saldo pendiente']
   for (const t of tarjetas) await expect(tarjetaDe(t)).toBeVisible()
   for (const viejo of ['Bien corregidos', 'Requieren ajuste', 'Sin agudeza visual con corrección']) await expect(page.getByText(viejo)).toHaveCount(0)
-  // filtros: solo los seis, cada uno con su explicación al pasar el cursor
-  const chips = page.locator('button[aria-pressed][title]').filter({ hasText: /^(Todos|Nuevos este mes|Control vencido|Con saldo pendiente|Sin consulta|Dados de alta)/ })
-  await expect(chips).toHaveCount(6)
-  for (const c of await chips.all()) expect((await c.getAttribute('title')).length).toBeGreaterThan(20)
+  // un solo camino (regla 8): ya no hay fila de filtros rápidos; en «Filtrar» solo quedan los que no tienen tarjeta
+  await expect(page.locator('button[aria-pressed][title]').filter({ hasText: /^(Todos|Nuevos este mes|Control vencido|Con saldo pendiente|Sin consulta|Dados de alta)/ })).toHaveCount(0)
+  await page.getByRole('button', { name: /^Filtrar/ }).click()
+  await expect(page.getByRole('button', { name: /Sin consulta/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /Dados de alta/ }).first()).toBeVisible()
+  await page.keyboard.press('Escape')
   for (const quitado of ['Consultaron y no compraron', 'Visitas recientes', 'Control sin agendar']) await expect(page.getByRole('button', { name: new RegExp(quitado) })).toHaveCount(0)
   // columnas: paciente, contacto, última visita, próxima cita y acciones; sin «Corrección»
   const encabezado = page.locator('thead th')

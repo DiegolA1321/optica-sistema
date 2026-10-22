@@ -70,9 +70,12 @@ test('2 · Paula atiende al paciente: ficha, diagnóstico y control', async ({ p
   await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 20_000 })
   // La cita actual o próxima trae "Ingresar": entra directo a su ficha.
   await page.getByRole('button', { name: 'Atender' }).first().click()
-  await expect(page.getByText('Paso 1 de 5')).toBeVisible({ timeout: 20_000 })
+  // Si Recepción agendó la cita para otro día (de noche no hay cupo hoy), la ficha pregunta si se atiende hoy
+  const pregunta = page.getByRole('dialog', { name: 'Atender una cita de otro día' })
+  if (await pregunta.waitFor({ timeout: 4_000 }).then(() => true, () => false)) await pregunta.getByRole('button', { name: 'Atenderla hoy' }).click()
+  await expect(page.getByText('Paso 1 de 3')).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: 'Entendido, completar antecedentes' }).click()
-  await llenarFichaObligatoria(page) // agudeza sin corrección y refracción de los dos ojos; queda en Diagnóstico y receta
+  await llenarFichaObligatoria(page) // agudeza sin corrección y refracción de los dos ojos (el examen es opcional); queda en Diagnóstico y receta
   // La lista de diagnósticos rápidos es de cada óptica (la de pruebas conserva «Miopia» sin tilde): vale cualquiera de las dos.
   await page.getByRole('button', { name: /^Miop[ií]a$/ }).first().click()
   await page.getByLabel(/Añadir recomendación de lente/).check()
@@ -81,6 +84,10 @@ test('2 · Paula atiende al paciente: ficha, diagnóstico y control', async ({ p
   await page.getByRole('button', { name: /Terminar atención/ }).click()
   const confirmarFicha = page.getByRole('dialog').last()
   await confirmarFicha.getByRole('button', { name: 'Terminar atención' }).click()
+  // Al terminar se abre el documento del diagnóstico (Descargar PDF, Imprimir y Cerrar)
+  const documento = page.getByRole('dialog', { name: /Atención terminada/ })
+  await expect(documento.getByRole('button', { name: /Descargar PDF/ })).toBeVisible({ timeout: 20_000 })
+  await documento.getByRole('button', { name: 'Cerrar' }).last().click()
   const terminada = page.getByRole('status').filter({ hasText: 'Atención terminada' })
   await expect(terminada).toContainText('la cita quedó atendida', { timeout: 20_000 })
   await terminada.getByRole('button', { name: 'Pasar a la óptica' }).click()

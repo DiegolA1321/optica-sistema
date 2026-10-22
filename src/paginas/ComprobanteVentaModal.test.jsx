@@ -2,6 +2,8 @@ import React from "react"
 import { describe, it, expect } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
+import { ProveedorFidelidad, armarFidelidad } from "../componentes/FidelidadContexto"
+import { PROGRAMA_POR_DEFECTO } from "../utilidades/programaFidelidad"
 
 const PACIENTES = [{ id: "p1", nombre: "Ana Prueba", cedula: "0101010101" }]
 const PRODUCTO = { id: "x1", nombre: "Armazón Test", stock: 3, precio: 40 }
@@ -123,5 +125,35 @@ describe("ComprobanteVentaModal — descuentos y pagos divididos (Ventas v2)", (
     fireEvent.click(screen.getByRole("button", { name: /Dividir el pago/i }))
     expect(screen.getByLabelText("Monto del pago 1")).toHaveValue(15)
     expect(screen.getByLabelText("Monto del pago 2")).toHaveValue(15)
+  })
+})
+
+describe("ComprobanteVentaModal — descuento sugerido por el nivel de fidelización", () => {
+  const servicio = [{ tipo: "servicio", descripcion: "Consulta", cantidad: 2, precioUnitario: 50 }]
+  // Cuatro consultas = 40 puntos: nivel Frecuente (desde 30) con 5 % de descuento sugerido.
+  const consultas = [1, 2, 3, 4].map((n) => ({ id: "c" + n, pacienteId: "p1", fecha: "2026-0" + n + "-10" }))
+  const fidelidad = armarFidelidad({ programa: PROGRAMA_POR_DEFECTO, pacientes: PACIENTES, consultas, facturas: [], abonos: [] })
+  const abrir = (usuario) => render(<ProveedorFidelidad value={fidelidad}><ComprobanteVentaModal usuario={usuario} pacienteFijo={PACIENTES[0]} lineasIniciales={servicio} onCerrar={() => {}} /></ProveedorFidelidad>)
+
+  it("quien puede hacer descuentos ve el nivel del cliente y lo aplica a todas las líneas, con su motivo", () => {
+    abrir({})
+    expect(screen.getByText(/Cliente Frecuente/)).toBeInTheDocument()
+    expect(screen.getByText(/descuento sugerido de 5 %/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar a todas las líneas" }))
+    expect(screen.getByText("$95.00", { selector: "span.font-mono.text-xl" })).toBeInTheDocument()
+    expect(screen.getByDisplayValue("Fidelización: nivel Frecuente")).toBeInTheDocument()
+    expect(screen.getByText("Ya hay descuentos en esta venta")).toBeInTheDocument()
+  })
+
+  it("quien no tiene permiso de descuentos en Ventas no ve la sugerencia", () => {
+    abrir({ rol: "asistente", permisosNivel: { ventas: ["ver", "crear"] } })
+    expect(screen.queryByText(/Cliente Frecuente/)).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Aplicar a todas las líneas" })).not.toBeInTheDocument()
+  })
+
+  it("un cliente de nivel Nuevo (sin descuento) no ve ninguna sugerencia", () => {
+    const poco = armarFidelidad({ programa: PROGRAMA_POR_DEFECTO, pacientes: PACIENTES, consultas: consultas.slice(0, 1), facturas: [], abonos: [] })
+    render(<ProveedorFidelidad value={poco}><ComprobanteVentaModal usuario={{}} pacienteFijo={PACIENTES[0]} lineasIniciales={servicio} onCerrar={() => {}} /></ProveedorFidelidad>)
+    expect(screen.queryByText(/descuento sugerido/)).not.toBeInTheDocument()
   })
 })

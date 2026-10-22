@@ -7,7 +7,7 @@
 //      Lo que sí puede ocupar varias líneas (un texto largo, el encabezado de una columna de una tabla) se marca con `data-multilinea` o es un texto largo.
 //   4. Todo se puede pulsar: toda tarjeta o fila que resume algo (`.pt-abrible`, o `data-resumen` en el personal) abre una ventana (o lleva a su pestaña) al pulsarla.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, escribirSecreto, SLUG_DEMO, crearCitaDeHoyParaPaula, irAPasoFicha, llenarFichaObligatoria } from './ayudas.js'
+import { iniciarSesion, escribirSecreto, SLUG_DEMO, crearCitaDeHoyParaPaula, irAPasoFicha, abrirBloqueExamen, llenarFichaObligatoria } from './ayudas.js'
 import { protegerDemo } from './guardia-demo.js'
 
 const MARGEN = 32
@@ -224,7 +224,7 @@ for (const t of TAMANOS) {
         await page.getByText(nombre).first().click()
         await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 45_000 })
         await page.getByRole('button', { name: 'Atender' }).first().click()
-        await expect(page.getByText('Paso 1 de 5')).toBeVisible({ timeout: 20_000 })
+        await expect(page.getByText('Paso 1 de 3')).toBeVisible({ timeout: 20_000 })
         const primera = page.getByRole('button', { name: 'Entendido, completar antecedentes' })
         if (await primera.waitFor({ timeout: 6_000 }).then(() => true, () => false)) await primera.click()
         if (plegado) await page.getByRole('button', { name: 'Colapsar menú' }).click()
@@ -232,27 +232,31 @@ for (const t of TAMANOS) {
         const problemas = []
         const donde = (p) => `Ficha ${t.nombre} ${menu} · ${p}`
         problemas.push(...(await revisarPartidos(page, donde('paso 1'))))
-        await llenarFichaObligatoria(page) // deja los datos escritos en los pasos 2 y 3 y termina en el 5
-        await irAPasoFicha(page, 2, 'Agudeza visual')
+        await llenarFichaObligatoria(page) // deja los datos del examen escritos y termina en el paso 3
+        // El Examen: los cinco bloques plegados primero y luego abiertos de uno en uno, para revisar cada uno
+        await irAPasoFicha(page, 2, 'Examen')
+        problemas.push(...(await revisarPartidos(page, donde('examen con los bloques plegados'))))
+        await abrirBloqueExamen(page, 'Cover test y motilidad')
         await page.locator('#coverTipo').selectOption('Endotropia'); await page.locator('#coverDistancia').selectOption('ambas')
-        problemas.push(...(await revisarPartidos(page, donde('paso 2'))))
-        await irAPasoFicha(page, 3, 'Refracción')
+        await abrirBloqueExamen(page, 'Lentes actuales y distancia pupilar')
+        problemas.push(...(await revisarPartidos(page, donde('examen · agudeza, lentes y cover'))))
+        await abrirBloqueExamen(page, 'Refracción')
         await page.locator('#adicionOd').fill('1.50'); await page.locator('#prismaOdCant').fill('2'); await page.locator('#prismaOdBase').selectOption('Nasal')
         await page.locator('#avOdRx').selectOption('20/20')
-        problemas.push(...(await revisarPartidos(page, donde('paso 3'))))
-        await irAPasoFicha(page, 4, 'Salud ocular')
+        problemas.push(...(await revisarPartidos(page, donde('examen · refracción'))))
+        await abrirBloqueExamen(page, 'Salud ocular')
         await page.locator('#pioMetodo').selectOption({ index: 1 }); await page.locator('#colorPrueba').selectOption('Farnsworth D-15')
-        problemas.push(...(await revisarPartidos(page, donde('paso 4'))))
-        await irAPasoFicha(page, 5, 'Diagnóstico y receta')
+        problemas.push(...(await revisarPartidos(page, donde('examen · salud ocular'))))
+        await irAPasoFicha(page, 3, 'Diagnóstico y receta')
         await page.getByRole('button', { name: /^Miop[ií]a( y astigmatismo)?$/ }).first().click()
         await page.getByLabel(/Añadir recomendación de lente/).check()
         await page.getByLabel('Lente a recomendar').fill('Progresivo, policarbonato, antirreflejo')
-        problemas.push(...(await revisarPartidos(page, donde('paso 5'))))
-        await page.getByRole('button', { name: /Ver la hoja completa/ }).click()
-        await expect(page.locator('[data-hoja-receta]')).toBeVisible()
+        problemas.push(...(await revisarPartidos(page, donde('diagnóstico y receta con la vista previa al lado'))))
+        await page.getByRole('button', { name: /Ver en grande/ }).click()
+        await expect(page.getByRole('dialog').locator('[data-hoja-receta]')).toBeVisible()
         problemas.push(...(await revisarPartidos(page, donde('receta'))))
         // la receta: «OD · derecho» y el resto de las celdas cortas, en una línea
-        const celdas = await page.evaluate(() => [...document.querySelectorAll('[data-hoja-receta] td, [data-hoja-receta] th')].filter((c) => c.textContent.trim().length > 0 && c.textContent.trim().length <= 24 && !c.closest('[data-multilinea]') && c.tagName === 'TD').filter((c) => { const tops = []; const w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT); for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.textContent.trim()) continue; const rg = document.createRange(); rg.selectNodeContents(n); for (const q of rg.getClientRects()) if (!tops.some((x) => Math.abs(x - q.top) < 4)) tops.push(q.top) } return tops.length > 1 }).map((c) => c.textContent.trim()))
+        const celdas = await page.evaluate(() => [...document.querySelectorAll('[role="dialog"] [data-hoja-receta] td, [role="dialog"] [data-hoja-receta] th')].filter((c) => c.textContent.trim().length > 0 && c.textContent.trim().length <= 24 && !c.closest('[data-multilinea]') && c.tagName === 'TD').filter((c) => { const tops = []; const w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT); for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.textContent.trim()) continue; const rg = document.createRange(); rg.selectNodeContents(n); for (const q of rg.getClientRects()) if (!tops.some((x) => Math.abs(x - q.top) < 4)) tops.push(q.top) } return tops.length > 1 }).map((c) => c.textContent.trim()))
         for (const c of celdas) problemas.push(`${donde('receta')}: la celda «${c}» se parte en varias líneas`)
         expect(problemas, problemas.join('\n')).toEqual([])
       })

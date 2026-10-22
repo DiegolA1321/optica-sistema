@@ -28,7 +28,7 @@ test('ficha clínica: el control exige elegir agendar ahora o después', async (
   // Un paciente sin antecedentes ve primero su resumen
   const antecedentes = page.getByRole('button', { name: 'Entendido, completar antecedentes' })
   if (await antecedentes.waitFor({ timeout: 8_000 }).then(() => true, () => false)) await antecedentes.click()
-  await expect(page.getByText('Paso 1 de 5')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('Paso 1 de 3')).toBeVisible({ timeout: 20_000 })
   await llenarFichaObligatoria(page)
   await page.getByRole('button', { name: /^Miop[ií]a$/ }).first().click()
 
