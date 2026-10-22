@@ -18,18 +18,16 @@ import { PERIODO_DE_VENTAS, detalleDeVenta, estadoPagoDeVenta, pagadoDeVenta, re
 const POR_PAGINA = 30
 const COLUMNAS = "lg:grid-cols-[4.5rem_minmax(8rem,1.1fr)_minmax(10rem,1.8fr)_minmax(5.5rem,0.7fr)_minmax(5.5rem,0.7fr)_minmax(8.5rem,1fr)_1rem]"
 const ENCABEZADO = [{ texto: "Fecha" }, { texto: "Paciente" }, { texto: "Detalle" }, { texto: "Total", derecha: true }, { texto: "Pagado", derecha: true }, { texto: "Estado del pago" }, { texto: "" }]
-const ANULADAS = [{ id: "sin", etiqueta: "Sin anuladas" }, { id: "con", etiqueta: "Con anuladas" }, { id: "solo", etiqueta: "Solo anuladas" }]
 const METODOS = [{ id: "todos", etiqueta: "Todas" }, ...METODOS_COBRO, { id: SIN_INDICAR, etiqueta: "Sin indicar" }]
 const FE = [{ id: "todas", etiqueta: "Todas" }, { id: "sin", etiqueta: "Sin factura electrónica" }]
 const TEXTO_DATO = { cobrado: "Cobrado · ventas pagadas", porcobrar: "Por cobrar · ventas con saldo", verificar: "Pago por verificar · transferencias por revisar" }
 
-// Pestaña «Ventas»: solo lo vendido. Arriba, el período, la búsqueda y «Filtrar»; luego la franja de datos (vendido, cobrado, por cobrar, pagos por verificar y lentes en el laboratorio) que cambia
+// Pestaña «Ventas»: solo lo vendido. Arriba, el período, la búsqueda y «Filtrar»; luego la franja de datos (vendido, cobrado, por cobrar, y pagos por verificar) que cambia
 // con el período y la búsqueda y cuyos datos filtran la lista al pulsarlos; abajo, la lista en columnas. Al pulsar una venta se abre su detalle completo en la ventana estándar.
-export default function PestanaVentas({ facturas, abonos, pacientes, ordenes = [], pagosPorVerificar = [], puedeVender, onNuevaVenta, onAbrir, onVerPedidos, inicial = {} }) {
+export default function PestanaVentas({ facturas, abonos, pacientes, pagosPorVerificar = [], puedeVender, onNuevaVenta, onAbrir, inicial = {} }) {
   const [periodo, setPeriodo] = useState(inicial.periodo || PERIODO_DE_VENTAS)
   const [texto, setTexto] = useState(inicial.texto || "")
   const [dato, setDato] = useState(inicial.dato || null)
-  const [anuladas, setAnuladas] = useState(inicial.estado === "anuladas" ? "solo" : "sin")
   const [metodo, setMetodo] = useState("todos")
   const [fe, setFe] = useState(inicial.sinFE ? "sin" : "todas")
   const [visibles, setVisibles] = useState(POR_PAGINA)
@@ -41,10 +39,10 @@ export default function PestanaVentas({ facturas, abonos, pacientes, ordenes = [
 
   // Las ventas del período y de los filtros; la franja suma sobre ellas y el dato pulsado recorta la lista.
   const base = useMemo(() => filtrarComprobantes(facturas, {
-    texto, estado: anuladas === "solo" ? "anuladas" : anuladas === "con" ? "todas" : "vigentes", periodo: rango ? "rango" : "todo", desde: rango?.desde || "", hasta: rango?.hasta || "",
+    texto, estado: "vigentes", periodo: rango ? "rango" : "todo", desde: rango?.desde || "", hasta: rango?.hasta || "",
     sinFacturaElectronica: fe === "sin", metodo: metodo === "todos" ? "" : metodo, pacientes, abonos,
-  }), [facturas, texto, anuladas, rango?.desde, rango?.hasta, fe, metodo, pacientes, abonos]) // eslint-disable-line react-hooks/exhaustive-deps
-  const resumen = useMemo(() => resumenDeVentas({ ventas: base, abonos, pagosPorVerificar, ordenes }), [base, abonos, pagosPorVerificar, ordenes])
+  }), [facturas, texto, rango?.desde, rango?.hasta, fe, metodo, pacientes, abonos]) // eslint-disable-line react-hooks/exhaustive-deps
+  const resumen = useMemo(() => resumenDeVentas({ ventas: base, abonos, pagosPorVerificar }), [base, abonos, pagosPorVerificar])
   const lista = useMemo(() => (dato ? base.filter((f) => ventaDelDato(f, dato, abonos, pagosPorVerificar)) : base), [base, dato, abonos, pagosPorVerificar])
   const n = lista.length
 
@@ -54,20 +52,17 @@ export default function PestanaVentas({ facturas, abonos, pacientes, ordenes = [
     { id: "cobrado", etiqueta: "Cobrado", valor: dinero(resumen.cobrado), sub: resumen.cobradas === 0 ? "ninguna venta pagada" : `${plural(resumen.cobradas, "venta pagada", "ventas pagadas")}`, activo: dato === "cobrado", onClick: () => elegirDato("cobrado"), ayuda: "Lo que ya se pagó de lo vendido. Pulsa para ver las ventas pagadas." },
     { id: "porcobrar", etiqueta: "Por cobrar", punto: "rojo", valor: dinero(resumen.porCobrar), sub: resumen.conSaldo === 0 ? "nada pendiente" : plural(resumen.conSaldo, "venta con saldo", "ventas con saldo"), activo: dato === "porcobrar", onClick: () => elegirDato("porcobrar"), ayuda: "Lo que falta por cobrar de lo vendido. Pulsa para ver las ventas con saldo." },
     { id: "verificar", etiqueta: "Pago por verificar", punto: "ambar", valor: dinero(resumen.porVerificar), sub: resumen.transferencias === 0 ? "ninguna transferencia" : resumen.transferencias === resumen.ventasPorVerificar ? plural(resumen.transferencias, "transferencia", "transferencias") : `${plural(resumen.transferencias, "transferencia", "transferencias")} · ${plural(resumen.ventasPorVerificar, "venta", "ventas")}`, activo: dato === "verificar", onClick: () => elegirDato("verificar"), ayuda: "Transferencias que los pacientes dicen haber hecho y nadie revisó. Pulsa para ver esas ventas." },
-    { id: "lentes", etiqueta: "Pedidos en proceso", valor: String(resumen.enProceso), sub: resumen.enProceso === 0 ? "ninguno pendiente" : resumen.atrasados > 0 ? plural(resumen.atrasados, "atrasado", "atrasados") : "ninguno atrasado", onClick: () => onVerPedidos("enproceso"), ayuda: "Pedidos de estas ventas que todavía no están listos. Pulsa para verlos en Pedidos." },
   ]
 
   const secciones = [
-    { id: "anuladas", titulo: "Ventas anuladas", valor: anuladas, onChange: volver(setAnuladas), opciones: ANULADAS },
     { id: "metodo", titulo: "Forma de pago", valor: metodo, onChange: volver(setMetodo), opciones: METODOS },
     { id: "fe", titulo: "Factura electrónica", valor: fe, onChange: volver(setFe), opciones: FE },
   ]
-  const hayFiltros = dato !== null || anuladas !== "sin" || metodo !== "todos" || fe !== "todas"
-  const limpiar = () => { setDato(null); setAnuladas("sin"); setMetodo("todos"); setFe("todas"); setTexto(""); setPeriodo(PERIODO_DE_VENTAS); setVisibles(POR_PAGINA) }
-  const quitarFiltros = () => { setDato(null); setAnuladas("sin"); setMetodo("todos"); setFe("todas"); setVisibles(POR_PAGINA) }
+  const hayFiltros = dato !== null || metodo !== "todos" || fe !== "todas"
+  const limpiar = () => { setDato(null); setMetodo("todos"); setFe("todas"); setTexto(""); setPeriodo(PERIODO_DE_VENTAS); setVisibles(POR_PAGINA) }
+  const quitarFiltros = () => { setDato(null); setMetodo("todos"); setFe("todas"); setVisibles(POR_PAGINA) }
   const puestos = [
     dato && TEXTO_DATO[dato],
-    anuladas !== "sin" && ANULADAS.find((a) => a.id === anuladas).etiqueta,
     metodo !== "todos" && `Pagadas con ${METODOS.find((m) => m.id === metodo).etiqueta.toLowerCase()}`,
     fe === "sin" && "Sin factura electrónica",
   ].filter(Boolean)

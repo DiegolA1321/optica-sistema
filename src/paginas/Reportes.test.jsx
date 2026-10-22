@@ -88,6 +88,23 @@ describe("Reportes: el Resumen responde cómo le fue a la óptica", () => {
 })
 
 describe("Reportes: Ventas", () => {
+  it("las ventas anuladas se consultan aquí (fecha, comprobante, paciente, monto, quién la anuló y el motivo) y no suman en Vendido", () => {
+    const anulada = { id: "f9", numero: 9, pacienteId: "p1", estado: "anulada", montoTotal: 80, creadoEn: "2026-10-03T10:00:00-05:00", anuladaEn: "2026-10-04T11:00:00-05:00", anuladaPor: "u2", anuladaMotivo: "El paciente se arrepintió", metodoPago: "tarjeta", facturaElectronica: "", lineas: [] }
+    const sin = render(<Reportes usuario={admin} {...datos} />)
+    pestana("Ventas")
+    const vendidoSin = tarjeta("Vendido").getAttribute("aria-label") || tarjeta("Vendido").textContent
+    sin.unmount()
+    render(<Reportes usuario={admin} {...datos} facturasVenta={[...facturasVenta, anulada]} />)
+    pestana("Ventas")
+    expect(tarjeta("Vendido").getAttribute("aria-label") || tarjeta("Vendido").textContent).toBe(vendidoSin) // la anulada no suma
+    expect(screen.getByText(/1 venta anulada · \$80\.00/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Ver la lista" }))
+    const filas = within(ventana()).getAllByRole("row").slice(1)
+    expect(filas).toHaveLength(1)
+    for (const c of ["Anulada el", "Comprobante", "Paciente", "Monto", "Anuló", "Motivo"]) expect(within(ventana()).getByRole("columnheader", { name: c })).toBeInTheDocument()
+    expect(filas[0]).toHaveTextContent("Paula")
+    expect(filas[0]).toHaveTextContent("El paciente se arrepintió")
+  })
   it("'Cobrado' abre los pagos (no las ventas) y suma exactamente lo cobrado; 'Saldo pendiente' es lo que falta", () => {
     render(<Reportes usuario={admin} {...datos} />)
     pestana("Ventas")

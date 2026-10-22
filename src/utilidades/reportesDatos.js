@@ -8,7 +8,7 @@ import { abonosDeFactura } from "./abonos"
 import { pagosDeAbono, pagosAlContado } from "./pagos"
 import { calcularEmbudo, consultaEsPrimeraVez, tieneReceta } from "./embudo"
 import { esInactivo, fechaProximoControl } from "./fidelizacion"
-import { estaAtrasada, ordenesAbiertas, ordenesListasSinAvisar } from "./ordenesLaboratorio"
+import { estaAtrasada, ordenesAbiertas, ordenesEnProceso, ordenesListasSinAvisar } from "./ordenesLaboratorio"
 import { resumenPorEntrega, productosMasVendidos, ventasPorTipoLuna } from "./reportesLaboratorio"
 import { categoriasDeConsulta, claveDiagnostico, etiquetaDeVariantes, diagnosticosPorMes } from "./reportesDiagnosticos"
 import { minutosDesdeMedianoche, fechaAISO } from "./disponibilidad"
@@ -266,4 +266,4 @@ export const lunasPorTipo = (facturas, rango) => ventasPorTipoLuna(facturas, { e
 export function resumenPedidos(ordenes, rango, hoy = ahoraEcuador()) {
   return resumenPorEntrega(ordenes, { hoy, enRango: (cuando) => !!cuando && enRango(cuando, rango) })
 }
-export { estaAtrasada, ordenesAbiertas, ordenesListasSinAvisar, tieneReceta }
+export { estaAtrasada, ordenesAbiertas, ordenesEnProceso, ordenesListasSinAvisar, tieneReceta }

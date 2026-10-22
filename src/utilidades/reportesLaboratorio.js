@@ -38,7 +38,7 @@ export function resumenPorEntrega(ordenes = [], { hoy = ahoraEcuador(), enRango 
   }
   for (const o of ordenes) {
     const f = fila(nombreEntrega(o))
-    if (o.estado === "enviada" || o.estado === "lista") f.abiertas++
+    if (o.estado === "enviada") f.abiertas++ // en proceso: la misma regla que Pedidos
     if (estaAtrasada(o, hoy)) f.atrasadas++
     if (o.estado === "entregada") {
       const d = diasDeEntrega(o)

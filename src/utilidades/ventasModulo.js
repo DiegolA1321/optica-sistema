@@ -4,7 +4,7 @@
 // Un pedido es el registro simple de lo que la óptica encarga afuera (las lunas): la óptica no administra al laboratorio, se comunica con él por fuera. Nace cuando una venta incluye algo que se encarga,
 // con su entrega («Retira en la óptica» o «Envío a domicilio», con la dirección) y la fecha aproximada en que estará listo. Estados: En proceso → Listo → Entregado, y «Atrasado» si pasa la fecha sin estar listo.
 import { textoDiagnostico } from "./pasesVenta"
-import { ordenesAtrasadas, ordenesListasSinAvisar, estadoVisible } from "./ordenesLaboratorio"
+import { ordenesAtrasadas, ordenesEnProceso, ordenesListasSinAvisar, estadoVisible } from "./ordenesLaboratorio"
 
 // «Por vender» ya no es de Ventas: el paciente que recibió su diagnóstico y no ha comprado está en «Para contactar» del CRM (motivo «por_vender»), con su proforma si la tiene.
 export const llevaProforma = (pase) => Boolean(pase?.proformaEntregadaEn)
@@ -55,7 +55,7 @@ export const filtroDeOrdenesValido = (id) => {
 // «Todos» son los pedidos vivos: los cancelados (una venta anulada) no cuentan, igual que las citas canceladas no suman. «En proceso» incluye los atrasados (siguen sin estar listos).
 export function ordenesDelFiltro(ordenes = [], filtro) {
   const f = filtroDeOrdenesValido(filtro)
-  if (f === "enproceso") return ordenes.filter((o) => o.estado === "enviada")
+  if (f === "enproceso") return ordenesEnProceso(ordenes)
   if (f === "atrasadas") return ordenesAtrasadas(ordenes)
   if (f === "listos") return ordenes.filter((o) => o.estado === "lista")
   if (f === "sinavisar") return ordenesListasSinAvisar(ordenes)

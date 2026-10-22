@@ -2,7 +2,7 @@
 // Una sola cuenta para todo (regla 5): vendido = cobrado + por cobrar, y cada dato de la franja cuenta lo mismo que la lista a la que lleva.
 import { saldoFactura } from "./abonos"
 import { redondear } from "./pagos"
-import { esLineaDeLente, estaAtrasada } from "./ordenesLaboratorio"
+import { esLineaDeLente } from "./ordenesLaboratorio"
 
 // Lo que cobró una venta hasta hoy: su total menos lo que falta. Una venta anulada no cobró nada.
 export const pagadoDeVenta = (factura, abonos = []) => (factura?.estado === "anulada" ? 0 : redondear((Number(factura?.montoTotal) || 0) - saldoFactura(factura, abonos)))
@@ -55,19 +55,17 @@ export function ventaDelDato(factura, dato, abonos = [], pagosPorVerificar = [])
 }
 
 // La franja de arriba, sobre las ventas que se ven (ya con el período, la búsqueda y los filtros; sin el dato que se pulsó, para que las cifras no cambien al pulsarlas).
-export function resumenDeVentas({ ventas = [], abonos = [], pagosPorVerificar = [], ordenes = [] } = {}) {
+export function resumenDeVentas({ ventas = [], abonos = [], pagosPorVerificar = [] } = {}) {
   const vigentes = ventas.filter((f) => f.estado !== "anulada")
   const ids = new Set(vigentes.map((f) => f.id))
   const vendido = redondear(vigentes.reduce((s, f) => s + (Number(f.montoTotal) || 0), 0))
   const porCobrar = redondear(vigentes.reduce((s, f) => s + saldoFactura(f, abonos), 0))
   const conSaldo = vigentes.filter((f) => saldoFactura(f, abonos) > 0).length
   const verificar = pagosPorVerificar.filter((p) => ids.has(p.facturaId))
-  const enProceso = ordenes.filter((o) => ids.has(o.facturaId) && o.estado === "enviada")
   return {
     ventas: vigentes.length, vendido, cobrado: redondear(vendido - porCobrar), porCobrar, conSaldo,
     cobradas: vigentes.length - conSaldo,
     porVerificar: redondear(verificar.reduce((s, p) => s + (Number(p.monto) || 0), 0)), transferencias: verificar.length,
     ventasPorVerificar: vigentes.filter((f) => ventaDelDato(f, "verificar", abonos, pagosPorVerificar)).length,
-    enProceso: enProceso.length, atrasados: enProceso.filter((o) => estaAtrasada(o)).length,
   }
 }

@@ -5,7 +5,7 @@ import { Package, BellRing } from "lucide-react"
 import { Seccion, Caja, SinResultados, NumeroPulsable, REJILLA_TARJETAS_4 } from "./bloques"
 import { crearDestinos } from "./destinos"
 import { col } from "./listas"
-import { estaAtrasada, ordenesAbiertas, ordenesListasSinAvisar, resumenPedidos } from "../../utilidades/reportesDatos"
+import { estaAtrasada, ordenesAbiertas, ordenesEnProceso, ordenesListasSinAvisar, resumenPedidos } from "../../utilidades/reportesDatos"
 import { entregadaEn, diasDeEntrega } from "../../utilidades/reportesLaboratorio"
 import { enRango } from "../../utilidades/reportesPeriodo"
 import { etiquetaEntrega } from "../../utilidades/ventasModulo"
@@ -20,6 +20,7 @@ export default function PestanaPedidos({ r }) {
   const d = crearDestinos(r)
   const ordenes = r.f.ordenes
 
+  const enProceso = useMemo(() => ordenesEnProceso(ordenes), [ordenes])
   const abiertas = useMemo(() => ordenesAbiertas(ordenes), [ordenes])
   const atrasadas = useMemo(() => ordenes.filter((o) => estaAtrasada(o, hoy)), [ordenes, hoy])
   const sinAvisar = useMemo(() => ordenesListasSinAvisar(ordenes), [ordenes])
@@ -32,7 +33,7 @@ export default function PestanaPedidos({ r }) {
     <>
       <Seccion titulo="Pedidos">
         <div className={REJILLA_TARJETAS_4}>
-          {tarjeta({ titulo: "En proceso", aHoy: true, valor: abiertas.length, ayuda: "Pedidos que se encargaron y todavía no se entregan al paciente (en proceso o listos).", onClick: () => abrirOrdenes("Pedidos en proceso", abiertas, d.ordenes("enproceso"), `A hoy · ${r.filtrosTexto}`) })}
+          {tarjeta({ titulo: "En proceso", aHoy: true, valor: enProceso.length, ayuda: "Pedidos que se encargaron y todavía no están listos (incluye los atrasados): los mismos de «En proceso» en Pedidos.", onClick: () => abrirOrdenes("Pedidos en proceso", enProceso, d.ordenes("enproceso"), `A hoy · ${r.filtrosTexto}`) })}
           {tarjeta({ titulo: "Atrasados", aHoy: true, valor: atrasadas.length, ayuda: "Pedidos en proceso cuya fecha aproximada ya pasó.", onClick: () => abrirOrdenes("Pedidos atrasados", atrasadas, d.ordenes("atrasadas"), `A hoy · ${r.filtrosTexto}`) })}
           {tarjeta({ titulo: "Listos sin avisar", aHoy: true, valor: sinAvisar.length, ayuda: "Pedidos ya listos a los que todavía no se avisó al paciente.", onClick: () => abrir({ titulo: "Pedidos listos sin avisar al paciente", valor: sinAvisar.length, icono: BellRing, columnas: cols.orden, filas: sinAvisar, abrirEn: { ...d.ordenes("sinavisar"), etiqueta: "Abrir los pedidos listos en Ventas" }, filtros: `A hoy · ${r.filtrosTexto}` }) })}
         </div>
@@ -64,7 +65,7 @@ export default function PestanaPedidos({ r }) {
               <tbody className="divide-y divide-slate-100">
                 {porEntrega.map((l) => {
                   const deEsta = (o) => etiquetaEntrega(o) === l.entrega
-                  const listaAbiertas = abiertas.filter(deEsta)
+                  const listaAbiertas = enProceso.filter(deEsta)
                   const listaAtrasadas = atrasadas.filter(deEsta)
                   const listaEntregadas = entregadasEnElPeriodo.filter(deEsta)
                   return (

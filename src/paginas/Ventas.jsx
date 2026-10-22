@@ -15,7 +15,7 @@ import { useOrdenesLab } from "../componentes/ventas/useOrdenesLab"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { useVentas } from "../utilidades/useVentas"
 import { puede } from "../utilidades/permisosUi"
-import { ordenesAbiertas } from "../utilidades/ordenesLaboratorio"
+import { ordenesEnProceso } from "../utilidades/ordenesLaboratorio"
 import { numeroComprobante } from "../utilidades/comprobantes"
 import { periodoDeDestino } from "../utilidades/periodoLista"
 import { filtroDeOrdenesValido } from "../utilidades/ventasModulo"
@@ -63,7 +63,6 @@ export default function Ventas({
       ventas: {
         periodo: periodoDeDestino(accionInicial),
         dato: accionInicial.dato || DATO_DE_ESTADO[accionInicial.estado] || (accionInicial.tab === "cobros" || accionInicial.tab === "saldos" ? "porcobrar" : null),
-        estado: accionInicial.estado === "anuladas" ? "anuladas" : "vigentes",
         sinFE: !!accionInicial.sinFE,
         texto: accionInicial.texto || "",
       },
@@ -75,7 +74,7 @@ export default function Ventas({
   const pacienteDe = (id) => pacientes.find((p) => p.id === id) || null
   const verPaciente = (p) => p && onVerPaciente?.(p.id)
   const detalle = detalleId ? facturasVenta.find((f) => f.id === detalleId) || null : null
-  const enCurso = useMemo(() => ordenesAbiertas(ordenesLab).length, [ordenesLab])
+  const enCurso = useMemo(() => ordenesEnProceso(ordenesLab).length, [ordenesLab])
   const vigentes = useMemo(() => facturasVenta.filter((f) => f.estado !== "anulada").length, [facturasVenta])
   const pestanas = [
     { id: "ventas", titulo: "Ventas", cuenta: vigentes },
@@ -108,11 +107,10 @@ export default function Ventas({
             {tab === "ventas" && (
               <PestanaVentas
                 key={destino.n}
-                facturas={facturasVenta} abonos={abonos} pacientes={pacientes} ordenes={ordenesLab} pagosPorVerificar={pagosPorVerificar}
+                facturas={facturasVenta} abonos={abonos} pacientes={pacientes} pagosPorVerificar={pagosPorVerificar}
                 puedeVender={puedeVender} inicial={destino.ventas}
                 onNuevaVenta={() => setNuevaVenta(true)}
                 onAbrir={(f) => setDetalleId(f.id)}
-                onVerPedidos={(filtro) => { setDestino((d) => ({ ...d, n: d.n + 1, filtroPedidos: filtroDeOrdenesValido(filtro) })); setTab("pedidos") }}
               />
             )}
             {tab === "pedidos" && (

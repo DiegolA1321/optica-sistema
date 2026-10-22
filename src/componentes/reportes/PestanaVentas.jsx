@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { DollarSign, Wallet, Scale, Receipt, FileWarning, Stethoscope, Glasses, Package, CreditCard } from "lucide-react"
+import { Ban, DollarSign, Wallet, Scale, Receipt, FileWarning, Stethoscope, Glasses, Package, CreditCard } from "lucide-react"
 import { Seccion, Caja, SinResultados, NumeroPulsable, TablaNumeros, REJILLA_TARJETAS_4 } from "./bloques"
 import { BarrasLista } from "./Graficas"
 import { crearDestinos } from "./destinos"
@@ -12,6 +12,7 @@ import { tieneReceta } from "../../utilidades/embudo"
 import { pagosDeFacturas, ventasPorMetodo, sinFacturaElectronica, lineasVendidas, rankingProductos, lunasPorTipo, comoFactura } from "../../utilidades/reportesDatos"
 import { porcentaje } from "../../utilidades/reportesPeriodo"
 import { saldoFactura } from "../../utilidades/abonos"
+import { enRango } from "../../utilidades/reportesPeriodo"
 
 const DINERO = { baseMinima: 100, formato: dinero }
 const pct = (n) => (n == null ? "—" : `${n}%`)
@@ -29,6 +30,9 @@ export default function PestanaVentas({ r }) {
   const conSaldo = useMemo(() => act.facturasPeriodo.filter((x) => saldoFactura(x, datos.abonos) > 0), [act.facturasPeriodo, datos.abonos])
   const sinFE = useMemo(() => sinFacturaElectronica(act.facturasPeriodo), [act.facturasPeriodo])
   const metodos = useMemo(() => ventasPorMetodo(act.ventasLista), [act.ventasLista])
+  // Las ventas anuladas no aparecen en Ventas ni suman en ningún total: se consultan aquí, por la fecha en que se anularon.
+  const anuladas = useMemo(() => f.facturas.filter((x) => x.estado === "anulada" && enRango(x.anuladaEn || x.creadoEn, rango)).sort((a, b) => String(b.anuladaEn || b.creadoEn).localeCompare(String(a.anuladaEn || a.creadoEn))), [f.facturas, rango])
+  const montoAnulado = anuladas.reduce((s, x) => s + (Number(x.montoTotal) || 0), 0)
   const lunas = useMemo(() => lunasPorTipo(f.facturas, rango), [f.facturas, rango])
   const lineasLuna = useMemo(() => lineasVendidas(f.facturas, rango, "luna"), [f.facturas, rango])
   const productos = useMemo(() => rankingProductos(f.facturas, f.hay ? [] : datos.ventas, rango), [f.facturas, f.hay, datos.ventas, rango])
@@ -158,6 +162,17 @@ export default function PestanaVentas({ r }) {
             )}
           </Caja>
         </div>
+      </Seccion>
+
+      <Seccion titulo="Ventas anuladas">
+        <Caja titulo="Ventas anuladas del período" exportar={r.bloque("Ventas anuladas", () => ({ columnas: cols.facturaAnulada.map((c) => ({ ...c, titulo: c.titulo })), filas: anuladas }), () => ({ columnas: cols.facturaAnulada, filas: anuladas }))} ayuda="Las ventas que se anularon en el período (por la fecha de anulación). No aparecen en Ventas ni suman en ningún total; aquí se consultan con quién las anuló y el motivo.">
+          {anuladas.length === 0 ? <SinResultados texto="No se anuló ninguna venta en este período." /> : (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-600">{anuladas.length} {anuladas.length === 1 ? "venta anulada" : "ventas anuladas"} · {dinero(montoAnulado)}</p>
+              <button type="button" onClick={() => abrir({ titulo: `Ventas anuladas: ${anuladas.length}`, valor: dinero(montoAnulado), icono: Ban, columnas: cols.facturaAnulada, filas: anuladas })} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">Ver la lista</button>
+            </div>
+          )}
+        </Caja>
       </Seccion>
 
       <Seccion titulo="Facturación">

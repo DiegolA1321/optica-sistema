@@ -11,13 +11,14 @@ import { diasVencido } from "../../utilidades/fidelizacion"
 import { cobradoDeFactura } from "../../utilidades/vendidoCobrado"
 import { saldoDeFactura, nombreMetodo } from "../../utilidades/reportesDatos"
 import { comoLlego } from "../../utilidades/comoLlego"
+import { nombreDeMiembro } from "../../utilidades/equipo"
 
 const FECHA = 124, MONTO = 116, ESTADO = 116
 
 // Una columna para un Excel de datos resumidos: su título, cómo se calcula de cada fila y su tipo (texto, fecha, dinero, entero, tasa, decimal).
 export const col = (titulo, fn, tipo = "texto") => ({ titulo, tipo, valor: (f) => String(fn(f) ?? ""), ...(tipo === "texto" ? {} : { crudo: fn }) })
 
-export function crearColumnas({ pacientes = [], abonos = [], historial = [] }) {
+export function crearColumnas({ pacientes = [], abonos = [], historial = [], equipo = [] }) {
   const porId = new Map(pacientes.map((p) => [p.id, p]))
   const nombre = (id, respaldo = "") => porId.get(id)?.nombre || respaldo || "—"
   const estadoOrden = (o) => (estaAtrasada(o) ? ETIQUETA_ESTADO.atrasada : ETIQUETA_ESTADO[o.estado] || o.estado)
@@ -56,6 +57,15 @@ export function crearColumnas({ pacientes = [], abonos = [], historial = [] }) {
       { titulo: "Total", ancho: MONTO, derecha: true, valor: (f) => dinero(f.montoTotal), tipo: "dinero", crudo: (f) => Number(f.montoTotal) || 0 },
       { titulo: "Saldo", ancho: MONTO, derecha: true, valor: (f) => dinero(saldoDeFactura(f, cobradoDe(f))), tipo: "dinero", crudo: (f) => saldoDeFactura(f, cobradoDe(f)) },
       { titulo: "Estado", ancho: ESTADO, valor: (f) => (f.estado === "anulada" ? "Anulada" : f.estado === "pendiente_pago" ? "Con saldo" : "Pagada") },
+    ],
+    // Las ventas anuladas: cuándo se anuló, de qué comprobante y paciente, cuánto era, quién la anuló y por qué. No suman en ningún total.
+    facturaAnulada: [
+      { titulo: "Anulada el", ancho: FECHA, valor: (f) => fechaLegible(String(f.anuladaEn || f.creadoEn).slice(0, 10)), tipo: "fecha", crudo: (f) => String(f.anuladaEn || f.creadoEn).slice(0, 10) },
+      { titulo: "Comprobante", ancho: 148, valor: (f) => (f.numero == null ? "Venta suelta" : numeroComprobante(f.numero)) },
+      { titulo: "Paciente", valor: (f) => nombre(f.pacienteId) },
+      { titulo: "Monto", ancho: MONTO, derecha: true, valor: (f) => dinero(f.montoTotal), tipo: "dinero", crudo: (f) => Number(f.montoTotal) || 0 },
+      { titulo: "Anuló", ancho: 150, valor: (f) => (f.anuladaPor ? nombreDeMiembro(equipo, f.anuladaPor) || "Persona que ya no está en el equipo" : "—") },
+      { titulo: "Motivo", ancho: 220, valor: (f) => f.anuladaMotivo || "—" },
     ],
     // Una fila por pago: { fecha, monto, factura }
     pago: [

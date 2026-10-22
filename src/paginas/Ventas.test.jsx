@@ -2,7 +2,7 @@ import React from "react"
 import { describe, it, expect, beforeEach } from "vitest"
 import { render, screen, fireEvent, within } from "@testing-library/react"
 import Ventas from "./Ventas"
-import { ordenesAbiertas } from "../utilidades/ordenesLaboratorio"
+import { ordenesEnProceso } from "../utilidades/ordenesLaboratorio"
 import { hoyISO } from "../utilidades/disponibilidad"
 
 const pacientes = [{ id: "p1", nombre: "Ana Prueba", cedula: "0101010101", telefono: "0990000001" }, { id: "p2", nombre: "Luis Mora", cedula: "0202020202", telefono: "0990000002" }]
@@ -122,24 +122,20 @@ describe("Ventas — la lista y su franja de datos", () => {
     expect(within(d).getByRole("button", { name: "Revisar" })).toBeInTheDocument()
   })
 
-  it("«Pedidos en proceso» lleva a Pedidos con ese filtro", () => {
-    const ordenes = [{ id: "o1", numero: 1, pacienteId: "p1", estado: "enviada", fechaPrometida: "2099-01-01", laboratorio: "Lab A", facturaId: "a" }, { id: "o2", numero: 2, pacienteId: "p2", estado: "lista", fechaPrometida: "2099-01-01", laboratorio: "Lab B", facturaId: "b" }]
+  it("la franja no lleva pedidos (son de la pestaña Pedidos) y el número de la pestaña es el de «En proceso»", () => {
+    const ordenes = [{ id: "o1", numero: 1, pacienteId: "p1", estado: "enviada", fechaPrometida: "2099-01-01", facturaId: "a" }, { id: "o2", numero: 2, pacienteId: "p2", estado: "lista", fechaPrometida: "2099-01-01", facturaId: "b" }]
     render(<Ventas {...base} facturasVenta={facturas} abonos={abonos} ordenesLab={ordenes} {...ir("ventas")} />)
-    expect(dato("Pedidos en proceso")).toHaveTextContent("1")
-    fireEvent.click(dato("Pedidos en proceso"))
-    expect(screen.getByRole("tab", { name: /Pedidos/ })).toHaveAttribute("aria-selected", "true")
-    expect(within(screen.getByRole("list", { name: "Pedidos" })).getAllByRole("listitem")).toHaveLength(1)
-    expect(screen.getByRole("button", { name: /^En proceso/ })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.queryByRole("button", { name: /Pedidos en proceso/ })).not.toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: /Pedidos/ })).toHaveTextContent("1")
   })
 
-  it("«Filtrar» ofrece las ventas anuladas y la forma de pago", () => {
+  it("«Filtrar» ofrece la forma de pago y la factura electrónica, y las ventas anuladas ni aparecen ni suman", () => {
     render(<Ventas {...base} facturasVenta={facturas} abonos={abonos} {...ir("ventas")} />)
     fireEvent.click(screen.getByRole("button", { name: /Filtrar/ }))
     const panel = screen.getByRole("dialog", { name: "Filtrar" })
-    fireEvent.click(within(panel).getByRole("button", { name: "Con anuladas" }))
-    expect(screen.getByText("CV-0003")).toBeInTheDocument()
-    expect(screen.getByText("Anulada")).toBeInTheDocument()
-    fireEvent.click(within(panel).getByRole("button", { name: "Con anuladas" })) // un clic más lo quita
+    expect(within(panel).queryByText("Ventas anuladas")).not.toBeInTheDocument()
+    expect(screen.queryByText("CV-0003")).not.toBeInTheDocument() // la anulada no está en la lista
+    expect(screen.queryByText("Anulada")).not.toBeInTheDocument()
     fireEvent.click(within(panel).getByRole("button", { name: "Tarjeta" }))
     expect(filas()).toHaveLength(1)
     expect(screen.getByText("CV-0002")).toBeInTheDocument()
@@ -224,11 +220,12 @@ describe("Ventas — Pedidos", () => {
   const lista = () => screen.getByRole("list", { name: "Pedidos" })
   const pedidos = () => within(lista()).getAllByRole("listitem")
 
-  it("el número de la pestaña son los pedidos abiertos y la lista arranca en «En proceso»", () => {
+  it("el número de la pestaña, el de la píldora y la lista son los mismos pedidos en proceso", () => {
     render(<Ventas {...base} ordenesLab={ordenes} facturasVenta={facturas} {...ir("pedidos")} />)
-    expect(screen.getByRole("tab", { name: /Pedidos/ })).toHaveTextContent(String(ordenesAbiertas(ordenes).length))
+    expect(screen.getByRole("tab", { name: /Pedidos/ })).toHaveTextContent(String(ordenesEnProceso(ordenes).length))
     expect(screen.getByRole("button", { name: /^En proceso/ })).toHaveAttribute("aria-pressed", "true")
-    expect(pedidos()).toHaveLength(1)
+    expect(pedidos()).toHaveLength(ordenesEnProceso(ordenes).length)
+    expect(screen.getByRole("button", { name: /^En proceso/ })).toHaveTextContent(String(ordenesEnProceso(ordenes).length))
     expect(screen.queryByText("OL-0003")).not.toBeInTheDocument()
   })
 

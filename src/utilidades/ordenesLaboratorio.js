@@ -40,6 +40,8 @@ export const diasDeAtraso = (orden, hoy = ahoraEcuador()) => {
 
 export const ordenesAtrasadas = (ordenes, hoy = ahoraEcuador()) => ordenes.filter((o) => estaAtrasada(o, hoy))
 export const ordenesListasSinAvisar = (ordenes) => ordenes.filter((o) => o.estado === "lista" && !o.pacienteAvisadoEn)
+// Una sola regla para contar los pedidos: «en proceso» son los que todavía no están listos (incluye los atrasados) y «atrasados» los que pasaron su fecha sin estar listos. Pedidos, Inicio, Reportes y Ventas cuentan con ella.
+export const ordenesEnProceso = (ordenes) => ordenes.filter((o) => o.estado === "enviada")
 export const ordenesAbiertas = (ordenes) => ordenes.filter((o) => o.estado === "enviada" || o.estado === "lista")
 
 // La altura de montaje depende de la montura elegida, así que NO va en la ficha clínica: se pide aquí, por ojo. Se guarda en el mismo campo de texto de siempre: «OD 18 · OI 17».

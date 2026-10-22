@@ -80,7 +80,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
   const f = useMemo(() => filtrarDatos(datos, filtros), [datos, filtros])
   const act = useMemo(() => metricasDelPeriodo(f, datos, rango), [f, datos, rango])
   const ant = useMemo(() => metricasDelPeriodo(f, datos, previo), [f, datos, previo])
-  const cols = useMemo(() => crearColumnas({ pacientes, abonos, historial }), [pacientes, abonos, historial])
+  const cols = useMemo(() => crearColumnas({ pacientes, abonos, historial, equipo }), [pacientes, abonos, historial, equipo])
 
   const etiquetas = [
     { id: "periodo", texto: `Período: ${tituloSemana(rango.inicio, rango.fin)}` },
