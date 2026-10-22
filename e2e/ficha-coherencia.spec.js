@@ -228,10 +228,10 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
   await expect(perfil).toContainText('+1.50'); await expect(perfil).toContainText('+1.75')
   // «Imprimir diagnóstico» va en la misma fila que los demás botones del encabezado
   const fila = async (nombre) => (await perfil.getByRole('button', { name: nombre }).first().boundingBox()).y
-  const yComparar = await fila(/Comparar diagnósticos/), yVista = await fila(/Vista para el paciente/), yImprimir = await fila(/Imprimir diagnóstico/)
+  const yComparar = await fila(/^Comparar$/), yVista = await fila(/^Para el paciente$/), yImprimir = await fila(/Imprimir diagnóstico/)
   expect(Math.abs(yImprimir - yComparar), 'Imprimir diagnóstico en la misma fila que Comparar').toBeLessThan(8)
   expect(Math.abs(yImprimir - yVista), 'Imprimir diagnóstico en la misma fila que el interruptor de vista').toBeLessThan(8)
-  await perfil.getByRole('button', { name: 'Vista para el paciente' }).click()
+  await perfil.getByRole('button', { name: 'Para el paciente' }).click()
   await expect(perfil).toContainText('Tienes miopía') // las frases del paciente solo en la vista para el paciente
   await perfil.getByRole('button', { name: 'Vista técnica' }).click()
 

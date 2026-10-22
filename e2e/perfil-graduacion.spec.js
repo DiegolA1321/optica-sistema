@@ -44,9 +44,10 @@ for (const rol of ['ADMIN', 'OPTOMETRA', 'RECEPCION', 'VENTAS']) {
     await expect(page.getByText('Agudeza visual').first()).toBeVisible()
     const od = page.getByRole('region', { name: 'Ojo derecho' })
     await expect(od).toContainText('OD · Ojo derecho')
-    for (const t of ['Esfera', 'Cilindro', 'Eje', 'Sin corrección', 'Con su corrección actual']) await expect(od).toContainText(t)
-    await expect(page.getByLabel('Medidas de la receta')).toContainText('Distancia pupilar (DP)')
-    await expect(page.getByText('Indicaciones y lente recomendado')).toBeVisible()
+    for (const t of ['Cil', 'Eje']) await expect(od).toContainText(t)
+    for (const t of ['Sin corrección', 'Con su corrección actual']) await expect(page.getByRole('region', { name: 'Agudeza visual' })).toContainText(t)
+    await expect(page.getByLabel('Medidas de la receta')).toContainText('Distancia pupilar')
+    await expect(page.getByRole('region', { name: 'Diagnóstico', exact: true })).toContainText('Indicaciones')
     // el ojo izquierdo a la izquierda y el derecho a la derecha, también en la vista técnica
     const x = async (n) => (await page.getByRole('region', { name: n }).boundingBox()).x
     expect(await x('Ojo izquierdo')).toBeLessThan(await x('Ojo derecho'))
@@ -59,15 +60,15 @@ for (const rol of ['ADMIN', 'OPTOMETRA', 'RECEPCION', 'VENTAS']) {
     await page.locator('#diagnostico-consulta').click()
     await page.getByRole('option', { name: /21 nov 2025/ }).click()
     await expect(page.getByRole('region', { name: 'Ojo derecho' })).toContainText('−1.25')
-    // el interruptor de dos opciones: Vista técnica | Vista para el paciente
+    // el interruptor de dos opciones: Vista técnica | Para el paciente
     await expect(page.getByRole('button', { name: 'Explicar al paciente' })).toHaveCount(0)
-    await page.getByRole('button', { name: 'Vista para el paciente' }).click()
+    await page.getByRole('button', { name: 'Para el paciente' }).click()
     await expect(page.getByRole('region', { name: 'Ojo derecho' })).toContainText('Tienes miopía leve')
     expect(await x('Ojo derecho')).toBeGreaterThan(await x('Ojo izquierdo'))
     await page.getByRole('button', { name: 'Vista técnica' }).click()
     await expect(page.getByRole('region', { name: 'Ojo derecho' })).toContainText('OD · Ojo derecho')
-    // Comparar diagnósticos e Imprimir diagnóstico (no «recetas»)
-    await page.getByRole('button', { name: 'Comparar diagnósticos' }).click()
+    // Comparar e Imprimir diagnóstico (no «recetas»)
+    await page.getByRole('button', { name: 'Comparar', exact: true }).click()
     await expect(page.getByRole('dialog', { name: 'Comparar diagnósticos' })).toContainText(/Refracción · OD/)
     await page.keyboard.press('Escape')
     await expect(page.getByRole('button', { name: 'Imprimir diagnóstico' })).toBeVisible()

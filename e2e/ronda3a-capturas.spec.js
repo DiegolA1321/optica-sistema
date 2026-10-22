@@ -57,14 +57,14 @@ test('capturas del perfil: Resumen, Citas, Diagnóstico (con y sin refracción, 
     await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 8_000 })
   }).toPass({ timeout: 60_000 })
 
-  // Resumen: con refracción aparece «Estado de corrección»; arriba van los avisos (si los hay) y al final la fidelización
-  await expect(page.getByText('Estado de corrección')).toBeVisible()
+  // Resumen: arriba los avisos (si los hay), la franja de datos, la última atención y la actividad, y al final la fidelización
+  await expect(page.getByRole('region', { name: 'Datos del paciente' })).toBeVisible()
   await expect(page.getByText('Compras', { exact: true }).first()).toBeVisible()
   await foto(page, 'perfil-resumen-con-datos')
 
   // Citas
   await page.getByRole('tab', { name: /Citas/ }).click()
-  await expect(page.getByRole('region', { name: 'Tendencia de las citas' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Visitas por año' })).toBeVisible()
   await foto(page, 'perfil-citas-con-datos')
 
   // Diagnóstico: la consulta más reciente NO tuvo refracción
@@ -73,7 +73,7 @@ test('capturas del perfil: Resumen, Citas, Diagnóstico (con y sin refracción, 
   await expect(page.getByRole('region', { name: 'Ojo derecho' })).toHaveCount(0)
   await expect(page.getByText('Refracción final')).toHaveCount(0)
   await foto(page, 'diagnostico-sin-refraccion-vista-tecnica')
-  await page.getByRole('button', { name: 'Vista para el paciente' }).click()
+  await page.getByRole('button', { name: 'Para el paciente' }).click()
   await expect(page.getByRole('region', { name: 'Lo que te indicó tu optómetra' })).toContainText('Descansar la vista')
   await foto(page, 'diagnostico-sin-refraccion-vista-paciente')
   // la consulta con refracción
@@ -82,7 +82,7 @@ test('capturas del perfil: Resumen, Citas, Diagnóstico (con y sin refracción, 
   await page.getByRole('option', { name: /Miopía/ }).click()
   await expect(page.getByRole('region', { name: 'Ojo derecho' })).toContainText('OD · Ojo derecho')
   await foto(page, 'diagnostico-con-refraccion-vista-tecnica')
-  await page.getByRole('button', { name: 'Vista para el paciente' }).click()
+  await page.getByRole('button', { name: 'Para el paciente' }).click()
   await expect(page.getByRole('region', { name: 'Ojo derecho' })).toContainText('Tienes miopía')
   await foto(page, 'diagnostico-con-refraccion-vista-paciente')
 
@@ -90,9 +90,9 @@ test('capturas del perfil: Resumen, Citas, Diagnóstico (con y sin refracción, 
   await page.getByRole('tab', { name: /Compras/ }).click()
   const compras = page.getByRole('region', { name: 'Compras del paciente' })
   await expect(compras).toBeVisible()
-  await expect(compras.getByRole('button', { name: 'Nueva venta' })).toBeVisible()
-  await expect(compras.getByText('En proceso')).toBeVisible()
-  const [bc, bn] = [await compras.boundingBox(), await compras.getByRole('button', { name: 'Nueva venta' }).boundingBox()]
+  await expect(compras.getByRole('button', { name: '+ Nueva venta' })).toBeVisible()
+  await expect(compras.getByText('En el laboratorio')).toBeVisible()
+  const [bc, bn] = [await compras.boundingBox(), await compras.getByRole('button', { name: '+ Nueva venta' }).boundingBox()]
   expect(bn.y).toBeGreaterThanOrEqual(bc.y)
   expect(bn.y + bn.height).toBeLessThanOrEqual(bc.y + 80) // dentro del encabezado del contenedor
   await expect(page.getByRole('tab', { name: /Órdenes de laboratorio/ })).toHaveCount(0)

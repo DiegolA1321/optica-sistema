@@ -1,5 +1,5 @@
 // Perfil del paciente (reunión del 20 oct., Ronda 3a) en la óptica de pruebas (E2E): ESCRIBE datos (crea pacientes y citas "E Dos E ...").
-// Cabecera sin graduación, con los botones de dos en dos y «Atender» siempre disponible; el Resumen con los avisos arriba; la pestaña Citas con los conteos y la tendencia de línea;
+// Cabecera única (los cuatro botones en una fila, las pestañas con línea azul y «Atender» al final de su fila); el Resumen con los avisos arriba y la franja de datos; la pestaña Citas con la franja de conteos y las gráficas de visitas;
 // y atender a quien llega sin cita («Atender ahora»: crea la cita presencial y abre la ficha).
 // Con E2E_CAPTURAS=1 guarda capturas a 1093 px en docs/ronda3a-capturas/.
 import { test, expect } from '@playwright/test'
@@ -29,25 +29,27 @@ async function abrirPerfil(page, nombre, prefijo = 'OPTOMETRA') {
   }).toPass({ timeout: 60_000 })
 }
 
-test('cabecera con los botones de dos en dos, Resumen con avisos arriba, Citas con conteos y tendencia', async ({ page }) => {
+test('cabecera con los botones en una fila, Resumen con avisos arriba, Citas con la franja de conteos y las gráficas de visitas', async ({ page }) => {
   test.setTimeout(240_000)
   const nombre = await crearCitaDeHoyParaPaula('E2E')
   await abrirPerfil(page, nombre)
   await expect(page.getByRole('heading', { level: 1, name: nombre })).toBeVisible()
 
-  // Cabecera: sin la graduación, sin «Ficha clínica»; botones de dos en dos (Historia clínica | Datos, Agendar cita | Enviar mensaje); el acceso al portal es una sola etiqueta
+  // Cabecera: sin la graduación, sin «Ficha clínica»; los cuatro botones en una sola fila junto al nombre; sin las etiquetas «Activo» ni «Portal activo»
   await expect(page.getByRole('button', { name: 'Ficha clínica' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Graduación vigente del/ })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Crear acceso', exact: true })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /Cuenta Portal: Sin cuenta · Crear acceso/ })).toBeVisible()
+  await expect(page.getByText('Cuenta Portal')).toHaveCount(0)
+  await expect(page.getByText('Portal activo')).toHaveCount(0)
+  await expect(page.getByText('Activo', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Crear acceso al portal' }), 'sin cuenta: el acceso se crea desde la línea de datos').toBeVisible()
   await expect(page.getByRole('button', { name: 'Enviar mensaje' }), 'el optómetra no tiene CRM: crear').toHaveCount(0)
   const historia = page.getByRole('button', { name: 'Historia clínica' })
   const datos = page.getByRole('button', { name: 'Datos', exact: true })
   await expect(historia).toBeVisible()
   const [bh, bd, ba] = [await historia.boundingBox(), await datos.boundingBox(), await botonAgendar(page).boundingBox()]
   expect(Math.abs(bh.y - bd.y), 'Historia clínica y Datos van en la misma fila').toBeLessThan(2)
+  expect(Math.abs(bh.y - ba.y), 'Agendar cita va en la misma fila').toBeLessThan(2)
   expect(bd.x).toBeGreaterThan(bh.x)
-  expect(ba.y, 'Agendar cita va en la fila de abajo').toBeGreaterThan(bh.y + 20)
   // Atender, siempre disponible: con cita de hoy es «Atender»; no hay «Atender ahora» ni líneas de «Abierto hace…»
   await expect(page.getByRole('button', { name: 'Atender', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: 'Atender ahora' })).toHaveCount(0)
@@ -63,45 +65,49 @@ test('cabecera con los botones de dos en dos, Resumen con avisos arriba, Citas c
   await expect(pestanas.nth(3)).toContainText('Compras')
   await expect(page.getByText('Órdenes de laboratorio')).toHaveCount(0)
   await expect(pestanas.nth(0)).toHaveAttribute('aria-selected', 'true')
+  const atender = await page.getByRole('button', { name: 'Atender', exact: true }).first().boundingBox()
+  expect(Math.abs(atender.y - (await pestanas.nth(0).boundingBox()).y), 'Atender va en la misma fila que las pestañas').toBeLessThan(30)
 
-  // Resumen: solo los avisos y la fidelización (nivel y puntos, referidos y cumpleaños) en un bloque compacto; las tarjetas clínicas y las compras están en sus pestañas
+  // Resumen: los avisos, la franja de datos (paciente desde, total comprado, saldo y cómo llegó), la última atención, la actividad reciente y la fidelización compacta
   await expect(page.getByRole('region', { name: 'Citas del paciente' })).toHaveCount(0)
   await expect(page.getByText('Estado de corrección')).toHaveCount(0)
   await expect(page.getByText('Compras / lentes')).toHaveCount(0)
-  await expect(page.getByText('Última consulta')).toHaveCount(0)
-  await expect(page.getByText('Total comprado')).toHaveCount(0)
+  const franja = page.getByRole('region', { name: 'Datos del paciente' })
+  for (const t of ['Paciente desde', 'Total comprado', 'Cómo llegó']) await expect(franja).toContainText(t)
+  await expect(franja, 'cómo llegó nunca queda vacío').toContainText(/Por su cuenta|Por la web|Referido por/)
+  await expect(page.getByRole('region', { name: 'Última atención' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Actividad reciente' })).toBeVisible()
   const fidelizacion = page.getByRole('region', { name: 'Fidelización' })
   await expect(fidelizacion, 'la fidelización aparece una sola vez, en Resumen').toHaveCount(1)
   await expect(fidelizacion).toContainText('Nivel y puntos')
   await expect(fidelizacion).toContainText('Referidos')
-  await expect(fidelizacion).toContainText(/\d+ de \w+ \((en \d+ días?|es hoy)\)/)
+  await expect(fidelizacion).toContainText(/Cumplirá \d+( años?)? · en \d+ días?|Cumple \d+ años? · hoy|Sin fecha de nacimiento/)
   await foto(page, 'perfil-resumen')
 
-  // Citas: arriba las tarjetas clínicas (próximo control y última consulta; el estado de corrección solo con refracción), debajo los conteos y la tendencia lado a lado y al final el historial
+  // Citas: la franja (conteos, control recomendado y última consulta), debajo las visitas por año y la línea de tiempo lado a lado y al final el historial
   await pestanas.nth(1).click()
-  const clinicas = page.getByRole('region', { name: 'Información clínica' })
-  await expect(clinicas).toContainText('Última consulta')
-  await expect(clinicas).toContainText('Próximo control')
-  await expect(clinicas).not.toContainText('Estado de corrección')
   const conteos = page.getByRole('region', { name: 'Citas del paciente' })
-  const tendencia = page.getByRole('region', { name: 'Tendencia de las citas' })
+  await expect(conteos).toContainText('Última consulta')
+  await expect(conteos).toContainText(/Próximo control|Control recomendado/)
+  const visitas = page.getByRole('region', { name: 'Visitas por año' })
+  const lineaTiempo = page.getByRole('region', { name: 'Línea de tiempo de sus visitas' })
   await expect(conteos).toBeVisible()
-  await expect(tendencia).toBeVisible()
-  expect((await clinicas.boundingBox()).y, 'las tarjetas clínicas van arriba de los conteos').toBeLessThan((await conteos.boundingBox()).y)
-  const [bc, bt] = [await conteos.boundingBox(), await tendencia.boundingBox()]
-  expect(Math.abs(bc.y - bt.y), 'los conteos y la tendencia van lado a lado').toBeLessThan(4)
-  expect(bt.x).toBeGreaterThan(bc.x)
-  await expect(conteos.locator('dd').nth(0)).toHaveText('1') // pendientes
+  await expect(visitas).toBeVisible()
+  await expect(lineaTiempo).toBeVisible()
+  expect((await conteos.boundingBox()).y, 'la franja de conteos va arriba de las gráficas').toBeLessThan((await visitas.boundingBox()).y)
+  const [bv, bl] = [await visitas.boundingBox(), await lineaTiempo.boundingBox()]
+  expect(Math.abs(bv.y - bl.y), 'las visitas por año y la línea de tiempo van lado a lado').toBeLessThan(4)
+  expect(bl.x).toBeGreaterThan(bv.x)
+  await expect(conteos.getByRole('button', { name: /^Pendientes/ })).toContainText('1')
   for (const t of ['Pendientes', 'Atendidas', 'No efectuadas', 'Canceladas']) await expect(conteos.getByText(t, { exact: true })).toBeVisible()
-  // la gráfica es de línea, con selector de semana, mes y año (por defecto, mes)
-  await expect(tendencia.getByRole('button', { name: 'Mes' })).toHaveAttribute('aria-pressed', 'true')
-  await expect(tendencia.getByRole('img', { name: /^Citas por mes:/ })).toBeVisible()
-  await expect(tendencia.locator('svg path[stroke]').first()).toBeVisible() // la línea de la evolución
-  await tendencia.getByRole('button', { name: 'Semana' }).click()
-  await expect(tendencia.getByRole('img', { name: /^Citas por semana:/ })).toBeVisible()
-  await tendencia.getByRole('button', { name: 'Año' }).click()
-  await expect(tendencia.getByRole('img', { name: /^Citas por año:/ })).toBeVisible()
-  await tendencia.getByRole('button', { name: 'Mes' }).click()
+  // «Visitas por año» es una línea, con la opción «Por trimestre»; la línea de tiempo pone un punto por cita
+  await expect(visitas.getByRole('button', { name: 'Por año' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(visitas.getByRole('img', { name: /^Visitas:/ })).toBeVisible()
+  await expect(visitas.locator('svg path[stroke]').first()).toBeVisible() // la línea de la evolución
+  await visitas.getByRole('button', { name: 'Por trimestre' }).click()
+  await expect(visitas.getByRole('heading', { name: 'Visitas por trimestre' })).toBeVisible()
+  await visitas.getByRole('button', { name: 'Por año' }).click()
+  await expect(lineaTiempo.getByRole('button')).toHaveCount(1)
   // el historial trae la cita pendiente y abre su detalle completo (con el seguimiento)
   const historial = page.getByRole('region', { name: 'Historial de citas' })
   await expect(historial).toContainText('Pendiente')
@@ -122,10 +128,10 @@ test('cabecera con los botones de dos en dos, Resumen con avisos arriba, Citas c
   await form.getByRole('button', { name: 'Confirmar cita' }).click()
   await page.getByRole('dialog').last().getByRole('button', { name: 'Confirmar', exact: true }).click()
   await expect(page.getByText(`Cita agendada para ${nombre}.`)).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByRole('region', { name: 'Citas del paciente' }).locator('dd').nth(0)).toHaveText('2')
+  await expect(page.getByRole('region', { name: 'Citas del paciente' }).getByRole('button', { name: /^Pendientes/ })).toContainText('2')
 
-  // «Cuenta Portal: Sin cuenta · Crear acceso» abre la creación de la cuenta
-  await page.getByRole('button', { name: /Crear acceso/ }).click()
+  // «Crear acceso al portal» (en la línea de datos) abre la creación de la cuenta
+  await page.getByRole('button', { name: 'Crear acceso al portal' }).click()
   await expect(page.getByRole('heading', { name: /Crear cuenta de acceso/ })).toBeVisible()
   await page.getByRole('button', { name: 'Cerrar' }).last().click()
   await cancelarCitasDePrueba([nombre])
@@ -140,9 +146,9 @@ test('atención abierta: «Seguir atendiendo» y «Dejar de atender» en la cabe
   await expect(dejar).toBeVisible()
   await expect(page.getByRole('button', { name: 'Ingresar' })).toHaveCount(0)
   // la cabecera no lleva la línea «Abierta hace N días»; el aviso de la cita en atención está en el Resumen
-  const cabecera = page.getByRole('heading', { level: 1, name: abierta }).locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]')
+  const cabecera = page.getByRole('banner', { name: 'Perfil del paciente' })
   await expect(cabecera.getByText(/Abierta hace/)).toHaveCount(0)
-  const avisos = page.getByRole('region', { name: 'Avisos del paciente' })
+  const avisos = page.getByRole('list', { name: 'Avisos del paciente' })
   await expect(avisos).toContainText('Cita en atención')
   await expect(avisos).toContainText('Abierta hace 1 día')
   await foto(page, 'perfil-cabecera-atencion-abierta')
@@ -209,7 +215,8 @@ test('Resumen, Citas y Diagnóstico de un paciente con historial (Demo, solo lec
   await page.getByRole('tab', { name: /Citas/ }).click()
   await expect(page.getByText('Última consulta')).toBeVisible()
   await expect(page.getByRole('region', { name: 'Citas del paciente' })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Tendencia de las citas' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Visitas por año' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Línea de tiempo de sus visitas' })).toBeVisible()
   await page.getByRole('tab', { name: /Diagnóstico/ }).click()
   await expect(page.getByRole('heading', { name: 'Diagnóstico', exact: true, level: 1 })).toBeVisible()
 })
