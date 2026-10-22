@@ -37,9 +37,10 @@ export function cicloDeControl({ inicio, control, hoy }) {
   return { diasParaControl: dias(hoy, control), avance: Math.max(0, Math.min(100, Math.round((transcurridos / total) * 100))), vencido: dias(hoy, control) < 0 }
 }
 
-// «Viene en promedio cada N meses»: el promedio de días entre consultas seguidas, en meses (mínimo 1). Solo con dos o más consultas; si no, null.
+// «Viene en promedio cada N meses»: el promedio de días entre los días distintos en que vino, en meses (mínimo 1). Varias atenciones el mismo día cuentan como una sola visita. Solo con dos o más
+// días distintos; si no, null.
 export function promedioEntreConsultas(consultas = []) {
-  const fechas = consultas.map((k) => k.fecha).filter((f) => /^\d{4}-\d{2}-\d{2}/.test(f || "")).map((f) => f.slice(0, 10)).sort()
+  const fechas = [...new Set(consultas.map((k) => k.fecha).filter((f) => /^\d{4}-\d{2}-\d{2}/.test(f || "")).map((f) => f.slice(0, 10)))].sort()
   if (fechas.length < 2) return null
   const promedio = dias(fechas[0], fechas[fechas.length - 1]) / (fechas.length - 1)
   return Math.max(1, Math.round(promedio / 30.44))

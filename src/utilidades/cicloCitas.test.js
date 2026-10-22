@@ -45,4 +45,8 @@ describe("promedioEntreConsultas", () => {
     expect(promedioEntreConsultas([{ fecha: "2026-10-07" }, { fecha: "2026-04-20" }])).toBe(6)
     expect(promedioEntreConsultas([{ fecha: "2026-10-07" }, { fecha: "2026-10-01" }])).toBe(1)
   })
+  it("dos atenciones el mismo día son una sola visita: no hay promedio ni se achica", () => {
+    expect(promedioEntreConsultas([{ fecha: "2026-10-07" }, { fecha: "2026-10-07" }])).toBeNull()
+    expect(promedioEntreConsultas([{ fecha: "2026-10-07" }, { fecha: "2026-10-07" }, { fecha: "2026-04-20" }])).toBe(6)
+  })
 })

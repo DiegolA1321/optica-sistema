@@ -76,6 +76,8 @@ import { useEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import {  } from "../utilidades/agudeza"
 import { puedeIngresarCita } from "../utilidades/filtrosCitas"
 import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
+import ConfirmarOtraConsulta from "../componentes/ConfirmarOtraConsulta"
+import { atencionDeHoy } from "../utilidades/atencionDeHoy"
 import AvisoMedidasPedidas from "../componentes/AvisoMedidasPedidas"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import DiagnosticoPerfil from "../componentes/graduacion/DiagnosticoPerfil"
@@ -314,6 +316,8 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
   // Selector de cita al entrar a la ficha clínica desde el perfil (pedido del
   // ing, reunión 29 sept.): { paciente, citas } cuando hay que elegir, o null.
   const [seleccionCitaPara, setSeleccionCitaPara] = useState(null)
+  // «Este paciente ya se atendió hoy. ¿Registrar otra consulta?»: el paciente que espera esa confirmación (o null).
+  const [otraConsultaPara, setOtraConsultaPara] = useState(null)
   // Edad calculada desde fecha_nacimiento — mismo cálculo que ya usa
   // ConsultaMedica.jsx para la receta impresa, ahora también visible en el
   // encabezado del expediente (pedido explícito de Diego).
@@ -820,10 +824,12 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
 
   // "Atender ahora": toda atención pasa por una cita. Si el paciente ya tiene una cita de hoy, se atiende esa. Si no, se crea una cita para este momento (origen «Presencial», «En atención»,
   // con quien atiende como profesional), queda en Citas (Lista, Semana y Mes) como cualquier otra, y se abre la ficha. Si la hora se cruza con otra cita, se abre el formulario para elegir.
-  const abrirAtenderAhora = async (paciente) => {
+  // Si ya tiene una atención de hoy abierta, «Atender» la continúa (no crea otra); si ya se atendió hoy, solo con la confirmación explícita (`confirmado`) se registra una segunda consulta.
+  const abrirAtenderAhora = async (paciente, confirmado = false) => {
     if (!puedeAtender) { onAviso?.("No tienes permiso para atender pacientes."); return }
-    const deHoy = citas.find((c) => perteneceAPaciente(c, paciente) && c.fecha === hoyISO() && ["Pendiente", "En Espera", "En Atención"].includes(c.estado))
-    if (deHoy) { setPacienteHistorial(null); pedirAtender(deHoy); return }
+    const { enCurso, yaAtendida } = atencionDeHoy({ paciente, citas, consultas, hoy: hoyISO() })
+    if (enCurso) { setPacienteHistorial(null); pedirAtender(enCurso); return }
+    if (yaAtendida && !confirmado) { setOtraConsultaPara(paciente); return }
     const ahora = ahoraEcuador()
     const horaCustom = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
     const duracion = disponibilidad?.duracionCita || 40
@@ -2184,6 +2190,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
       )}
 
       {dialogoAtender}
+      {otraConsultaPara && <ConfirmarOtraConsulta paciente={otraConsultaPara} onConfirmar={() => { const p = otraConsultaPara; setOtraConsultaPara(null); abrirAtenderAhora(p, true) }} onCerrar={() => setOtraConsultaPara(null)} />}
 
       {dejarCita && (
         <ConfirmarDejarDeAtender

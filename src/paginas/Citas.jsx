@@ -42,6 +42,8 @@ import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import DiaCitasModal from "../componentes/DiaCitasModal"
 import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas, SelectorVistaCitas } from "../componentes/FiltrosCitas"
 import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
+import ConfirmarOtraConsulta from "../componentes/ConfirmarOtraConsulta"
+import { atencionDeHoy } from "../utilidades/atencionDeHoy"
 import MotivoDeCancelacion from "../componentes/MotivoDeCancelacion"
 import { MOTIVOS_PERSONAL } from "../utilidades/motivosCancelacion"
 import { colorDe } from "../componentes/calendarioComun"
@@ -271,6 +273,8 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
   const [bannerError, setBannerError] = useState("")
   const [marcandoEstadoId, setMarcandoEstadoId] = useState(null)
   const [confirmando, setConfirmando] = useState(false)
+  // «Este paciente ya se atendió hoy. ¿Registrar otra consulta?»: el paciente que espera esa confirmación (o null).
+  const [otraConsultaPara, setOtraConsultaPara] = useState(null)
 
   const heredaDeRef = useRef(null) // la cita no efectuada de la que se reagenda: la nueva hereda su borrador de ficha
   // Acceso directo desde "Agendar cita" en Inicio: abre este modal sin pasar
@@ -497,6 +501,10 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
     // "Atender ahora": el formulario ya es la confirmación — se salta el
     // segundo diálogo y se entra directo a la ficha.
     if (atenderInmediato) {
+      // Si ya tiene una atención de hoy abierta se continúa esa (no se crea otra); si ya se atendió hoy, solo con la confirmación explícita se registra una segunda consulta.
+      const { enCurso, yaAtendida } = atencionDeHoy({ paciente: pacienteSeleccionado, citas, consultas, hoy: hoyISO() })
+      if (enCurso) { cerrarModal(); pedirAtender(enCurso); return }
+      if (yaAtendida) { setOtraConsultaPara(pacienteSeleccionado); return }
       agendarCita()
       return
     }
@@ -1740,6 +1748,8 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
           </div>
         </Cascaron>
       )}
+
+      {otraConsultaPara && <ConfirmarOtraConsulta paciente={otraConsultaPara} onConfirmar={() => { setOtraConsultaPara(null); agendarCita() }} onCerrar={() => setOtraConsultaPara(null)} />}
 
       {/* ─── CONFIRMACIÓN DE AGENDAMIENTO ─── */}
       {confirmando && (

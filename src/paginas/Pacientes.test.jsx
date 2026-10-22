@@ -97,3 +97,40 @@ describe("Citas del perfil: asistencia, ciclo de control y Contactar", () => {
     expect(screen.getByRole("region", { name: "Su ciclo de control" })).toHaveTextContent("Sin control recomendado")
   })
 })
+
+describe("«Atender» no duplica la atención de hoy", () => {
+  const hoy = "2026-10-22"
+  const montar = (citasHoy, onIrAFichaClinica = vi.fn()) => {
+    render(<Pacientes usuario={admin} pacientes={[diego]} setPacientes={() => {}} consultas={[]} setConsultas={() => {}} citas={citasHoy} setCitas={() => {}} facturasVenta={[]} setFacturasVenta={() => {}} equipo={[{ id: "u1", nombre: "Ana" }]} abonos={[]} onIrAFichaClinica={onIrAFichaClinica} accionInicial={{ accion: "historial", pacienteId: "p1" }} />)
+    return onIrAFichaClinica
+  }
+  const abrirPerfil = async () => {
+    const b = screen.queryAllByRole("button", { name: /Ver perfil 360/ })[0]
+    if (b) fireEvent.click(b)
+    await screen.findByRole("banner", { name: "Perfil del paciente" })
+  }
+  const cita = (id, estado, hora = "10:00 AM") => ({ id, pacienteId: "p1", paciente: "Diego Alarcón", fecha: hoy, hora, estado, motivo: "Consulta general" })
+
+  it("si ya se atendió hoy, «Atender» pregunta antes de registrar otra consulta y cancelar no crea nada", async () => {
+    const ficha = montar([cita("c1", "Atendida")])
+    await abrirPerfil()
+    fireEvent.click(screen.getByRole("button", { name: "Atender" }))
+    const v = await screen.findByRole("dialog", { name: "Otra consulta hoy" })
+    expect(v).toHaveTextContent("Este paciente ya se atendió hoy. ¿Registrar otra consulta?")
+    fireEvent.click(within(v).getByRole("button", { name: "Cancelar" }))
+    expect(screen.queryByRole("dialog", { name: "Otra consulta hoy" })).not.toBeInTheDocument()
+    expect(ficha).not.toHaveBeenCalled()
+  })
+  it("con una atención de hoy en curso se continúa esa: sin preguntar y sin crear otra cita", async () => {
+    montar([cita("c1", "En Atención")])
+    await abrirPerfil()
+    expect(screen.queryByRole("dialog", { name: "Otra consulta hoy" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Seguir atendiendo" })).toBeInTheDocument()
+  })
+  it("sin ninguna atención hoy no pregunta nada", async () => {
+    montar([])
+    await abrirPerfil()
+    expect(screen.getByRole("button", { name: "Atender" })).toBeInTheDocument()
+    expect(screen.queryByRole("dialog", { name: "Otra consulta hoy" })).not.toBeInTheDocument()
+  })
+})
