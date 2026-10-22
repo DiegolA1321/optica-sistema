@@ -14,6 +14,6 @@ export const TONO_ESTADO_ORDEN = { enviada: "azul", lista: "verde", entregada: "
 // Las columnas de la lista de comprobantes, iguales en el encabezado y en cada fila (regla 1): en el módulo con el paciente; en el perfil, sin él.
 export const COLUMNAS_COMPROBANTES = "lg:grid-cols-[5rem_6.5rem_minmax(0,1.4fr)_6rem_9.5rem_11.5rem_5.5rem]"
 // Las columnas se reparten el ancho (fr con mínimos): en una pantalla grande el contenido se reparte y el centro de la fila no queda vacío.
-export const COLUMNAS_COMPROBANTES_PERFIL = "lg:grid-cols-[minmax(4.5rem,0.6fr)_minmax(5.5rem,0.7fr)_minmax(5rem,0.6fr)_minmax(8rem,0.9fr)_minmax(6.5rem,0.7fr)_minmax(9rem,1.6fr)_5.5rem]"
+export const COLUMNAS_COMPROBANTES_PERFIL = "lg:grid-cols-[minmax(4.5rem,0.6fr)_minmax(5.5rem,0.7fr)_minmax(4.5rem,0.6fr)_minmax(7.5rem,0.9fr)_minmax(6rem,0.7fr)_minmax(5rem,1.4fr)_5.5rem]"
 export const ENCABEZADO_COMPROBANTES = [{ texto: "Número" }, { texto: "Fecha" }, { texto: "Paciente" }, { texto: "Total", derecha: true }, { texto: "Estado" }, { texto: "Factura electrónica" }, { texto: "" }]
 export const ENCABEZADO_COMPROBANTES_PERFIL = [{ texto: "Número" }, { texto: "Fecha" }, { texto: "Total", derecha: true }, { texto: "Estado" }, { texto: "Lentes" }, { texto: "Factura electrónica" }, { texto: "" }]

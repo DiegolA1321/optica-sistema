@@ -17,7 +17,7 @@ const TAMANOS = [
   { nombre: '1920', ancho: 1920, alto: 1080, escala: 1 },
 ]
 const PANTALLAS = ['Inicio', 'Mis citas', 'Mi receta', 'Mis compras', 'Mis datos']
-const PESTANAS = ['Resumen', 'Citas', 'Graduación', 'Compras', 'Órdenes de laboratorio']
+const PESTANAS = ['Resumen', 'Citas', 'Diagnóstico', 'Compras']
 const PACIENTE = 'Paciente Demostración Portal'
 
 // Lo que se mide dentro de la página. Devuelve la lista de problemas (vacía si todo está bien).
@@ -264,7 +264,7 @@ for (const t of TAMANOS) {
         await page.getByRole('textbox', { name: /buscar paciente/i }).fill(PACIENTE)
         const fila = page.getByRole('row').filter({ hasText: PACIENTE })
         await expect(fila.getByRole('button', { name: /Ver perfil 360/ })).toBeVisible({ timeout: 30_000 })
-        await expect(fila).toContainText('Graduación:', { timeout: 45_000 })
+        await expect(fila).toContainText('20 abr 2026', { timeout: 45_000 })
         await expect(async () => {
           await fila.getByRole('button', { name: /Ver perfil 360/ }).click()
           await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 8_000 })

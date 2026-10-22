@@ -136,10 +136,8 @@ test.describe('Optómetra', () => {
     await expect.soft(visible(page, 'Nueva venta')).toHaveCount(0)
     await page.locator('main').getByRole('button', { name: 'Ver perfil 360°' }).first().click()
     // Sin botón "Ficha clínica" en el perfil: el optómetra atiende a quien llega sin cita desde "Agendar cita".
-    await page.getByRole('button', { name: 'Agendar cita' }).first().click()
-    await page.getByLabel('Llegó en un horario diferente al de la grilla').check()
-    await expect.soft(page.getByRole('button', { name: 'Atender ahora' }), 'el optómetra puede atender sin cita desde el perfil').toBeVisible()
-    await page.getByRole('button', { name: 'Cancelar' }).click()
+    // (desde la reunión del 20 oct. la cabecera ofrece «Atender» o «Atender ahora» según tenga o no cita)
+    await expect.soft(page.getByRole('button', { name: /^Atender( ahora)?$/ }).first(), 'el optómetra puede atender sin cita desde el perfil').toBeVisible()
     await page.keyboard.press('Escape')
     await expect.soft(modulo(page, 'Ventas'), 'el Optómetra no tiene el módulo Ventas').toHaveCount(0)
     await abrir(page, 'Inventario')

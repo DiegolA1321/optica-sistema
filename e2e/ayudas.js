@@ -265,7 +265,7 @@ export async function liberarHoyDePaula(entorno = 'E2E') {
   const { data: equipo } = await cliente.rpc('equipo_optica')
   const paula = (equipo || []).find((m) => /Paula/.test(m.nombre))
   if (!paula) throw new Error('No se encontró a Paula en el equipo de la óptica de pruebas.')
-  const { error } = await cliente.from('citas').update({ estado: 'Cancelada' }).eq('asignado_a', paula.id).eq('fecha', hoyLocalISO()).neq('estado', 'Cancelada')
+  const { error } = await cliente.from('citas').update({ estado: 'Cancelada' }).eq('asignado_a', paula.id).eq('fecha', hoyLocalISO()).in('estado', ['Pendiente', 'En Espera', 'En Atención'])
   if (error) throw new Error(`No se pudo liberar el día de Paula: ${error.message}`)
 }
 

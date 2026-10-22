@@ -1902,7 +1902,10 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                 {puedeAtender && (() => {
                   const delPaciente = citas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
                   const abierta = delPaciente.filter((c) => c.estado === "En Atención").sort((a, b) => (a.fecha < b.fecha ? 1 : -1))[0]
-                  const deHoy = !abierta && delPaciente.filter((c) => c.fecha === hoyISO() && ["Pendiente", "En Espera"].includes(c.estado)).sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))[0]
+                  // «Atender» con la cita de hoy; si solo tiene una de otro día, también (pregunta «¿Atenderla hoy?»: regla de la Ronda 2). Sin ninguna, «Atender ahora».
+                  const abiertas = delPaciente.filter((c) => ["Pendiente", "En Espera"].includes(c.estado) && (c.fecha >= hoyISO() || puedeIngresarCita(c)))
+                    .sort((a, b) => ((a.fecha === hoyISO()) === (b.fecha === hoyISO()) ? (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)) : a.fecha === hoyISO() ? -1 : 1))
+                  const deHoy = !abierta && abiertas[0]
                   const principal = "inline-flex min-h-10 items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white transition-colors hover:brightness-110 cursor-pointer"
                   if (abierta) {
                     return (
