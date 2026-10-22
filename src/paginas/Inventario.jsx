@@ -240,7 +240,9 @@ export default function Inventario({
   // La hoja de conteo (PDF): todos los productos activos y, al final, los descontinuados que todavía tienen unidades; con la existencia en el sistema y columnas en blanco para lo contado.
   // Las diferencias se corrigen con «Ajustar stock». Es una sola hoja para todo el inventario: el botón no depende de la pestaña.
   const [imprimiendo, setImprimiendo] = useState(false)
+  const [confirmandoConteo, setConfirmandoConteo] = useState(false)
   const imprimirHojaConteo = async () => {
+    setConfirmandoConteo(false)
     setImprimiendo(true)
     const hoy = ahoraEcuador()
     const ok = await descargarHojaConteo({
@@ -285,6 +287,7 @@ export default function Inventario({
   // ─── Lo que se ve ───
   const activos = useMemo(() => productos.filter((p) => p.activo !== false), [productos])
   const descontinuados = useMemo(() => productos.filter((p) => p.activo === false), [productos])
+  const descontinuadosConUnidades = useMemo(() => descontinuados.filter((p) => (Number(p.stock) || 0) > 0).length, [descontinuados])
   const coincideTexto = (p) => {
     const q = busqueda.trim().toLowerCase()
     if (!q) return true
@@ -358,7 +361,7 @@ export default function Inventario({
 
         <AccionesDeCabecera avisos={avisosDelModulo}>
           {puedeNivel("editar") && resumen.total > 0 && (
-            <button type="button" onClick={imprimirHojaConteo} disabled={imprimiendo} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">
+            <button type="button" onClick={() => setConfirmandoConteo(true)} disabled={imprimiendo} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">
               <Printer size={17} aria-hidden="true" /> {imprimiendo ? "Preparando…" : "Imprimir hoja de conteo"}
             </button>
           )}
@@ -380,14 +383,13 @@ export default function Inventario({
         pestanas={[{ id: "activos", titulo: "Activos", cuenta: activos.length }, { id: "descontinuados", titulo: "Descontinuados", cuenta: descontinuados.length }]} />
 
       <div id="inventario-panel" role="tabpanel" aria-labelledby={`inventario-tab-${pestana}`} className="space-y-3">
-        {/* ─── FRANJA DE DATOS: cada dato filtra la lista o abre su desglose ─── */}
-        {pestana === "activos" && <FranjaDatos etiqueta="Resumen del inventario" datos={datos} />}
-
-        {/* ─── FILTROS Y BÚSQUEDA ─── */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {pestana === "activos" ? <Pildoras etiqueta="Filtrar el inventario" opciones={opcionesPildoras} valor={categoria} onCambiar={setCategoria} /> : <span />}
-          <CampoBusqueda id="inventario-busqueda" valor={busqueda} onCambio={setBusqueda} placeholder="Buscar producto o código" className="max-w-sm" />
+        {/* ─── FILTROS Y BÚSQUEDA (primero la barra, como en Ventas) ─── */}
+        <div className="flex flex-wrap items-center gap-3">
+          {pestana === "activos" ? <Pildoras etiqueta="Filtrar el inventario" opciones={opcionesPildoras} valor={categoria} onCambiar={setCategoria} /> : null}
+          <CampoBusqueda id="inventario-busqueda" valor={busqueda} onCambio={setBusqueda} placeholder="Buscar producto o código" className="min-w-[12rem]" />
         </div>
+        {/* ─── FRANJA DE DATOS: resume lo filtrado; cada dato filtra la lista o abre su desglose ─── */}
+        {pestana === "activos" && <FranjaDatos etiqueta="Resumen del inventario" datos={datos} />}
         {pestana === "activos" && TEXTO_FILTRO[filtro] && <FiltroActivo texto={TEXTO_FILTRO[filtro]} onQuitar={() => setFiltro("todos")} />}
 
         {/* ─── LISTA ─── */}
@@ -501,6 +503,23 @@ export default function Inventario({
       {resumenAbierto && (
         <VentanaResumen modo={resumenAbierto} productos={activos} descontinuados={descontinuados} categorias={CATEGORIAS} sinVender={sinVender} verCosto={verCosto}
           onVer={({ categoria }) => { setResumenAbierto(null); setBusqueda(""); if (categoria) setCategoria(categoria) }} onVerProducto={(p) => { setResumenAbierto(null); abrirDetalle(p) }} onCerrar={() => setResumenAbierto(null)} />
+      )}
+
+      {confirmandoConteo && (
+        <Cascaron
+          titulo="Imprimir hoja de conteo" subtitulo="Se descarga como PDF" Icono={Printer} ancho="max-w-md" onCerrar={() => setConfirmandoConteo(false)}
+          pie={<>
+            <span />
+            <div className="ml-auto flex items-center gap-2">
+              <button type="button" onClick={() => setConfirmandoConteo(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
+              <button type="button" onClick={imprimirHojaConteo} className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD_MARCA }}>Generar</button>
+            </div>
+          </>}
+        >
+          <div className="p-6">
+            <p className="text-sm text-slate-700">¿Generar la hoja de conteo? Incluye {activos.length} {activos.length === 1 ? "producto activo" : "productos activos"} y {descontinuadosConUnidades} {descontinuadosConUnidades === 1 ? "descontinuado con unidades" : "descontinuados con unidades"}.</p>
+          </div>
+        </Cascaron>
       )}
 
       {porDescontinuar && (

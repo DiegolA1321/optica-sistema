@@ -3,7 +3,7 @@ import CampoFecha from "./CampoFecha"
 
 import { hoyISO } from "../utilidades/disponibilidad"
 import { sumarDiasISO } from "../utilidades/controles"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Package, Printer } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { Cascaron } from "./AtencionPaciente"
@@ -37,45 +37,46 @@ export default function OrdenLaboratorioModal({
 }) {
   const parametrizacion = useParametrizacion()
   const [opticaDatos, setOpticaDatos] = useState(datosIniciales)
-  const [d, setD] = useState(null)
+  // El formulario aparece de inmediato con lo que ya se sabe; lo que hay que leer de la base (la consulta, las líneas de la venta, las medidas de la montura) llega después y se nota en un aviso,
+  // sin pisar lo que la persona ya escribió (cada campo tocado se recuerda en `tocados`).
+  const [d, setD] = useState(() => (orden
+    ? { ...orden }
+    : { ...datosInicialesOrden(consulta, { montura: monturaInicial, luna: lunaInicial && Object.keys(lunaInicial).length > 0 ? lunaInicial : null }), fechaPrometida: fechaDePedidoPorDefecto(parametrizacion) }))
   const [materialOtro, setMaterialOtro] = useState(!!orden?.material && !MATERIALES_LENTE.includes(orden.material))
-  const [cargandoConsulta, setCargandoConsulta] = useState(!orden && !consulta && !!consultaId && !!supabase)
+  const [cargandoDatos, setCargandoDatos] = useState(!orden && !!supabase && (!!facturaId || (!consulta && !!consultaId)))
+  const tocados = useRef(new Set())
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
   const cerrar = () => { if (!guardando) onCerrar() }
 
   useEffect(() => {
-    if (orden) { setD({ ...orden }); return }
-    // `vivo` evita que un armado anterior (por ejemplo el primero que React descarta al montar en desarrollo) llegue tarde
-    // y pise con los datos iniciales lo que la persona ya escribió en el formulario.
+    if (orden || !cargandoDatos) return
+    // `vivo` evita que un armado anterior (por ejemplo el primero que React descarta al montar en desarrollo) llegue tarde.
     let vivo = true
-    const armar = async (c) => {
-      // La montura es la primera línea de producto de la venta y la luna (tipo, material, tratamientos) sale
-      // de su línea de luna: se escriben una sola vez, en la venta (Bloque E).
-      let montura = monturaInicial
-      let luna = lunaInicial && Object.keys(lunaInicial).length > 0 ? lunaInicial : null
-      let monturaMedidas = ""
-      if (supabase && facturaId) {
-        const { data: lineas } = await supabase.from("facturas_venta_lineas").select("tipo, descripcion, detalle, producto_id").eq("factura_id", facturaId).in("tipo", ["producto", "luna"])
-        const lineaMontura = (lineas || []).find((l) => l.tipo === "producto")
-        if (!montura) montura = lineaMontura?.descripcion || ""
-        if (!luna) luna = datosOrdenDeLinea((lineas || []).find((l) => l.tipo === "luna"))
-        // Si la montura vendida tiene sus medidas en el inventario (calibre, puente y varilla), la orden las trae escritas.
-        if (lineaMontura?.producto_id) {
-          const { data: producto } = await supabase.from("inventario").select("calibre, puente, varilla").eq("id", lineaMontura.producto_id).maybeSingle()
-          monturaMedidas = medidasTexto(producto)
-        }
-      }
-      if (!vivo) return
-      const base = datosInicialesOrden(c, { montura, luna, monturaMedidas })
-      setD({ ...base, fechaPrometida: fechaDePedidoPorDefecto(parametrizacion) })
-    }
-    if (consulta || !consultaId || !supabase) { armar(consulta); return () => { vivo = false } }
-    supabase.from("consultas").select("datos_clinicos, lente_recomendado").eq("id", consultaId).maybeSingle().then(({ data }) => {
-      if (!vivo) return
-      armar(data ? consultaMinima(data) : null)
-      setCargandoConsulta(false)
+    const NO_SE_PISA = ["fechaPrometida", "entrega", "direccionEntrega", "laboratorio"]
+    const aplicar = (base) => setD((p) => {
+      const n = { ...p }
+      for (const k of Object.keys(base)) if (!tocados.current.has(k) && !NO_SE_PISA.includes(k)) n[k] = base[k]
+      return n
     })
+    ;(async () => {
+      // La consulta y las líneas de la venta se piden a la vez; las medidas de la montura, en cuanto se sabe cuál es.
+      const [{ data: c }, { data: lineas }] = await Promise.all([
+        consulta || !consultaId ? { data: null } : supabase.from("consultas").select("datos_clinicos, lente_recomendado").eq("id", consultaId).maybeSingle(),
+        facturaId ? supabase.from("facturas_venta_lineas").select("tipo, descripcion, detalle, producto_id").eq("factura_id", facturaId).in("tipo", ["producto", "luna"]) : { data: null },
+      ])
+      // La montura es la primera línea de producto de la venta y la luna (tipo, material, tratamientos) sale de su línea de luna: se escriben una sola vez, en la venta.
+      const lineaMontura = (lineas || []).find((l) => l.tipo === "producto")
+      const montura = monturaInicial || lineaMontura?.descripcion || ""
+      const luna = lunaInicial && Object.keys(lunaInicial).length > 0 ? lunaInicial : datosOrdenDeLinea((lineas || []).find((l) => l.tipo === "luna"))
+      const deConsulta = consulta || (c ? consultaMinima(c) : null)
+      if (vivo) aplicar(datosInicialesOrden(deConsulta, { montura, luna, monturaMedidas: "" }))
+      if (lineaMontura?.producto_id) {
+        const { data: producto } = await supabase.from("inventario").select("calibre, puente, varilla").eq("id", lineaMontura.producto_id).maybeSingle()
+        if (vivo) aplicar({ monturaMedidas: medidasTexto(producto) })
+      }
+      if (vivo) setCargandoDatos(false)
+    })()
     return () => { vivo = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -91,8 +92,8 @@ export default function OrdenLaboratorioModal({
     return () => { vivo = false }
   }, [usuario?.opticaId])
 
-  const set = (campo, valor) => setD((p) => ({ ...p, [campo]: valor }))
-  const setOjo = (ojo, campo, valor) => setD((p) => ({ ...p, [ojo]: { ...p[ojo], [campo]: valor } }))
+  const set = (campo, valor) => { tocados.current.add(campo); setD((p) => ({ ...p, [campo]: valor })) }
+  const setOjo = (ojo, campo, valor) => { tocados.current.add(ojo); setD((p) => ({ ...p, [ojo]: { ...p[ojo], [campo]: valor } })) }
 
   const guardar = async (imprimir) => {
     const msg = validarOrden(d)
@@ -147,9 +148,9 @@ export default function OrdenLaboratorioModal({
       pie={(
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <button type="button" onClick={cerrar} disabled={guardando} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">{orden ? "Cancelar" : "Crear después"}</button>
-          <button type="button" onClick={() => guardar(false)} disabled={guardando || !d || cargandoConsulta} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">{guardando ? "Guardando…" : orden ? "Guardar cambios" : "Crear orden"}</button>
+          <button type="button" onClick={() => guardar(false)} disabled={guardando || cargandoDatos} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">{guardando ? "Guardando…" : orden ? "Guardar cambios" : "Crear orden"}</button>
           {!orden && (
-            <button type="button" onClick={() => guardar(true)} disabled={guardando || !d || cargandoConsulta} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
+            <button type="button" onClick={() => guardar(true)} disabled={guardando || cargandoDatos} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer disabled:opacity-60" style={{ background: GRAD }}>
               <Printer size={14} aria-hidden="true" /> Crear e imprimir copias
             </button>
           )}
@@ -157,11 +158,12 @@ export default function OrdenLaboratorioModal({
       )}
     >
       <div className="space-y-4 px-5 py-4">
-        {!d || cargandoConsulta ? (
-          <div className="space-y-3" aria-busy="true" aria-label="Cargando datos de la consulta">
-            {[0, 1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-lg bg-slate-100" />)}
-          </div>
-        ) : (
+        {cargandoDatos && (
+          <p role="status" aria-busy="true" className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">
+            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" aria-hidden="true" /> Cargando la receta y la montura de la venta…
+          </p>
+        )}
+        {(
           <>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Entrega</span>

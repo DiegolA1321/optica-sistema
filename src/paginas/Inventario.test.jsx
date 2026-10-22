@@ -329,6 +329,17 @@ describe("Inventario — descontinuados y reactivar", () => {
   })
 })
 
+describe("Inventario — el orden de la pantalla es el de Ventas", () => {
+  it("primero la barra (categorías y buscador), después la franja que resume lo filtrado y después la lista", () => {
+    render(<Con inicial={[producto("a", "Montura 1", 5), producto("b", "Montura 2", 8)]} />)
+    const barra = screen.getByRole("group", { name: "Filtrar el inventario" })
+    const franja = screen.getByRole("list", { name: "Resumen del inventario" })
+    const lista = screen.getByText("Montura 1")
+    expect(barra.compareDocumentPosition(franja) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(franja.compareDocumentPosition(lista) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
 describe("Inventario — la hoja de conteo", () => {
   const inicial = [producto("a", "Montura 1", 5, { codigo: "M-1" }), producto("b", "Montura 2", 8), producto("c", "Vieja", 2, { activo: false })]
 
@@ -342,6 +353,10 @@ describe("Inventario — la hoja de conteo", () => {
   it("baja un PDF (no la impresión del navegador) con los activos y los descontinuados, con los datos de la óptica, y lo confirma", async () => {
     render(<Con inicial={inicial} usuario={{ ...admin, opticaNombre: "Óptica Demo" }} parametrizacion={{ opticaDireccion: "Av. 1", opticaTelefono: "0990000000" }} />)
     fireEvent.click(screen.getByRole("button", { name: /Imprimir hoja de conteo/ }))
+    const confirmar = screen.getByRole("dialog", { name: /Imprimir hoja de conteo/ })
+    expect(confirmar).toHaveTextContent("¿Generar la hoja de conteo? Incluye 2 productos activos y 1 descontinuado con unidades.")
+    expect(descargarHojaConteo).not.toHaveBeenCalled() // todavía no: pide confirmación
+    fireEvent.click(within(confirmar).getByRole("button", { name: "Generar" }))
     expect(await screen.findByText("Hoja de conteo descargada (PDF).")).toBeInTheDocument()
     expect(descargarHojaConteo).toHaveBeenCalledTimes(1)
     const [datos, fecha] = descargarHojaConteo.mock.calls[0]
@@ -357,10 +372,19 @@ describe("Inventario — la hoja de conteo", () => {
     expect(screen.getByRole("button", { name: /Imprimir hoja de conteo/ })).toBeInTheDocument()
   })
 
+  it("«Cancelar» en la confirmación no genera nada", () => {
+    render(<Con inicial={inicial} />)
+    fireEvent.click(screen.getByRole("button", { name: /Imprimir hoja de conteo/ }))
+    fireEvent.click(within(screen.getByRole("dialog", { name: /Imprimir hoja de conteo/ })).getByRole("button", { name: "Cancelar" }))
+    expect(screen.queryByRole("dialog", { name: /Imprimir hoja de conteo/ })).not.toBeInTheDocument()
+    expect(descargarHojaConteo).not.toHaveBeenCalled()
+  })
+
   it("si no se pudo preparar lo dice", async () => {
     descargarHojaConteo.mockResolvedValueOnce(false)
     render(<Con inicial={inicial} />)
     fireEvent.click(screen.getByRole("button", { name: /Imprimir hoja de conteo/ }))
+    fireEvent.click(within(screen.getByRole("dialog", { name: /Imprimir hoja de conteo/ })).getByRole("button", { name: "Generar" }))
     expect(await screen.findByText(/No se pudo preparar la hoja de conteo/)).toBeInTheDocument()
   })
 })
