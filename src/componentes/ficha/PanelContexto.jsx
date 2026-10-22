@@ -46,7 +46,7 @@ export default function PanelContexto({ paciente, edad, alergiaSignificativa, al
       {paso === "diagnostico" && hoja && (
         <Seccion titulo="Vista previa del documento">
           {/* La hoja real, reducida: lo que se ve aquí es lo que sale al descargar o imprimir. */}
-          <div data-vista-previa-documento className="overflow-hidden rounded-xl border border-slate-200 bg-white" style={{ zoom: 0.42 }} aria-label="Vista previa del documento">{hoja}</div>
+          <div data-vista-previa-documento className="overflow-hidden rounded-xl border border-slate-200 bg-white [zoom:0.36] xl:[zoom:0.42]" aria-label="Vista previa del documento">{hoja}</div>
           {onVerHoja && <button type="button" onClick={onVerHoja} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 cursor-pointer"><FileText size={12} aria-hidden="true" /> Ver en grande</button>}
         </Seccion>
       )}

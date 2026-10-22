@@ -252,9 +252,12 @@ test('"N pacientes registrados sin ninguna consulta" coincide con "Sin consulta"
   test.skip((await aviso.count()) === 0, 'El aviso no está entre los tres primeros del bloque Pacientes')
   const enInicio = Number((await aviso.first().getAttribute('aria-label')).match(/^([0-9]+)/)[1])
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-  const sinConsulta = page.getByRole('button', { name: /Sin consulta/ }).first()
-  await expect(sinConsulta).toBeVisible({ timeout: 15_000 })
-  expect(Number((await sinConsulta.innerText()).replace(/\D/g, ''))).toBe(enInicio)
+  // «Sin consulta» ya no es un chip: está en «Filtrar» (no tiene tarjeta); la lista dice cuántos son
+  await page.getByRole('button', { name: /^Filtrar/ }).click()
+  await page.getByRole('button', { name: /Sin consulta/ }).first().click()
+  const total = page.getByRole('status').filter({ hasText: /paciente/ }).first()
+  await expect(total).toBeVisible({ timeout: 15_000 })
+  expect(Number(((await total.innerText()).match(/(\d+)/) || [])[1])).toBe(enInicio)
 })
 
 test('el contador del menú de Ventas solo lo ve quien puede vender', async ({ browser }) => {

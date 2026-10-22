@@ -728,7 +728,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
 
         <div className="no-print mb-3"><BarraPasos paso={paso} estados={estados} onIr={irA} /></div>
 
-        <div className={"grid gap-4 " + (pacienteId ? (paso === "diagnostico" ? "lg:grid-cols-[minmax(0,1fr)_23rem]" : "lg:grid-cols-[minmax(0,1fr)_16rem]") : "")}>
+        <div className={"grid gap-4 " + (pacienteId ? (paso === "diagnostico" ? "lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_23rem]" : "lg:grid-cols-[minmax(0,1fr)_16rem]") : "")}>
           <form onSubmit={intentarGuardar} onKeyDown={(e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") e.preventDefault() }} className="no-print min-w-0 space-y-3">
             <div ref={inicioFormRef} style={{ scrollMarginTop: 140 }} />
             {bannerPaso && (
@@ -977,7 +977,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   <button key="btn-siguiente" type="button" onClick={() => irA(PASOS[indicePaso + 1].id)} className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-semibold text-white transition-colors hover:brightness-125 cursor-pointer" style={{ backgroundColor: INK }}>Siguiente <ArrowRight size={15} /></button>
                 ) : !fichaGuardada ? (
                   // key distinta del botón "Siguiente" a propósito: sin ella React reutiliza el nodo y un clic en "Siguiente" disparaba un submit fantasma (bug del ing, 29 sept.).
-                  <button key="btn-guardar" type="submit" className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}><Save size={15} /> Terminar atención</button>
+                  <button key="btn-guardar" type="submit" className="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-5 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" }}><Save size={15} /> Terminar atención</button>
                 ) : (
                   <button key="btn-nueva-consulta" type="button" onClick={resetForm} className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-semibold text-white transition-colors hover:brightness-125 cursor-pointer" style={{ backgroundColor: INK }}><ClipboardList size={15} /> Nueva consulta</button>
                 )}
