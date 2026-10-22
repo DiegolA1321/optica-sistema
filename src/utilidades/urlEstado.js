@@ -5,6 +5,10 @@ import { useCallback, useState } from "react"
 // Parámetros que pertenecen a una sección: Dashboard los quita al cambiar de sección para que no viajen a otra.
 export const PARAMS_DE_SECCION = ["tab", "paciente", "ficha", "fcita"]
 
+// La ruta de la página sin barras de más: una dirección que empieza con «//» (por ejemplo «//?optica=…») el navegador la entiende como OTRO origen y pushState/replaceState lanzan SecurityError.
+// Todo uso de la historia construye su dirección con esta ruta (o solo cambia los parámetros).
+export const rutaSegura = () => { try { return window.location.pathname.replace(/^\/{2,}/, "/") || "/" } catch { return "/" } }
+
 export function leerParam(clave) {
   try { return new URLSearchParams(window.location.search).get(clave) } catch { return null }
 }
@@ -16,8 +20,8 @@ export function escribirParam(clave, valor, { empujar = false, estado } = {}) {
     const params = new URLSearchParams(window.location.search)
     if (valor == null || valor === "") params.delete(clave)
     else params.set(clave, valor)
-    const url = `${window.location.pathname}?${params}`
-    if (url === `${window.location.pathname}${window.location.search}`) return
+    const url = `${rutaSegura()}?${params}`
+    if (url === `${rutaSegura()}${window.location.search}`) return
     const nuevo = { ...(window.history.state || {}), ...(estado || {}) }
     if (empujar) window.history.pushState(nuevo, "", url)
     else window.history.replaceState(nuevo, "", url)

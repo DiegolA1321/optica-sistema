@@ -65,7 +65,7 @@ import { useVistas } from "../utilidades/useVistas"
 import { puede } from "../utilidades/permisosUi"
 import { puedeReasignar } from "../utilidades/reasignacion"
 import { citasPropias, rangoDelMes } from "../utilidades/inicio"
-import { PARAMS_DE_SECCION, escribirParam, leerParam } from "../utilidades/urlEstado"
+import { PARAMS_DE_SECCION, escribirParam, leerParam, rutaSegura } from "../utilidades/urlEstado"
 import { modulosVisibles, puedeNivel } from "../utilidades/roles"
 import { EVENTO_ORDEN, numeroOrden } from "../utilidades/ordenesLaboratorio"
 import { useCrmDatos } from "../utilidades/crmDatos"
@@ -364,7 +364,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     // El paciente abierto (?paciente=) se conserva: Pacientes lo reabre al recargar.
     if (params.get("seccion") !== seccionActiva) {
       params.set("seccion", seccionActiva)
-      window.history.replaceState({ seccion: seccionActiva }, "", `${window.location.pathname}?${params}`)
+      window.history.replaceState({ seccion: seccionActiva }, "", `${rutaSegura()}?${params}`)
     }
     // Solo al montar: sincroniza la URL con la sección restaurada de
     // localStorage sin crear una entrada de historial nueva.
@@ -389,7 +389,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       params.set("seccion", destino)
       // El detalle de una sección (pestaña, paciente abierto, ficha) no viaja a la siguiente.
       PARAMS_DE_SECCION.forEach((k) => params.delete(k))
-      window.history.pushState({ seccion: destino }, "", `${window.location.pathname}?${params}`)
+      window.history.pushState({ seccion: destino }, "", `${rutaSegura()}?${params}`)
     }
     setSeccionActiva(destino)
     setMenuAbierto(false)

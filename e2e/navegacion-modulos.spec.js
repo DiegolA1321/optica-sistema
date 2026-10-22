@@ -88,3 +88,17 @@ test('administrador: desde el perfil de un paciente el menú sigue cambiando de 
   }
   expect(errores).toEqual([])
 })
+
+// Una dirección con la ruta «//» (por ejemplo «//?optica=…») el navegador la entiende como otro origen: antes, pushState lanzaba SecurityError y el menú no navegaba.
+test('administrador: entrando por «//?optica=…» el menú sigue navegando', async ({ page }) => {
+  const errores = vigilar(page)
+  await iniciarSesion(page, 'ADMIN')
+  await page.goto(`http://localhost:${process.env.E2E_PUERTO || '5174'}//?optica=qu7u2j&seccion=pacientes`)
+  await expect(page.locator('nav').getByRole('button', { name: 'Inicio', exact: true })).toBeVisible({ timeout: 25_000 })
+  for (const m of MODULOS.filter((x) => x.titulo)) {
+    await page.locator('nav').getByRole('button', { name: m.menu, exact: true }).click()
+    await expect(page.locator('main').getByRole('heading', { name: m.titulo, level: 1 }).first(), `con «//», «${m.menu}» no abrió`).toBeVisible({ timeout: 20_000 })
+  }
+  expect(page.url()).not.toMatch(/localhost:\d+\/\/\?/)
+  expect(errores).toEqual([])
+})

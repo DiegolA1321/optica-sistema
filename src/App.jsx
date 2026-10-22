@@ -1,5 +1,5 @@
 import { cargarProductos } from './utilidades/cargarProductos'
-import { PARAMS_DE_SECCION } from './utilidades/urlEstado'
+import { PARAMS_DE_SECCION, rutaSegura } from './utilidades/urlEstado'
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { puede } from './utilidades/permisosUi';
 import Login from './paginas/Login';
@@ -1045,7 +1045,7 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       ['seccion', ...PARAMS_DE_SECCION].forEach((p) => params.delete(p));
       const query = params.toString();
-      window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+      window.history.replaceState(null, '', `${rutaSegura()}${query ? `?${query}` : ''}`);
     } catch { /* sin almacenamiento/historial: no pasa nada */ }
   };
 
