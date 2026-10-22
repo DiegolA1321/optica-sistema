@@ -143,9 +143,11 @@ export function PanelCompras({ comprobantes, onVerProductos }) {
 }
 
 // ── Fidelización ──
-export function PanelPuntaje({ consultas, referidos, frecuente }) {
-  const total = consultas.length * 10 + referidos.length * 15
-  if (total === 0) return <SinInformacion Icono={Star} titulo="Todavía no suma puntos" texto="Gana 10 puntos por cada consulta registrada y 15 por cada paciente que refiera." />
+// De dónde salen los puntos del paciente, con las reglas del programa de la óptica (Configuración › Fidelización): cada consulta, cada referido y lo pagado; y su nivel.
+// puntos: { total, compras: { dolares, puntos } } (programaFidelidad.puntosDe); nivel: { nivel, siguiente, faltan }; programa: el vigente.
+export function PanelPuntaje({ consultas, referidos, puntos, nivel, programa }) {
+  const total = puntos.total
+  if (total === 0) return <SinInformacion Icono={Star} titulo="Todavía no suma puntos" texto={`Gana ${programa.porConsulta} puntos por cada consulta, ${programa.porReferido} por cada paciente que refiera y 1 por cada $${programa.dolaresPorPunto} que pague.`} />
   return (
     <div>
       <ul className="divide-y divide-slate-100 px-4">
@@ -153,19 +155,26 @@ export function PanelPuntaje({ consultas, referidos, frecuente }) {
           <li key={c.id} className="flex items-center gap-3 py-2 text-sm">
             <Stethoscope size={14} className="shrink-0 text-slate-400" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate text-slate-600">Consulta del {fechaLegible(c.fecha)}{c.motivo ? " · " + c.motivo : ""}</span>
-            <span className="font-bold tabular-nums text-emerald-700">+10</span>
+            <span className="font-bold tabular-nums text-emerald-700">+{programa.porConsulta}</span>
           </li>
         ))}
         {referidos.map((p) => (
           <li key={p.id} className="flex items-center gap-3 py-2 text-sm">
             <Gift size={14} className="shrink-0 text-slate-400" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate text-slate-600">Refirió a {p.nombre}</span>
-            <span className="font-bold tabular-nums text-emerald-700">+15</span>
+            <span className="font-bold tabular-nums text-emerald-700">+{programa.porReferido}</span>
           </li>
         ))}
+        {puntos.compras.puntos > 0 && (
+          <li className="flex items-center gap-3 py-2 text-sm">
+            <Receipt size={14} className="shrink-0 text-slate-400" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate text-slate-600">Compras pagadas: {dinero(puntos.compras.dolares)} (1 punto por cada ${programa.dolaresPorPunto})</span>
+            <span className="font-bold tabular-nums text-emerald-700">+{puntos.compras.puntos}</span>
+          </li>
+        )}
         <li className="flex items-center gap-3 py-2.5 text-sm font-bold" style={{ color: INK }}><span className="flex-1">Total</span><span className="tabular-nums">{total} pts</span></li>
       </ul>
-      <p className="mx-4 mb-3 flex items-center gap-1.5 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600"><CheckCircle2 size={13} className={frecuente ? "text-emerald-600" : "text-slate-400"} aria-hidden="true" />{frecuente ? "Es cliente frecuente: tiene 3 o más consultas." : `Será cliente frecuente con 3 consultas: ${3 - consultas.length === 1 ? "le falta 1" : `le faltan ${Math.max(0, 3 - consultas.length)}`}.`}</p>
+      <p className="mx-4 mb-3 flex items-center gap-1.5 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600"><CheckCircle2 size={13} className={nivel.siguiente ? "text-slate-400" : "text-emerald-600"} aria-hidden="true" /> Nivel {nivel.nivel.nombre}{nivel.nivel.descuento > 0 ? ` · descuento sugerido ${nivel.nivel.descuento} %` : ""}{nivel.siguiente ? ` · faltan ${nivel.faltan} puntos para ${nivel.siguiente.nombre}` : " · es el nivel más alto"}</p>
     </div>
   )
 }

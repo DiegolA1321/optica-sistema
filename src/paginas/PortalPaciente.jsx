@@ -23,7 +23,9 @@ import VentanaPagarPorTransferencia from "../componentes/portal/PagarPorTransfer
 import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
 import { descargarHojaReceta } from "../utilidades/descargarHojaReceta"
 import { edadEnAnios } from "../utilidades/edad"
-import { contarConsultas, resumenDePuntos, PUNTOS_POR_CONSULTA, PUNTOS_POR_REFERIDO } from "../utilidades/fidelizacion"
+import { contarConsultas } from "../utilidades/fidelizacion"
+import { dinero } from "../utilidades/formatoMoneda"
+import { programaDe, resumenDePuntosPrograma } from "../utilidades/programaFidelidad"
 import { recetasDe } from "../utilidades/graduacion"
 import CabeceraPortal, { Campanita } from "../componentes/portal/CabeceraPortal"
 import MisDatosPortal from "../componentes/portal/MisDatosPortal"
@@ -358,12 +360,14 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   }
   const citaProps = { puedeReagendar, avisoNoReagendable: textoNoReagendable, onReagendar: abrirReagendar, onCancelar: pedirCancelar, cambiosPermitidos: Boolean(parametrizacion?.permitirReagendarPaciente), whatsappUrl: contacto.whatsappUrl, onCalendario: alCalendario, calendarioAgregada: (id) => Boolean(datos.detalle.porCita[id]?.enCalendarioAt) }
   const cargandoPortal = cargandoDatos || datos.cargando
-  // Los puntos: los mismos y con la misma regla que el CRM (consultas × 10 + pacientes referidos × 15).
-  const puntos = resumenDePuntos(contarConsultas({ id: usuario?.id, nombre: usuario?.nombre }, misConsultas), datos.referidos)
+  // Los puntos: los mismos y con la misma regla que el CRM y el perfil del paciente (el programa de la óptica: consultas, referidos y lo pagado).
+  const programa = programaDe(parametrizacion)
+  const puntos = resumenDePuntosPrograma({ nConsultas: contarConsultas({ id: usuario?.id, nombre: usuario?.nombre }, misConsultas), nReferidos: datos.referidos, compras: datos.compras, programa })
   // El historial de puntos: una línea por consulta (+10) y, si refirió a alguien, una por los referidos (+15 cada uno); el mismo total del CRM.
   const historialPuntos = [
-    ...misConsultas.map((c) => ({ fecha: c.fecha, concepto: "Consulta", puntos: PUNTOS_POR_CONSULTA })),
-    ...(datos.referidos > 0 ? [{ fecha: "", concepto: `${datos.referidos} ${datos.referidos === 1 ? "paciente referido" : "pacientes referidos"}`, puntos: datos.referidos * PUNTOS_POR_REFERIDO }] : []),
+    ...misConsultas.map((c) => ({ fecha: c.fecha, concepto: "Consulta", puntos: programa.porConsulta })),
+    ...(datos.referidos > 0 ? [{ fecha: "", concepto: `${datos.referidos} ${datos.referidos === 1 ? "paciente referido" : "pacientes referidos"}`, puntos: datos.referidos * programa.porReferido }] : []),
+    ...(puntos.porCompras > 0 ? [{ fecha: "", concepto: `Compras pagadas (${dinero(puntos.dolares)})`, puntos: puntos.porCompras }] : []),
   ]
   const pendientes = pendientesDelPaciente({ ordenes: datos.ordenes, detalleDisponible: datos.detalle.disponible, saldoInfo, historial, detalle: datos.detalle.porCita })
   const recetaActualId = recetas[0]?.id ?? null

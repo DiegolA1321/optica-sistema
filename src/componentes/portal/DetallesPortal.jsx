@@ -10,7 +10,6 @@ import { porcentajeAbonado, enCuantoTiempo } from "../../utilidades/portalVistas
 import { Cascaron } from "../AtencionPaciente"
 import { EstadoCita, Estrellas, PasosLentes, CambiosDeCita, BotonCalendario } from "./piezas"
 import { DetalleReceta } from "../graduacion/Graduacion"
-import { PUNTOS_POR_CONSULTA, PUNTOS_POR_REFERIDO, MINIMO_CLIENTE_FRECUENTE } from "../../utilidades/fidelizacion"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, BOTON_PELIGRO, ESTILO_PRINCIPAL } from "./estilos"
 import { PagosReportados } from "./PagarPorTransferencia"
 
@@ -227,7 +226,7 @@ function DetallePuntos({ puntos, historial = [], onCerrar }) {
       <div className="space-y-4 p-4 sm:p-5">
         <section aria-label="Cómo se ganan" className="space-y-1">
           <h3 className="font-heading text-lg font-bold text-pt-marino">Cómo se ganan</h3>
-          <p className="text-lg text-slate-800">{PUNTOS_POR_CONSULTA} puntos por cada consulta y {PUNTOS_POR_REFERIDO} por cada paciente que refieras a la óptica.</p>
+          <p className="text-lg text-slate-800">{puntos.programa.porConsulta} puntos por cada consulta, {puntos.programa.porReferido} por cada paciente que refieras a la óptica y 1 punto por cada ${puntos.programa.dolaresPorPunto} que pagas.</p>
         </section>
         <section aria-label="Historial de puntos">
           <h3 className="font-heading text-lg font-bold text-pt-marino">Historial</h3>
@@ -239,9 +238,9 @@ function DetallePuntos({ puntos, historial = [], onCerrar }) {
           )}
         </section>
         <section aria-label="Siguiente nivel" className="space-y-2 rounded-2xl bg-pt-fondo p-4">
-          <h3 className="font-heading text-lg font-bold text-pt-marino">{puntos.frecuente ? "Nivel: cliente frecuente" : "Siguiente nivel: cliente frecuente"}</h3>
+          <h3 className="font-heading text-lg font-bold text-pt-marino">{puntos.siguiente ? `Tu nivel: ${puntos.nivel.nombre} · siguiente: ${puntos.siguiente.nombre}` : `Tu nivel: ${puntos.nivel.nombre}`}</h3>
           <div role="img" aria-label={`Llevas el ${puntos.porcentaje} por ciento del camino`}><div className="h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-[#15803D]" style={{ width: puntos.porcentaje + "%" }} /></div></div>
-          <p className="text-lg text-slate-800">{puntos.frecuente ? "Ya eres cliente frecuente." : puntos.texto + "."} Se llega con {MINIMO_CLIENTE_FRECUENTE} consultas.</p>
+          <p className="text-lg text-slate-800">{puntos.texto}.{puntos.nivel.descuento > 0 ? ` Tu nivel da ${puntos.nivel.descuento} % de descuento en tus compras.` : ""}</p>
         </section>
       </div>
     </Cascaron>

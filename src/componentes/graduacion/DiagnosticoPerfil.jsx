@@ -18,7 +18,7 @@ import { compararDiagnosticos, rotuloDeConsulta, tieneRefraccion } from "../../u
 // (con los ojos ilustrados), la salud ocular si la hay, el diagnóstico y las indicaciones— con el selector de consulta arriba. Un interruptor de dos opciones cambia entre la vista técnica y la
 // vista para el paciente (palabras simples, la misma del portal). «Comparar diagnósticos» pone dos consultas lado a lado; «Imprimir diagnóstico» saca la hoja de la óptica con todo el diagnóstico
 // (con la receta dentro si hubo refracción). Una consulta sin refracción muestra su diagnóstico igual, sin huecos.
-const BOTON = "inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+const BOTON = "inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
 const viñetas = (t = "") => t.split(/\n+|(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])/).map((x) => x.trim()).filter(Boolean)
 
 export default function DiagnosticoPerfil({ consultas = [], paciente, usuario, parametrizacion }) {
@@ -48,30 +48,25 @@ export default function DiagnosticoPerfil({ consultas = [], paciente, usuario, p
     receta: consulta,
     completo: true,
   })
-  const subtitulo = [consulta.id === lista[0].id ? `Más reciente · ${formatoFecha(consulta.fecha, "largoSinDia")}` : `Consulta del ${formatoFecha(consulta.fecha, "largoSinDia")}`, consulta.profesionalNombre, consulta.motivo].filter(Boolean).join(" · ")
   const indicaciones = viñetas(consulta.indicaciones)
 
   return (
     <div className="@container space-y-5">
-      <div className="flex flex-col gap-4 @[56rem]:flex-row @[56rem]:items-start @[56rem]:justify-between @[56rem]:gap-6">
-        <div className="min-w-0">
-          <h1 className="whitespace-nowrap text-lg font-bold text-slate-900">Diagnóstico</h1>
-          <p className="mt-1 text-sm text-slate-500">{subtitulo}</p>
+      {/* Una sola fila compacta: título, selector de consulta, interruptor de vista y las dos acciones. El selector es lo que se encoge; nada baja a una segunda fila. */}
+      <div className="flex flex-nowrap items-center gap-2">
+        <h1 className="shrink-0 whitespace-nowrap text-base font-bold text-slate-900">Diagnóstico</h1>
+        <div className="min-w-[8rem] max-w-[17rem] flex-1">
+          <SelectorLista id="diagnostico-consulta" etiqueta="Consulta" valor={String(consulta.id)} onChange={setId} options={lista.map((c, i) => ({ id: String(c.id), etiqueta: rotuloDeConsulta(c, i === 0) }))} />
         </div>
-        <div className="flex flex-wrap items-center gap-2 @[56rem]:justify-end">
-          <div className="w-72 max-w-full">
-            <SelectorLista id="diagnostico-consulta" etiqueta="Consulta" valor={String(consulta.id)} onChange={setId} options={lista.map((c, i) => ({ id: String(c.id), etiqueta: rotuloDeConsulta(c, i === 0) }))} />
-          </div>
-          <div role="group" aria-label="Cómo ver el diagnóstico" className="inline-flex rounded-lg border border-slate-300 bg-slate-50 p-0.5">
-            {[["tecnica", "Vista técnica"], ["paciente", "Vista para el paciente"]].map(([k, t]) => (
-              <button key={k} type="button" aria-pressed={vista === k} onClick={() => setVista(k)} className={"min-h-9 whitespace-nowrap rounded-md px-3 text-sm font-semibold transition-colors cursor-pointer " + (vista === k ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800")}>{t}</button>
-            ))}
-          </div>
-          {lista.length > 1 && <button type="button" onClick={() => setComparando(true)} className={BOTON}><GitCompare size={15} aria-hidden="true" /> Comparar diagnósticos</button>}
-          <button type="button" onClick={imprimir} className="inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
-            <Printer size={15} aria-hidden="true" /> Imprimir diagnóstico
-          </button>
+        <div role="group" aria-label="Cómo ver el diagnóstico" className="ml-auto inline-flex shrink-0 rounded-lg border border-slate-300 bg-slate-50 p-0.5">
+          {[["tecnica", "Vista técnica"], ["paciente", "Vista para el paciente"]].map(([k, t]) => (
+            <button key={k} type="button" aria-pressed={vista === k} onClick={() => setVista(k)} className={"min-h-9 whitespace-nowrap rounded-md px-2.5 text-[13px] font-semibold transition-colors cursor-pointer " + (vista === k ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800")}>{t}</button>
+          ))}
         </div>
+        {lista.length > 1 && <button type="button" onClick={() => setComparando(true)} className={BOTON}><GitCompare size={14} aria-hidden="true" /> Comparar diagnósticos</button>}
+        <button type="button" onClick={imprimir} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[13px] font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: "linear-gradient(135deg,#22D3EE,#2563EB)" }}>
+          <Printer size={14} aria-hidden="true" /> Imprimir diagnóstico
+        </button>
       </div>
 
       {simple ? (

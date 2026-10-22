@@ -8,9 +8,13 @@ import { CLASE_ACCION_SECUNDARIA, plural } from "../ventas/estilos"
 import { ConteoCitas } from "../FiltrosCitas"
 import { NombrePaciente } from "./piezas"
 import { CLASE_PILDORA } from "./estilosCrm"
-import { rankingFrecuentes, rankingPuntaje, rankingReferidores } from "../../utilidades/crmContactos"
+import { rankingFrecuentes, rankingReferidores } from "../../utilidades/crmContactos"
+import { useFidelidadCon } from "../FidelidadContexto"
+
+// El ranking de puntos con las reglas del programa de la óptica (Configuración › Fidelización): consultas, referidos y lo pagado.
+const rankingPuntajePrograma = (pacientes, de) => pacientes.map((p) => ({ paciente: p, valor: de(p).puntos.total })).filter((x) => x.valor > 0).sort((a, b) => b.valor - a.valor || a.paciente.nombre.localeCompare(b.paciente.nombre))
 import { fechaLegible } from "../../utilidades/formatoFecha"
-import { PUNTOS_POR_CONSULTA, PUNTOS_POR_REFERIDO, MINIMO_CLIENTE_FRECUENTE, ultimaVisita } from "../../utilidades/fidelizacion"
+import { MINIMO_CLIENTE_FRECUENTE, ultimaVisita } from "../../utilidades/fidelizacion"
 import { fechaAISO } from "../../utilidades/disponibilidad"
 
 const POR_PAGINA = 30
@@ -18,8 +22,8 @@ const COLUMNAS = "lg:grid-cols-[3rem_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)
 const sinTildes = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
 
 const VISTAS = {
-  puntaje: { id: "puntaje", etiqueta: "Puntaje de fidelidad", Icono: Star, columna: "Puntos", unidad: (n) => `${n} pts`, vacio: ["Todavía nadie suma puntos", `Cada paciente gana ${PUNTOS_POR_CONSULTA} puntos por consulta y ${PUNTOS_POR_REFERIDO} por cada paciente que refiere.`],
-    ayuda: `${PUNTOS_POR_CONSULTA} puntos por consulta + ${PUNTOS_POR_REFERIDO} por cada paciente que refiere` },
+  puntaje: { id: "puntaje", etiqueta: "Puntaje de fidelidad", Icono: Star, columna: "Puntos", unidad: (n) => `${n} pts`, vacio: ["Todavía nadie suma puntos", "Los puntos se ganan por consulta, por paciente referido y por lo que se paga (se configura en Configuración › Fidelización)."],
+    ayuda: "Los puntos del programa de fidelización: por consulta, por referido y por lo pagado" },
   frecuentes: { id: "frecuentes", etiqueta: "Más frecuentes", Icono: Users, columna: "Consultas", unidad: (n) => `${n} consultas`, vacio: ["Todavía nadie es paciente frecuente", `Se vuelve frecuente quien tiene ${MINIMO_CLIENTE_FRECUENTE} o más consultas.`],
     ayuda: `Pacientes con ${MINIMO_CLIENTE_FRECUENTE} o más consultas registradas` },
   referidores: { id: "referidores", etiqueta: "Más refieren", Icono: Gift, columna: "Referidos", unidad: (n) => `${n} ${n === 1 ? "referido" : "referidos"}`, vacio: ["Todavía nadie ha referido a otro paciente", "Aparecen aquí cuando un paciente nuevo dice quién lo refirió al registrarse."],
@@ -30,12 +34,13 @@ const ORDEN = ["puntaje", "frecuentes", "referidores"]
 // Pestaña "Fidelización": los rankings completos (con todos los nombres) y el puntaje. Es para conocer a los mejores pacientes, no una lista de tareas:
 // por eso aquí no hay botones de contacto.
 export default function PestanaFidelizacion({ pacientes, consultas, onVerPerfil }) {
+  const { de } = useFidelidadCon({ pacientes, consultas })
   const [vista, setVista] = useState("puntaje")
   const [texto, setTexto] = useState("")
   const [visibles, setVisibles] = useState(POR_PAGINA)
   const rankings = useMemo(() => ({
-    puntaje: rankingPuntaje(pacientes, consultas), frecuentes: rankingFrecuentes(pacientes, consultas), referidores: rankingReferidores(pacientes),
-  }), [pacientes, consultas])
+    puntaje: rankingPuntajePrograma(pacientes, de), frecuentes: rankingFrecuentes(pacientes, consultas), referidores: rankingReferidores(pacientes),
+  }), [pacientes, consultas, de])
   const def = VISTAS[vista]
   const ultimaDe = (p) => { const f = ultimaVisita(p, consultas); return f ? fechaLegible(fechaAISO(f)) : "—" }
   const buscando = texto.trim() !== ""

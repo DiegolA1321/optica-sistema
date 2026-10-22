@@ -208,16 +208,16 @@ describe("Resumen", () => {
     expect(within(screen.getByRole("region", { name: "Tu próxima cita" })).getByText("Ver detalle")).toBeInTheDocument()
     expect(within(screen.getByRole("region", { name: "Tus lentes" })).getByText("Ver detalle")).toBeInTheDocument()
   })
-  it("«Tus puntos de cliente» cuenta 10 por consulta y dice cuánto falta para ser cliente frecuente", async () => {
+  it("«Tus puntos de cliente» cuenta 10 por consulta y dice cuánto falta para el siguiente nivel del programa", async () => {
     render(<PortalPaciente {...base} />)
     const tarjeta = await screen.findByRole("region", { name: "Tus puntos de cliente" })
     expect(tarjeta).toHaveTextContent("10 puntos")
-    expect(tarjeta).toHaveTextContent("Te falta 2 consultas para ser cliente frecuente")
+    expect(tarjeta).toHaveTextContent("Te faltan 20 puntos para el nivel Frecuente")
     fireEvent.click(within(tarjeta).getByRole("button", { name: /Ver cómo sumas tus puntos/ }))
     const ventanaPuntos = await screen.findByRole("dialog", { name: "Tus puntos de cliente" })
     expect(within(ventanaPuntos).getByRole("region", { name: "Historial de puntos" })).toHaveTextContent("Consulta · 1 oct 2026+10")
-    expect(within(ventanaPuntos).getByRole("region", { name: "Siguiente nivel" })).toHaveTextContent("Te falta 2 consultas")
-    expect(ventanaPuntos).toHaveTextContent("10 puntos por cada consulta y 15 por cada paciente que refieras")
+    expect(within(ventanaPuntos).getByRole("region", { name: "Siguiente nivel" })).toHaveTextContent("Te faltan 20 puntos para el nivel Frecuente")
+    expect(ventanaPuntos).toHaveTextContent("10 puntos por cada consulta, 15 por cada paciente que refieras a la óptica y 1 punto por cada $10 que pagas")
   })
   it("sin deuda no hay tarjeta de saldo", async () => {
     render(<PortalPaciente {...base} />)

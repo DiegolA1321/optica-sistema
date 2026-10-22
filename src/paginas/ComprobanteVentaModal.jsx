@@ -9,6 +9,7 @@ import { registrarLog } from "../utilidades/logs"
 import { UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, mensajeDeError } from "../utilidades/permisos"
 import { puede } from "../utilidades/permisosUi"
+import { useFidelidad } from "../componentes/FidelidadContexto"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import CamposPagos, { FILAS_INICIALES } from "../componentes/ventas/CamposPagos"
 import { brutoLinea, descuentoLinea, subtotalLinea, totalesDeLineas, errorDeDescuento, lineaParaRpc, TIPOS_DESCUENTO } from "../utilidades/descuentos"
@@ -172,6 +173,9 @@ export default function ComprobanteVentaModal({
   const [abonoInicial, setAbonoInicial] = useState("")
   // Descontar es de quien puede corregir cobros (Ventas: editar); la base lo vuelve a exigir.
   const puedeDescontar = puede(usuario, "ventas", "editar")
+  const { de: fidelidadDe } = useFidelidad()
+  const beneficioFidelidad = paciente ? fidelidadDe(paciente).beneficio : null
+  const aplicarDescuentoFidelidad = () => setLineas((prev) => prev.map((l) => ({ ...l, descuentoTipo: "porcentaje", descuentoValor: beneficioFidelidad.descuento, descuentoMotivo: `Fidelización: nivel ${beneficioFidelidad.nivel.nombre}` })))
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
@@ -541,6 +545,16 @@ export default function ComprobanteVentaModal({
 
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Detalle de la venta</label>
+              {/* El descuento que sugiere el nivel de fidelización del paciente: solo lo aplica quien tiene permiso de descuentos en Ventas, y queda con su motivo. */}
+              {puedeDescontar && beneficioFidelidad && lineas.length > 0 && (
+                <div role="status" className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-emerald-200/70 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                  <BadgePercent size={15} className="shrink-0 text-emerald-600" aria-hidden="true" />
+                  <span className="min-w-0 flex-1"><strong>Cliente {beneficioFidelidad.nivel.nombre}</strong> ({beneficioFidelidad.puntos} puntos): descuento sugerido de {beneficioFidelidad.descuento} %</span>
+                  {lineas.some((l) => l.descuentoTipo)
+                    ? <span className="text-xs text-emerald-800">Ya hay descuentos en esta venta</span>
+                    : <button type="button" onClick={aplicarDescuentoFidelidad} className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-emerald-700 cursor-pointer">Aplicar a todas las líneas</button>}
+                </div>
+              )}
               {lineas.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 py-4 text-center text-xs text-slate-500">
                   Todavía no agregaste la montura, la luna ni ningún servicio.

@@ -2,9 +2,10 @@
 
 import { useState } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
-import { Settings, Receipt, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2 } from "lucide-react"
+import { Settings, Receipt, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2, Gift } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import DatosBancarios from "../componentes/DatosBancarios"
+import PanelFidelidadConfig from "../componentes/PanelFidelidadConfig"
 import AccesoSoporte from "../componentes/soporte/AccesoSoporte"
 import ModulosNoUsados from "../componentes/soporte/ModulosNoUsados"
 import ConfirmarEliminarModal from "../componentes/ConfirmarEliminarModal"
@@ -369,6 +370,7 @@ const PESTANAS = [
   { id: "politicas", label: "Políticas y servicios", icon: SlidersHorizontal },
   { id: "catalogos", label: "Catálogos", icon: ListChecks },
   { id: "login", label: "Página pública", icon: MonitorSmartphone },
+  { id: "fidelizacion", label: "Fidelización", icon: Gift },
   { id: "privacidad", label: "Privacidad", icon: ShieldCheck },
 ]
 
@@ -406,7 +408,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
   // también la página de login) — el ing pidió explícitamente organizarla en
   // navegación una vez que el resto del sistema estuviera terminado, en vez
   // de un solo scroll interminable.
-  const [tab, setTab] = useParamUrl("tab", "politicas", ["politicas", "catalogos", "login"])
+  const [tab, setTab] = useParamUrl("tab", "politicas", ["politicas", "catalogos", "login", "fidelizacion", "privacidad"])
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
 
@@ -632,6 +634,12 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
         <DatosBancarios usuario={usuario} onExito={mostrarExito} onError={mostrarError} />
       </div>
       </div>
+      )}
+
+      {tab === "fidelizacion" && (
+        <div role="tabpanel" id="panel-configuracion" aria-labelledby="tab-fidelizacion">
+          <PanelFidelidadConfig parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
+        </div>
       )}
 
       {tab === "privacidad" && (

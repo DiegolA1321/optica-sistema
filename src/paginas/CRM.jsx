@@ -17,7 +17,8 @@ import { CLASE_ACCION_SECUNDARIA } from "../componentes/ventas/estilos"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { puede } from "../utilidades/permisosUi"
 import { motivoDeCampana } from "../utilidades/crmDatos"
-import { armarMensaje, avisosDelCrm, contarPorMotivo, listaParaContactar, plantillaDe, rankingPuntaje, MOTIVOS } from "../utilidades/crmContactos"
+import { armarMensaje, avisosDelCrm, contarPorMotivo, listaParaContactar, plantillaDe, MOTIVOS } from "../utilidades/crmContactos"
+import { useFidelidadCon } from "../componentes/FidelidadContexto"
 import { abrirWhatsApp } from "../utilidades/whatsapp"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { diaDeRegistro, enPeriodo } from "../utilidades/periodoLista"
@@ -125,7 +126,8 @@ export default function CRM({
   const setCumpleAuto = (v) => setParametrizacion?.((prev) => ({ ...prev, cumpleAuto: v }))
 
   const contactosDelMes = useMemo(() => contactos.filter((c) => enPeriodo(c.creadoEn, { filtro: "mes", ref: "", desde: "", hasta: "" }, hoy)).length, [contactos, hoy])
-  const conPuntaje = useMemo(() => rankingPuntaje(pacientes, consultas).length, [pacientes, consultas])
+  const { de: fidelidadDe } = useFidelidadCon({ pacientes, consultas })
+  const conPuntaje = useMemo(() => pacientes.filter((p) => fidelidadDe(p).puntos.total > 0).length, [pacientes, fidelidadDe])
   const pestanas = [
     { id: "contactar", etiqueta: "Para contactar", cuenta: filas.length, Icono: Contact },
     { id: "seguimiento", etiqueta: "Seguimiento", cuenta: contactosDelMes, Icono: Send, ayuda: "Contactos de este mes" },

@@ -78,6 +78,8 @@ import { listaParaContactar } from "../utilidades/crmContactos"
 import { useAvisosDescartados } from "../utilidades/avisosDescartados"
 import { useSeguimientoDeContacto, registrarContacto } from "../utilidades/contactarPaciente"
 import { ProveedorEscribirPorWhatsApp, crearEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
+import { ProveedorFidelidad, armarFidelidad } from "../componentes/FidelidadContexto"
+import { programaDe } from "../utilidades/programaFidelidad"
 
 
 // ─── Paleta de firma ───
@@ -164,6 +166,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     () => crearEscribirPorWhatsApp({ plantillas: crm.plantillas, opticaNombre: usuario?.opticaNombre, consultas, contactarDeAviso: crm.contactarDeAviso, contactarManual: crm.contactarManual, avisar: (m) => mostrarAviso(m) }),
     [crm.plantillas, crm.contactarDeAviso, crm.contactarManual, usuario?.opticaNombre, consultas],
   )
+  // El programa de fidelización (puntos, nivel y descuento sugerido): una sola cuenta para el Resumen del paciente, el CRM y «Nueva venta».
+  const fidelidad = useMemo(() => armarFidelidad({ programa: programaDe(parametrizacion), pacientes, consultas, facturas: facturasVenta, abonos }), [parametrizacion, pacientes, consultas, facturasVenta, abonos])
   const paraContactar = useMemo(() => (crm.cargando ? null : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos: crm.contactos })), [crm.cargando, crm.contactos, pacientes, consultas, ordenesLab, citas])
   const textoAvisosVentas = `${avisosVentas} ${avisosVentas === 1 ? "aviso" : "avisos"} en Ventas`
   // Vista activa (R50): quien tiene más de un rol, o es administrador y también atiende, elige desde el
@@ -839,6 +843,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
 
   return (
     <ProveedorEscribirPorWhatsApp value={escribirPorWhatsApp}>
+    <ProveedorFidelidad value={fidelidad}>
     <div className="flex h-screen bg-slate-50 font-sans">
       {verAvisosInternos && <VentanaAvisosInternos usuario={usuario} onCerrar={() => setVerAvisosInternos(false)} />}
       {dialogoAtenderInicio}
@@ -1224,6 +1229,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         />
       )}
     </div>
+    </ProveedorFidelidad>
     </ProveedorEscribirPorWhatsApp>
   )
 }

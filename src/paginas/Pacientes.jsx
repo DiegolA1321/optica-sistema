@@ -62,6 +62,7 @@ import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import CamposCita from "../componentes/CamposCita"
 import { BarraBusquedaFiltros, SeccionRango } from "../componentes/FiltrosCitas"
 import { contarCitas, diaMasFrecuente } from "../utilidades/resumenCitas"
+import { useFidelidad } from "../componentes/FidelidadContexto"
 import TendenciaCitas from "../componentes/pacientes/TendenciaCitas"
 import { useEventosDeCita } from "../utilidades/eventosCita"
 import { seguimientoDeCita, cuandoDeEvento, detalleDeEvento, sufijoDeEvento, TITULO_EVENTO } from "../utilidades/seguimientoCita"
@@ -210,6 +211,7 @@ function MiniaturaAdjunto({ path }) {
 export default function Pacientes({ avisosDelModulo = null, alcancePropio = false, usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, onReagendarCita }) {
   const opticaId = usuario?.opticaId
   const escribirPorWhatsApp = useEscribirPorWhatsApp()
+  const { de: fidelidadDe, programa: programaFidelidad } = useFidelidad()
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
   const [cedula, setCedula] = useState("")
@@ -1842,76 +1844,6 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
 
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="px-4 pb-6 pt-3 sm:px-8 sm:pb-8 sm:pt-4">
-              {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
-              <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-              <div className="grid gap-x-6 gap-y-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center">
-                <div className="flex min-w-0 flex-col gap-4">
-                <div className="flex min-w-0 flex-wrap items-start gap-3">
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-lg font-bold text-white" style={{ background: GRAD }}>
-                    {pacienteHistorial.nombre.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h1 className="font-serif text-xl font-bold leading-tight sm:text-2xl" style={{ color: INK }}>
-                      {pacienteHistorial.nombre}
-                    </h1>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
-                      {pacienteHistorial.cedula && <span className="flex items-center gap-1.5 whitespace-nowrap font-mono"><IdCard size={14} /> {pacienteHistorial.cedula}</span>}
-                      {pacienteHistorial.telefono && <span className="flex items-center gap-1.5 whitespace-nowrap"><Phone size={14} /> {pacienteHistorial.telefono}</span>}
-                      {pacienteHistorial.correo && <span className="flex min-w-0 max-w-full items-center gap-1.5"><Mail size={14} className="shrink-0" /> <span className="truncate" title={pacienteHistorial.correo}>{pacienteHistorial.correo}</span></span>}
-                    </div>
-                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                      <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + claseBadgeEstadoClinico(pacienteHistorial.estadoClinico)}>
-                        {etiquetaEstadoClinico(pacienteHistorial.estadoClinico)}
-                      </span>
-                      {/* La cuenta del portal: con cuenta, un clic abre sus opciones (restablecer la clave); sin cuenta, el mismo clic la crea. Un solo lugar (regla 8). */}
-                      {puedeEditarPaciente ? (
-                        <button
-                          type="button"
-                          onClick={() => abrirCuenta(pacienteHistorial)}
-                          title={pacienteHistorial.tieneCuenta ? "Opciones de la cuenta del portal" : "Crear el acceso del paciente al portal"}
-                          className={"rounded-full px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer " + (pacienteHistorial.tieneCuenta ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
-                        >
-                          {pacienteHistorial.tieneCuenta ? "Cuenta Portal: Activa" : "Cuenta Portal: Sin cuenta · Crear acceso"}
-                        </button>
-                      ) : (
-                        <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (pacienteHistorial.tieneCuenta ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>
-                          Cuenta Portal: {pacienteHistorial.tieneCuenta ? "Activa" : "Sin cuenta"}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {/* Atender, siempre en la cabecera: con atención abierta, «Seguir atendiendo» y «Dejar de atender»; con una cita de hoy, «Atender»; sin cita de hoy, «Atender ahora» (crea la cita presencial y abre la ficha). */}
-                {puedeAtender && (() => {
-                  const delPaciente = citas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
-                  const abierta = delPaciente.filter((c) => c.estado === "En Atención").sort((a, b) => (a.fecha < b.fecha ? 1 : -1))[0]
-                  // «Atender» con la cita de hoy; si solo tiene una de otro día, también (pregunta «¿Atenderla hoy?»: regla de la Ronda 2). Sin ninguna, «Atender ahora».
-                  const abiertas = delPaciente.filter((c) => ["Pendiente", "En Espera"].includes(c.estado) && (c.fecha >= hoyISO() || puedeIngresarCita(c)))
-                    .sort((a, b) => ((a.fecha === hoyISO()) === (b.fecha === hoyISO()) ? (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)) : a.fecha === hoyISO() ? -1 : 1))
-                  const deHoy = !abierta && abiertas[0]
-                  const principal = "inline-flex min-h-10 items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white transition-colors hover:brightness-110 cursor-pointer"
-                  if (abierta) {
-                    return (
-                      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-                        <button type="button" onClick={() => pedirAtender(abierta)} className={principal} style={{ background: GRAD }}><Stethoscope size={16} aria-hidden="true" /> Seguir atendiendo</button>
-                        <button type="button" onClick={() => setDejarCita(abierta)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"><LogOut size={15} aria-hidden="true" /> Dejar de atender</button>
-                      </div>
-                    )
-                  }
-                  if (deHoy) return <div className="border-t border-slate-100 pt-4"><button type="button" onClick={() => pedirAtender(deHoy)} className={principal} style={{ background: GRAD }}><Stethoscope size={16} aria-hidden="true" /> Atender</button></div>
-                  if (!puedeAgendar) return null
-                  return <div className="border-t border-slate-100 pt-4"><button type="button" onClick={() => abrirAtenderAhora(pacienteHistorial)} className={principal} style={{ background: GRAD }}><Stethoscope size={16} aria-hidden="true" /> Atender ahora</button></div>
-                })()}
-                </div>
-                {/* Los botones, de dos en dos: lo que se mira (Historia clínica, Datos) y lo que se hace (Agendar cita, Enviar mensaje). */}
-                <div className="grid grid-cols-2 gap-2 lg:border-l lg:border-slate-100 lg:pl-6">
-                  {puedeVerFichas && <button type="button" onClick={() => setVerHistoriaClinica(true)} aria-haspopup="dialog" className={BOTON_CABECERA + " border-blue-200 bg-blue-50/60 text-blue-700 hover:bg-blue-50"}><ClipboardList size={15} aria-hidden="true" /> Historia clínica</button>}
-                  <button type="button" onClick={() => setVerDatosPaciente(true)} aria-haspopup="dialog" className={BOTON_CABECERA + " border-slate-200/60 text-slate-700 hover:bg-slate-50"}><IdCard size={15} aria-hidden="true" /> Datos</button>
-                  {puedeAgendar && <button type="button" onClick={() => abrirAgendar(pacienteHistorial)} className={BOTON_CABECERA + " border-slate-200/60 text-slate-700 hover:bg-slate-50"}><CalendarPlus size={15} aria-hidden="true" /> Agendar cita</button>}
-                  {puedeMensaje && <button type="button" onClick={() => abrirMensaje(pacienteHistorial)} disabled={!pacienteHistorial.telefono} title={pacienteHistorial.telefono ? undefined : "Este paciente no tiene teléfono registrado"} className={BOTON_CABECERA + " border-slate-200/60 text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"}><MessageCircle size={15} aria-hidden="true" /> Enviar mensaje</button>}
-                </div>
-              </div>
-              </div>
 
               {(() => {
               const consultasPaciente = consultas
@@ -1976,6 +1908,160 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
 
               return (
                 <>
+                  {/* ─── Cabecera del perfil: identidad + acciones principales ─── */}
+                  <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+                  <div className="grid gap-x-6 gap-y-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center">
+                    <div className="flex min-w-0 flex-col gap-4">
+                    <div className="flex min-w-0 flex-wrap items-start gap-3">
+                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-lg font-bold text-white" style={{ background: GRAD }}>
+                        {pacienteHistorial.nombre.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h1 className="font-serif text-xl font-bold leading-tight sm:text-2xl" style={{ color: INK }}>
+                          {pacienteHistorial.nombre}
+                        </h1>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
+                          {pacienteHistorial.cedula && <span className="flex items-center gap-1.5 whitespace-nowrap font-mono"><IdCard size={14} /> {pacienteHistorial.cedula}</span>}
+                          {pacienteHistorial.telefono && <span className="flex items-center gap-1.5 whitespace-nowrap"><Phone size={14} /> {pacienteHistorial.telefono}</span>}
+                          {pacienteHistorial.correo && <span className="flex min-w-0 max-w-full items-center gap-1.5"><Mail size={14} className="shrink-0" /> <span className="truncate" title={pacienteHistorial.correo}>{pacienteHistorial.correo}</span></span>}
+                        </div>
+                        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                          <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + claseBadgeEstadoClinico(pacienteHistorial.estadoClinico)}>
+                            {etiquetaEstadoClinico(pacienteHistorial.estadoClinico)}
+                          </span>
+                          {/* La cuenta del portal: con cuenta, un clic abre sus opciones (restablecer la clave); sin cuenta, el mismo clic la crea. Un solo lugar (regla 8). */}
+                          {puedeEditarPaciente ? (
+                            <button
+                              type="button"
+                              onClick={() => abrirCuenta(pacienteHistorial)}
+                              title={pacienteHistorial.tieneCuenta ? "Opciones de la cuenta del portal" : "Crear el acceso del paciente al portal"}
+                              className={"rounded-full px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer " + (pacienteHistorial.tieneCuenta ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
+                            >
+                              {pacienteHistorial.tieneCuenta ? "Cuenta Portal: Activa" : "Cuenta Portal: Sin cuenta · Crear acceso"}
+                            </button>
+                          ) : (
+                            <span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (pacienteHistorial.tieneCuenta ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>
+                              Cuenta Portal: {pacienteHistorial.tieneCuenta ? "Activa" : "Sin cuenta"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    </div>
+                    {/* Los botones, de dos en dos: lo que se mira (Historia clínica, Datos) y lo que se hace (Agendar cita, Enviar mensaje). */}
+                    <div className="grid grid-cols-2 gap-2 lg:border-l lg:border-slate-100 lg:pl-6">
+                      {puedeVerFichas && <button type="button" onClick={() => setVerHistoriaClinica(true)} aria-haspopup="dialog" className={BOTON_CABECERA + " border-blue-200 bg-blue-50/60 text-blue-700 hover:bg-blue-50"}><ClipboardList size={15} aria-hidden="true" /> Historia clínica</button>}
+                      <button type="button" onClick={() => setVerDatosPaciente(true)} aria-haspopup="dialog" className={BOTON_CABECERA + " border-slate-200/60 text-slate-700 hover:bg-slate-50"}><IdCard size={15} aria-hidden="true" /> Datos</button>
+                      {puedeAgendar && <button type="button" onClick={() => abrirAgendar(pacienteHistorial)} className={BOTON_CABECERA + " border-slate-200/60 text-slate-700 hover:bg-slate-50"}><CalendarPlus size={15} aria-hidden="true" /> Agendar cita</button>}
+                      {puedeMensaje && <button type="button" onClick={() => abrirMensaje(pacienteHistorial)} disabled={!pacienteHistorial.telefono} title={pacienteHistorial.telefono ? undefined : "Este paciente no tiene teléfono registrado"} className={BOTON_CABECERA + " border-slate-200/60 text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"}><MessageCircle size={15} aria-hidden="true" /> Enviar mensaje</button>}
+                    </div>
+                  </div>
+                    {/* Las pestañas a la izquierda y, a la derecha de la misma fila, atender (Atender, Seguir atendiendo y Dejar de atender, o Atender ahora). */}
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-100 pt-3">
+                        {/* Segmented control tipo píldora — mismo lenguaje que el
+                            resto del sistema para "esto está activo" (ver filtros
+                            de Citas.jsx), en vez del subrayado recto que tenía
+                            antes. role="tablist"/"tab"/aria-selected para que un
+                            lector de pantalla las anuncie como pestañas, no como
+                            4 botones sueltos. */}
+                        <div role="tablist" aria-label="Secciones del paciente" className="flex w-fit max-w-full flex-nowrap items-center gap-0.5 rounded-xl bg-slate-50 p-1">
+                          <button
+                            type="button"
+                            role="tab"
+                            id="tab-resumen"
+                            aria-selected={tabHistorial === "resumen"}
+                            aria-controls="panel-paciente"
+                            onClick={() => setTabHistorial("resumen")}
+                            className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "resumen" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                            style={tabHistorial === "resumen" ? { background: GRAD } : undefined}
+                          >
+                            <BarChart3 size={14} /> Resumen
+                          </button>
+                          {[
+                            { id: "citas", etiqueta: "Citas", Icono: Calendar, cuenta: citasPaciente.length },
+                          ].map(({ id, etiqueta, Icono, cuenta }) => (
+                            <button
+                              key={id}
+                              type="button"
+                              role="tab"
+                              id={"tab-" + id}
+                              aria-selected={tabHistorial === id}
+                              aria-controls="panel-paciente"
+                              onClick={() => setTabHistorial(id)}
+                              className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === id ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                              style={tabHistorial === id ? { background: GRAD } : undefined}
+                            >
+                              {/* El ing pidió dos secciones en vez de un historial único (29 sept.,
+                                  R45): Citas (pendientes, próxima e historial) y Diagnósticos
+                                  (cada atención con su motivo y diagnóstico, con la tendencia arriba). */}
+                              <Icono size={14} /> {etiqueta}
+                              {cuenta > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{cuenta}</span>}
+                            </button>
+                          ))}
+                          {puedeVerFichas && (
+                            <button
+                              type="button"
+                              role="tab"
+                              id="tab-diagnostico"
+                              aria-selected={tabHistorial === "diagnostico"}
+                              aria-controls="panel-paciente"
+                              onClick={() => setTabHistorial("diagnostico")}
+                              className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "diagnostico" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                              style={tabHistorial === "diagnostico" ? { background: GRAD } : undefined}
+                            >
+                              <Eye size={14} /> Diagnóstico
+                              {consultasPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "diagnostico" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{consultasPaciente.length}</span>}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            role="tab"
+                            id="tab-pagos"
+                            aria-selected={tabHistorial === "pagos"}
+                            aria-controls="panel-paciente"
+                            onClick={() => setTabHistorial("pagos")}
+                            className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                            style={tabHistorial === "pagos" ? { background: GRAD } : undefined}
+                          >
+                            {/* El ing rechazó tanto "Pagos" como "Ventas" para esta
+                                pestaña — "aquí están los productos que yo le he
+                                vendido al paciente", así que la etiqueta pasa a ser
+                                literal. Reunión 29 sept.: separa productos de
+                                servicios (la línea "Consulta" del cobro de la
+                                ficha clínica incluida), así que el nombre ya no
+                                puede ser solo "productos". */}
+                            <Wallet size={14} /> Compras
+                            {totalComprasCount > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{totalComprasCount}</span>}
+                            {deudaTotal > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>${deudaTotal.toFixed(0)}</span>}
+                          </button>
+                        </div>
+
+
+                      {/* Atender, siempre en la cabecera: con atención abierta, «Seguir atendiendo» y «Dejar de atender»; con una cita de hoy, «Atender»; sin cita de hoy, «Atender ahora» (crea la cita presencial y abre la ficha). */}
+                      {puedeAtender && (() => {
+                        const delPaciente = citas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre)
+                        const abierta = delPaciente.filter((c) => c.estado === "En Atención").sort((a, b) => (a.fecha < b.fecha ? 1 : -1))[0]
+                        // «Atender» con la cita de hoy; si solo tiene una de otro día, también (pregunta «¿Atenderla hoy?»: regla de la Ronda 2). Sin ninguna, «Atender ahora».
+                        const abiertas = delPaciente.filter((c) => ["Pendiente", "En Espera"].includes(c.estado) && (c.fecha >= hoyISO() || puedeIngresarCita(c)))
+                          .sort((a, b) => ((a.fecha === hoyISO()) === (b.fecha === hoyISO()) ? (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)) : a.fecha === hoyISO() ? -1 : 1))
+                        const deHoy = !abierta && abiertas[0]
+                        const principal = "inline-flex min-h-10 items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white transition-colors hover:brightness-110 cursor-pointer"
+                        if (abierta) {
+                          return (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button type="button" onClick={() => pedirAtender(abierta)} className={principal} style={{ background: GRAD }}><Stethoscope size={16} aria-hidden="true" /> Seguir atendiendo</button>
+                              <button type="button" onClick={() => setDejarCita(abierta)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"><LogOut size={15} aria-hidden="true" /> Dejar de atender</button>
+                            </div>
+                          )
+                        }
+                        if (deHoy) return <div><button type="button" onClick={() => pedirAtender(deHoy)} className={principal} style={{ background: GRAD }}><Stethoscope size={16} aria-hidden="true" /> Atender</button></div>
+                        if (!puedeAgendar) return null
+                        return <div><button type="button" onClick={() => abrirAtenderAhora(pacienteHistorial)} className={principal} style={{ background: GRAD }}><Stethoscope size={16} aria-hidden="true" /> Atender ahora</button></div>
+                      })()}
+
+                    </div>
+                  </div>
+
                   {/* ─── ALERTAS: lo que conviene saber de este paciente, justo debajo de la cabecera y antes de las pestañas ─── */}
                   {/* ─── ALERTAS DEL PACIENTE: lo que conviene saber de un vistazo.
                       El próximo control vive aquí (y en el historial clínico),
@@ -2018,84 +2104,6 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                     </div>
                   )}
 
-                  {/* Segmented control tipo píldora — mismo lenguaje que el
-                      resto del sistema para "esto está activo" (ver filtros
-                      de Citas.jsx), en vez del subrayado recto que tenía
-                      antes. role="tablist"/"tab"/aria-selected para que un
-                      lector de pantalla las anuncie como pestañas, no como
-                      4 botones sueltos. */}
-                  <div role="tablist" aria-label="Secciones del paciente" className="mt-5 flex w-fit max-w-full flex-nowrap items-center gap-0.5 rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-                    <button
-                      type="button"
-                      role="tab"
-                      id="tab-resumen"
-                      aria-selected={tabHistorial === "resumen"}
-                      aria-controls="panel-paciente"
-                      onClick={() => setTabHistorial("resumen")}
-                      className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "resumen" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                      style={tabHistorial === "resumen" ? { background: GRAD } : undefined}
-                    >
-                      <BarChart3 size={14} /> Resumen
-                    </button>
-                    {[
-                      { id: "citas", etiqueta: "Citas", Icono: Calendar, cuenta: citasPaciente.length },
-                    ].map(({ id, etiqueta, Icono, cuenta }) => (
-                      <button
-                        key={id}
-                        type="button"
-                        role="tab"
-                        id={"tab-" + id}
-                        aria-selected={tabHistorial === id}
-                        aria-controls="panel-paciente"
-                        onClick={() => setTabHistorial(id)}
-                        className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === id ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                        style={tabHistorial === id ? { background: GRAD } : undefined}
-                      >
-                        {/* El ing pidió dos secciones en vez de un historial único (29 sept.,
-                            R45): Citas (pendientes, próxima e historial) y Diagnósticos
-                            (cada atención con su motivo y diagnóstico, con la tendencia arriba). */}
-                        <Icono size={14} /> {etiqueta}
-                        {cuenta > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === id ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{cuenta}</span>}
-                      </button>
-                    ))}
-                    {puedeVerFichas && (
-                      <button
-                        type="button"
-                        role="tab"
-                        id="tab-diagnostico"
-                        aria-selected={tabHistorial === "diagnostico"}
-                        aria-controls="panel-paciente"
-                        onClick={() => setTabHistorial("diagnostico")}
-                        className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "diagnostico" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                        style={tabHistorial === "diagnostico" ? { background: GRAD } : undefined}
-                      >
-                        <Eye size={14} /> Diagnóstico
-                        {consultasPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "diagnostico" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{consultasPaciente.length}</span>}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      role="tab"
-                      id="tab-pagos"
-                      aria-selected={tabHistorial === "pagos"}
-                      aria-controls="panel-paciente"
-                      onClick={() => setTabHistorial("pagos")}
-                      className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "pagos" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                      style={tabHistorial === "pagos" ? { background: GRAD } : undefined}
-                    >
-                      {/* El ing rechazó tanto "Pagos" como "Ventas" para esta
-                          pestaña — "aquí están los productos que yo le he
-                          vendido al paciente", así que la etiqueta pasa a ser
-                          literal. Reunión 29 sept.: separa productos de
-                          servicios (la línea "Consulta" del cobro de la
-                          ficha clínica incluida), así que el nombre ya no
-                          puede ser solo "productos". */}
-                      <Wallet size={14} /> Compras
-                      {totalComprasCount > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{totalComprasCount}</span>}
-                      {deudaTotal > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>${deudaTotal.toFixed(0)}</span>}
-                    </button>
-                  </div>
-
                   {/* key={tabHistorial}: remonta el panel en cada cambio de
                       pestaña para que "rise-in" (ya estándar en el resto del
                       sistema, 320ms) se dispare de nuevo — antes el
@@ -2105,30 +2113,19 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       <PanelResumenPaciente
                         consultas={consultasPaciente}
                         citas={citasPaciente}
-                        inactivo={inactivo}
-                        proximoControl={proximoControl}
-                        diasControl={diasControl}
-                        diasDesdeUltimaVisita={diasDesdeUltimaVisita(pacienteHistorial, consultas)}
-                        compras={{ cantidad: totalComprasCount, monto: sinMontos ? null : totalComprasMonto }}
-                        equipo={equipo}
-                        comprobantes={comprobantesPaciente}
                         referidosLista={listarReferidos(pacienteHistorial, pacientes)}
                         paciente={pacienteHistorial}
-                        usuario={usuario}
-                        parametrizacion={parametrizacion}
-                        adjuntosDe={adjuntosConsulta}
                         onAbrirPaciente={(p) => { setTabHistorial("resumen"); setPacienteHistorial(p) }}
-                        onVerProductos={() => setTabHistorial("pagos")}
-                        onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
                         cobros={sinMontos ? [] : cobrosPendientes(consultasPaciente, facturasVenta, citas)}
                         onCobrar={puedeVender ? setCobrandoPendiente : undefined}
-                        fidelidad={{ puntaje: puntajeFidelidad, consultas: totalConsultasFidelizacion, referidos: referidosPorEste, frecuente, referidoPor: pacienteHistorial.referidoPor, diasCumple, edad: edadPaciente, onCrm: () => setVista?.("crm") }}
+                        fidelidad={{ ...fidelidadDe(pacienteHistorial), programa: programaFidelidad, referidos: referidosPorEste, referidoPor: pacienteHistorial.referidoPor, diasCumple, edad: edadPaciente, cumpleAuto: parametrizacion?.cumpleAuto, onCrm: () => setVista?.("crm") }}
                       />
                     ) : tabHistorial === "diagnostico" && puedeVerFichas ? (
                       <DiagnosticoPerfil consultas={consultasPaciente} paciente={pacienteHistorial} usuario={usuario} parametrizacion={parametrizacion} />
                     ) : tabHistorial === "citas" ? (
                       <div className="space-y-4">
                         <PanelCitasPaciente
+                        tarjetas={<TarjetasClinicas consultas={consultasPaciente} citas={citasPaciente} inactivo={inactivo} proximoControl={proximoControl} diasControl={diasControl} diasDesdeUltimaVisita={diasDesdeUltimaVisita(pacienteHistorial, consultas)} equipo={equipo} paciente={pacienteHistorial} usuario={usuario} parametrizacion={parametrizacion} adjuntosDe={adjuntosConsulta} onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined} />}
                         citas={citasPaciente}
                         consultas={consultasPaciente}
                         facturas={sinMontos ? [] : facturasVenta.filter((f) => f.pacienteId === pacienteHistorial.id)}
@@ -2143,15 +2140,30 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       </div>
                     ) : tabHistorial === "pagos" ? (
                       <div className="space-y-4">
-                        {deudaTotal > 0 && (
-                          <p role="status" className="flex items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800">
-                            <Wallet size={16} className="shrink-0 text-amber-600" aria-hidden="true" /> Saldo pendiente de ventas: {dinero(deudaTotal)}
-                          </p>
-                        )}
+                        {/* La tarjeta de compras (antes en el Resumen): lo comprado y lo que debe. */}
+                        <section aria-label="Resumen de compras" className={"grid gap-3 " + (sinMontos ? "" : "sm:grid-cols-2")}>
+                          <div className="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white p-3.5">
+                            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><Glasses size={18} aria-hidden="true" /></div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Total comprado</p>
+                              <p className="text-base font-bold" style={{ color: INK }}>{sinMontos ? `${totalComprasCount} compra${totalComprasCount === 1 ? "" : "s"}` : dinero(totalComprasMonto)}</p>
+                              {!sinMontos && <p className="text-xs text-slate-500">{totalComprasCount} compra{totalComprasCount === 1 ? "" : "s"}</p>}
+                            </div>
+                          </div>
+                          {!sinMontos && (
+                            <div role="status" className={"flex items-center gap-3 rounded-xl border p-3.5 " + (deudaTotal > 0 ? "border-amber-200/60 bg-amber-50" : "border-slate-200/60 bg-white")}>
+                              <div className={"grid h-10 w-10 shrink-0 place-items-center rounded-lg " + (deudaTotal > 0 ? "bg-amber-600 text-white" : "bg-emerald-50 text-emerald-600")}><Wallet size={18} aria-hidden="true" /></div>
+                              <div className="min-w-0">
+                                <p className={"text-xs font-bold uppercase tracking-wide " + (deudaTotal > 0 ? "text-amber-800" : "text-slate-500")}>Saldo pendiente</p>
+                                <p className={"text-base font-bold " + (deudaTotal > 0 ? "text-amber-950" : "")} style={deudaTotal > 0 ? undefined : { color: INK }}>{deudaTotal > 0 ? dinero(deudaTotal) : "Al día"}</p>
+                              </div>
+                            </div>
+                          )}
+                        </section>
                         <section aria-label="Compras del paciente" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                             <h3 className="flex items-center gap-1.5 text-sm font-bold" style={{ color: INK }}><Receipt size={15} aria-hidden="true" /> Compras <span className="font-normal text-slate-500">· {totalComprasCount}{comprobantesAnulados > 0 ? ` · ${comprobantesAnulados} anulada${comprobantesAnulados === 1 ? "" : "s"}` : ""}</span></h3>
-                            {puedeVender && (
+                            {puedeVender && (sinMontos || comprobantesPaciente.length > 0) && (
                               <button
                                 type="button"
                                 title="Venta sin receta o con ella: productos y servicios, con pago directo, tarjeta o cuotas"
@@ -2169,6 +2181,11 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                           <div className="flex flex-col items-center gap-2 py-10 text-center" style={{ animation: "rise-in 250ms ease-out both" }}>
                             <div className="grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-300"><Wallet size={22} /></div>
                             <p className="text-sm font-medium text-slate-500">Este paciente todavía no tiene compras registradas.</p>
+                            {puedeVender && (
+                              <button type="button" onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }} className="mt-1 flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
+                                <Receipt size={15} aria-hidden="true" /> Nueva venta
+                              </button>
+                            )}
                             {paseListo ? (
                               puedeVender && <button type="button" onClick={() => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null })} className="mt-1 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
                                 <ShoppingBag size={14} aria-hidden="true" /> Vender la receta
@@ -2512,7 +2529,7 @@ function adjuntosConsulta(consulta) {
   )
 }
 
-function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [], onAgendar, onVerGraduacion, onVerCompras, paciente, usuario, parametrizacion }) {
+function PanelCitasPaciente({ tarjetas: tarjetasClinicas, citas, consultas = [], facturas = [], equipo = [], onAgendar, onVerGraduacion, onVerCompras, paciente, usuario, parametrizacion }) {
   // El diagnóstico de una cita atendida se abre en una ventana encima del perfil, sin mover el resto de la lista.
   const [citaAbierta, setCitaAbierta] = useState(null)
   // Buscador del historial: rango de fechas y texto libre (motivo o diagnóstico), para ubicar una cita de hace meses.
@@ -2536,7 +2553,7 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
     noAsistio: porFecha(citas.filter((c) => c.estado === "No Asistió")),
     canceladas: porFecha(citas.filter((c) => c.estado === "Cancelada")),
   }
-  const tarjetas = [
+  const tarjetasConteo = [
     { clave: "pendientes", etiqueta: "Pendientes", valor: conteo.pendientes, clase: "text-amber-700", punto: "bg-amber-500" },
     { clave: "atendidas", etiqueta: "Atendidas", valor: conteo.atendidas, clase: "text-emerald-700", punto: "bg-emerald-500" },
     { clave: "noAsistio", etiqueta: "No efectuadas", valor: conteo.noAsistio, clase: "text-red-700", punto: "bg-red-500" },
@@ -2587,7 +2604,8 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
   }
   return (
     <div className="space-y-5">
-      {/* Dos bloques lado a lado: los conteos (cada uno abre su lista) y la tendencia de sus citas; debajo, el historial. */}
+      {/* Arriba, las tarjetas clínicas (próximo control, última consulta y, con refracción, estado de corrección); debajo, los conteos y la tendencia lado a lado, y al final el historial. */}
+      {tarjetasClinicas}
       {historialCompleto.length === 0 ? (
         <section aria-label="Sin citas" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-5">
           <p className="flex items-center gap-2 text-sm font-medium text-slate-600"><Calendar size={16} className="text-slate-400" aria-hidden="true" /> Este paciente no tiene citas</p>
@@ -2598,7 +2616,7 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
           <section aria-label="Citas del paciente" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
             <h3 className="text-sm font-bold" style={{ color: INK }}>Citas del paciente</h3>
             <dl className="grid grid-cols-2 gap-3">
-              {tarjetas.map((t) => (
+              {tarjetasConteo.map((t) => (
                 <Cuadro key={t.clave} abierto={abierto} alternar={alternar} clave={t.clave} className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
                   <dt className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className={"h-2 w-2 rounded-full " + t.punto} aria-hidden="true" />{t.etiqueta}</dt>
                   <dd className={"mt-0.5 text-2xl font-bold " + t.clase}>{t.valor}</dd>
@@ -2662,8 +2680,6 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
       )}
       {citaAbierta && consultaDe(citaAbierta) && (
         <ModalAtencion
-          onVerReceta={onVerGraduacion && recetasDe([consultaDe(citaAbierta)]).length ? () => { setCitaAbierta(null); onVerGraduacion(consultaDe(citaAbierta)) } : undefined}
-          onVerCompra={onVerCompras && resultadoDeCita({ cita: citaAbierta, consulta: consultaDe(citaAbierta), facturas }).some((l) => l.clave === "compra") ? () => { setCitaAbierta(null); onVerCompras() } : undefined}
           cita={citaAbierta}
           consulta={consultaDe(citaAbierta)}
           paciente={paciente}
@@ -2718,13 +2734,15 @@ const TENDENCIA_TEXTO = {
   "Sin cambios": "La graduación medida se mantiene estable.",
 }
 
-function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, compras, fidelidad, equipo, comprobantes, referidosLista, paciente, usuario, parametrizacion, adjuntosDe, onAbrirPaciente, onVerProductos, onAgendar, cobros = [], onCobrar }) {
+// Las tarjetas clínicas del paciente (próximo control, última consulta y, solo si tiene refracción, estado de corrección): van arriba de la pestaña Citas (antes estaban en el Resumen).
+// Cada una se despliega al tocarla (una a la vez) y muestra de dónde sale su número.
+function TarjetasClinicas({ consultas, citas, inactivo, proximoControl, diasControl, diasDesdeUltimaVisita, equipo, paciente, usuario, parametrizacion, adjuntosDe, onAgendar }) {
   const ultima = consultas[0]
   // Cada cuadro se despliega al tocarlo (uno a la vez) y muestra de dónde sale su número.
   const [abierto, setAbierto] = useState(null)
   const [citaVentana, setCitaVentana] = useState(null)
   // «Compras» abre la pestaña Compras; el resto, su detalle en la ventana estándar.
-  const alternar = (clave) => (clave === "compras" ? onVerProductos?.() : setAbierto((a) => (a === clave ? null : clave)))
+  const alternar = (clave) => setAbierto((a) => (a === clave ? null : clave))
   // "Control recomendado" es lo que dice la ficha; "Próxima cita" es la fecha ya agendada. Dos datos distintos, dos nombres.
   const citaPendiente = citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).sort((a, b) => (a.fecha < b.fecha ? -1 : 1))[0]
   const citaDeUltima = ultima ? citas.find((c) => c.id === ultima.citaId) : null
@@ -2738,39 +2756,11 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
   const tendencia = TENDENCIA[infoTendencia?.verdicto]
   // «Estado de corrección» es de optometría: solo aparece si el paciente tiene datos de refracción (muchos vienen por prevención u otra atención).
   const tieneRefraccion = recetasDe(consultas).length > 0
-  const citaEnAtencion = citas.find((c) => c.estado === "En Atención") || null
   const consultaVentana = citaVentana ? consultaDe(citaVentana) || citaVentana._consulta : null
   return (
-    <div className="space-y-4">
-      {/* Los avisos de este paciente, arriba: la cita que sigue en atención y el cobro pendiente (antes estaban en la pestaña Citas). Los botones para atender están en la cabecera. */}
-      {(citaEnAtencion || cobros.length > 0) && (
-        <section aria-label="Avisos del paciente" className={"grid items-stretch gap-3 " + (citaEnAtencion && cobros.length > 0 ? "md:grid-cols-2" : "")}>
-          {citaEnAtencion && (
-            <div role="status" className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-blue-200/60 bg-blue-50/50 px-4 py-3">
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}><Stethoscope size={16} aria-hidden="true" /></div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Cita en atención</p>
-                <p className="text-sm font-bold" style={{ color: INK }}>{fechaLegible(citaEnAtencion.fecha) || "Sin fecha"} · {citaEnAtencion.hora}</p>
-                <p className="truncate text-xs text-slate-600">{citaEnAtencion.motivo || "Consulta general"}{diasAtencionAbierta(citaEnAtencion) !== null ? ` · ${textoAtencionAbierta(diasAtencionAbierta(citaEnAtencion))}` : ""}</p>
-              </div>
-            </div>
-          )}
-          {cobros.map(({ consulta, cita }) => (
-            <section key={consulta.id} role="status" aria-label="Cobro pendiente" className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-amber-200/60 bg-amber-50 px-4 py-3">
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-600 text-white"><Receipt size={16} aria-hidden="true" /></div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold uppercase tracking-wide text-amber-800">Cobro pendiente</p>
-                <p className="text-sm font-bold text-amber-950">Consulta del {fechaLegible(consulta.fecha)}</p>
-                {consulta.motivo && <p className="truncate text-xs text-amber-900/80">{consulta.motivo}</p>}
-              </div>
-              {onCobrar && <button type="button" onClick={() => onCobrar({ consulta, cita })} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer">Cobrar</button>}
-            </section>
-          ))}
-        </section>
-      )}
-
-      <section aria-label="Información general" className="space-y-3">
-        <div className={"grid grid-cols-1 gap-3 sm:grid-cols-2 " + (tieneRefraccion ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
+    <div className="space-y-3">
+      <section aria-label="Información clínica" className="space-y-3">
+        <div className={"grid grid-cols-1 gap-3 sm:grid-cols-2 " + (tieneRefraccion ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
           {tieneRefraccion && ultima ? (
             <Cuadro abierto={abierto} alternar={alternar} clave="correccion" className="flex items-center gap-3 rounded-xl border p-3.5" style={{ borderColor: colorEstado.border, backgroundColor: colorEstado.bg }}>
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white" style={{ color: colorEstado.fg }}><IconoCorreccion size={18} /></div>
@@ -2804,11 +2794,6 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
             <p className="mt-1 text-base font-bold" style={{ color: INK }}>{fechaLegible(ultima?.fecha) || "—"}</p>
             {ultima && diasDesdeUltimaVisita !== null && <p className="text-xs text-slate-500">Hace {diasDesdeUltimaVisita} día{diasDesdeUltimaVisita === 1 ? "" : "s"}</p>}
           </Cuadro>
-          <Cuadro abierto={abierto} alternar={alternar} clave="compras" className="rounded-xl border border-slate-200/60 bg-white p-3.5">
-            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Glasses size={12} /> Compras</p>
-            <p className="mt-1 text-base font-bold" style={{ color: INK }}>{compras.cantidad}</p>
-            {compras.monto != null && <p className="text-xs text-slate-500">{dinero(compras.monto)} en total</p>}
-          </Cuadro>
         </div>
         {abierto === "ultima" && (
           <Despliegue titulo="Última consulta" onCerrar={() => setAbierto(null)}>
@@ -2831,34 +2816,78 @@ function PanelResumenPaciente({ consultas, citas, inactivo, proximoControl, dias
       {citaVentana && consultaVentana && (
         <ModalAtencion cita={citaVentana} consulta={consultaVentana} paciente={paciente} usuario={usuario} parametrizacion={parametrizacion} adjuntos={adjuntosDe(consultaVentana)} onCerrar={() => setCitaVentana(null)} />
       )}
+    </div>
+  )
+}
 
-      <section aria-label="Fidelización" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
+// El texto del cumpleaños: de quién y cuándo («Cumpleaños: 12 de octubre (en 351 días)»).
+function textoCumple(paciente, diasCumple) {
+  const fn = paciente.fecha_nacimiento || paciente.fechaNacimiento
+  if (diasCumple == null || !fn) return "Cumpleaños: sin fecha de nacimiento registrada"
+  return `Cumpleaños: ${formatoFecha(fn, "diaMes")} (${diasCumple === 0 ? "es hoy" : `en ${diasCumple} día${diasCumple === 1 ? "" : "s"}`})`
+}
+
+// El Resumen: solo los avisos del paciente (cita en atención y cobro pendiente) y la fidelización en un bloque compacto (nivel y puntos, referidos y cumpleaños).
+function PanelResumenPaciente({ citas, fidelidad, consultas, referidosLista, paciente, onAbrirPaciente, cobros = [], onCobrar }) {
+  const [abierto, setAbierto] = useState(null)
+  const alternar = (clave) => setAbierto((a) => (a === clave ? null : clave))
+  const citaEnAtencion = citas.find((c) => c.estado === "En Atención") || null
+  const f = fidelidad
+  const sinNada = !citaEnAtencion && cobros.length === 0
+  return (
+    <div className="space-y-4">
+      {/* Los avisos de este paciente, arriba: la cita que sigue en atención y el cobro pendiente (antes estaban en la pestaña Citas). Los botones para atender están en la cabecera. */}
+      {(citaEnAtencion || cobros.length > 0) && (
+        <section aria-label="Avisos del paciente" className={"grid items-stretch gap-3 " + (citaEnAtencion && cobros.length > 0 ? "md:grid-cols-2" : "")}>
+          {citaEnAtencion && (
+            <div role="status" className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-blue-200/60 bg-blue-50/50 px-4 py-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white" style={{ background: GRAD }}><Stethoscope size={16} aria-hidden="true" /></div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Cita en atención</p>
+                <p className="text-sm font-bold" style={{ color: INK }}>{fechaLegible(citaEnAtencion.fecha) || "Sin fecha"} · {citaEnAtencion.hora}</p>
+                <p className="truncate text-xs text-slate-600">{citaEnAtencion.motivo || "Consulta general"}{diasAtencionAbierta(citaEnAtencion) !== null ? ` · ${textoAtencionAbierta(diasAtencionAbierta(citaEnAtencion))}` : ""}</p>
+              </div>
+            </div>
+          )}
+          {cobros.map(({ consulta, cita }) => (
+            <section key={consulta.id} role="status" aria-label="Cobro pendiente" className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-amber-200/60 bg-amber-50 px-4 py-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-600 text-white"><Receipt size={16} aria-hidden="true" /></div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold uppercase tracking-wide text-amber-800">Cobro pendiente</p>
+                <p className="text-sm font-bold text-amber-950">Consulta del {fechaLegible(consulta.fecha)}</p>
+                {consulta.motivo && <p className="truncate text-xs text-amber-900/80">{consulta.motivo}</p>}
+              </div>
+              {onCobrar && <button type="button" onClick={() => onCobrar({ consulta, cita })} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-700 cursor-pointer">Cobrar</button>}
+            </section>
+          ))}
+        </section>
+      )}
+
+      <section aria-label="Fidelización" className="rounded-2xl border border-slate-200/60 bg-white px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-bold" style={{ color: INK }}>Fidelización</h3>
-          <button type="button" onClick={fidelidad.onCrm} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">
-            Gestionar recordatorios en CRM <ChevronRight size={13} />
-          </button>
+          <button type="button" onClick={f.onCrm} className="flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">Gestionar recordatorios en CRM <ChevronRight size={13} /></button>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Cuadro abierto={abierto} alternar={alternar} clave="puntaje" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Star size={13} /> Puntaje de fidelidad</p>
-            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.puntaje} pts</p>
-            <p className="text-xs text-slate-500">{fidelidad.consultas} consulta{fidelidad.consultas === 1 ? "" : "s"} + {fidelidad.referidos} referido{fidelidad.referidos === 1 ? "" : "s"} · {fidelidad.frecuente ? "Cliente frecuente" : `${Math.max(0, 3 - fidelidad.consultas) === 1 ? "Le falta 1 consulta" : `Le faltan ${Math.max(0, 3 - fidelidad.consultas)} consultas`} para ser cliente frecuente`}</p>
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <Cuadro abierto={abierto} alternar={alternar} clave="puntaje" className="rounded-xl border border-transparent bg-slate-50 px-3 py-2">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Star size={13} aria-hidden="true" /> Nivel y puntos</p>
+            <p className="text-base font-bold" style={{ color: INK }}>{f.nivel.nombre} · {f.puntos.total} pts</p>
+            <p className="text-xs text-slate-500">{f.siguiente ? `Faltan ${f.faltan} para ${f.siguiente.nombre}` : "Es el nivel más alto"}{f.nivel.descuento > 0 ? ` · ${f.nivel.descuento} % sugerido al vender` : ""}</p>
           </Cuadro>
-          <Cuadro abierto={abierto} alternar={alternar} clave="referidos" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Gift size={13} /> Referidos</p>
-            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.referidos} paciente{fidelidad.referidos === 1 ? "" : "s"}</p>
-            <p className="text-xs text-slate-500">{fidelidad.referidos > 0 ? "Trajeron a la óptica mencionando a este paciente" : "Todavía no ha referido a nadie"}{fidelidad.referidoPor && <> · Llegó referido por <span className="font-semibold text-slate-700">{fidelidad.referidoPor}</span></>}</p>
+          <Cuadro abierto={abierto} alternar={alternar} clave="referidos" className="rounded-xl border border-transparent bg-slate-50 px-3 py-2">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Gift size={13} aria-hidden="true" /> Referidos</p>
+            <p className="text-base font-bold" style={{ color: INK }}>{f.referidos} paciente{f.referidos === 1 ? "" : "s"}</p>
+            <p className="truncate text-xs text-slate-500">{f.referidoPor ? <>Llegó referido por <span className="font-semibold text-slate-700">{f.referidoPor}</span></> : f.referidos > 0 ? "Trajeron a la óptica mencionándolo" : "Todavía no ha referido a nadie"}</p>
           </Cuadro>
-          <Cuadro abierto={abierto} alternar={alternar} clave="cumple" className="rounded-xl border border-transparent bg-slate-50 px-3.5 py-3">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Cake size={13} /> Cumpleaños</p>
-            <p className="mt-0.5 text-lg font-bold" style={{ color: INK }}>{fidelidad.diasCumple == null ? "—" : fidelidad.diasCumple === 0 ? "Hoy" : `En ${fidelidad.diasCumple} día${fidelidad.diasCumple === 1 ? "" : "s"}`}</p>
-            <p className="text-xs text-slate-500">{fidelidad.diasCumple == null ? "Sin fecha de nacimiento registrada." : fidelidad.edad != null ? `Cumple ${fidelidad.edad + (fidelidad.diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</p>
+          <Cuadro abierto={abierto} alternar={alternar} clave="cumple" className="rounded-xl border border-transparent bg-slate-50 px-3 py-2">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Cake size={13} aria-hidden="true" /> Cumpleaños</p>
+            <p className="text-sm font-bold leading-snug" style={{ color: INK }}>{textoCumple(paciente, f.diasCumple).replace("Cumpleaños: ", "")}</p>
+            <p className="text-xs text-slate-500">{f.diasCumple != null && f.edad != null ? `Cumple ${f.edad + (f.diasCumple === 0 ? 0 : 1)} años` : "Próximo cumpleaños"}</p>
           </Cuadro>
         </div>
-        {abierto === "puntaje" && <Despliegue titulo="Cómo se ganaron los puntos" onCerrar={() => setAbierto(null)}><PanelPuntaje consultas={consultas} referidos={referidosLista} frecuente={fidelidad.frecuente} /></Despliegue>}
-        {abierto === "referidos" && <Despliegue titulo="Pacientes que refirió" onCerrar={() => setAbierto(null)}><PanelReferidos lista={referidosLista} referidoPor={fidelidad.referidoPor} onAbrir={onAbrirPaciente} /></Despliegue>}
-        {abierto === "cumple" && <Despliegue titulo="Cumpleaños" onCerrar={() => setAbierto(null)}><PanelCumple fechaNacimiento={paciente.fecha_nacimiento || paciente.fechaNacimiento} diasCumple={fidelidad.diasCumple} edad={fidelidad.edad} saludoAnio={paciente.ultimoSaludoCumpleAnio} anioActual={ahoraEcuador().getFullYear()} cumpleAuto={parametrizacion?.cumpleAuto === true} tieneCorreo={!!paciente.correo && !/^sin /i.test(paciente.correo)} onCrm={fidelidad.onCrm} /></Despliegue>}
+        {abierto === "puntaje" && <Despliegue titulo="Cómo se ganaron los puntos" onCerrar={() => setAbierto(null)}><PanelPuntaje consultas={consultas} referidos={referidosLista} puntos={f.puntos} nivel={{ nivel: f.nivel, siguiente: f.siguiente, faltan: f.faltan }} programa={f.programa} /></Despliegue>}
+        {abierto === "referidos" && <Despliegue titulo="Pacientes que refirió" onCerrar={() => setAbierto(null)}><PanelReferidos lista={referidosLista} referidoPor={f.referidoPor} onAbrir={onAbrirPaciente} /></Despliegue>}
+        {abierto === "cumple" && <Despliegue titulo="Cumpleaños" onCerrar={() => setAbierto(null)}><PanelCumple fechaNacimiento={paciente.fecha_nacimiento || paciente.fechaNacimiento} diasCumple={f.diasCumple} edad={f.edad} saludoAnio={paciente.ultimoSaludoCumpleAnio} anioActual={ahoraEcuador().getFullYear()} cumpleAuto={f.cumpleAuto === true} tieneCorreo={!!paciente.correo && !/^sin /i.test(paciente.correo)} onCrm={f.onCrm} /></Despliegue>}
       </section>
     </div>
   )
