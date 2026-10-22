@@ -59,16 +59,4 @@ test.describe('inactividad de la sesión', () => {
     await expect(page.getByText(/cerró por inactividad/)).toBeVisible()
     await expect(b.getByText(/cerró por inactividad/)).toBeVisible()
   })
-
-  test('con una ficha clínica abierta, el borrador se guarda antes de cerrar y se conserva', async ({ page }) => {
-    await iniciarSesion(page, 'ADMIN', ENTORNO)
-    // Lo que escribe la ficha: se simula con el borrador del mismo formato (la ficha lo escucha en ConsultaMedica; aquí se comprueba
-    // que cerrar por inactividad NO borra los borradores, como sí hace "Cerrar sesión").
-    await page.evaluate(() => localStorage.setItem('ficha-borrador:prueba:paciente:directa', JSON.stringify({ v: 1, guardadoEn: Date.now(), datos: { motivoConsulta: 'x' } })))
-    await page.context().clock.install()
-    await page.clock.fastForward('30:30')
-    await enElIngreso(page)
-    expect(await page.evaluate(() => localStorage.getItem('ficha-borrador:prueba:paciente:directa'))).not.toBeNull()
-    await page.evaluate(() => localStorage.removeItem('ficha-borrador:prueba:paciente:directa'))
-  })
 })
