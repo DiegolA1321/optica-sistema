@@ -17,12 +17,12 @@ const SEGMENTOS = [
   { id: "pendientes", clave: "pendientes", color: "bg-amber-500", punto: "bg-amber-600", uno: "pendiente", varios: "pendientes" },
 ]
 
-// `filtro`: el estado del historial que está activo (o null); `onFiltro(id)` lo cambia (pulsar el mismo lo quita). `faltas`: las citas de «Faltó a sus 2 últimas citas» (o []); `onContactar`: la acción (o undefined si no se puede).
-export function AsistenciaCitas({ citas = [], filtro = null, onFiltro, faltas = [], onContactar }) {
+// Pulsar la tarjeta abre el detalle de su asistencia (`onAbrir`); los puntos de la leyenda filtran el historial: `filtro` es el estado activo (o null) y `onFiltro(id)` lo cambia (pulsar el mismo lo quita). `faltas`: las citas de «Faltó a sus 2 últimas citas» (o []); `onContactar`: la acción (o undefined si no se puede).
+export function AsistenciaCitas({ citas = [], filtro = null, onFiltro, onAbrir, faltas = [], onContactar }) {
   const a = asistenciaDeCitas(citas)
   return (
     <section aria-label="Asistencia a sus citas" data-resumen className={CARTA}>
-      <button type="button" onClick={() => onFiltro("resueltas")} aria-pressed={filtro === "resueltas"} aria-label={`Asistencia a sus citas: ${a.resueltas} citas resueltas. Ver esas citas en el historial`} className="pt-abrir absolute inset-0 rounded-2xl cursor-pointer" />
+      <button type="button" onClick={onAbrir} aria-haspopup="dialog" aria-label="Asistencia a sus citas: ver el detalle" className="pt-abrir absolute inset-0 rounded-2xl cursor-pointer" />
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-bold" style={{ color: INK }}>Asistencia a sus citas</h2>
         <ChevronRight size={16} className="text-slate-400" aria-hidden="true" />
@@ -73,13 +73,16 @@ export function CicloControl({ ciclo, inicio, controlISO, citaPendiente, promedi
               ? <><span className="font-serif text-[30px] font-bold leading-none text-red-700">{dias} {plural(dias, "día", "días")}</span> de retraso en su control</>
               : <><span className="font-serif text-[30px] font-bold leading-none" style={{ color: INK }}>{dias} {plural(dias, "día", "días")}</span> para su próximo control</>}
           </p>
-          <div role="progressbar" aria-label="Dónde está hoy entre su última consulta y su control" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ciclo.avance} className="relative mt-3 h-2.5 rounded-full bg-slate-100">
+          {/* «Hoy» va arriba de la barra, sobre su marca; las dos fechas, debajo y en los extremos (nunca en la misma línea que «Hoy»), así no se encimen esté donde esté la marca. */}
+          <div className="relative mt-3 h-5">
+            <span aria-hidden="true" className="absolute bottom-0 -translate-x-1/2 whitespace-nowrap text-sm font-semibold text-slate-700" style={{ left: `${ciclo.avance}%` }}>Hoy</span>
+          </div>
+          <div role="progressbar" aria-label="Dónde está hoy entre su última consulta y su control" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ciclo.avance} className="relative h-2.5 rounded-full bg-slate-100">
             <div className={"h-full rounded-full " + (ciclo.vencido ? "bg-red-600" : "bg-blue-600")} style={{ width: `${ciclo.avance}%` }} />
             <div aria-hidden="true" className="absolute -top-1 w-0.5 rounded-full bg-slate-900" style={{ left: `calc(${ciclo.avance}% - 1px)`, height: "1.125rem" }} />
           </div>
-          <div className="relative mt-1.5 flex justify-between gap-2 text-sm text-slate-500">
+          <div className="mt-1.5 flex flex-wrap justify-between gap-x-4 gap-y-0.5 text-sm text-slate-500">
             <span className="min-w-0">{inicio.etiqueta} · {fechaLegible(inicio.fecha)}</span>
-            <span aria-hidden="true" className="absolute -translate-x-1/2 text-slate-600" style={{ left: `${Math.max(14, Math.min(86, ciclo.avance))}%` }}>Hoy</span>
             <span className="min-w-0 text-right">Control · {fechaLegible(controlISO)}</span>
           </div>
           <p className="mt-2 text-sm leading-snug text-slate-500">

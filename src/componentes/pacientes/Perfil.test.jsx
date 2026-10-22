@@ -144,16 +144,18 @@ describe("Asistencia a sus citas", () => {
     fireEvent.click(screen.getByRole("button", { name: "Contactar" }))
     expect(onContactar).toHaveBeenCalledTimes(1)
   })
-  it("pulsar la tarjeta filtra por las citas resueltas, y la leyenda, por su estado; «Contactar» no activa la tarjeta", () => {
+  it("pulsar la tarjeta abre el detalle; los puntos de la leyenda filtran el historial; «Contactar» no activa la tarjeta", () => {
     const onFiltro = vi.fn()
-    render(<AsistenciaCitas citas={citas} faltas={[citas[1], citas[2]]} onFiltro={onFiltro} onContactar={() => {}} />)
-    fireEvent.click(screen.getByRole("button", { name: /Ver esas citas en el historial/ }))
-    expect(onFiltro).toHaveBeenLastCalledWith("resueltas")
+    const onAbrir = vi.fn()
+    render(<AsistenciaCitas citas={citas} faltas={[citas[1], citas[2]]} onFiltro={onFiltro} onAbrir={onAbrir} onContactar={() => {}} />)
+    fireEvent.click(screen.getByRole("button", { name: /ver el detalle/ }))
+    expect(onAbrir).toHaveBeenCalledTimes(1)
+    expect(onFiltro).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole("button", { name: "2 no efectuadas" }))
     expect(onFiltro).toHaveBeenLastCalledWith("noEfectuadas")
-    onFiltro.mockClear()
+    expect(onAbrir).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole("button", { name: "Contactar" }))
-    expect(onFiltro).not.toHaveBeenCalled()
+    expect(onAbrir).toHaveBeenCalledTimes(1)
   })
   it("sin faltas seguidas no hay alerta y sin permiso para contactar no hay botón", () => {
     const { rerender } = render(<AsistenciaCitas citas={[cita(1, "2026-10-07", "Atendida")]} onFiltro={() => {}} />)
@@ -205,5 +207,50 @@ describe("Cabecera sin edad", () => {
     const t = screen.getByRole("banner").textContent
     expect(t).not.toMatch(/años|0 año/)
     expect(t).not.toMatch(/·\s*·/)
+  })
+})
+
+describe("Ventana de asistencia", () => {
+  const citas = [
+    { id: "a", fecha: "2026-10-07", hora: "10:00 AM", estado: "Atendida", motivo: "Consulta general", atendidoPor: "u1" },
+    { id: "b", fecha: "2026-10-21", hora: "09:00 AM", estado: "No Asistió", motivo: "Examen de control" },
+    { id: "c", fecha: "2026-09-01", hora: "09:00 AM", estado: "Cancelada", motivo: "Control", canceladaPor: "paciente" },
+    { id: "d", fecha: "2026-12-01", hora: "09:00 AM", estado: "Pendiente", motivo: "Control" },
+  ]
+  it("agrupa las citas por estado, dice por qué no se efectuó o se canceló y ofrece «Contactar»", async () => {
+    const { default: VentanaAsistencia } = await import("./VentanaAsistencia")
+    const onContactar = vi.fn()
+    render(<VentanaAsistencia paciente={paciente} citas={citas} equipo={[{ id: "u1", nombre: "Paula Andrade" }]} onContactar={onContactar} onCerrar={() => {}} />)
+    const v = screen.getByRole("dialog", { name: "Asistencia a sus citas" })
+    for (const g of ["Atendidas · 1", "No efectuadas · 1", "Canceladas · 1", "Pendientes · 1"]) expect(v).toHaveTextContent(g)
+    expect(within(v.querySelector('section[aria-label="No efectuadas"]')).getByText("El paciente no asistió")).toBeInTheDocument()
+    expect(within(v.querySelector('section[aria-label="Canceladas"]')).getByText("El paciente canceló su cita")).toBeInTheDocument()
+    expect(v).toHaveTextContent("Todavía no se le ha escrito desde el CRM.")
+    fireEvent.click(within(v).getByRole("button", { name: "Contactar" }))
+    expect(onContactar).toHaveBeenCalledTimes(1)
+  })
+  it("sin permiso para contactar no hay botón", async () => {
+    const { default: VentanaAsistencia } = await import("./VentanaAsistencia")
+    render(<VentanaAsistencia paciente={paciente} citas={citas} onCerrar={() => {}} />)
+    expect(screen.queryByRole("button", { name: "Contactar" })).not.toBeInTheDocument()
+  })
+})
+
+describe("Ciclo de control: «Hoy» nunca se encima con las fechas", () => {
+  const inicio = { etiqueta: "Última consulta", fecha: "2026-10-07" }
+  it("«Hoy» va arriba de la barra, en su marca, y las dos fechas debajo, en otra línea", () => {
+    for (const avance of [0, 3, 50, 97, 100]) {
+      const { container, unmount } = render(<CicloControl ciclo={{ diasParaControl: 10, avance, vencido: false }} inicio={inicio} controlISO="2027-04-05" onAbrir={() => {}} />)
+      const hoy = [...container.querySelectorAll("span")].find((e) => e.textContent === "Hoy")
+      const barra = container.querySelector('[role="progressbar"]')
+      const fechas = [...container.querySelectorAll("span")].filter((e) => /^(Última consulta|Control) · /.test(e.textContent))
+      expect(hoy.style.left).toBe(`${avance}%`)
+      // en el documento: «Hoy» antes de la barra y las fechas después (otra línea distinta a la de «Hoy»)
+      expect(hoy.compareDocumentPosition(barra) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      for (const f of fechas) expect(barra.compareDocumentPosition(f) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(fechas).toHaveLength(2)
+      expect(hoy.parentElement).not.toBe(fechas[0].parentElement)
+      unmount()
+    }
   })
 })

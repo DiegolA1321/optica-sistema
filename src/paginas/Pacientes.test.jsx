@@ -76,12 +76,16 @@ describe("Citas del perfil: asistencia, ciclo de control y Contactar", () => {
     expect(abrir).toHaveBeenCalledTimes(1)
     abrir.mockRestore()
   })
-  it("pulsar la tarjeta filtra el historial por las citas resueltas y el filtro se quita", async () => {
+  it("pulsar la tarjeta abre el detalle de su asistencia y los puntos de la leyenda filtran el historial", async () => {
     montar()
     const abrirPerfil = screen.queryAllByRole("button", { name: /Ver perfil 360/ })[0]
     if (abrirPerfil) fireEvent.click(abrirPerfil)
     await screen.findByRole("banner", { name: "Perfil del paciente" })
     fireEvent.click(screen.getByRole("tab", { name: /Citas/ }))
+    fireEvent.click(screen.getByRole("button", { name: /Asistencia a sus citas: ver el detalle/ }))
+    const v = await screen.findByRole("dialog", { name: "Asistencia a sus citas" })
+    expect(v).toHaveTextContent("No efectuadas · 2")
+    fireEvent.click(within(v).getAllByRole("button", { name: "Cerrar" }).at(-1))
     fireEvent.click(screen.getByRole("button", { name: "2 no efectuadas" }))
     const h = screen.getByRole("region", { name: "Historial de citas" })
     expect(h).toHaveTextContent("Historial de citas · 2 de 3")

@@ -59,6 +59,7 @@ import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta, costoBaseMotivo } from "../utilidades/costosConsulta"
 import { AsistenciaCitas, CicloControl } from "../componentes/pacientes/TarjetasCitas"
+import VentanaAsistencia from "../componentes/pacientes/VentanaAsistencia"
 import { faltasSeguidas, cicloDeControl, promedioEntreConsultas, ESTADOS_DE_FILTRO, NOMBRE_FILTRO } from "../utilidades/cicloCitas"
 import { recetaEnLinea } from "../utilidades/resultadoDeCita"
 import ComprasPerfil from "../componentes/pacientes/ComprasPerfil"
@@ -1891,6 +1892,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
                 alEnviar: () => { for (const id of new Set([citaBase.id, ...citasPorContactar.map((c) => c.id)])) registrarContacto(id, "whatsapp") },
               })
               const faltasPaciente = faltasSeguidas(citasPaciente)
+              const ultimaNoEfectuada = citasPaciente.filter((c) => c.estado === "No Asistió").sort((a, b) => (a.fecha < b.fecha ? 1 : -1))[0] || null
               const citaPorContactar = citasPorContactar.find((c) => !seguimientoContacto.get(c.id)?.contactadaEn && !seguimientoContacto.get(c.id)?.sinSeguimiento)
 
               // Atender, al final de la fila de pestañas: con atención abierta, «Seguir atendiendo» y «Dejar de atender»; con una cita de hoy, «Atender»; sin cita de hoy, «Atender ahora» (crea la cita presencial y abre la ficha).
@@ -2001,6 +2003,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
                         onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
                         onAgendarControl={puedeAgendar && proximoControl ? () => abrirAgendar(pacienteHistorial, inactivo ? hoyISO() : fechaAISO(proximoControl), controlPorAgendar ? asignadoDelControl(controlPorAgendar.consulta, equipo) : "") : undefined}
                         onContactarFaltas={faltasPaciente.length > 0 && sePuedeContactar ? () => contactarPorCita(faltasPaciente[0]) : undefined}
+                        onContactarAsistencia={ultimaNoEfectuada && sePuedeContactar ? () => contactarPorCita(ultimaNoEfectuada) : undefined}
                         paciente={pacienteHistorial}
                         usuario={usuario}
                         parametrizacion={parametrizacion}
@@ -2307,7 +2310,7 @@ function adjuntosConsulta(consulta) {
   )
 }
 
-function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, onAgendarControl, onContactarFaltas, paciente, usuario, parametrizacion, proximoControl }) {
+function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, onAgendarControl, onContactarFaltas, onContactarAsistencia, paciente, usuario, parametrizacion, proximoControl }) {
   // El diagnóstico de una cita atendida se abre en una ventana encima del perfil, sin mover el resto de la lista.
   const [citaAbierta, setCitaAbierta] = useState(null)
   // Buscador del historial (solo cuando es largo): rango de fechas y texto libre (motivo o diagnóstico), para ubicar una cita de hace meses.
@@ -2316,8 +2319,9 @@ function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, onA
   const [texto, setTexto] = useState("")
   // «Último año» o «Todas»: el atajo del encabezado del historial.
   const [periodo, setPeriodo] = useState("todas")
-  // «Asistencia a sus citas» y su leyenda filtran el historial por estado (pulsar el mismo lo quita).
+  // La leyenda de «Asistencia a sus citas» filtra el historial por estado (pulsar el mismo lo quita); la tarjeta abre el detalle de su asistencia.
   const [estadoFiltro, setEstadoFiltro] = useState(null)
+  const [verAsistencia, setVerAsistencia] = useState(false)
   const alternarEstado = (id) => setEstadoFiltro((e) => (e === id ? null : id))
   const consultaDe = (cita) => cita._consulta || consultas.find((k) => k.citaId === cita.id)
   const porFechaHora = (a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
@@ -2377,7 +2381,7 @@ function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, onA
         </section>
       ) : (
         <div className="grid items-stretch gap-4 lg:grid-cols-2">
-          <AsistenciaCitas citas={citas} filtro={estadoFiltro} onFiltro={alternarEstado} faltas={faltas} onContactar={onContactarFaltas} />
+          <AsistenciaCitas citas={citas} filtro={estadoFiltro} onFiltro={alternarEstado} onAbrir={() => setVerAsistencia(true)} faltas={faltas} onContactar={onContactarFaltas} />
           <CicloControl ciclo={ciclo} inicio={inicioCiclo} controlISO={controlISO} citaPendiente={citaPendiente} promedioMeses={promedioEntreConsultas(consultas)} onAbrir={abrirDeCiclo} onAgendar={onAgendarControl} />
         </div>
       )}
@@ -2425,6 +2429,7 @@ function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, onA
           )}
         </section>
       )}
+      {verAsistencia && <VentanaAsistencia paciente={paciente} citas={citas} equipo={equipo} onContactar={onContactarAsistencia} onCerrar={() => setVerAsistencia(false)} />}
       {citaAbierta && !consultaDe(citaAbierta) && (
         <Cascaron titulo={"Cita del " + (fechaLegible(citaAbierta.fecha) || "")} subtitulo={[citaAbierta.hora, citaAbierta.motivo || "Consulta general"].filter(Boolean).join(" · ")} Icono={Calendar} ancho="max-w-md" derecha={<BadgeEstadoCita estado={citaAbierta.estado} />} onCerrar={() => setCitaAbierta(null)}
           pie={<><span /><button type="button" onClick={() => setCitaAbierta(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Cerrar</button></>}>

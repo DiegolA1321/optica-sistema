@@ -1,8 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { INK } from "@/lib/tema"
-import { supabase } from "../../lib/supabaseClient"
 import { Despliegue, PanelPuntaje, PanelReferidos, PanelCumple } from "../DetallesResumen"
 import { dinero } from "../../utilidades/formatoMoneda"
 import { fechaLegible, fechaReciente, formatoFecha } from "../../utilidades/formatoFecha"
@@ -12,6 +11,7 @@ import { recetaEnLinea } from "../../utilidades/resultadoDeCita"
 import { textoDiagnostico } from "../../utilidades/pasesVenta"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
 import { actividadReciente } from "../../utilidades/actividadReciente"
+import { useContactosDelPaciente } from "../../utilidades/contactosPaciente"
 
 // El Resumen del perfil, de arriba abajo: los avisos del paciente (etiquetas pequeñas con su acción), la franja con sus datos (paciente desde, total comprado, saldo y cómo llegó),
 // «Última atención» y «Actividad reciente» lado a lado, y la fidelización compacta. La última consulta y el próximo control NO van aquí: están solo en Citas.
@@ -38,23 +38,10 @@ export function AvisosDelPaciente({ avisos = [] }) {
   )
 }
 
-// Lo último que pasó con este paciente, de lo más reciente a lo más antiguo: sus citas ya ocurridas, sus compras y los mensajes que se le escribieron (si quien mira ve el CRM).
-function useMensajesDelPaciente(pacienteId) {
-  const [lista, setLista] = useState([])
-  useEffect(() => {
-    if (!supabase || !pacienteId) return undefined
-    let vivo = true
-    supabase.from("crm_contactos").select("id, canal, motivo, creado_en").eq("paciente_id", pacienteId).order("creado_en", { ascending: false }).limit(5)
-      .then(({ data, error }) => { if (vivo && !error && data) setLista(data) })
-    return () => { vivo = false }
-  }, [pacienteId])
-  return lista
-}
-
 export default function ResumenPerfil({ paciente, pacientes = [], citas = [], consultas = [], compras = [], avisos = [], totales, fidelidad: f, referidosLista = [], onAbrirPaciente, onVerDiagnostico, onVerCitas, onVerCompras, onAgendar }) {
   const [abierto, setAbierto] = useState(null)
   const alternar = (clave) => setAbierto((a) => (a === clave ? null : clave))
-  const mensajes = useMensajesDelPaciente(paciente.id)
+  const mensajes = useContactosDelPaciente(paciente.id, 5)
   const actividad = useMemo(() => actividadReciente({ citas, consultas, compras, mensajes }), [citas, consultas, compras, mensajes])
   const ultima = consultas[0]
   const llego = comoLlego(paciente, pacientes)

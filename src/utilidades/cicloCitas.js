@@ -11,15 +11,14 @@ export function asistenciaDeCitas(citas = []) {
   return { atendidas, noEfectuadas, canceladas, pendientes, resueltas, porcentaje: resueltas > 0 ? Math.round((atendidas / resueltas) * 100) : null }
 }
 
-// Las citas por estado, para filtrar el historial con lo mismo que cuenta la tarjeta. «resueltas» son las M del porcentaje.
+// Las citas por estado, para filtrar el historial con lo mismo que cuenta la tarjeta.
 export const ESTADOS_DE_FILTRO = {
-  resueltas: ["Atendida", "No Asistió", "Cancelada"],
   atendidas: ["Atendida"],
   noEfectuadas: ["No Asistió"],
   canceladas: ["Cancelada"],
   pendientes: PENDIENTES,
 }
-export const NOMBRE_FILTRO = { resueltas: "Citas resueltas", atendidas: "Atendidas", noEfectuadas: "No efectuadas", canceladas: "Canceladas", pendientes: "Pendientes" }
+export const NOMBRE_FILTRO = { atendidas: "Atendidas", noEfectuadas: "No efectuadas", canceladas: "Canceladas", pendientes: "Pendientes" }
 
 // «Faltó a sus 2 últimas citas»: las dos últimas citas en las que se sabe si vino (atendida o no efectuada; una cancelada no es una falta) son no efectuadas. Devuelve esas citas (la más reciente primero) o [].
 export function faltasSeguidas(citas = [], cuantas = 2) {
