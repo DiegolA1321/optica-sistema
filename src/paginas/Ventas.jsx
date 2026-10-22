@@ -107,7 +107,7 @@ export default function Ventas({
             {tab === "ventas" && (
               <PestanaVentas
                 key={destino.n}
-                facturas={facturasVenta} abonos={abonos} pacientes={pacientes} pagosPorVerificar={pagosPorVerificar}
+                facturas={facturasVenta} ordenes={ordenesLab} abonos={abonos} pacientes={pacientes} pagosPorVerificar={pagosPorVerificar}
                 puedeVender={puedeVender} inicial={destino.ventas}
                 onNuevaVenta={() => setNuevaVenta(true)}
                 onAbrir={(f) => setDetalleId(f.id)}

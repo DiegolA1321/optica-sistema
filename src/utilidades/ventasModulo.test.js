@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { siguienteAccionOrden, ordenesDelFiltro, lineaDiagnosticoYLente, textoEstadoOrden, estadoDePedido, filtroDeOrdenesValido, textoDiasEspera, diagnosticoCorto, llevaProforma, FILTROS_ORDENES, diasDePedido, entregaDe, etiquetaEntrega, ENTREGAS } from "./ventasModulo"
+import { siguienteAccionOrden, ordenesDelFiltro, lineaDiagnosticoYLente, textoEstadoOrden, estadoDePedido, filtroDeOrdenesValido, textoDiasEspera, diagnosticoCorto, llevaProforma, FILTROS_ORDENES, diasDePedido, entregaDe, etiquetaEntrega, ENTREGAS, entregaDeVenta } from "./ventasModulo"
 
 describe("diagnóstico y lente de un paciente", () => {
   it("diagnóstico y lente recomendado en una línea", () => {
@@ -90,5 +90,24 @@ describe("pedidos", () => {
     expect(textoEstadoOrden(o("1", "enviada", { fechaPrometida: "2020-01-01" }), 3)).toBe("Atrasado 3 días")
     expect(textoEstadoOrden(o("1", "enviada"), 0)).toBe("En proceso")
     expect(textoEstadoOrden(o("1", "lista"), 0)).toBe("Listo · sin avisar")
+  })
+})
+
+describe("la entrega de una venta (columna «Entrega» de la lista)", () => {
+  const ped = (id, facturaId, estado, extra = {}) => ({ id, facturaId, estado, ...extra })
+  it("sin pedido queda vacía, y los cancelados no cuentan", () => {
+    expect(entregaDeVenta("f1", [])).toBeNull()
+    expect(entregaDeVenta("f1", [ped("1", "f2", "enviada")])).toBeNull()
+    expect(entregaDeVenta("f1", [ped("1", "f1", "cancelada")])).toBeNull()
+  })
+  it("usa los mismos nombres y colores que Pedidos", () => {
+    expect(entregaDeVenta("f1", [ped("1", "f1", "enviada")])).toMatchObject({ etiqueta: "En proceso", tono: "gris" })
+    expect(entregaDeVenta("f1", [ped("1", "f1", "enviada", { fechaPrometida: "2020-01-01" })])).toMatchObject({ id: "atrasada", tono: "rojo" })
+    expect(entregaDeVenta("f1", [ped("1", "f1", "lista")]).etiqueta).toBe("Listo · sin avisar")
+    expect(entregaDeVenta("f1", [ped("1", "f1", "entregada")])).toMatchObject({ etiqueta: "Entregado", tono: "verde" })
+  })
+  it("con varios pedidos manda el que más urge", () => {
+    const e = entregaDeVenta("f1", [ped("1", "f1", "entregada"), ped("2", "f1", "enviada")])
+    expect(e).toMatchObject({ id: "enviada", etiqueta: "En proceso (2 pedidos)" })
   })
 })

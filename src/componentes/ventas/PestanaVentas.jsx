@@ -13,18 +13,19 @@ import { filtrarComprobantes } from "../../utilidades/saldosVentas"
 import { hoyISO } from "../../utilidades/disponibilidad"
 import { PERIODO_INICIAL, diaDeRegistro, rangoDelPeriodo } from "../../utilidades/periodoLista"
 import { METODOS_COBRO, SIN_INDICAR } from "../../utilidades/pagos"
+import { entregaDeVenta } from "../../utilidades/ventasModulo"
 import { PERIODO_DE_VENTAS, detalleDeVenta, estadoPagoDeVenta, pagadoDeVenta, resumenDeVentas, ventaDelDato } from "../../utilidades/ventasLista"
 
 const POR_PAGINA = 30
-const COLUMNAS = "lg:grid-cols-[4.5rem_minmax(8rem,1.1fr)_minmax(10rem,1.8fr)_minmax(5.5rem,0.7fr)_minmax(5.5rem,0.7fr)_minmax(8.5rem,1fr)_1rem]"
-const ENCABEZADO = [{ texto: "Fecha" }, { texto: "Paciente" }, { texto: "Detalle" }, { texto: "Total", derecha: true }, { texto: "Pagado", derecha: true }, { texto: "Estado del pago" }, { texto: "" }]
+const COLUMNAS = "lg:grid-cols-[4.5rem_minmax(8rem,1.1fr)_minmax(10rem,1.8fr)_minmax(5.5rem,0.7fr)_minmax(5.5rem,0.7fr)_minmax(8.5rem,1fr)_minmax(8.5rem,1fr)_1rem]"
+const ENCABEZADO = [{ texto: "Fecha" }, { texto: "Paciente" }, { texto: "Detalle" }, { texto: "Total", derecha: true }, { texto: "Pagado", derecha: true }, { texto: "Estado del pago" }, { texto: "Entrega" }, { texto: "" }]
 const METODOS = [{ id: "todos", etiqueta: "Todas" }, ...METODOS_COBRO, { id: SIN_INDICAR, etiqueta: "Sin indicar" }]
 const FE = [{ id: "todas", etiqueta: "Todas" }, { id: "sin", etiqueta: "Sin factura electrónica" }]
 const TEXTO_DATO = { cobrado: "Cobrado · ventas pagadas", porcobrar: "Por cobrar · ventas con saldo", verificar: "Pago por verificar · transferencias por revisar" }
 
 // Pestaña «Ventas»: solo lo vendido. Arriba, el período, la búsqueda y «Filtrar»; luego la franja de datos (vendido, cobrado, por cobrar, y pagos por verificar) que cambia
 // con el período y la búsqueda y cuyos datos filtran la lista al pulsarlos; abajo, la lista en columnas. Al pulsar una venta se abre su detalle completo en la ventana estándar.
-export default function PestanaVentas({ facturas, abonos, pacientes, pagosPorVerificar = [], puedeVender, onNuevaVenta, onAbrir, inicial = {} }) {
+export default function PestanaVentas({ facturas, ordenes = [], abonos, pacientes, pagosPorVerificar = [], puedeVender, onNuevaVenta, onAbrir, inicial = {} }) {
   const [periodo, setPeriodo] = useState(inicial.periodo || PERIODO_DE_VENTAS)
   const [texto, setTexto] = useState(inicial.texto || "")
   const [dato, setDato] = useState(inicial.dato || null)
@@ -120,6 +121,7 @@ export default function PestanaVentas({ facturas, abonos, pacientes, pagosPorVer
                     <p data-col="monto" className={"font-mono text-sm lg:text-right " + (anulada ? "text-slate-400 line-through" : "text-slate-800")}>{dinero(f.montoTotal)}</p>
                     <p data-col="monto" className={"font-mono text-sm lg:text-right " + (anulada ? "text-slate-400" : "text-slate-800")}>{anulada ? "—" : dinero(pagadoDeVenta(f, abonos))}</p>
                     <div data-col="estado" className="min-w-0"><Insignia tono={estado.tono}>{estado.monto > 0 ? `${estado.etiqueta} ${dinero(estado.monto)}` : estado.etiqueta}</Insignia></div>
+                    <div data-col="entrega" className="min-w-0">{(() => { const e = anulada ? null : entregaDeVenta(f.id, ordenes); return e ? <Insignia tono={e.tono}>{e.etiqueta}</Insignia> : null })()}</div>
                     <span className="hidden text-slate-400 lg:block" aria-hidden="true">›</span>
                   </div>
                 </li>

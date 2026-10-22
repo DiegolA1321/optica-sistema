@@ -4,7 +4,7 @@
 // Un pedido es el registro simple de lo que la óptica encarga afuera (las lunas): la óptica no administra al laboratorio, se comunica con él por fuera. Nace cuando una venta incluye algo que se encarga,
 // con su entrega («Retira en la óptica» o «Envío a domicilio», con la dirección) y la fecha aproximada en que estará listo. Estados: En proceso → Listo → Entregado, y «Atrasado» si pasa la fecha sin estar listo.
 import { textoDiagnostico } from "./pasesVenta"
-import { ordenesAtrasadas, ordenesEnProceso, ordenesListasSinAvisar, estadoVisible } from "./ordenesLaboratorio"
+import { ordenesAtrasadas, ordenesEnProceso, ordenesListasSinAvisar, estadoVisible, diasDeAtraso } from "./ordenesLaboratorio"
 
 // «Por vender» ya no es de Ventas: el paciente que recibió su diagnóstico y no ha comprado está en «Para contactar» del CRM (motivo «por_vender»), con su proforma si la tiene.
 export const llevaProforma = (pase) => Boolean(pase?.proformaEntregadaEn)
@@ -84,6 +84,17 @@ export function estadoDePedido(orden, dias = 0, hoy) {
   if (v === "entregada") return { id: "entregada", etiqueta: "Entregado", tono: "verde" }
   if (v === "cancelada") return { id: "cancelada", etiqueta: "Cancelado", tono: "gris" }
   return { id: "enviada", etiqueta: "En proceso", tono: "gris" }
+}
+// El estado de entrega de una venta, para su fila en la lista: el del pedido de esa venta (los mismos nombres y colores que en Pedidos). Con varios pedidos manda el que más urge
+// (atrasado, en proceso, listo, entregado); sin pedido (o con todos cancelados) no hay entrega y devuelve null.
+const URGENCIA_ENTREGA = ["atrasada", "enviada", "sinavisar", "avisado", "entregada"]
+export function entregaDeVenta(facturaId, ordenes = [], hoy) {
+  const estados = ordenes
+    .filter((o) => o.facturaId === facturaId && o.estado !== "cancelada")
+    .map((o) => estadoDePedido(o, diasDeAtraso(o, hoy), hoy))
+  if (estados.length === 0) return null
+  const e = [...estados].sort((a, b) => URGENCIA_ENTREGA.indexOf(a.id) - URGENCIA_ENTREGA.indexOf(b.id))[0]
+  return estados.length > 1 ? { ...e, etiqueta: `${e.etiqueta} (${estados.length} pedidos)` } : e
 }
 export const textoEstadoOrden = (orden, dias = 0, hoy) => estadoDePedido(orden, dias, hoy).etiqueta
 
