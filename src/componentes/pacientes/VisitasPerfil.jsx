@@ -49,8 +49,8 @@ export function VisitasPorPeriodo({ citas = [] }) {
   )
 }
 
-const COLOR_ESTADO = { Atendida: "bg-emerald-600", "No Asistió": "bg-red-600", Cancelada: "bg-slate-400", Pendiente: "bg-amber-500", "En Espera": "bg-amber-500", "En Atención": "bg-blue-600" }
-const NOMBRE_COLOR = { Atendida: "verde atendida", "No Asistió": "rojo no efectuada", Cancelada: "gris cancelada", Pendiente: "ámbar pendiente", "En Espera": "ámbar pendiente", "En Atención": "azul en atención" }
+const COLOR_ESTADO = { Atendida: "bg-emerald-600", "No Asistió": "bg-red-600", Cancelada: "bg-slate-400", Pendiente: "bg-amber-500", "En Espera": "bg-violet-500", "En Atención": "bg-blue-600" }
+const NOMBRE_COLOR = { Atendida: "verde atendida", "No Asistió": "rojo no efectuada", Cancelada: "gris cancelada", Pendiente: "ámbar pendiente", "En Espera": "violeta en espera", "En Atención": "azul en atención" }
 
 export function LineaDeVisitas({ citas = [], onElegir }) {
   const validas = useMemo(() => citas.filter((c) => /^\d{4}-\d{2}-\d{2}/.test(c.fecha || "")).slice().sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0)), [citas])

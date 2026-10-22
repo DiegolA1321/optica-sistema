@@ -82,8 +82,8 @@ import {  } from "../utilidades/resultadoDeCita"
 import {  } from "../utilidades/graduacion"
 import {  } from "../utilidades/tendenciaGraduacion"
 import { pacientesQueNoCompraron, textoDiagnostico } from "../utilidades/pasesVenta"
-import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
-import { atencionesAbiertasAntiguas } from "../utilidades/atencionAbierta"
+import { fechaLegible, fechaReciente, formatoFecha } from "../utilidades/formatoFecha"
+import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import {  } from "../utilidades/correccion"
 import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
@@ -1926,7 +1926,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
               const citaEnAtencion = citasPaciente.find((c) => c.estado === "En Atención") || null
               const cobrosDelPaciente = sinMontos ? [] : cobrosPendientes(consultasPaciente, facturasVenta, citas)
               const avisosPerfil = [
-                citaEnAtencion && { id: "atencion", tono: "azul", texto: `En atención · ${fechaLegible(citaEnAtencion.fecha) || "sin fecha"} · ${citaEnAtencion.hora}` },
+                citaEnAtencion && { id: "atencion", tono: "azul", texto: `Cita en atención · ${fechaReciente(citaEnAtencion.fecha) || "sin fecha"} · ${citaEnAtencion.hora}${diasAtencionAbierta(citaEnAtencion) !== null ? " · " + textoAtencionAbierta(diasAtencionAbierta(citaEnAtencion)) : ""}` },
                 paseListo && { id: "pase", tono: "verde", texto: `Listo para venta · desde ${fechaLegible(paseListo.pasadaEn)}`, accion: puedeVender ? { etiqueta: "Tomar datos", onClick: () => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null }) } : null },
                 antecedentesAlerta.length > 0 && { id: "antecedentes", tono: "ambar", texto: `Antecedentes importantes: ${textoAntecedentes(antecedentesAlerta)}`, accion: { etiqueta: "Ver", onClick: () => setVerHistoriaClinica(true) } },
                 alertaControl && {
@@ -1938,7 +1938,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                 !alertaControl && proximoControl && !inactivo && consultasPaciente.length === 0 && { id: "recomendado", tono: "gris", texto: `Control recomendado · ${fechaLegible(proximoControl)}` },
                 ...cobrosDelPaciente.map(({ consulta, cita }) => {
                   const monto = costoBaseMotivo(parametrizacion, consulta.motivo)
-                  return { id: "cobro-" + consulta.id, tono: "rojo", texto: `Cobro pendiente ${monto > 0 ? dinero(monto) + " · " : ""}Consulta del ${fechaLegible(consulta.fecha)}`, accion: puedeVender ? { etiqueta: "Cobrar", onClick: () => setCobrandoPendiente({ consulta, cita }) } : null }
+                  return { id: "cobro-" + consulta.id, tono: "rojo", texto: `Cobro pendiente ${monto > 0 ? dinero(monto) + " · " : ""}Consulta del ${fechaReciente(consulta.fecha)}`, accion: puedeVender ? { etiqueta: "Cobrar", onClick: () => setCobrandoPendiente({ consulta, cita }) } : null }
                 }),
               ].filter(Boolean)
 

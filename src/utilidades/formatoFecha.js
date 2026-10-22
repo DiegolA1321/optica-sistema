@@ -19,6 +19,7 @@
 //
 // Con `{ enFrase: true }` la primera letra queda en minúscula para incrustarla en una oración ("el martes, 6 de
 // octubre"). Los rangos tienen su propia función (tituloSemana, rangoLargo). Las horas, una sola: hora().
+import { ahoraEcuador } from "./horaEcuador"
 const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"]
 const MESES_LARGOS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 const DIAS_LARGOS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"]
@@ -124,3 +125,8 @@ export function fechaHoraLegible(valor, { anio = false } = {}) {
 export const fechaLegible = (valor) => formatoFecha(valor, "medio")
 export const fechaCorta = (valor) => formatoFecha(valor, "medioSinAnio")
 export const horaLegible = hora
+// La fecha de algo reciente: «21 oct» si es de este año y «21 oct 2025» si no (así no se repite el año en lo de todos los días).
+export function fechaReciente(valor, hoy = ahoraEcuador()) {
+  const p = partes(valor)
+  return p ? formatoFecha(valor, p.anio === hoy.getFullYear() ? "medioSinAnio" : "medio") : ""
+}

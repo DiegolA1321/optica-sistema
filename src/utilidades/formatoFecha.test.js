@@ -113,3 +113,13 @@ describe("hora(): un solo formato, 09:00 AM", () => {
     expect(hora("nada")).toBe("")
   })
 })
+
+describe("fechaReciente", () => {
+  it("sin año si es de este año y con año si no", async () => {
+    const { fechaReciente } = await import("./formatoFecha")
+    const hoy = new Date(2026, 9, 22)
+    expect(fechaReciente("2026-10-21", hoy)).toBe("21 oct")
+    expect(fechaReciente("2025-04-20", hoy)).toBe("20 abr 2025")
+    expect(fechaReciente("", hoy)).toBe("")
+  })
+})

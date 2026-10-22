@@ -62,7 +62,7 @@ export function TarjetasDiagnostico({ consulta: k }) {
 }
 
 // «Refracción final»: los dos ojos, cada uno con su dibujo centrado en su mitad, la esfera grande, el cilindro y el eje, y cuánto cambió desde la receta anterior. Debajo, en una línea,
-// la adición, la distancia pupilar y el prisma. `onOjo(lado)` abre la historia de ese ojo; «Historia de cada ojo →» abre la del izquierdo y desde ahí se pasa al derecho.
+// la adición, la distancia pupilar y el prisma. Toda la mitad de un ojo se pulsa y abre su historia; «Historia de cada ojo →» abre la del izquierdo y desde ahí se pasa al derecho.
 export function RefraccionPerfil({ receta, anterior = null, onOjo }) {
   const m = receta.medidas || {}
   const medidas = medidasLegibles(m)
@@ -89,7 +89,7 @@ export function RefraccionPerfil({ receta, anterior = null, onOjo }) {
           const sinDatos = ojoSinDatos(o)
           const cilindro = [valorD(o.cilindro) && `Cil ${valorD(o.cilindro)}`, o.eje && `Eje ${o.eje}°`].filter(Boolean).join(" · ")
           return (
-            <section key={lado} data-lado={lado} aria-label={nombre} className={"flex min-w-0 items-center justify-center gap-5 py-1 " + (i === 0 ? "md:pr-6" : "md:pl-6")}>
+            <section key={lado} data-lado={lado} aria-label={nombre} className={"flex min-w-0 items-center justify-center gap-5 rounded-xl py-1 " + (i === 0 ? "md:pr-6 " : "md:pl-6 ") + (onOjo ? "pt-abrible relative transition-colors hover:bg-slate-50/70" : "")}>
               <OjoIlustrado ancho={140} className="shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm font-bold uppercase tracking-wide text-blue-600">{sigla} · {nombre}</p>
@@ -102,7 +102,7 @@ export function RefraccionPerfil({ receta, anterior = null, onOjo }) {
                     {delta && <p className="text-[15px] text-slate-500">{delta}</p>}
                   </>
                 )}
-                {onOjo && <button type="button" onClick={() => onOjo(lado)} aria-haspopup="dialog" aria-label={`Ver la historia del ${NOMBRE[lado]}: todas sus recetas y cómo cambió su esfera`} className="mt-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer md:sr-only">Ver su historia</button>}
+                {onOjo && <button type="button" onClick={() => onOjo(lado)} aria-haspopup="dialog" aria-label={`Ver la historia del ${NOMBRE[lado]}: todas sus recetas y cómo cambió su esfera`} className="pt-abrir absolute inset-0 rounded-[inherit] cursor-pointer" />}
               </div>
             </section>
           )
