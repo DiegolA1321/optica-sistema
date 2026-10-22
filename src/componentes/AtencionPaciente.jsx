@@ -193,9 +193,11 @@ export function ModalDatosPaciente({ paciente, onEditar, permisos = null, onCerr
 // ─── Atención de un día, en solo lectura, con su receta imprimible ───
 const textoMedida = (o) => (o?.esfera || o?.cilindro || o?.eje ? `${dioptriaTexto(o?.esfera) || "—"} ${dioptriaTexto(o?.cilindro)} x${o?.eje || "—"}°` : "No registrada")
 
-function Seccion({ titulo, children }) {
+// `ocultar` y `orden` (de `secciones` en DetalleAtencion) dejan elegir cuáles bloques se ven y en qué orden.
+function Seccion({ titulo, children, ocultar = false, orden = 0 }) {
+  if (ocultar) return null
   return (
-    <section className="border-b border-slate-100 px-5 py-4 last:border-b-0">
+    <section className="border-b border-slate-100 px-5 py-4 last:border-b-0" style={{ order: orden }}>
       <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">{titulo}</h3>
       {children}
     </section>
@@ -204,7 +206,10 @@ function Seccion({ titulo, children }) {
 
 // Todo lo que se registró ese día. Lo usan la ventana de la atención, el despliegue de "Última consulta" en el Resumen y las fichas anteriores abiertas desde la ficha clínica. Sirve para las fichas
 // de cinco pasos (con su anamnesis, las tres agudezas, adición y prisma por ojo y salud ocular por ojo) y para las anteriores, que se ven con los datos que tienen, cada uno en su lugar.
-export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
+// `secciones`: cuáles bloques se ven y en qué orden (por defecto todos, en el de siempre): "diagnostico" | "anamnesis" | "agudeza" | "refraccion" | "indicaciones" | "examen".
+// `refraccion`: undefined = la tabla de siempre; null = sin ese bloque; un nodo = en su lugar (el perfil pone ahí los ojos ilustrados).
+export function DetalleAtencion({ consulta, adjuntos, compacto = false, secciones = null, refraccion }) {
+  const sec = (k) => ({ ocultar: !!secciones && !secciones.includes(k), orden: secciones ? secciones.indexOf(k) : 0 })
   const ex = consulta.examen || {}
   const bio = ex.biomicroscopia || {}
   const fi = consulta.ficha || null
@@ -252,19 +257,19 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
   ].filter(([, v]) => v)
   const kerato = fi?.queratometria && ["od", "oi"].some((l) => fi.queratometria[l]?.k1 || fi.queratometria[l]?.k2)
   return (
-    <div className={compacto ? "rounded-xl border border-slate-200/60 bg-white" : ""}>
-      <Seccion titulo="Diagnóstico">
+    <div className={"flex flex-col " + (compacto ? "rounded-xl border border-slate-200/60 bg-white" : "")}>
+      <Seccion titulo="Diagnóstico" {...sec("diagnostico")}>
         <p className="flex items-center gap-2 text-base font-bold" style={{ color: INK }}><Stethoscope size={16} className="shrink-0 text-blue-600" aria-hidden="true" />{textoDiagnostico(consulta) || "Sin diagnóstico registrado"}</p>
         {consulta.motivo && <p className="mt-1 text-sm text-slate-600">Motivo: {consulta.motivo}{consulta.detalleConsulta ? ` · «${consulta.detalleConsulta}»` : ""}</p>}
       </Seccion>
       {listaAnam.length > 0 && (
-        <Seccion titulo="Anamnesis">
+        <Seccion titulo="Anamnesis" {...sec("anamnesis")}>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
             {listaAnam.map(([t, v]) => <div key={t}><dt className="inline font-semibold text-slate-700">{t}: </dt><dd className="inline text-slate-600">{v}</dd></div>)}
           </dl>
         </Seccion>
       )}
-      <Seccion titulo="Agudeza visual">
+      <Seccion titulo="Agudeza visual" {...sec("agudeza")}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[22rem] border-collapse font-mono text-sm">
             <thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-2 py-1" /><th className="px-2 py-1">Sin corrección</th><th className="px-2 py-1">Con su corrección actual</th>{conReceta && <th className="px-2 py-1">Con la receta nueva</th>}</tr></thead>
@@ -281,7 +286,8 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
           </table>
         </div>
       </Seccion>
-      <Seccion titulo="Refracción final">
+      <Seccion titulo="Refracción final" {...sec("refraccion")} ocultar={refraccion === null || sec("refraccion").ocultar}>
+        {refraccion !== undefined ? refraccion : <>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[18rem] border-collapse font-mono text-sm">
             <thead><tr className="text-left text-xs uppercase text-slate-400"><th className="px-2 py-1" /><th className="px-2 py-1">Esfera</th><th className="px-2 py-1">Cilindro</th><th className="px-2 py-1">Eje</th></tr></thead>
@@ -289,16 +295,17 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false }) {
           </table>
         </div>
         {medidas.length > 0 && <dl className="mt-2 space-y-0.5 text-sm text-slate-600">{medidas.map(([t, v]) => <div key={t}><dt className="inline font-semibold text-slate-700">{t}: </dt><dd className="inline">{v}</dd></div>)}</dl>}
+        </>}
       </Seccion>
       {(consulta.indicaciones || consulta.lenteRecomendado || consulta.productoNombre) && (
-        <Seccion titulo="Indicaciones y lente recomendado">
+        <Seccion titulo="Indicaciones y lente recomendado" {...sec("indicaciones")}>
           {consulta.indicaciones && <p className="flex items-start gap-2 text-sm text-slate-700"><ClipboardList size={15} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />{consulta.indicaciones}</p>}
           {consulta.lenteRecomendado && <p className="mt-1.5 flex items-start gap-2 text-sm text-slate-700"><Eye size={15} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />Lente recomendado: <span className="font-semibold">{consulta.lenteRecomendado}</span></p>}
           {consulta.productoNombre && <p className="mt-1.5 text-xs text-blue-700">Vinculado al inventario: <span className="font-semibold">{consulta.productoNombre}</span></p>}
         </Seccion>
       )}
       {(hayExamen || kerato || adjuntos) && (
-        <Seccion titulo="Examen, salud ocular e imágenes">
+        <Seccion titulo="Examen, salud ocular e imágenes" {...sec("examen")}>
           <div className="space-y-1 text-sm text-slate-600">
             {ex.testMotor && <p><span className="font-semibold text-slate-700">Motilidad ocular:</span> {ex.testMotor}</p>}
             {cover && <p><span className="font-semibold text-slate-700">Cover test:</span> {cover}</p>}

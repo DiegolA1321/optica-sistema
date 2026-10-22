@@ -81,7 +81,7 @@ import { puedeIngresarCita } from "../utilidades/filtrosCitas"
 import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
 import AvisoMedidasPedidas from "../componentes/AvisoMedidasPedidas"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
-import GraduacionPerfil from "../componentes/graduacion/GraduacionPerfil"
+import DiagnosticoPerfil from "../componentes/graduacion/DiagnosticoPerfil"
 import { resultadoDeCita } from "../utilidades/resultadoDeCita"
 import { recetasDe } from "../utilidades/graduacion"
 import { tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
@@ -346,7 +346,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) e--
     return e
   }, [pacienteHistorial])
-  // Las pestañas del perfil: Resumen · Citas · Graduación · Compras · Órdenes de laboratorio. El perfil abre en el Resumen. «pagos» es el id de siempre de «Compras» (los enlaces guardados lo usan; «compras» también vale).
+  // Las pestañas del perfil: Resumen · Citas · Diagnóstico · Compras. El perfil abre en el Resumen. «pagos» es el id de siempre de «Compras» (los enlaces guardados lo usan; «compras» también vale).
   const [tabHistorial, setTabHistorial] = useState("resumen")
   const [verHistoriaClinica, setVerHistoriaClinica] = useState(false)
   // El perfil abierto guardaba una copia del paciente: al crear su cuenta o editar sus datos seguía mostrando lo anterior ("Sin cuenta").
@@ -2075,15 +2075,15 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       <button
                         type="button"
                         role="tab"
-                        id="tab-graduacion"
-                        aria-selected={tabHistorial === "graduacion"}
+                        id="tab-diagnostico"
+                        aria-selected={tabHistorial === "diagnostico"}
                         aria-controls="panel-paciente"
-                        onClick={() => setTabHistorial("graduacion")}
-                        className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "graduacion" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                        style={tabHistorial === "graduacion" ? { background: GRAD } : undefined}
+                        onClick={() => setTabHistorial("diagnostico")}
+                        className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "diagnostico" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
+                        style={tabHistorial === "diagnostico" ? { background: GRAD } : undefined}
                       >
-                        <Eye size={14} /> Graduación
-                        {recetasDe(consultasPaciente).length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "graduacion" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{recetasDe(consultasPaciente).length}</span>}
+                        <Eye size={14} /> Diagnóstico
+                        {consultasPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "diagnostico" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{consultasPaciente.length}</span>}
                       </button>
                     )}
                     <button
@@ -2137,8 +2137,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         onCobrar={puedeVender ? setCobrandoPendiente : undefined}
                         fidelidad={{ puntaje: puntajeFidelidad, consultas: totalConsultasFidelizacion, referidos: referidosPorEste, frecuente, referidoPor: pacienteHistorial.referidoPor, diasCumple, edad: edadPaciente, onCrm: () => setVista?.("crm") }}
                       />
-                    ) : tabHistorial === "graduacion" && puedeVerFichas ? (
-                      <GraduacionPerfil consultas={consultasPaciente} paciente={pacienteHistorial} usuario={usuario} parametrizacion={parametrizacion} />
+                    ) : tabHistorial === "diagnostico" && puedeVerFichas ? (
+                      <DiagnosticoPerfil consultas={consultasPaciente} paciente={pacienteHistorial} usuario={usuario} parametrizacion={parametrizacion} />
                     ) : tabHistorial === "citas" ? (
                       <div className="space-y-4">
                         <PanelCitasPaciente
@@ -2146,7 +2146,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         consultas={consultasPaciente}
                         facturas={sinMontos ? [] : facturasVenta.filter((f) => f.pacienteId === pacienteHistorial.id)}
                         equipo={equipo}
-                        onVerGraduacion={puedeVerFichas ? () => setTabHistorial("graduacion") : undefined}
+                        onVerGraduacion={puedeVerFichas ? () => setTabHistorial("diagnostico") : undefined}
                         onVerCompras={() => setTabHistorial("pagos")}
                         onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
                         paciente={pacienteHistorial}
@@ -2701,11 +2701,12 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
 // Un cuadro que se puede tocar: mismo aspecto que antes, con una flecha que indica que se despliega.
 // La pestaña que pide una URL (`?tab=`): una de las cinco o, si no existe o no se puede ver (Graduación pide Ficha clínica), el Resumen.
 function pestanaDePerfil(tab, puedeVerFichas) {
-  const id = tab === "compras" ? "pagos" : tab
+  let id = tab === "compras" ? "pagos" : tab
   // «ordenes» era la pestaña de órdenes de laboratorio (se quitó: el estado de los lentes está en cada compra): los enlaces viejos llevan a Compras.
   if (id === "ordenes") return "pagos"
-  if (!["resumen", "citas", "graduacion", "pagos"].includes(id)) return "resumen"
-  return id === "graduacion" && !puedeVerFichas ? "resumen" : id
+  if (id === "graduacion") id = "diagnostico" // el nombre anterior de la pestaña
+  if (!["resumen", "citas", "diagnostico", "pagos"].includes(id)) return "resumen"
+  return id === "diagnostico" && !puedeVerFichas ? "resumen" : id
 }
 
 function Cuadro({ clave, abierto, alternar, className = "", style, children }) {

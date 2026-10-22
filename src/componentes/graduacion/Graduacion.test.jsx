@@ -2,7 +2,7 @@ import React from "react"
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent, within } from "@testing-library/react"
 import { GraduacionVigente, CambioGraduacion, VistaGraduacion } from "./Graduacion"
-import GraduacionPerfil from "./GraduacionPerfil"
+import DiagnosticoPerfil from "./DiagnosticoPerfil"
 import HojaReceta, { numeroDeReceta } from "../HojaReceta"
 import { imprimirHojaReceta } from "../../utilidades/imprimirHojaReceta"
 
@@ -166,33 +166,56 @@ describe("La vista completa de una receta (selector, antes → ahora, indicacion
   })
 })
 
-describe("La pestaña «Graduación» del perfil del personal", () => {
-  const props = { consultas: [anterior, receta()], paciente: { nombre: "Marta Zambrano", cedula: "0934070830" }, usuario: { opticaNombre: "Óptica Solna Vision" } }
+describe("La pestaña «Diagnóstico» del perfil del personal", () => {
+  const sinRefraccion = { id: "x1", fecha: "2026-06-01", pacienteId: "p1", motivo: "Dolor de cabeza", diagnostico: "Cefalea tensional", indicaciones: "Descansar la vista cada hora.", od: { avSc: "20/20" }, oi: { avSc: "20/20" } }
+  const props = { consultas: [receta(), anterior, sinRefraccion], paciente: { nombre: "Marta Zambrano", cedula: "0934070830" }, usuario: { opticaNombre: "Óptica Solna Vision" } }
 
-  it("es la misma vista del portal, en versión técnica, con comparar, imprimir y «Explicar al paciente» (sin «Cambio» ni «Tendencia»: los cubren comparar y la historia de cada ojo)", () => {
-    render(<GraduacionPerfil {...props} />)
-    expect(screen.getByRole("heading", { name: "Graduación" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Elegir otra receta/ })).toHaveTextContent("20 abr 2026 · vigente")
+  it("se llama «Diagnóstico» y muestra todo el de la consulta elegida: diagnóstico, agudeza, los ojos de la refracción e indicaciones, con el selector de consulta arriba", () => {
+    render(<DiagnosticoPerfil {...props} />)
+    expect(screen.getByRole("heading", { name: "Diagnóstico", level: 1 })).toBeInTheDocument()
+    expect(screen.queryByText("Graduación")).not.toBeInTheDocument()
+    expect(screen.getAllByText(/20 abr 2026 · vigente/).length).toBeGreaterThan(0)
+    expect(document.body.textContent).toContain("Miopía")
+    expect(document.body.textContent).toContain("Agudeza visual")
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("OD · Ojo derecho")
-    expect(screen.queryByRole("region", { name: "Cambio desde la consulta anterior" })).not.toBeInTheDocument()
-    expect(screen.queryByText("Tendencia de graduación medida")).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Comparar dos recetas" }))
-    expect(screen.getByRole("dialog", { name: "Comparar dos recetas" })).toBeInTheDocument()
-    fireEvent.keyDown(document, { key: "Escape" })
-    expect(screen.getByRole("region", { name: "Indicaciones" })).toHaveTextContent("Usa tus lentes todo el día.")
-    expect(screen.getByRole("button", { name: "Comparar dos recetas" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Imprimir receta" })).toBeInTheDocument()
-    expect(screen.queryByText(/Tienes miopía leve/)).not.toBeInTheDocument()
-    // «Explicar al paciente» cambia la vista a la de palabras simples del portal, y vuelve
-    fireEvent.click(screen.getByRole("button", { name: "Explicar al paciente" }))
+    expect(document.body.textContent).toContain("Usa tus lentes todo el día.")
+  })
+
+  it("los botones se llaman «Comparar diagnósticos» e «Imprimir diagnóstico» (no «recetas»)", () => {
+    render(<DiagnosticoPerfil {...props} />)
+    expect(screen.getByRole("button", { name: "Comparar diagnósticos" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Imprimir diagnóstico" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /receta/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Comparar diagnósticos" }))
+    const v = screen.getByRole("dialog", { name: "Comparar diagnósticos" })
+    expect(v).toHaveTextContent("Control en 6 meses.")
+    expect(v).toHaveTextContent("Usa tus lentes todo el día.")
+  })
+
+  it("un interruptor de dos opciones cambia entre la vista técnica y la vista para el paciente", () => {
+    render(<DiagnosticoPerfil {...props} />)
+    expect(screen.getByRole("button", { name: "Vista técnica" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.queryByRole("button", { name: "Explicar al paciente" })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Vista para el paciente" }))
+    expect(screen.getByRole("button", { name: "Vista para el paciente" })).toHaveAttribute("aria-pressed", "true")
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("Tienes miopía leve")
-    fireEvent.click(screen.getByRole("button", { name: "Volver a la vista técnica" }))
+    expect(screen.getByRole("region", { name: "Lo que te indicó tu optómetra" })).toHaveTextContent("Usa tus lentes todo el día.")
+    fireEvent.click(screen.getByRole("button", { name: "Vista técnica" }))
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("OD · Ojo derecho")
   })
 
-  it("sin recetas (consultas sin medidas) dice qué pasa en vez de quedar vacío", () => {
-    render(<GraduacionPerfil consultas={[{ id: "x", fecha: "2026-01-01", od: {}, oi: {} }]} paciente={{}} usuario={{}} />)
-    expect(screen.getByText("Este paciente todavía no tiene una receta")).toBeInTheDocument()
+  it("una consulta sin refracción muestra su diagnóstico igual, sin ojos ni huecos", () => {
+    render(<DiagnosticoPerfil {...props} consultas={[sinRefraccion]} />)
+    expect(document.body.textContent).toContain("Cefalea tensional")
+    expect(document.body.textContent).toContain("Descansar la vista cada hora.")
+    expect(screen.queryByRole("region", { name: "Ojo derecho" })).not.toBeInTheDocument()
+    expect(screen.queryByText("Refracción final")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Comparar diagnósticos" })).not.toBeInTheDocument() // con una sola consulta no hay con qué comparar
+  })
+
+  it("sin ninguna consulta dice qué pasa en vez de quedar vacío", () => {
+    render(<DiagnosticoPerfil consultas={[]} paciente={{}} usuario={{}} />)
+    expect(screen.getByText("Este paciente todavía no tiene un diagnóstico")).toBeInTheDocument()
   })
 })
 
@@ -208,6 +231,18 @@ describe("La hoja de la receta (la misma para el optómetra y el paciente)", () 
     render(<HojaReceta optica={{ nombre: "X" }} paciente={{ nombre: "Y" }} receta={receta()} mostrarMedidas={false} />)
     expect(document.body.textContent).not.toContain("Distancia pupilar")
     expect(document.body.textContent).toContain("Adición")
+  })
+  it("el diagnóstico completo usa la misma hoja: con refracción lleva la receta; sin ella no lleva graduación ni validez de receta", () => {
+    const { unmount } = render(<HojaReceta optica={{ nombre: "X" }} paciente={{ nombre: "Y" }} receta={receta({ motivo: "Control" })} completo />)
+    expect(document.body.textContent).toContain("Diagnóstico")
+    expect(document.body.textContent).not.toContain("Receta óptica")
+    expect(document.body.textContent).toContain("Esfera")
+    expect(document.body.textContent).toContain("Motivo de la consulta: Control")
+    unmount()
+    render(<HojaReceta optica={{ nombre: "X" }} paciente={{ nombre: "Y" }} receta={{ id: "x1", fecha: "2026-06-01", diagnostico: "Cefalea tensional", od: { avSc: "20/20" }, oi: { avSc: "20/20" } }} completo />)
+    expect(document.body.textContent).not.toContain("Esfera")
+    expect(document.body.textContent).toContain("Cefalea tensional")
+    expect(document.body.textContent).toContain("No es una receta de lentes")
   })
   it("imprimirHojaReceta monta la hoja en una capa, imprime y la quita al terminar", () => {
     window.print = vi.fn()
