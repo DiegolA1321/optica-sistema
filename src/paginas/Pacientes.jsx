@@ -1972,7 +1972,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         fidelidad={{ ...fidelidadDe(pacienteHistorial), programa: programaFidelidad, referidos: referidosPorEste, referidoPor: pacienteHistorial.referidoPor, diasCumple, edad: edadPaciente, cumpleAuto: parametrizacion?.cumpleAuto, onCrm: () => setVista?.("crm") }}
                       />
                     ) : tabHistorial === "diagnostico" && puedeVerFichas ? (
-                      <DiagnosticoPerfil consultas={consultasPaciente} paciente={pacienteHistorial} usuario={usuario} parametrizacion={parametrizacion} />
+                      <DiagnosticoPerfil consultas={consultasPaciente} citas={citasPaciente} adjuntosDe={adjuntosConsulta} paciente={pacienteHistorial} usuario={usuario} parametrizacion={parametrizacion} />
                     ) : tabHistorial === "citas" ? (
                       <div className="space-y-4">
                         <PanelCitasPaciente

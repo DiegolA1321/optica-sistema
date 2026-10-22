@@ -15,7 +15,8 @@ const LADOS = [["oi", "Ojo izquierdo", "OI"], ["od", "Ojo derecho", "OD"]]
 const NOMBRE = { od: "ojo derecho", oi: "ojo izquierdo" }
 
 // «Diagnóstico» (lo que se encontró, el motivo, las indicaciones y el lente recomendado) y «Agudeza visual» (una tabla pequeña, no estirada), lado a lado.
-export function TarjetasDiagnostico({ consulta: k }) {
+// Las dos tarjetas se pulsan enteras: «Diagnóstico» abre la atención completa y «Agudeza visual» abre su evolución (el enlace de cada una es el que cubre la tarjeta).
+export function TarjetasDiagnostico({ consulta: k, onAtencion, onEvolucion }) {
   const fi = k.ficha || null
   const tex = (v) => (v == null || v === "" ? "—" : v)
   const conReceta = Boolean(k.od?.avRx || k.oi?.avRx)
@@ -24,8 +25,11 @@ export function TarjetasDiagnostico({ consulta: k }) {
   const lente = k.lenteRecomendado
   return (
     <div className="grid items-stretch gap-4 lg:grid-cols-2">
-      <section aria-label="Diagnóstico" className={CARTA + " p-5"}>
-        <h2 className="text-base font-bold" style={{ color: INK }}>Diagnóstico</h2>
+      <section aria-label="Diagnóstico" data-resumen={onAtencion ? "" : undefined} className={CARTA + " relative p-5 " + (onAtencion ? "transition-colors hover:bg-slate-50/70" : "")}>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-base font-bold" style={{ color: INK }}>Diagnóstico</h2>
+          {onAtencion && <button type="button" onClick={onAtencion} aria-haspopup="dialog" className="text-sm font-semibold text-blue-600 transition-colors after:absolute after:inset-0 after:rounded-2xl hover:text-blue-700 cursor-pointer">Ver la atención completa →</button>}
+        </div>
         <p className="mt-2 text-[22px] font-bold leading-tight" style={{ color: INK }}>{textoDiagnostico(k) || "Sin diagnóstico registrado"}</p>
         <div className="mt-2 space-y-1.5 text-[15px] leading-snug text-slate-700">
           {k.motivo && <p className="text-slate-500">Motivo: {k.motivo}{k.detalleConsulta ? ` · ${k.detalleConsulta}` : ""}</p>}
@@ -34,8 +38,11 @@ export function TarjetasDiagnostico({ consulta: k }) {
           {k.productoNombre && <p className="text-sm text-blue-700">Vinculado al inventario: <span className="font-semibold">{k.productoNombre}</span></p>}
         </div>
       </section>
-      <section aria-label="Agudeza visual" className={CARTA + " p-5"}>
-        <h2 className="text-base font-bold" style={{ color: INK }}>Agudeza visual</h2>
+      <section aria-label="Agudeza visual" data-resumen={onEvolucion ? "" : undefined} className={CARTA + " relative p-5 " + (onEvolucion ? "transition-colors hover:bg-slate-50/70" : "")}>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-base font-bold" style={{ color: INK }}>Agudeza visual</h2>
+          {onEvolucion && <button type="button" onClick={onEvolucion} aria-haspopup="dialog" className="text-sm font-semibold text-blue-600 transition-colors after:absolute after:inset-0 after:rounded-2xl hover:text-blue-700 cursor-pointer">Ver su evolución →</button>}
+        </div>
         <table className="mt-3 border-collapse text-[15px]">
           <thead>
             <tr className="text-left text-xs font-bold uppercase tracking-wide text-slate-500">

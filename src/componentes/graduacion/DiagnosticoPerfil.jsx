@@ -4,7 +4,8 @@ import { useMemo, useState } from "react"
 import { Stethoscope, ClipboardList, GitCompare } from "lucide-react"
 import { INK } from "@/lib/tema"
 import SelectorLista from "../SelectorLista"
-import { Cascaron, DetalleAtencion } from "../AtencionPaciente"
+import { Cascaron, DetalleAtencion, ModalAtencion } from "../AtencionPaciente"
+import EvolucionAgudeza from "./EvolucionAgudeza"
 import { GraduacionVigente, VentanaHistoriaOjo } from "./Graduacion"
 import { TarjetasDiagnostico, RefraccionPerfil } from "./DiagnosticoCompacto"
 import { edadEnAnios } from "../../utilidades/edad"
@@ -22,10 +23,12 @@ import { compararDiagnosticos, rotuloDeConsulta, tieneRefraccion } from "../../u
 const BOTON = "inline-flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 cursor-pointer"
 const viñetas = (t = "") => t.split(/\n+|(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])/).map((x) => x.trim()).filter(Boolean)
 
-export default function DiagnosticoPerfil({ consultas = [], paciente, usuario, parametrizacion }) {
+export default function DiagnosticoPerfil({ consultas = [], citas = [], paciente, usuario, parametrizacion, adjuntosDe }) {
   const [id, setId] = useState(null)
   const [vista, setVista] = useState("tecnica") // "tecnica" | "paciente"
   const [comparando, setComparando] = useState(false)
+  const [verAtencion, setVerAtencion] = useState(false) // «Ver la atención completa»
+  const [verEvolucion, setVerEvolucion] = useState(false) // «Ver su evolución» (la agudeza visual de cada consulta)
   const [historiaOjo, setHistoriaOjo] = useState(null) // "od" | "oi": toda la tarjeta del ojo abre su historia
   const lista = consultas // ya vienen de la más reciente a la más antigua
   const consulta = lista.find((c) => String(c.id) === String(id)) || lista[0]
@@ -87,12 +90,14 @@ export default function DiagnosticoPerfil({ consultas = [], paciente, usuario, p
         </div>
       ) : (
         <div className="space-y-4">
-          <TarjetasDiagnostico consulta={consulta} />
+          <TarjetasDiagnostico consulta={consulta} onAtencion={() => setVerAtencion(true)} onEvolucion={() => setVerEvolucion(true)} />
           {hayRefraccion && <RefraccionPerfil receta={consulta} anterior={anterior} onOjo={setHistoriaOjo} />}
           {/* El examen y la salud ocular, solo si se registraron. */}
           <div className="hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm has-[section]:block"><DetalleAtencion consulta={consulta} secciones={["examen"]} /></div>
         </div>
       )}
+      {verAtencion && <ModalAtencion cita={citas.find((c) => c.id === consulta.citaId) || null} consulta={consulta} paciente={paciente} usuario={usuario} parametrizacion={parametrizacion} adjuntos={adjuntosDe?.(consulta)} onCerrar={() => setVerAtencion(false)} />}
+      {verEvolucion && <EvolucionAgudeza consultas={lista} actualId={consulta.id} onCerrar={() => setVerEvolucion(false)} />}
       {historiaOjo && <VentanaHistoriaOjo recetas={recetas} lado={historiaOjo} version={simple ? "paciente" : "personal"} actualId={consulta.id} onElegir={(rid) => { setId(String(rid)); setHistoriaOjo(null) }} onCerrar={() => setHistoriaOjo(null)} onLado={simple ? undefined : setHistoriaOjo} />}
       {comparando && <VentanaCompararDiagnosticos consultas={lista} idInicial={String(consulta.id)} onCerrar={() => setComparando(false)} />}
     </div>

@@ -204,6 +204,26 @@ describe("La pestaña «Diagnóstico» del perfil del personal", () => {
     expect(screen.getByRole("region", { name: "Ojo derecho" })).toHaveTextContent("OD · Ojo derecho")
   })
 
+  it("la tarjeta «Diagnóstico» se pulsa entera y abre la atención completa de esa consulta", () => {
+    render(<DiagnosticoPerfil {...props} />)
+    fireEvent.click(screen.getByRole("button", { name: /Ver la atención completa/ }))
+    const v = screen.getByRole("dialog", { name: /Atención del/ })
+    expect(v).toHaveTextContent("Miopía")
+    expect(v).toHaveTextContent("Usa tus lentes todo el día.")
+    expect(screen.getByRole("region", { name: "Diagnóstico", exact: true })).toHaveAttribute("data-resumen")
+  })
+
+  it("la tarjeta «Agudeza visual» abre su evolución: una fila por consulta con la agudeza de cada ojo", () => {
+    render(<DiagnosticoPerfil {...props} />)
+    fireEvent.click(screen.getByRole("button", { name: /Ver su evolución/ }))
+    const v = screen.getByRole("dialog", { name: "Evolución de la agudeza visual" })
+    const tabla = within(v).getByRole("table", { name: "Evolución de la agudeza visual" })
+    expect(within(tabla).getAllByRole("row").length).toBeGreaterThan(2) // dos filas de encabezado y al menos una consulta
+    expect(tabla).toHaveTextContent("Sin corrección")
+    expect(tabla).toHaveTextContent("Con su corrección actual")
+    expect(tabla).toHaveTextContent("20 abr 2026")
+  })
+
   it("una consulta sin refracción muestra su diagnóstico igual, sin ojos ni huecos", () => {
     render(<DiagnosticoPerfil {...props} consultas={[sinRefraccion]} />)
     expect(document.body.textContent).toContain("Cefalea tensional")
