@@ -4,7 +4,7 @@ import { ScanEye, Eye, History, Layers, Glasses, CheckCircle, AlertCircle } from
 import { validarOjo, validarAdicion, transponer } from "../../utilidades/refraccion"
 import { LISTA_AGUDEZA, LISTA_JAEGER, agudezaDelEstado } from "../../utilidades/agudeza"
 import { METODOS_OBJETIVA, BASES_PRISMA, ojoDeForm, estadoCorreccionDeForm } from "../../utilidades/fichaDatos"
-import { Tarjeta, Obligatorio, Etiqueta, Numero, Lista, Texto, OjosLadoALado, CuadroOjo, BotonTexto, CLASE_INPUT } from "./piezas"
+import { Tarjeta, Etiqueta, Numero, Lista, Texto, OjosLadoALado, CuadroOjo, BotonTexto, CLASE_INPUT } from "./piezas"
 
 const Trio = ({ pre, f, set, errs = {}, ancho }) => (
   <div className="flex gap-1.5">
@@ -32,7 +32,7 @@ function AvRx({ P, nombre, f, set }) {
   )
 }
 
-// Paso 3 · Refracción: objetiva, queratometría, refracción final de cada ojo (con transposición), adición, prisma y la agudeza con la receta nueva.
+// Paso 2 · Examen, bloque Refracción: objetiva, queratometría, refracción final de cada ojo (con transposición), adición, prisma y la agudeza con la receta nueva.
 export default function PasoRefraccion({ f, set, setVarios, errores, edad, manejaProgresion = true, ultimaConsulta }) {
   // Lo que se escribe se valida al instante (rangos, pasos, cilindro negativo); lo que falta, solo al terminar.
   const vivo = (pre) => validarOjo({ esfera: f[`${pre}Esfera`], cilindro: f[`${pre}Cilindro`], eje: f[`${pre}Eje`] })
@@ -119,7 +119,7 @@ export default function PasoRefraccion({ f, set, setVarios, errores, edad, manej
         <OjosLadoALado izquierdo={kOjo("oi")} derecho={kOjo("od")} />
       </Tarjeta>
 
-      <Tarjeta titulo="Refracción final" icono={Eye} derecha={<Obligatorio />} ayuda="La que va en la receta. Esfera −30 a +30 · cilindro negativo · eje 1–180 · de 0,25 en 0,25. Los dos ojos, o «Ojo no evaluado» con su motivo.">
+      <Tarjeta titulo="Refracción final" icono={Eye} derecha={<Etiqueta>Opcional</Etiqueta>} ayuda="La que va en la receta. Esfera −30 a +30 · cilindro negativo · eje 1–180 · de 0,25 en 0,25. Si registras algo, van los dos ojos, o «Ojo no evaluado» con su motivo.">
         {copiarAnterior && <div className="mb-2"><BotonTexto icono={History} onClick={() => setVarios({ odEsfera: ultimaConsulta.od?.esfera || "", odCilindro: ultimaConsulta.od?.cilindro || "", odEje: ultimaConsulta.od?.eje || "", oiEsfera: ultimaConsulta.oi?.esfera || "", oiCilindro: ultimaConsulta.oi?.cilindro || "", oiEje: ultimaConsulta.oi?.eje || "" })}>Copiar de la visita anterior</BotonTexto></div>}
         <OjosLadoALado izquierdo={finalOjo("oi")} derecho={finalOjo("od")} />
       </Tarjeta>
@@ -144,7 +144,7 @@ export default function PasoRefraccion({ f, set, setVarios, errores, edad, manej
         <OjosLadoALado izquierdo={prismaOjo("oi")} derecho={prismaOjo("od")} />
       </Tarjeta>
 
-      <Tarjeta titulo="Agudeza con la receta nueva" icono={CheckCircle} ayuda="Se escribe aquí y se ve también en la tabla del paso 2 (es un solo dato).">
+      <Tarjeta titulo="Agudeza con la receta nueva" icono={CheckCircle} ayuda="Se escribe aquí y se ve también en la tabla de Agudeza visual (es un solo dato).">
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           <AvRx P="Od" nombre="Ojo derecho" f={f} set={set} />
           <AvRx P="Oi" nombre="Ojo izquierdo" f={f} set={set} />

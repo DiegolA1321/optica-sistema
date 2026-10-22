@@ -302,18 +302,24 @@ export async function restaurarDiasDeHorario(fechas, entorno = 'E2E') {
   if (error) throw new Error(`No se pudo restaurar el horario: ${error.message}`)
 }
 
-// ── La ficha clínica de cinco pasos ──
+// ── La ficha clínica de tres pasos (Anamnesis, Examen y Diagnóstico y receta) ──
 // Va a un paso por la barra de pasos (se puede ir a cualquiera).
 export const irAPasoFicha = (page, n, nombre) => page.getByRole('button', { name: new RegExp(`^Paso ${n}: ${nombre}`) }).click()
-// Llena lo obligatorio que la ficha pide para terminar la atención (el motivo ya viene de la cita): la agudeza sin corrección de cada ojo y la refracción final de los dos ojos.
-// Deja al optómetra en el paso 5 (Diagnóstico y receta).
+// Abre un bloque plegable del Examen (si ya está abierto, no lo toca). Va primero al paso 2.
+export async function abrirBloqueExamen(page, titulo) {
+  await irAPasoFicha(page, 2, 'Examen')
+  const boton = page.getByRole('button', { name: new RegExp(`^${titulo}`) })
+  if ((await boton.getAttribute('aria-expanded')) !== 'true') await boton.click()
+}
+// Llena la refracción final de los dos ojos (el examen es opcional; esto lo hace «Registrado») y deja al optómetra en el paso 3 (Diagnóstico y receta).
+// Lo único obligatorio de la ficha es el motivo (que ya viene de la cita) y el diagnóstico.
 export async function llenarFichaObligatoria(page) {
-  await irAPasoFicha(page, 2, 'Agudeza visual')
+  await abrirBloqueExamen(page, 'Agudeza visual')
   await page.locator('#avOdSc').selectOption('20/50')
   await page.locator('#avOiSc').selectOption('20/40')
-  await irAPasoFicha(page, 3, 'Refracción')
+  await abrirBloqueExamen(page, 'Refracción')
   for (const [id, valor] of [['odEsfera', '-1.75'], ['odCilindro', '-0.75'], ['odEje', '10'], ['oiEsfera', '-1.50'], ['oiCilindro', '-0.50'], ['oiEje', '90']]) await page.locator('#' + id).fill(valor)
-  await irAPasoFicha(page, 5, 'Diagnóstico y receta')
+  await irAPasoFicha(page, 3, 'Diagnóstico y receta')
 }
 
 // Vista de Citas: «Lista» es un botón; «Semana» y «Mes» están dentro del menú «Calendario» (se abre y se elige).

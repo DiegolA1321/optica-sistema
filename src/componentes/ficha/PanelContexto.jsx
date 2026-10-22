@@ -39,11 +39,17 @@ export function RecetaResumen({ receta, onVerHoja }) {
   )
 }
 
-// El panel fijo de la derecha: contexto del paciente (edad, alergias destacadas, última graduación, últimas visitas) y, en el paso 5, la vista previa de la receta.
-export default function PanelContexto({ paciente, edad, alergiaSignificativa, alergias, antecedentesAlerta, ultimaGraduacion, visitas, onAbrirVisita, onVerHistorial, totalVisitas, tendencia, receta, onVerHoja, paso }) {
+// El panel fijo de la derecha: contexto del paciente (edad, alergias destacadas, última graduación, últimas visitas) y, en el paso 3, la vista previa del documento.
+export default function PanelContexto({ paciente, edad, alergiaSignificativa, alergias, antecedentesAlerta, ultimaGraduacion, visitas, onAbrirVisita, onVerHistorial, totalVisitas, tendencia, hoja, onVerHoja, paso }) {
   return (
     <aside aria-label="Contexto del paciente" className="space-y-3 rounded-2xl border border-slate-200/70 bg-white p-3.5 text-sm shadow-sm lg:sticky lg:top-24">
-      {paso === "diagnostico" && receta && <Seccion titulo="Vista previa de la receta"><RecetaResumen receta={receta} onVerHoja={onVerHoja} /></Seccion>}
+      {paso === "diagnostico" && hoja && (
+        <Seccion titulo="Vista previa del documento">
+          {/* La hoja real, reducida: lo que se ve aquí es lo que sale al descargar o imprimir. */}
+          <div data-vista-previa-documento className="overflow-hidden rounded-xl border border-slate-200 bg-white" style={{ zoom: 0.42 }} aria-label="Vista previa del documento">{hoja}</div>
+          {onVerHoja && <button type="button" onClick={onVerHoja} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 cursor-pointer"><FileText size={12} aria-hidden="true" /> Ver en grande</button>}
+        </Seccion>
+      )}
       <Seccion titulo="Paciente">
         <p className="font-bold text-slate-900">{paciente.nombre}</p>
         <p className="text-xs text-slate-500">{[edad != null && `${edad} años`, paciente.cedula && `Cédula ${paciente.cedula}`].filter(Boolean).join(" · ")}</p>

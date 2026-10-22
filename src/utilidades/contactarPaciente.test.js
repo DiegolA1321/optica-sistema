@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { citasPorContactar, motivoDeLaCita, heredarBorrador, TIPO_AVISO_CONTACTAR } from "./contactarPaciente"
+import { citasPorContactar, motivoDeLaCita, TIPO_AVISO_CONTACTAR } from "./contactarPaciente"
 import { particionarDescartados, descarteVigente, claveDescarte } from "./avisosDescartados"
 import { claveBorrador, guardarBorrador, leerBorrador } from "./borradorFicha"
 import { hoyISO } from "./disponibilidad"
@@ -29,18 +29,6 @@ describe("Contactar al paciente", () => {
     expect(motivoDeLaCita(cita({}), seg)).toBe("La atención se inició y no se terminó")
     expect(motivoDeLaCita(cita({}), new Map())).toBe("El paciente no asistió")
     expect(motivoDeLaCita(cita({ estado: "Cancelada" }), new Map())).toBe("El paciente canceló su cita")
-  })
-})
-
-describe("heredar el borrador de la ficha", () => {
-  beforeEach(() => localStorage.clear())
-  it("copia el borrador de la cita no efectuada a la cita nueva", () => {
-    guardarBorrador(claveBorrador("u1", "p1", "c1"), { motivo: "Dolor de cabeza" }, Date.now())
-    expect(heredarBorrador("u1", "p1", "c1", "c9")).toBe(true)
-    expect(leerBorrador(claveBorrador("u1", "p1", "c9"))?.datos).toEqual({ motivo: "Dolor de cabeza" })
-  })
-  it("sin borrador no hay nada que heredar", () => {
-    expect(heredarBorrador("u1", "p1", "c1", "c9")).toBe(false)
   })
 })
 

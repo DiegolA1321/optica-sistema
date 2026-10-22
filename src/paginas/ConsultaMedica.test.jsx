@@ -18,6 +18,12 @@ const propsBase = (extra = {}) => ({
 const renderFicha = (extra) => render(<ConsultaMedica {...propsBase(extra)} />)
 
 const irAPaso = (n, nombre) => fireEvent.click(screen.getByRole("button", { name: new RegExp(`^Paso ${n}: ${nombre}`) }))
+// Los bloques del Examen están plegados al entrar: se abre el que se necesita (si ya está abierto, no se toca).
+const abrirBloque = (titulo) => {
+  const boton = screen.getByRole("button", { name: new RegExp(`^${titulo}`) })
+  if (boton.getAttribute("aria-expanded") !== "true") fireEvent.click(boton)
+}
+const irABloque = (titulo) => { irAPaso(2, "Examen"); abrirBloque(titulo) }
 const siguiente = () => fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/i }))
 
 // Elige al paciente (la ficha sin paciente precargado) y pasa el aviso de primera consulta; deja el motivo elegido (paso 1).
@@ -27,29 +33,53 @@ function empezar() {
   fireEvent.click(screen.getByRole("button", { name: /Entendido, completar antecedentes/i }))
   fireEvent.change(screen.getByLabelText(/^Motivo$/i), { target: { value: "Consulta General" } })
 }
-// Todo lo obligatorio de los pasos 2 y 3.
+// Mediciones del examen (todo opcional): agudeza y refracción final de los dos ojos.
 function llenarMedidas() {
-  irAPaso(2, "Agudeza visual")
+  irABloque("Agudeza visual")
   fireEvent.change(screen.getByLabelText("Ojo derecho, sin corrección"), { target: { value: "20/50" } })
   fireEvent.change(screen.getByLabelText("Ojo izquierdo, sin corrección"), { target: { value: "20/40" } })
-  irAPaso(3, "Refracción")
+  abrirBloque("Refracción")
   for (const [id, v] of [["odEsfera", "-1.75"], ["odCilindro", "-0.75"], ["odEje", "10"], ["oiEsfera", "-1.50"], ["oiCilindro", "-0.50"], ["oiEje", "90"]]) fireEvent.change(document.getElementById(id), { target: { value: v } })
 }
 const terminar = () => fireEvent.click(screen.getByRole("button", { name: /Terminar atención/i }))
 
-describe("ConsultaMedica — los cinco pasos", () => {
-  it("la barra tiene los cinco pasos, con su estado, y deja ir a cualquiera", () => {
+describe("ConsultaMedica — los tres pasos", () => {
+  it("la barra tiene los tres pasos, con su estado, y deja ir a cualquiera; no hay encabezado grande", () => {
     renderFicha()
     empezar()
     const barra = screen.getByRole("navigation", { name: "Pasos de la ficha clínica" })
-    for (const [n, nombre] of [[1, "Anamnesis"], [2, "Agudeza visual"], [3, "Refracción"], [4, "Salud ocular"], [5, "Diagnóstico y receta"]]) expect(within(barra).getByRole("button", { name: new RegExp(`^Paso ${n}: ${nombre}`) })).toBeInTheDocument()
+    for (const [n, nombre] of [[1, "Anamnesis"], [2, "Examen"], [3, "Diagnóstico y receta"]]) expect(within(barra).getByRole("button", { name: new RegExp(`^Paso ${n}: ${nombre}`) })).toBeInTheDocument()
+    expect(within(barra).queryByRole("button", { name: /^Paso 4/ })).not.toBeInTheDocument()
     expect(within(barra).getByRole("button", { name: /^Paso 1: Anamnesis, Completo/ })).toBeInTheDocument()
-    expect(within(barra).getByRole("button", { name: /^Paso 2: Agudeza visual, Incompleto/ })).toBeInTheDocument()
-    expect(within(barra).getByRole("button", { name: /^Paso 4: Salud ocular, Opcional/ })).toBeInTheDocument()
-    irAPaso(5, "Diagnóstico y receta")
+    expect(within(barra).getByRole("button", { name: /^Paso 2: Examen, Opcional/ })).toBeInTheDocument()
+    expect(within(barra).getByRole("button", { name: /^Paso 3: Diagnóstico y receta, Incompleto/ })).toBeInTheDocument()
+    irAPaso(3, "Diagnóstico y receta")
     expect(screen.getByRole("button", { name: /Terminar atención/i })).toBeInTheDocument()
-    // saltar la salud ocular la deja como «Omitido», no «Visto»
-    expect(within(barra).getByRole("button", { name: /^Paso 4: Salud ocular, Omitido/ })).toBeInTheDocument()
+    // el encabezado grande de la ficha ya no está: queda la fila del paciente y la barra de pasos
+    expect(screen.getByRole("heading", { name: "Ficha clínica" })).toHaveClass("sr-only")
+    expect(screen.queryByText(/Lo que el optómetra encuentra al examinar/)).not.toBeInTheDocument()
+  })
+
+  it("el examen: cinco bloques plegados al entrar, cada uno con su estado y un resumen de una línea", () => {
+    renderFicha()
+    empezar()
+    irAPaso(2, "Examen")
+    const titulos = ["Agudeza visual", "Lentes actuales y distancia pupilar", "Refracción", "Cover test y motilidad", "Salud ocular"]
+    for (const t of titulos) {
+      const b = screen.getByRole("button", { name: new RegExp(`^${t}`) })
+      expect(b).toHaveAttribute("aria-expanded", "false")
+      expect(b).toHaveTextContent("Sin registrar")
+    }
+    abrirBloque("Agudeza visual")
+    fireEvent.change(screen.getByLabelText("Ojo derecho, sin corrección"), { target: { value: "20/50" } })
+    const b = screen.getByRole("button", { name: /^Agudeza visual/ })
+    expect(b).toHaveTextContent("Registrado")
+    expect(b).toHaveTextContent("OD 20/50")
+    // plegar y desplegar no pierde lo escrito
+    fireEvent.click(b)
+    expect(screen.queryByLabelText("Ojo derecho, sin corrección")).not.toBeInTheDocument()
+    fireEvent.click(b)
+    expect(screen.getByLabelText("Ojo derecho, sin corrección")).toHaveValue("20/50")
   })
 
   it("el motivo viene del catálogo de la óptica y lo que cuenta el paciente va aparte como detalle", () => {
@@ -65,7 +95,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
   it("las categorías de diagnóstico son las del catálogo de la óptica", () => {
     renderFicha()
     empezar()
-    irAPaso(5, "Diagnóstico y receta")
+    irAPaso(3, "Diagnóstico y receta")
     for (const c of ["Miopía", "Miopía y astigmatismo", "Sin alteración refractiva", "Otro"]) expect(screen.getByRole("button", { name: c })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Presbicia" })).not.toBeInTheDocument()
   })
@@ -74,7 +104,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
     renderFicha()
     empezar()
     llenarMedidas()
-    irAPaso(5, "Diagnóstico y receta")
+    irAPaso(3, "Diagnóstico y receta")
     fireEvent.click(screen.getByRole("button", { name: "Miopía" }))
     expect(screen.getByRole("radio", { name: /Agendar ahora/i })).not.toBeChecked()
     expect(screen.getByRole("radio", { name: /Agendar después/i })).not.toBeChecked()
@@ -91,7 +121,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
     renderFicha()
     empezar()
     llenarMedidas()
-    irAPaso(5, "Diagnóstico y receta")
+    irAPaso(3, "Diagnóstico y receta")
     fireEvent.click(screen.getByRole("button", { name: "Miopía" }))
     fireEvent.click(screen.getByLabelText(/Tratamiento finalizado/i))
     expect(screen.queryByRole("radio", { name: /Agendar ahora/i })).not.toBeInTheDocument()
@@ -100,10 +130,10 @@ describe("ConsultaMedica — los cinco pasos", () => {
   })
 
   // Regresión del bug del ing (29-sept): «Siguiente» y «Terminar atención» no pueden ser el mismo nodo <button> (disparaba un submit fantasma).
-  it("'Siguiente' y 'Terminar atención' son nodos <button> distintos, y llegar al paso 5 no muestra errores", () => {
+  it("'Siguiente' y 'Terminar atención' son nodos <button> distintos, y llegar al último paso no muestra errores", () => {
     renderFicha()
     empezar()
-    irAPaso(4, "Salud ocular")
+    irAPaso(2, "Examen")
     const nodoSiguiente = screen.getByRole("button", { name: /^Siguiente$/i })
     fireEvent.click(nodoSiguiente)
     const nodoGuardar = screen.getByRole("button", { name: /Terminar atención/i })
@@ -112,14 +142,26 @@ describe("ConsultaMedica — los cinco pasos", () => {
     expect(screen.queryByText(/Selecciona al menos una categoría de diagnóstico/i)).not.toBeInTheDocument()
   })
 
-  it("al terminar sin lo obligatorio lleva al primer paso que falta y lo dice", () => {
+  it("solo el motivo y el diagnóstico son obligatorios: el examen puede quedar vacío", () => {
     renderFicha()
     empezar()
-    irAPaso(5, "Diagnóstico y receta")
+    irAPaso(3, "Diagnóstico y receta")
     fireEvent.click(screen.getByRole("button", { name: "Miopía" }))
     fireEvent.click(screen.getByRole("radio", { name: /Agendar después/i }))
     terminar()
-    expect(screen.getAllByRole("alert").some((a) => /agudeza sin corrección/i.test(a.textContent))).toBe(true)
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+  })
+
+  it("al terminar sin lo obligatorio lleva al primer paso que falta y lo dice", () => {
+    renderFicha()
+    fireEvent.change(screen.getByLabelText(/Paciente \*/i), { target: { value: "Paciente De" } })
+    fireEvent.click(screen.getByText(PACIENTE.nombre))
+    fireEvent.click(screen.getByRole("button", { name: /Entendido, completar antecedentes/i }))
+    irAPaso(3, "Diagnóstico y receta")
+    fireEvent.click(screen.getByRole("button", { name: "Miopía" }))
+    fireEvent.click(screen.getByRole("radio", { name: /Agendar después/i }))
+    terminar()
+    expect(screen.getAllByRole("alert").some((a) => /motivo de la consulta/i.test(a.textContent))).toBe(true)
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
@@ -127,7 +169,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
     renderFicha()
     empezar()
     llenarMedidas()
-    irAPaso(5, "Diagnóstico y receta")
+    irAPaso(3, "Diagnóstico y receta")
     fireEvent.click(screen.getByRole("button", { name: "Otro" }))
     fireEvent.click(screen.getByRole("radio", { name: /Agendar después/i }))
     terminar()
@@ -138,7 +180,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
   it("la refracción arranca vacía: ningún valor por defecto, solo placeholders", () => {
     renderFicha()
     empezar()
-    irAPaso(3, "Refracción")
+    irABloque("Refracción")
     for (const id of ["odEsfera", "odCilindro", "odEje", "oiEsfera", "oiCilindro", "oiEje", "objOdEsfera", "adicionOd"]) expect(document.getElementById(id).value).toBe("")
     // un campo vacío muestra «—», nunca un número de ejemplo que parezca un dato
     for (const id of ["odEsfera", "kOdK1", "prismaOdCant", "dpOd"]) { const el = document.getElementById(id); if (el) expect(el).toHaveAttribute("placeholder", "—") }
@@ -147,7 +189,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
   it("ojo izquierdo a la izquierda y derecho a la derecha en las tarjetas lado a lado", () => {
     renderFicha()
     empezar()
-    irAPaso(3, "Refracción")
+    irABloque("Refracción")
     const final = screen.getByText("Refracción final").closest("section")
     const grupos = within(final).getAllByRole("group").filter((g) => /^Ojo (izquierdo|derecho)$/.test(g.getAttribute("aria-label")))
     expect(grupos.map((g) => g.getAttribute("aria-label"))).toEqual(["Ojo izquierdo", "Ojo derecho"])
@@ -156,20 +198,20 @@ describe("ConsultaMedica — los cinco pasos", () => {
   it("la receta exige los dos ojos: con uno medido, el otro se mide o se marca «Ojo no evaluado» con su motivo", () => {
     renderFicha()
     empezar()
-    irAPaso(3, "Refracción")
+    irABloque("Refracción")
     fireEvent.change(document.getElementById("odEsfera"), { target: { value: "-1.75" } })
-    // el paso 3 queda incompleto mientras falte el otro ojo
-    expect(screen.getByRole("button", { name: /^Paso 3: Refracción, Incompleto/ })).toBeInTheDocument()
+    // el examen queda incompleto mientras falte el otro ojo
+    expect(screen.getByRole("button", { name: /^Paso 2: Examen, Incompleto/ })).toBeInTheDocument()
     fireEvent.click(screen.getAllByRole("checkbox", { name: /Ojo no evaluado/i })[0]) // el izquierdo (va primero)
-    expect(screen.getByRole("button", { name: /^Paso 3: Refracción, Incompleto/ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /^Paso 2: Examen, Incompleto/ })).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText(/¿Por qué no se evaluó?/i), { target: { value: "Prótesis ocular" } })
-    expect(screen.getByRole("button", { name: /^Paso 3: Refracción, Completo/ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /^Paso 2: Examen, Registrado/ })).toBeInTheDocument()
   })
 
   it("un cilindro sin eje se señala", () => {
     renderFicha()
     empezar()
-    irAPaso(3, "Refracción")
+    irABloque("Refracción")
     fireEvent.change(document.getElementById("odCilindro"), { target: { value: "-1.00" } })
     expect(screen.getByText(/Indica el eje del cilindro/i)).toBeInTheDocument()
     fireEvent.change(document.getElementById("odEje"), { target: { value: "90" } })
@@ -179,7 +221,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
   it("un cilindro positivo ofrece la transposición y la receta usa los valores transpuestos", () => {
     renderFicha()
     empezar()
-    irAPaso(3, "Refracción")
+    irABloque("Refracción")
     fireEvent.change(document.getElementById("oiEsfera"), { target: { value: "-1.50" } })
     fireEvent.change(document.getElementById("oiCilindro"), { target: { value: "0.50" } })
     fireEvent.change(document.getElementById("oiEje"), { target: { value: "90" } })
@@ -189,9 +231,9 @@ describe("ConsultaMedica — los cinco pasos", () => {
     expect(document.getElementById("oiCilindro")).toHaveValue("-0.50")
     expect(document.getElementById("oiEje")).toHaveValue("180")
     expect(screen.queryByText(/El cilindro va en negativo/i)).not.toBeInTheDocument()
-    // La vista previa del paso 5 muestra lo mismo que quedó escrito, no los valores de antes.
-    irAPaso(5, "Diagnóstico y receta")
-    const resumen = document.querySelector("[data-receta-resumen]")
+    // La vista previa del documento (último paso) muestra lo mismo que quedó escrito, no los valores de antes.
+    irAPaso(3, "Diagnóstico y receta")
+    const resumen = document.querySelector("[data-vista-previa-documento]")
     expect(resumen).toHaveTextContent("−1.00")
     expect(resumen).toHaveTextContent("−0.50")
     expect(resumen).toHaveTextContent("180°")
@@ -201,7 +243,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
   it("la esfera fuera de −30 a +30 y el eje fuera de 1–180 se señalan al escribir", () => {
     renderFicha()
     empezar()
-    irAPaso(3, "Refracción")
+    irABloque("Refracción")
     fireEvent.change(document.getElementById("odEsfera"), { target: { value: "-31" } })
     expect(screen.getByText(/La esfera va de −30 a \+30/)).toBeInTheDocument()
     fireEvent.change(document.getElementById("odEsfera"), { target: { value: "-1.30" } })
@@ -214,7 +256,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
   it("la adición se destaca en azul para quien tiene 40 años o más y arranca «igual en ambos ojos»", () => {
     renderFicha()
     empezar()
-    irAPaso(3, "Refracción")
+    irABloque("Refracción")
     expect(screen.getByLabelText(/Igual en ambos ojos/i)).toBeChecked()
     const tarjeta = screen.getByRole("heading", { name: /Adición/ }).closest("section")
     expect(tarjeta.className).toMatch(/blue/)
@@ -223,20 +265,20 @@ describe("ConsultaMedica — los cinco pasos", () => {
     expect(screen.getByText(/La adición va de \+0.50 a \+4.00/)).toBeInTheDocument()
   })
 
-  it("la agudeza con la receta nueva se escribe en el paso 3 y se ve en la tabla del paso 2 (un solo dato)", () => {
+  it("la agudeza con la receta nueva se escribe en Refracción y se ve en la tabla de Agudeza visual (un solo dato)", () => {
     renderFicha()
     empezar()
-    irAPaso(3, "Refracción")
+    irABloque("Refracción")
     fireEvent.change(document.getElementById("avOdRx"), { target: { value: "20/25" } })
     fireEvent.change(screen.getByLabelText("Ojo derecho: letras falladas"), { target: { value: "2" } })
-    irAPaso(2, "Agudeza visual")
+    abrirBloque("Agudeza visual")
     expect(document.querySelector('[data-av-rx="Od"]')).toHaveTextContent("20/25 −2")
   })
 
   it("la lista de agudeza trae las líneas de la cartilla y las cuatro anotaciones sin cartilla", () => {
     renderFicha()
     empezar()
-    irAPaso(2, "Agudeza visual")
+    irABloque("Agudeza visual")
     const opciones = [...screen.getByLabelText("Ojo derecho, sin corrección").querySelectorAll("option")].map((o) => o.textContent)
     expect(opciones).toEqual(expect.arrayContaining(["20/20", "20/25", "20/30", "Cuenta dedos", "Movimiento de manos", "Percepción de luz", "No percibe luz"]))
   })
@@ -244,7 +286,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
   it("el cover test es una lista con su magnitud y su distancia", () => {
     renderFicha()
     empezar()
-    irAPaso(2, "Agudeza visual")
+    irABloque("Cover test y motilidad")
     const tipos = [...document.getElementById("coverTipo").querySelectorAll("option")].map((o) => o.textContent)
     expect(tipos).toEqual(expect.arrayContaining(["Ortoforia", "Endoforia", "Exoforia", "Hiperforia", "Endotropia", "Exotropia", "Hipertropia"]))
     expect(document.getElementById("coverMagnitud")).toBeInTheDocument()
@@ -265,7 +307,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
   it("salud ocular por ojo con «Sin hallazgos» e «Igual en el otro ojo»", () => {
     renderFicha()
     empezar()
-    irAPaso(4, "Salud ocular")
+    irABloque("Salud ocular")
     const izq = screen.getAllByRole("group", { name: "Ojo izquierdo" })[0]
     fireEvent.click(within(izq).getAllByRole("button", { name: "Sin hallazgos" })[0])
     expect(document.getElementById("bioOiCornea")).toHaveValue("Sin hallazgos")
@@ -284,7 +326,7 @@ describe("ConsultaMedica — los cinco pasos", () => {
   it("distancia pupilar: total, de cada ojo y de cerca", () => {
     renderFicha()
     empezar()
-    irAPaso(2, "Agudeza visual")
+    irABloque("Lentes actuales y distancia pupilar")
     for (const id of ["dp", "dpOd", "dpOi", "dpCerca"]) expect(document.getElementById(id)).toBeInTheDocument()
   })
 
@@ -313,17 +355,22 @@ describe("ConsultaMedica — los cinco pasos", () => {
     expect(screen.getByRole("heading", { name: /Ficha del/ })).toBeInTheDocument()
   })
 
-  it("al terminar la atención aparece 'Atención terminada' con Pasar a la óptica, y 'Cobrar ahora' abre el cobro con la consulta precargada", () => {
+  it("al terminar la atención aparece 'Atención terminada' con Pasar a la óptica, y 'Cobrar ahora' abre el cobro con la consulta precargada", async () => {
     renderFicha({ parametrizacion: { costosMotivo: { "Consulta General": 15 } } })
     empezar()
     llenarMedidas()
-    irAPaso(5, "Diagnóstico y receta")
+    irAPaso(3, "Diagnóstico y receta")
     fireEvent.click(screen.getByRole("button", { name: "Miopía" }))
     fireEvent.click(screen.getByRole("radio", { name: /Agendar después/i }))
     terminar()
     const modal = screen.getByRole("dialog")
     fireEvent.click(within(modal).getByRole("button", { name: /Terminar atención/i }))
-    return screen.findByText(/Atención terminada/i).then(async () => {
+    // Al terminar se abre el documento del diagnóstico: Descargar PDF, Imprimir y Cerrar.
+    const documento = await screen.findByRole("dialog", { name: /Atención terminada/i })
+    expect(within(documento).getByRole("button", { name: /Descargar PDF/i })).toBeInTheDocument()
+    expect(within(documento).getByRole("button", { name: /^Imprimir$/i })).toBeInTheDocument()
+    fireEvent.click(within(documento).getAllByRole("button", { name: "Cerrar" }).at(-1))
+    return screen.findAllByText(/Atención terminada/i).then(async () => {
       expect(screen.getByRole("button", { name: /Pasar a la óptica/i })).toBeInTheDocument()
       fireEvent.click(screen.getByRole("button", { name: /Cobrar ahora/i }))
       await screen.findByText(/Cobrar la atención de Paciente De Prueba/i)
@@ -379,7 +426,7 @@ describe("ConsultaMedica — guardado automático del borrador", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Entendido, completar antecedentes/i }))
     await new Promise((r) => setTimeout(r, 500))
     fireEvent.change(screen.getByLabelText(/^Motivo$/i), { target: { value: "Consulta General" } })
-    irAPaso(3, "Refracción")
+    irABloque("Refracción")
     fireEvent.change(document.getElementById("odEsfera"), { target: { value: "-2.25" } })
     await waitFor(() => expect(JSON.stringify(Object.values(localStorage))).toContain("-2.25"), { timeout: 4000 })
     expect(screen.getByText(/Guardado (ahora|hace)/)).toBeInTheDocument()
@@ -399,7 +446,7 @@ describe("ConsultaMedica — correcciones de la revisión", () => {
   it("la distancia pupilar total se calcula sola con la de cada ojo, y avisa si no coincide", () => {
     renderFicha()
     empezar()
-    irAPaso(2, "Agudeza visual")
+    irABloque("Lentes actuales y distancia pupilar")
     fireEvent.change(document.getElementById("dpOd"), { target: { value: "31" } })
     fireEvent.change(document.getElementById("dpOi"), { target: { value: "30.5" } })
     expect(document.getElementById("dp")).toHaveValue("61.5")
@@ -411,7 +458,7 @@ describe("ConsultaMedica — correcciones de la revisión", () => {
   it("test de color: resultado «14 de 14» e interpretación Normal o Alterado", () => {
     renderFicha()
     empezar()
-    irAPaso(4, "Salud ocular")
+    irABloque("Salud ocular")
     expect(screen.getByLabelText("Resultado")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Alterado" }))
     expect(screen.getByRole("button", { name: "Alterado" })).toHaveAttribute("aria-pressed", "true")
@@ -421,7 +468,7 @@ describe("ConsultaMedica — correcciones de la revisión", () => {
   it("«Lente a recomendar» va en azul, no en amarillo (el amarillo es advertencia)", () => {
     renderFicha()
     empezar()
-    irAPaso(5, "Diagnóstico y receta")
+    irAPaso(3, "Diagnóstico y receta")
     fireEvent.click(screen.getByLabelText(/Añadir recomendación de lente/))
     const bloque = screen.getByText("Lente a recomendar").closest("div.rounded-xl")
     expect(bloque.className).toMatch(/blue/)
@@ -433,9 +480,8 @@ describe("ConsultaMedica — correcciones de la revisión", () => {
     renderFicha()
     empezar()
     llenarMedidas()
-    irAPaso(3, "Refracción")
     fireEvent.change(document.getElementById("adicionOd"), { target: { value: "1.50" } })
-    irAPaso(5, "Diagnóstico y receta")
+    irAPaso(3, "Diagnóstico y receta")
     const sug = screen.getByRole("status", { name: "Diagnóstico sugerido" })
     expect(sug).toHaveTextContent("Miopía y astigmatismo")
     expect(sug).toHaveTextContent("Tiene adición")

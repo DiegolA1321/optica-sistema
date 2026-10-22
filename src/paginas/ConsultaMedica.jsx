@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import { supabase } from "../lib/supabaseClient"
 import {
   CheckCircle, ArrowLeft, ArrowRight, Save, Stethoscope, AlertCircle, User, Sparkles, Printer, Calendar, Search,
-  TrendingUp, TrendingDown, Minus, Glasses, CalendarClock, History, X, Image as ImageIcon, Receipt, LogOut, ShoppingBag, ClipboardList,
+  TrendingUp, TrendingDown, Minus, Glasses, CalendarClock, History, X, Image as ImageIcon, Receipt, LogOut, ShoppingBag, ClipboardList, Download,
 } from "lucide-react"
 import { hoyISO, diaTieneCupo } from "../utilidades/disponibilidad"
 import { sumarDiasISO, diaHabilMasCercano } from "../utilidades/controles"
@@ -27,20 +27,19 @@ import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
 import { tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
 import { cambioEntre, lineaDeCambio } from "../utilidades/cambioGraduacion"
 import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
+import { descargarHojaReceta } from "../utilidades/descargarHojaReceta"
 import HojaReceta from "../componentes/HojaReceta"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 import { INK, GOLD } from "@/lib/tema"
-import { claveBorrador, guardarBorrador, leerBorrador, borrarBorrador, textoGuardado } from "../utilidades/borradorFicha"
+import { guardarBorradorFicha, leerBorradorFicha, borrarBorradorFicha, textoGuardado } from "../utilidades/borradorFicha"
 import { EVENTO_GUARDAR_BORRADOR } from "../utilidades/sesionPestanas"
 import { textoOjoCompleto } from "../utilidades/refraccion"
 import { agudezaConLentes } from "../utilidades/agudeza"
-import { PASOS, crearForm, recetaDesdeForm, datosClinicosDesdeForm, columnasDeAnamnesis, estadoCorreccionDeForm, anamnesisDeConsulta, hayAnamnesisPrevia, validarPasos, pasoConErrores, estadoDePasos, componerTexto } from "../utilidades/fichaDatos"
+import { PASOS, crearForm, recetaDesdeForm, consultaDesdeForm, datosClinicosDesdeForm, columnasDeAnamnesis, estadoCorreccionDeForm, anamnesisDeConsulta, hayAnamnesisPrevia, validarPasos, pasoConErrores, estadoDePasos, componerTexto } from "../utilidades/fichaDatos"
 import BarraPasos from "../componentes/ficha/BarraPasos"
 import PanelContexto from "../componentes/ficha/PanelContexto"
 import PasoAnamnesis from "../componentes/ficha/PasoAnamnesis"
-import PasoAgudeza from "../componentes/ficha/PasoAgudeza"
-import PasoRefraccion from "../componentes/ficha/PasoRefraccion"
-import PasoSalud from "../componentes/ficha/PasoSalud"
+import PasoExamen from "../componentes/ficha/PasoExamen"
 import { CLASE_INPUT } from "../componentes/ficha/piezas"
 import { datosOpticaReceta } from "../utilidades/datosReceta"
 import { sugerirDiagnostico } from "../utilidades/diagnosticoSugerido"
@@ -55,14 +54,12 @@ const TENDENCIA = {
   "Sin cambios": { fg: "#475569", icon: Minus },
 }
 
-const NOMBRES_PASO = Object.fromEntries(PASOS.map((p) => [p.id, p]))
-const SIN_ERRORES = { anamnesis: {}, agudeza: {}, refraccion: {}, salud: {}, diagnostico: {} }
+const SIN_ERRORES = { anamnesis: {}, examen: {}, diagnostico: {} }
 const CLAVES_FORM = Object.keys(crearForm(""))
 
 export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange, onAviso, pases = [], setPases }) {
-  // El paso en pantalla y el más lejano al que se llegó (para saber si «Salud ocular» se omitió).
+  // El paso en pantalla (Anamnesis, Examen o Diagnóstico y receta).
   const [paso, setPaso] = useState("anamnesis")
-  const [pasoMax, setPasoMax] = useState(1)
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas médicas.
   const [citaEnAtencionId, setCitaEnAtencionId] = useState(null)
   // Lo que cambió al abrir la ficha de una cita: el estado anterior (si pasó a "En atención") y si se registró quién atiende. Sirve para "Dejar de atender".
@@ -82,7 +79,9 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const [busquedaPaciente, setBusquedaPaciente] = useState("")
   const [mostrarDropdown, setMostrarDropdown] = useState(false)
   const dropdownRef = useRef(null)
-  const clave = claveBorrador(usuario?.id, pacienteId, citaEnAtencionId)
+  // El borrador vive en la base de datos, por paciente y cita (borradorFicha.js).
+  const clave = usuario?.id && pacienteId ? `${pacienteId}:${citaEnAtencionId || "directa"}` : null
+  const ctxBorrador = useMemo(() => ({ usuarioId: usuario?.id, pacienteId, citaId: citaEnAtencionId }), [usuario?.id, pacienteId, citaEnAtencionId])
   const [guardadoEn, setGuardadoEn] = useState(null)
   const [borradorPendiente, setBorradorPendiente] = useState(null)
   const [ahoraTexto, setAhoraTexto] = useState(() => Date.now())
@@ -157,7 +156,8 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   }
 
   // «Dejar de atender»: la cita vuelve a «En espera» (mismo día) o queda «No efectuada» (día pasado), lo decide el servidor, y el borrador de la ficha se CONSERVA para retomarla.
-  const alDejarDeAtender = (mensaje) => {
+  const alDejarDeAtender = async (mensaje) => {
+    await guardarBorradorYa()
     registrarLog(usuario, "consultas", "Dejó de atender a un paciente", pacienteSeleccionado)
     onCambiosSinGuardarChange?.(false)
     onAviso?.(mensaje)
@@ -255,7 +255,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setTieneHistorialAntecedentes(hayHistorial)
     setAntecedentesAbiertos(false)
     setPaso("anamnesis")
-    setPasoMax(1)
     activarDeteccionCambios()
   }
 
@@ -317,10 +316,9 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setConsultaGuardadaId(null)
     setIntento(false)
     setFichaGuardada(false)
-    borrarBorrador(clave)
+    borrarBorradorFicha(ctxBorrador)
     setGuardadoEn(null)
     setPaso("anamnesis")
-    setPasoMax(1)
     setEditandoMotivo(false)
     setTieneHistorialAntecedentes(false)
     setAntecedentesAbiertos(false)
@@ -334,19 +332,18 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const todosLosErrores = useMemo(() => validarPasos(f), [f])
   const erroresDe = (id) => (intento ? todosLosErrores[id] : SIN_ERRORES[id])
   const pasoPendiente = pasoConErrores(todosLosErrores)
-  const estados = useMemo(() => estadoDePasos(f, pasoMax), [f, pasoMax])
+  const estados = useMemo(() => estadoDePasos(f), [f])
   const pacienteInfo = useMemo(() => pacientesLista.find((p) => p.id === pacienteId), [pacientesLista, pacienteId])
   // Falta algo obligatorio, y se dice qué y dónde.
   const mensajeFaltante = (id) => {
     const nombres = Object.keys(todosLosErrores[id] || {})
     if (id === "anamnesis") return "Falta el motivo de la consulta (si es «Otros», descríbelo)."
-    if (id === "agudeza") return "Falta la agudeza sin corrección de cada ojo."
-    if (id === "refraccion") return "Revisa la refracción final: los dos ojos (o «Ojo no evaluado» con su motivo), con números válidos y el eje si hay cilindro."
+    if (id === "examen") return "Revisa la refracción final: si registras algo, van los dos ojos (o «Ojo no evaluado» con su motivo), con números válidos y el eje si hay cilindro."
     if (id === "diagnostico" && todosLosErrores.diagnostico.control && !todosLosErrores.diagnostico.diagnostico && !todosLosErrores.diagnostico.diagnosticoDetalle) return todosLosErrores.diagnostico.control
     return nombres.length ? "Selecciona al menos una categoría de diagnóstico (si es «Otro», descríbelo en el detalle)." : ""
   }
 
-  // Valida los cinco pasos y, si todo está bien, abre el paso de confirmación antes de guardar. Si algo falta, lleva al primer paso que lo necesita.
+  // Valida los tres pasos (obligatorios: el motivo y el diagnóstico) y, si todo está bien, abre el paso de confirmación antes de guardar. Si algo falta, lleva al primer paso que lo necesita.
   const intentarGuardar = (e) => {
     e.preventDefault()
     if (!pacienteId) { setPaso("anamnesis"); setIntento(true); return }
@@ -506,10 +503,11 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setTimeout(() => setNotificacion(false), 3500)
     setFichaGuardada(true)
     setHayCambiosSinGuardar(false)
-    borrarBorrador(clave)
+    borrarBorradorFicha(ctxBorrador)
     setGuardadoEn(null)
     setPaso("diagnostico")
-    setPasoMax(5)
+    // «Terminar atención»: el documento del diagnóstico se abre al instante para descargarlo, imprimirlo o cerrarlo.
+    setMostrarHoja(true)
     // La atención terminó: la receta queda lista y el paciente se pasa a la óptica (o se cobra ahí mismo).
     setCobroEstado("terminada")
     setErrorPase("")
@@ -520,7 +518,6 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     // Si vuelve a un paso de edición, la receta deja de estar "guardada" (hay que volver a terminar la atención).
     if (destino !== "diagnostico") setFichaGuardada(false)
     setPaso(destino)
-    setPasoMax((m) => Math.max(m, NOMBRES_PASO[destino].n))
   }
   const indicePaso = PASOS.findIndex((p) => p.id === paso)
 
@@ -544,12 +541,22 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   }, [pacienteSeleccionado, f.fechaConsulta])
   // UNA sola receta para la vista previa, la hoja y la impresión: siempre los valores finales del formulario (ya transpuestos si se transpuso).
   const recetaActual = useMemo(() => recetaDesdeForm(f, { id: consultaGuardadaId || recetaNum.split("-").pop().toLowerCase(), profesionalNombre: usuario?.nombre, profesionalRegistro: usuario?.registroProfesional }), [f, consultaGuardadaId, recetaNum, usuario?.nombre, usuario?.registroProfesional])
+  // El documento del diagnóstico: la misma hoja que se imprime desde el perfil («Imprimir diagnóstico»), con la receta incluida cuando hubo refracción.
+  const consultaDoc = useMemo(() => consultaDesdeForm(f, { id: consultaGuardadaId || recetaNum.split("-").pop().toLowerCase(), profesionalNombre: usuario?.nombre, profesionalRegistro: usuario?.registroProfesional }), [f, consultaGuardadaId, recetaNum, usuario?.nombre, usuario?.registroProfesional])
   const datosDeLaHoja = () => ({
     optica: datosOpticaReceta(usuario, parametrizacion),
     paciente: { nombre: pacienteSeleccionado, cedula: pacienteInfo?.cedula, edad: edadPaciente },
-    receta: recetaActual,
+    receta: consultaDoc,
+    completo: true,
   })
   const imprimirReceta = () => imprimirHojaReceta(datosDeLaHoja())
+  const [descargandoPdf, setDescargandoPdf] = useState(false)
+  const descargarPdf = async () => {
+    setDescargandoPdf(true)
+    const ok = await descargarHojaReceta(datosDeLaHoja())
+    setDescargandoPdf(false)
+    onAviso?.(ok ? "Diagnóstico descargado en PDF." : "No se pudo descargar el PDF. Usa «Imprimir» y elige «Guardar como PDF».")
+  }
 
   // Barra de la visita: cita de origen, alergias (rojo si hay) y última graduación.
   const citaDeLaVisita = useMemo(() => citas.find((c) => c.id === citaEnAtencionId) || null, [citas, citaEnAtencionId])
@@ -578,31 +585,39 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const textoDia = (iso) => formatoFecha(iso, "largo")
 
   // ─── Guardado automático del borrador (borradorFicha.js) ───
-  // Mientras se escribe, la ficha se guarda sola como borrador en este navegador; al volver a abrir al mismo paciente y la misma cita se ofrece recuperarla.
+  // Mientras se escribe, la ficha se guarda sola como borrador en la base de datos (cifrado como las fichas, por paciente y cita): se recupera desde cualquier computadora y la cita reagendada lo hereda.
   const instantanea = JSON.stringify(f)
   useEffect(() => {
     if (!clave || fichaGuardada || !hayCambiosSinGuardar) return undefined
-    const t = setTimeout(() => { if (guardarBorrador(clave, JSON.parse(instantanea))) setGuardadoEn(Date.now()) }, 1200)
+    const t = setTimeout(() => { guardarBorradorFicha(ctxBorrador, JSON.parse(instantanea)).then((ms) => { if (ms) setGuardadoEn(ms) }) }, 1200)
     return () => clearTimeout(t)
-  }, [clave, instantanea, hayCambiosSinGuardar, fichaGuardada])
-  // Antes de cerrar la sesión por inactividad (o al avisarla) el borrador se guarda al instante, sin esperar el segundo y medio de pausa.
+  }, [clave, ctxBorrador, instantanea, hayCambiosSinGuardar, fichaGuardada])
+  // Antes de cerrar la sesión por inactividad (o al avisarla) y al dejar de atender, el borrador se guarda al instante, sin esperar la pausa.
   const ultimoEstadoRef = useRef(null)
-  ultimoEstadoRef.current = { clave, instantanea, guardar: !!clave && !fichaGuardada && hayCambiosSinGuardar }
+  ultimoEstadoRef.current = { ctx: ctxBorrador, instantanea, guardar: !!clave && !fichaGuardada && hayCambiosSinGuardar }
+  const guardarBorradorYa = () => {
+    const u = ultimoEstadoRef.current
+    if (!u?.guardar) return Promise.resolve(null)
+    return guardarBorradorFicha(u.ctx, JSON.parse(u.instantanea)).then((ms) => { if (ms) setGuardadoEn(ms); return ms })
+  }
   useEffect(() => {
-    const alGuardar = () => {
-      const u = ultimoEstadoRef.current
-      if (u?.guardar && guardarBorrador(u.clave, JSON.parse(u.instantanea))) setGuardadoEn(Date.now())
-    }
+    const alGuardar = () => { guardarBorradorYa() }
     window.addEventListener(EVENTO_GUARDAR_BORRADOR, alGuardar)
     return () => window.removeEventListener(EVENTO_GUARDAR_BORRADOR, alGuardar)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  const claveRevisadaRef = useRef(null)
   const clavesRevisadas = useRef(new Set())
+  claveRevisadaRef.current = clave
   useEffect(() => {
     if (!clave || fichaGuardada || clavesRevisadas.current.has(clave)) return
     clavesRevisadas.current.add(clave)
-    const b = leerBorrador(clave)
-    setBorradorPendiente(b ? { ...b, clave } : null)
-    setGuardadoEn(null)
+    leerBorradorFicha(ctxBorrador).then((b) => {
+      if (claveRevisadaRef.current !== clave) return
+      setBorradorPendiente(b ? { ...b, ctx: ctxBorrador } : null)
+      setGuardadoEn(null)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clave, fichaGuardada])
   useEffect(() => {
     if (!guardadoEn) return undefined
@@ -612,7 +627,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const recuperarBorrador = () => {
     if (!borradorPendiente) return
     detectarCambios.current = false
-    // Solo los campos que esta ficha conoce: un borrador de la ficha anterior (de tres pasos) trae otros nombres y se ignora.
+    // Solo los campos que esta ficha conoce: un borrador de una ficha anterior trae otros nombres y se ignora.
     setF((p) => ({ ...p, ...Object.fromEntries(Object.entries(borradorPendiente.datos).filter(([k]) => CLAVES_FORM.includes(k))) }))
     setGuardadoEn(borradorPendiente.guardadoEn)
     setBorradorPendiente(null)
@@ -620,7 +635,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setTimeout(() => { detectarCambios.current = true }, 400)
     onAviso?.("Recuperaste la ficha que tenías a medias.")
   }
-  const descartarBorrador = () => { borrarBorrador(borradorPendiente?.clave); setBorradorPendiente(null) }
+  const descartarBorrador = () => { if (borradorPendiente?.ctx) borrarBorradorFicha(borradorPendiente.ctx); setBorradorPendiente(null) }
 
   const errDiag = erroresDe("diagnostico")
   // Diagnóstico sugerido con la refracción final y la adición (receta ya normalizada): el optómetra lo confirma con un clic.
@@ -661,14 +676,8 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
         </div>
       )}
 
-      {/* ─── HEADER ─── */}
-      <div className="no-print flex items-start gap-3.5">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}><Stethoscope size={24} /></div>
-        <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Ficha clínica</h1>
-          <p className="text-sm text-slate-500">Lo que el optómetra encuentra al examinar: de la anamnesis a la receta, en el orden del examen.</p>
-        </div>
-      </div>
+      {/* Sin encabezado grande: la fila del paciente y la barra de pasos bastan. El título queda solo para lectores de pantalla. */}
+      <h1 className="sr-only">Ficha clínica</h1>
 
       {borradorPendiente && !fichaGuardada && (
         <div role="status" className="no-print flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-slate-800">
@@ -719,7 +728,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
 
         <div className="no-print mb-3"><BarraPasos paso={paso} estados={estados} onIr={irA} /></div>
 
-        <div className={"grid gap-4 " + (pacienteId ? "lg:grid-cols-[minmax(0,1fr)_16rem]" : "")}>
+        <div className={"grid gap-4 " + (pacienteId ? (paso === "diagnostico" ? "lg:grid-cols-[minmax(0,1fr)_23rem]" : "lg:grid-cols-[minmax(0,1fr)_16rem]") : "")}>
           <form onSubmit={intentarGuardar} onKeyDown={(e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") e.preventDefault() }} className="no-print min-w-0 space-y-3">
             <div ref={inicioFormRef} style={{ scrollMarginTop: 140 }} />
             {bannerPaso && (
@@ -767,20 +776,14 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                 ) : null} />
             )}
 
-            {paso === "agudeza" && <PasoAgudeza f={f} set={set} setVarios={setVarios} errores={erroresDe("agudeza")} ultimaConsulta={ultimaConsultaPaciente} onIrARefraccion={() => irA("refraccion")} />}
-
-            {paso === "refraccion" && (
-              <>
-                <PasoRefraccion f={f} set={set} setVarios={setVarios} errores={erroresDe("refraccion")} edad={edadPaciente} manejaProgresion={manejaProgresion} ultimaConsulta={ultimaConsultaPaciente} />
-                {analisisEvolucion && !analisisEvolucion.primera && analisisEvolucion.cambio && (() => {
+            {paso === "examen" && (
+              <PasoExamen f={f} set={set} setVarios={setVarios} errores={erroresDe("examen")} edad={edadPaciente} manejaProgresion={manejaProgresion} ultimaConsulta={ultimaConsultaPaciente}
+                analisis={analisisEvolucion && !analisisEvolucion.primera && analisisEvolucion.cambio ? (() => {
                   const t = TENDENCIA[analisisEvolucion.verdicto] || TENDENCIA["Sin cambios"]
                   const IconoT = t.icon
                   return <p className="flex items-center gap-1.5 text-xs text-slate-500"><IconoT size={13} style={{ color: t.fg }} aria-hidden="true" /> Cambio de la esfera frente al {fechaLegible(analisisEvolucion.fechaPrev)}: <span className="font-semibold" style={{ color: t.fg }}>{lineaDeCambio(analisisEvolucion.cambio, { siglas: true })}</span></p>
-                })()}
-              </>
+                })() : null} />
             )}
-
-            {paso === "salud" && <PasoSalud f={f} set={set} setVarios={setVarios} />}
 
             {paso === "diagnostico" && (
               <div className="space-y-3">
@@ -791,10 +794,10 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                       ? <p className="flex items-center gap-1 text-xs font-medium text-emerald-600"><CheckCircle size={12} /> Ficha guardada · lista para imprimir</p>
                       : <p className="text-xs text-slate-500">Guarda la ficha clínica para habilitar la impresión.</p>}
                   </div>
-                  <button type="button" onClick={imprimirReceta} disabled={!fichaGuardada} title={fichaGuardada ? "Imprimir o descargar como PDF" : "Primero guarda la ficha clínica"}
+                  <button type="button" onClick={() => setMostrarHoja(true)} disabled={!fichaGuardada} title={fichaGuardada ? "Descargar el PDF o imprimir el diagnóstico" : "Primero termina la atención"}
                     className={"flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors " + (fichaGuardada ? "text-white cursor-pointer" : "cursor-not-allowed text-slate-400")}
                     style={fichaGuardada ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" } : { backgroundColor: "#e2e8f0" }}>
-                    <Printer size={15} /> Imprimir / Descargar PDF
+                    <Printer size={15} /> Imprimir diagnóstico
                   </button>
                 </div>
 
@@ -988,7 +991,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                 antecedentesAlerta={antecedentesAlerta.length ? textoAntecedentes(antecedentesAlerta) : ""} ultimaGraduacion={ultimaGraduacion}
                 visitas={historialPaciente.slice(0, 3)} totalVisitas={historialPaciente.length} onAbrirVisita={setVisitaAbierta} onVerHistorial={() => setMostrarHistorial(true)}
                 tendencia={tendenciaHistorica ? (() => { const t = TENDENCIA[tendenciaHistorica.verdicto] || TENDENCIA["Sin cambios"]; const IconoT = t.icon; return <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><IconoT size={12} style={{ color: t.fg }} aria-hidden="true" /> Entre sus dos últimas consultas: <span className="font-semibold" style={{ color: t.fg }}>{lineaDeCambio(tendenciaHistorica.cambio, { siglas: true })}</span></p> })() : null}
-                receta={recetaActual} onVerHoja={() => setMostrarHoja(true)} />
+                hoja={paso === "diagnostico" ? <HojaReceta {...datosDeLaHoja()} /> : null} onVerHoja={() => setMostrarHoja(true)} />
             </div>
           )}
         </div>
@@ -1028,8 +1031,12 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
 
       {/* La hoja de la receta tal como sale impresa: los mismos valores de la vista previa. */}
       {mostrarHoja && (
-        <Cascaron titulo="Receta" subtitulo="Así sale impresa" Icono={Printer} ancho="max-w-4xl" capa="z-[60]" onCerrar={() => setMostrarHoja(false)}
-          pie={<><span /><button type="button" onClick={() => setMostrarHoja(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button></>}>
+        <Cascaron titulo={fichaGuardada ? "Atención terminada" : "Vista previa del diagnóstico"} subtitulo={fichaGuardada ? "El diagnóstico y la receta de " + pacienteSeleccionado + ". Si no lo descargas ahora, lo encuentras en «Imprimir diagnóstico»." : "Así saldrá el documento"} Icono={Printer} ancho="max-w-4xl" capa="z-[60]" onCerrar={() => setMostrarHoja(false)}
+          pie={<><span /><div className="flex flex-wrap items-center gap-2">
+            {fichaGuardada && <button type="button" onClick={descargarPdf} disabled={descargandoPdf} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition hover:brightness-110 cursor-pointer disabled:cursor-wait disabled:opacity-60" style={{ background: GRAD }}><Download size={15} aria-hidden="true" /> {descargandoPdf ? "Descargando…" : "Descargar PDF"}</button>}
+            {fichaGuardada && <button type="button" onClick={imprimirReceta} className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Printer size={15} aria-hidden="true" /> Imprimir</button>}
+            <button type="button" onClick={() => setMostrarHoja(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+          </div></>}>
           <div className="overflow-x-auto bg-slate-100/70 p-4"><div className="rounded-xl border border-slate-200/60 bg-white shadow-sm"><HojaReceta {...datosDeLaHoja()} /></div></div>
         </Cascaron>
       )}
@@ -1038,7 +1045,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       {avisoPrimeraVisita && (
         <Cascaron titulo={"Primera consulta de " + pacienteSeleccionado} subtitulo="No hay historial previo para este paciente." Icono={Sparkles} ancho="max-w-md" onCerrar={() => setAvisoPrimeraVisita(false)}
           pie={<><span /><button type="button" onClick={() => { setAvisoPrimeraVisita(false); setTimeout(() => document.getElementById("antMedDetalle")?.focus(), 50) }} className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>Entendido, completar antecedentes</button></>}>
-          <p className="p-6 text-sm text-slate-600">Completa antecedentes, alergias y antecedentes familiares antes de continuar con la refracción.</p>
+          <p className="p-6 text-sm text-slate-600">Completa antecedentes, alergias y antecedentes familiares antes de continuar con el examen.</p>
         </Cascaron>
       )}
 

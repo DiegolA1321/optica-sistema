@@ -7,7 +7,6 @@ import { useEffect, useMemo, useState } from "react"
 import { citasParaReagendar } from "./controles"
 import { leerEventosDeCitas } from "./eventosCita"
 import { formatoFecha } from "./formatoFecha"
-import { claveBorrador, leerBorrador, guardarBorrador } from "./borradorFicha"
 import { supabase } from "../lib/supabaseClient"
 
 export const TIPO_AVISO_CONTACTAR = "citas:contactar_paciente"
@@ -54,13 +53,3 @@ export function useSeguimientoDeContacto(citas, habilitado) {
 
 // «Escribir por WhatsApp» queda en el seguimiento de la cita (sin esperar la respuesta: lo que importa es abrir WhatsApp dentro del clic).
 export const registrarContacto = (citaId, medio = "whatsapp") => (supabase ? supabase.rpc("registrar_contacto_cita", { p_cita_id: citaId, p_medio: medio }) : Promise.resolve({}))
-
-// La cita nueva hereda el borrador de la ficha de la que no se efectuó: el borrador vive en este navegador, con la clave (persona, paciente, cita); se copia a la clave de la cita nueva.
-// Devuelve true si había un borrador que heredar.
-export function heredarBorrador(usuarioId, pacienteId, citaOrigenId, citaNuevaId) {
-  const origen = claveBorrador(usuarioId, pacienteId, citaOrigenId)
-  const destino = claveBorrador(usuarioId, pacienteId, citaNuevaId)
-  const b = leerBorrador(origen)
-  if (!b || !destino || origen === destino) return false
-  return guardarBorrador(destino, b.datos, b.guardadoEn)
-}

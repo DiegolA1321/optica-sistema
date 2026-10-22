@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { transponer, validarOjo, validarAdicion, formatoDioptria } from "./refraccion"
 import { estadoCorreccionDe, textoAgudeza, LISTA_AGUDEZA } from "./agudeza"
-import { crearForm, recetaDesdeForm, datosClinicosDesdeForm, estadoDePasos, validarPasos, estadoCorreccionDeForm, anamnesisDeConsulta, componerTexto, medidasDeForm, partirTexto } from "./fichaDatos"
+import { crearForm, recetaDesdeForm, datosClinicosDesdeForm, estadoDePasos, validarPasos, bloquesDeExamen, estadoCorreccionDeForm, anamnesisDeConsulta, componerTexto, medidasDeForm, partirTexto } from "./fichaDatos"
 
 describe("transposición", () => {
   it("−1.50 +0.50 × 90 pasa a −1.00 −0.50 × 180 (la esfera cambia)", () => {
@@ -71,7 +71,7 @@ const formBase = () => ({ ...crearForm("2026-10-19"), motivo: "Consulta General"
 describe("la receta sale de los valores finales", () => {
   it("tras transponer, vista previa, receta impresa y lo guardado muestran la misma refracción", () => {
     const f = formBase()
-    expect(validarPasos(f).refraccion.oi_transponible).toBe(true)
+    expect(validarPasos(f).examen.oi_transponible).toBe(true)
     const t = transponer({ esfera: f.oiEsfera, cilindro: f.oiCilindro, eje: f.oiEje })
     Object.assign(f, { oiEsfera: t.esfera, oiCilindro: t.cilindro, oiEje: t.eje })
     const vistaPrevia = recetaDesdeForm(f)
@@ -81,7 +81,7 @@ describe("la receta sale de los valores finales", () => {
     expect(impresa.oi).toEqual(vistaPrevia.oi)
     expect(guardado.oi).toEqual(vistaPrevia.oi)
     expect(guardado.medidas).toEqual(vistaPrevia.medidas)
-    expect(validarPasos(f).refraccion.oi_transponible).toBeUndefined()
+    expect(validarPasos(f).examen.oi_transponible).toBeUndefined()
   })
   it("un ojo no evaluado no lleva medidas ni agudezas", () => {
     const f = { ...formBase(), oiNoEval: true, oiMotivoNoEval: "prótesis", oiEsfera: "-3" }
@@ -100,20 +100,36 @@ describe("la receta sale de los valores finales", () => {
 })
 
 describe("pasos", () => {
-  it("estados: incompleto, completo, opcional y omitido", () => {
-    const vacio = crearForm()
-    expect(estadoDePasos(vacio, 1)).toMatchObject({ anamnesis: "Incompleto", agudeza: "Incompleto", refraccion: "Incompleto", salud: "Opcional", diagnostico: "Incompleto" })
+  it("estados: el examen es opcional; anamnesis y diagnóstico se completan", () => {
+    expect(estadoDePasos(crearForm())).toMatchObject({ anamnesis: "Incompleto", examen: "Opcional", diagnostico: "Incompleto" })
     const f = { ...formBase(), oiCilindro: "-0.50", oiEje: "90" }
-    expect(estadoDePasos(f, 3)).toMatchObject({ anamnesis: "Completo", agudeza: "Completo", refraccion: "Completo", salud: "Opcional", diagnostico: "Completo" })
-    expect(estadoDePasos(f, 5).salud).toBe("Omitido")
-    expect(estadoDePasos({ ...f, pioOd: "14" }, 5).salud).toBe("Completo")
+    expect(estadoDePasos(f)).toMatchObject({ anamnesis: "Completo", examen: "Registrado", diagnostico: "Completo" })
+    expect(estadoDePasos({ ...f, oiEsfera: "", oiCilindro: "", oiEje: "" }).examen).toBe("Incompleto")
   })
-  it("obligatorios: motivo, agudeza sin corrección de cada ojo, los dos ojos", () => {
+  it("obligatorios: solo el motivo y el diagnóstico; el examen puede quedar vacío", () => {
     const e = validarPasos(crearForm())
     expect(e.anamnesis.motivo).toBeTruthy()
-    expect(e.agudeza.avOdSc).toBeTruthy()
-    expect(e.agudeza.avOiSc).toBeTruthy()
-    expect(e.refraccion.od_esfera).toBeTruthy()
+    expect(e.diagnostico.diagnostico).toBeTruthy()
+    expect(e.examen).toEqual({})
+  })
+  it("si se registra algo de la refracción final, se exigen los dos ojos o «Ojo no evaluado» con motivo", () => {
+    const solo = { ...crearForm(), odEsfera: "-1.00" }
+    expect(validarPasos(solo).examen.oi_esfera).toBeTruthy()
+    expect(validarPasos({ ...solo, oiNoEval: true }).examen.oi_motivo).toBeTruthy()
+    expect(validarPasos({ ...solo, oiNoEval: true, oiMotivoNoEval: "prótesis ocular" }).examen).toEqual({})
+    expect(validarPasos({ ...solo, oiEsfera: "-0.75" }).examen).toEqual({})
+  })
+  it("los cinco bloques del examen dicen si están registrados y resumen en una línea", () => {
+    const vacios = bloquesDeExamen(crearForm())
+    expect(vacios.map((b) => b.id)).toEqual(["agudeza", "lentes", "refraccion", "cover", "salud"])
+    expect(vacios.every((b) => !b.registrado && b.resumen === "")).toBe(true)
+    const b = Object.fromEntries(bloquesDeExamen({ ...formBase(), coverTipo: "Ortoforia", pioOd: "14", pioOi: "15", dpOd: "31", dpOi: "31" }).map((x) => [x.id, x]))
+    expect(b.agudeza.resumen).toContain("OD 20/50")
+    expect(b.refraccion.registrado).toBe(true)
+    expect(b.refraccion.resumen).toContain("Final: OD")
+    expect(b.cover.resumen).toContain("Ortoforia")
+    expect(b.salud.resumen).toContain("PIO 14/15")
+    expect(b.lentes.resumen).toContain("DP 62 mm")
   })
 })
 

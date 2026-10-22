@@ -59,7 +59,8 @@ import { useEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
 import { particionarAgenda, agruparPorDia, desplazarRango, ordenarCitas } from "../utilidades/agendaCitas"
-import { citasPorContactar, heredarBorrador } from "../utilidades/contactarPaciente"
+import { citasPorContactar } from "../utilidades/contactarPaciente"
+import { heredarBorradorFicha } from "../utilidades/borradorFicha"
 import { ESTADOS_FILTRO, periodosFiltro, tareasFiltro, ORIGENES_FILTRO, SEGUIMIENTO_FILTRO, ESTADOS_DE_HISTORIAL, citaPasaFiltros, totalDelAlcance, textoConteoCitas, puedeIngresarCita, esPrimeraVez } from "../utilidades/filtrosCitas"
 import { lunesDeSemana, sumarDiasISO, minutosAHHMM, validarMovimiento } from "../utilidades/calendarioSemana"
 import { registrarLog } from "../utilidades/logs"
@@ -525,7 +526,8 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
     if (origen?.citaOrigen && !atenderInmediato) {
       // El borrador pertenece a quien atendió (o a quien tiene la sesión): se copia a la cita nueva si lo hay.
       const dueno = origen.citaOrigen.atendidoPor || usuario.id
-      if (heredarBorrador(dueno, paciente.id, origen.citaId, nuevaCita.id) || (dueno !== usuario.id && heredarBorrador(usuario.id, paciente.id, origen.citaId, nuevaCita.id))) {
+      const heredar = (usuarioId) => heredarBorradorFicha({ usuarioId, pacienteId: paciente.id, citaOrigenId: origen.citaId, citaNuevaId: nuevaCita.id })
+      if ((await heredar(dueno)) || (dueno !== usuario.id && (await heredar(usuario.id)))) {
         onAviso?.("La cita nueva conserva el borrador de la ficha que quedó sin terminar.")
       }
     }

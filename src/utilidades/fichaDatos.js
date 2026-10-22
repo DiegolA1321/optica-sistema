@@ -1,14 +1,12 @@
-// Los datos de la ficha clínica de cinco pasos: el formulario, cómo se arma la receta y lo que se guarda, el estado de cada paso y las validaciones. Todo en funciones puras: la pantalla solo dibuja.
+// Los datos de la ficha clínica de tres pasos (Anamnesis, Examen y Diagnóstico y receta): el formulario, cómo se arma la receta y lo que se guarda, el estado de cada paso y las validaciones. Todo en funciones puras: la pantalla solo dibuja.
 // La receta que se ve en la vista previa, la que se imprime y los valores que se guardan salen TODOS de `recetaDesdeForm` y `datosClinicosDesdeForm`, nunca de copias aparte (regla 2).
-import { aNumero, validarOjo, validarAdicion, textoOjoCompleto, formatoDioptria } from "./refraccion"
+import { aNumero, validarOjo, validarAdicion, textoOjoCompleto, formatoDioptria, dioptriaTexto } from "./refraccion"
 import { estadoCorreccionDe, textoAgudeza } from "./agudeza"
 
 export const PASOS = [
   { id: "anamnesis", n: 1, label: "Anamnesis" },
-  { id: "agudeza", n: 2, label: "Agudeza visual" },
-  { id: "refraccion", n: 3, label: "Refracción" },
-  { id: "salud", n: 4, label: "Salud ocular", opcional: true },
-  { id: "diagnostico", n: 5, label: "Diagnóstico y receta" },
+  { id: "examen", n: 2, label: "Examen" },
+  { id: "diagnostico", n: 3, label: "Diagnóstico y receta" },
 ]
 
 export const SINTOMAS = ["Borrosidad de lejos", "Borrosidad de cerca", "Dolor de cabeza", "Fatiga visual", "Ardor", "Lagrimeo", "Picazón", "Destellos", "Moscas volantes", "Visión doble"]
@@ -95,6 +93,12 @@ export function recetaDesdeForm(f, extra = {}) {
     diagnosticoCategorias: f.diagnosticoCategorias, diagnostico: f.diagnostico, lenteRecomendado: f.recomendarLente ? f.lenteRecomendado : "", indicaciones: f.indicaciones,
     ...extra,
   }
+}
+
+// La consulta tal como la lee el documento del diagnóstico (HojaReceta con `completo`): la receta más el motivo, el examen y la ficha. Sirve para la vista previa antes de guardar.
+export function consultaDesdeForm(f, extra = {}) {
+  const d = datosClinicosDesdeForm(f)
+  return { ...recetaDesdeForm(f, extra), motivo: f.motivo, detalleConsulta: f.detalleConsulta, retinoscopia: d.retinoscopia, examen: d.examen, ficha: d.ficha }
 }
 
 const ojoRetino = (e, c, x) => unir([e, c, x ? `x${x}` : ""], " ")
@@ -211,29 +215,29 @@ export const hayAnamnesisPrevia = (a) => !!a && Boolean(a.antMedChips.length || 
 // ── Validaciones por paso ──
 const medido = (e, c, x) => Boolean(t(e) || t(c) || t(x))
 export function validarPasos(f) {
-  const e = { anamnesis: {}, agudeza: {}, refraccion: {}, salud: {}, diagnostico: {} }
+  const e = { anamnesis: {}, examen: {}, diagnostico: {} }
   if (!t(f.motivo)) e.anamnesis.motivo = "Selecciona el motivo de la consulta."
   else if (f.motivo === "Otros" && !t(f.detalleConsulta)) e.anamnesis.detalleConsulta = "Describe el motivo."
-  // La agudeza sin corrección de cada ojo es obligatoria (salvo un ojo no evaluado).
-  if (!f.odNoEval && !f.avOdSc) e.agudeza.avOdSc = "Indica la agudeza sin corrección del ojo derecho."
-  if (!f.oiNoEval && !f.avOiSc) e.agudeza.avOiSc = "Indica la agudeza sin corrección del ojo izquierdo."
-  for (const [p, noEval, motivoNoEval, ojo] of [["od", f.odNoEval, f.odMotivoNoEval, [f.odEsfera, f.odCilindro, f.odEje]], ["oi", f.oiNoEval, f.oiMotivoNoEval, [f.oiEsfera, f.oiCilindro, f.oiEje]]]) {
-    if (noEval) { if (t(motivoNoEval).length < 3) e.refraccion[`${p}_motivo`] = "Di por qué no se evaluó este ojo."; continue }
-    const [esf, cil, eje] = ojo
-    if (!t(esf) && !t(cil)) { e.refraccion[`${p}_esfera`] = "Ingresa la esfera o marca «Ojo no evaluado»"; continue }
-    const v = validarOjo({ esfera: esf, cilindro: cil, eje })
-    for (const k of ["esfera", "cilindro", "eje"]) if (v[k]) e.refraccion[`${p}_${k}`] = v[k]
-    if (v.transponible) e.refraccion[`${p}_transponible`] = true
+  // Todo el examen es opcional. Solo si se registra algo de la refracción final se exigen los dos ojos (o «Ojo no evaluado» con su motivo).
+  if (hayRefraccionFinal(f)) {
+    for (const [p, noEval, motivoNoEval, ojo] of [["od", f.odNoEval, f.odMotivoNoEval, [f.odEsfera, f.odCilindro, f.odEje]], ["oi", f.oiNoEval, f.oiMotivoNoEval, [f.oiEsfera, f.oiCilindro, f.oiEje]]]) {
+      if (noEval) { if (t(motivoNoEval).length < 3) e.examen[`${p}_motivo`] = "Di por qué no se evaluó este ojo."; continue }
+      const [esf, cil, eje] = ojo
+      if (!t(esf) && !t(cil)) { e.examen[`${p}_esfera`] = "Ingresa la esfera o marca «Ojo no evaluado»"; continue }
+      const v = validarOjo({ esfera: esf, cilindro: cil, eje })
+      for (const k of ["esfera", "cilindro", "eje"]) if (v[k]) e.examen[`${p}_${k}`] = v[k]
+      if (v.transponible) e.examen[`${p}_transponible`] = true
+    }
   }
   // Lo que se escribió en la objetiva, los lentes actuales y la adición también se valida si está.
   for (const [p, ojo] of [["objOd", [f.objOdEsfera, f.objOdCilindro, f.objOdEje]], ["objOi", [f.objOiEsfera, f.objOiCilindro, f.objOiEje]]]) {
     if (!medido(...ojo)) continue
     const v = validarOjo({ esfera: ojo[0], cilindro: ojo[1], eje: ojo[2] })
-    for (const k of ["esfera", "cilindro", "eje"]) if (v[k]) e.refraccion[`${p}_${k}`] = v[k]
+    for (const k of ["esfera", "cilindro", "eje"]) if (v[k]) e.examen[`${p}_${k}`] = v[k]
   }
   const errAdOd = validarAdicion(f.adicionOd)
-  if (errAdOd) e.refraccion.adicionOd = errAdOd
-  if (!f.adicionIgual) { const errAdOi = validarAdicion(f.adicionOi); if (errAdOi) e.refraccion.adicionOi = errAdOi }
+  if (errAdOd) e.examen.adicionOd = errAdOd
+  if (!f.adicionIgual) { const errAdOi = validarAdicion(f.adicionOi); if (errAdOi) e.examen.adicionOi = errAdOi }
   if (!f.diagnosticoCategorias.length) e.diagnostico.diagnostico = "Selecciona al menos una categoría de diagnóstico."
   if (f.diagnosticoCategorias.includes("Otro") && !t(f.diagnostico)) e.diagnostico.diagnosticoDetalle = "Describe el diagnóstico en el detalle — con \"Otro\" no puede quedar vacío."
   if (!f.tratamientoFinalizado) {
@@ -245,20 +249,49 @@ export function validarPasos(f) {
 
 export const pasoConErrores = (errs) => PASOS.map((p) => p.id).find((id) => Object.keys(errs[id] || {}).length > 0) || null
 
-// ¿Hay algo escrito en el paso de salud ocular?
+// ¿Se registró algo de la refracción final (un valor en cualquiera de los dos ojos, o un ojo marcado como no evaluado)?
+export const hayRefraccionFinal = (f) => Boolean(f.odNoEval || f.oiNoEval || [f.odEsfera, f.odCilindro, f.odEje, f.oiEsfera, f.oiCilindro, f.oiEje].some(t))
+
+// ¿Hay algo escrito en el bloque de salud ocular?
 export const haySalud = (f) => Boolean(["bioOdParpados", "bioOdCornea", "bioOdCamara", "bioOiParpados", "bioOiCornea", "bioOiCamara", "fondoOd", "fondoOi", "pioOd", "pioOi", "pioHora", "pioMetodo", "colorPrueba", "colorResultado", "colorInterpretacion"].some((k) => t(f[k])))
 
-// El estado de cada paso para la barra: «Completo», «Incompleto», «Opcional» u «Omitido» (salud ocular que se dejó atrás sin llenar). `pasoMax`: el paso más lejano al que se llegó (1–5).
-export function estadoDePasos(f, pasoMax = 1) {
+// El estado de cada paso para la barra: «Completo»/«Incompleto» (anamnesis y diagnóstico), y el examen, que es opcional: «Opcional» si no se registró nada, «Registrado» o «Incompleto» (si lo que se registró de la refracción está a medias).
+export function estadoDePasos(f) {
   const errs = validarPasos(f)
   const sinErrores = (id) => Object.keys(errs[id] || {}).length === 0
   return {
     anamnesis: sinErrores("anamnesis") ? "Completo" : "Incompleto",
-    agudeza: sinErrores("agudeza") ? "Completo" : "Incompleto",
-    refraccion: sinErrores("refraccion") ? "Completo" : "Incompleto",
-    salud: haySalud(f) ? "Completo" : pasoMax > 4 ? "Omitido" : "Opcional",
+    examen: !sinErrores("examen") ? "Incompleto" : bloquesDeExamen(f).some((b) => b.registrado) ? "Registrado" : "Opcional",
     diagnostico: sinErrores("diagnostico") ? "Completo" : "Incompleto",
   }
+}
+
+// Los cinco bloques plegados del Examen, cada uno con su estado y, si tiene algo, un resumen de una línea.
+const unirB = (partes, sep) => unir(partes.filter(Boolean), sep)
+const dosOjos = (od, oi) => (t(od) || t(oi) ? `OD ${t(od) || "—"} · OI ${t(oi) || "—"}` : "")
+const rx = (e, c, x) => textoOjoCompleto({ esfera: e, cilindro: c, eje: x })
+export function bloquesDeExamen(f) {
+  const hay = (...campos) => campos.some((k) => (Array.isArray(f[k]) ? f[k].length > 0 : t(f[k])))
+  const av = (c) => dosOjos(f[`avOd${c}`], f[`avOi${c}`])
+  const agudeza = unirB([av("Sc") && `Sin corrección: ${av("Sc")}`, av("Cc") && `Con sus lentes: ${av("Cc")}`, hay("cercaSc", "cercaCc") && `De cerca: ${f.cercaSc || "—"}${f.cercaCc ? ` / ${f.cercaCc}` : ""}`, hay("avAmbSc", "avAmbCc") && `Ambos: ${f.avAmbSc || f.avAmbCc}`], " · ")
+  const actuales = dosOjos(rx(f.actOdEsfera, f.actOdCilindro, f.actOdEje), rx(f.actOiEsfera, f.actOiCilindro, f.actOiEje))
+  const dp = t(f.dp) || (aNumero(f.dpOd) !== null && aNumero(f.dpOi) !== null ? String(aNumero(f.dpOd) + aNumero(f.dpOi)) : "")
+  const lentes = unirB([actuales && `Actuales: ${actuales}`, f.actAdicion && `adición ${dioptriaTexto(f.actAdicion) || t(f.actAdicion)}`, dp && `DP ${dp} mm`], " · ")
+  const finalOd = f.odNoEval ? "no evaluado" : rx(f.odEsfera, f.odCilindro, f.odEje)
+  const finalOi = f.oiNoEval ? "no evaluado" : rx(f.oiEsfera, f.oiCilindro, f.oiEje)
+  const adicion = t(f.adicionOd) ? `adición ${dioptriaTexto(f.adicionOd) || t(f.adicionOd)}` : ""
+  const hayRef = hayRefraccionFinal(f) || hay("objOdEsfera", "objOdCilindro", "objOiEsfera", "objOiCilindro", "kOdK1", "kOiK1", "adicionOd", "adicionOi", "prismaOdCant", "prismaOiCant", "avOdRx", "avOiRx", "avAmbRx", "cercaRx")
+  const refraccion = unirB([dosOjos(finalOd, finalOi) && `Final: ${dosOjos(finalOd, finalOi)}`, adicion, !hayRefraccionFinal(f) && hayRef && "objetiva o medidas sin la refracción final"], " · ")
+  const cover = unirB([f.coverTipo && `Cover test: ${f.coverTipo}${f.coverMagnitud ? ` ${t(f.coverMagnitud)} Δ` : ""}`, t(f.testMotor) && `Motilidad: ${t(f.testMotor)}`], " · ")
+  const saludCampos = ["bioOdParpados", "bioOdCornea", "bioOdCamara", "bioOiParpados", "bioOiCornea", "bioOiCamara", "fondoOd", "fondoOi", "pioOd", "pioOi", "colorPrueba", "colorResultado", "colorInterpretacion"]
+  const partesSalud = [hay("bioOdParpados", "bioOdCornea", "bioOdCamara", "bioOiParpados", "bioOiCornea", "bioOiCamara") && "Biomicroscopía", hay("fondoOd", "fondoOi") && "Fondo de ojo", hay("pioOd", "pioOi") && `PIO ${dosOjos(f.pioOd, f.pioOi).replace(/OD /, "").replace(/ · OI /, "/")} mmHg`, hay("colorPrueba", "colorResultado", "colorInterpretacion") && `Color: ${f.colorInterpretacion || f.colorPrueba || "registrado"}`]
+  return [
+    { id: "agudeza", label: "Agudeza visual", registrado: Boolean(agudeza), resumen: agudeza },
+    { id: "lentes", label: "Lentes actuales y distancia pupilar", registrado: hay("actOdEsfera", "actOdCilindro", "actOiEsfera", "actOiCilindro", "actAdicion", "dp", "dpOd", "dpOi", "dpCerca"), resumen: lentes },
+    { id: "refraccion", label: "Refracción", registrado: hayRef, resumen: refraccion },
+    { id: "cover", label: "Cover test y motilidad", registrado: hay("coverTipo", "coverMagnitud", "coverDistancia", "testMotor"), resumen: cover },
+    { id: "salud", label: "Salud ocular", registrado: saludCampos.some((k) => t(f[k])) || hay("pioHora", "pioMetodo"), resumen: unir(partesSalud.filter(Boolean), " · ") },
+  ]
 }
 
 // ── Para mostrar ──

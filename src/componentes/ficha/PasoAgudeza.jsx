@@ -4,7 +4,7 @@ import { Eye, Glasses, Move, Ruler } from "lucide-react"
 import { aNumero } from "../../utilidades/refraccion"
 import { LISTA_AGUDEZA, LISTA_JAEGER, textoAgudeza } from "../../utilidades/agudeza"
 import { TIPOS_COVER, DISTANCIAS_COVER } from "../../utilidades/fichaDatos"
-import { Tarjeta, Obligatorio, Numero, Texto, Lista, OjosLadoALado, CuadroOjo, BotonTexto, Campo, CLASE_INPUT } from "./piezas"
+import { Tarjeta, Numero, Texto, Lista, OjosLadoALado, CuadroOjo, BotonTexto, Campo, CLASE_INPUT } from "./piezas"
 
 // Una celda de la tabla de agudeza: la línea leída y, debajo, las letras falladas.
 function CeldaAv({ id, etiqueta, valor, falladas, onValor, onFalladas, error }) {
@@ -23,9 +23,9 @@ function CeldaAv({ id, etiqueta, valor, falladas, onValor, onFalladas, error }) 
   )
 }
 
-// Paso 2 · Agudeza visual: la tabla de la prueba de las letras (ojo derecho, izquierdo y ambos; sin corrección, con su corrección actual y con la receta nueva), la de cerca (Jaeger), los lentes actuales,
-// la distancia pupilar, el cover test y la motilidad. La agudeza con la receta nueva se escribe en el paso 3 (es un solo dato) y aquí se ve.
-export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta, onIrARefraccion }) {
+// Paso 2 · Examen — tres de sus bloques: «agudeza» (la tabla de la prueba de las letras, ojo derecho, izquierdo y ambos; sin corrección, con su corrección actual y con la receta nueva, y la de cerca),
+// «lentes» (lentes actuales y distancia pupilar) y «cover» (cover test y motilidad). La agudeza con la receta nueva se escribe en el bloque Refracción (es un solo dato) y aquí se ve.
+export default function PasoAgudeza({ parte, f, set, setVarios, ultimaConsulta, onIrARefraccion }) {
   const filas = [["Od", "Ojo derecho"], ["Oi", "Ojo izquierdo"], ["Amb", "Ambos ojos"]]
   const copiarUltima = () => {
     const a = ultimaConsulta
@@ -44,7 +44,6 @@ export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta
       </CuadroOjo>
     )
   }
-  const errAv = errores.avOdSc || errores.avOiSc
   // La distancia pupilar total se calcula sola con la de cada ojo (mientras no se haya escrito a mano otra distinta); si no coincide, avisa.
   const sumaDp = (od, oi) => { const a = aNumero(od), b = aNumero(oi); return a !== null && b !== null ? String(Math.round((a + b) * 10) / 10) : "" }
   const cambiarDp = (campo, valor) => {
@@ -58,7 +57,7 @@ export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta
   const avisoDp = suma && f.dp && aNumero(f.dp) !== aNumero(suma) ? `La suma de los dos ojos es ${suma} mm y el total escrito es ${f.dp} mm: revisa cuál es el correcto.` : ""
   return (
     <div className="space-y-3">
-      <Tarjeta titulo="Agudeza visual" icono={Eye} derecha={<Obligatorio />} ayuda="Prueba de las letras. Elige la línea leída y, si falló letras, cuántas («20/25 −2»). Obligatoria: la de cada ojo sin corrección.">
+      {parte === "agudeza" && <Tarjeta titulo="Agudeza visual" icono={Eye} ayuda="Prueba de las letras. Elige la línea leída y, si falló letras, cuántas («20/25 −2»).">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[26rem] border-collapse text-xs">
             <thead>
@@ -73,7 +72,7 @@ export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta
               {filas.map(([P, nombre]) => (
                 <tr key={P}>
                   <th scope="row" className="whitespace-nowrap border border-slate-200 bg-slate-50 p-1.5 text-left font-semibold text-slate-700">{nombre}</th>
-                  <td className="border border-slate-200 p-1.5"><CeldaAv id={`av${P}Sc`} etiqueta={`${nombre}, sin corrección`} valor={f[`av${P}Sc`]} falladas={f[`av${P}ScF`]} onValor={(v) => set(`av${P}Sc`, v)} onFalladas={(v) => set(`av${P}ScF`, v)} error={errores[`av${P}Sc`]} /></td>
+                  <td className="border border-slate-200 p-1.5"><CeldaAv id={`av${P}Sc`} etiqueta={`${nombre}, sin corrección`} valor={f[`av${P}Sc`]} falladas={f[`av${P}ScF`]} onValor={(v) => set(`av${P}Sc`, v)} onFalladas={(v) => set(`av${P}ScF`, v)} /></td>
                   <td className="border border-slate-200 p-1.5"><CeldaAv id={`av${P}Cc`} etiqueta={`${nombre}, con su corrección actual`} valor={f[`av${P}Cc`]} falladas={f[`av${P}CcF`]} onValor={(v) => set(`av${P}Cc`, v)} onFalladas={(v) => set(`av${P}CcF`, v)} /></td>
                   <td className="border border-slate-200 p-1.5 text-center" data-av-rx={P}>
                     {f[`av${P}Rx`] ? <span className="font-mono font-semibold text-slate-800">{textoAgudeza(f[`av${P}Rx`], f[`av${P}RxF`])}</span> : <span className="text-slate-400">—</span>}
@@ -94,16 +93,15 @@ export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta
             </tbody>
           </table>
         </div>
-        <p className="mt-2 text-xs text-slate-500">La agudeza con la receta nueva se escribe en el paso 3. <BotonTexto onClick={onIrARefraccion}>Ir a Refracción</BotonTexto></p>
-        {errAv && <p role="alert" className="mt-1 text-xs font-medium text-red-600">{errAv}</p>}
-      </Tarjeta>
+        <p className="mt-2 text-xs text-slate-500">La agudeza con la receta nueva se escribe en el bloque Refracción. <BotonTexto onClick={onIrARefraccion}>Ir a Refracción</BotonTexto></p>
+      </Tarjeta>}
 
-      <Tarjeta titulo="Lentes actuales" icono={Glasses} derecha={hayUltima ? <BotonTexto onClick={copiarUltima}>Copiar de la última receta</BotonTexto> : null} ayuda="Lo que el paciente usa hoy (de su lensómetro o de su receta anterior).">
+      {parte === "lentes" && <Tarjeta titulo="Lentes actuales" icono={Glasses} derecha={hayUltima ? <BotonTexto onClick={copiarUltima}>Copiar de la última receta</BotonTexto> : null} ayuda="Lo que el paciente usa hoy (de su lensómetro o de su receta anterior).">
         <OjosLadoALado izquierdo={ojoActual("oi")} derecho={ojoActual("od")} />
         <div className="mt-3"><Numero id="actAdicion" etiqueta="Adición actual" valor={f.actAdicion} onCambiar={(v) => set("actAdicion", v)} placeholder="+0.00" ancho="w-20" /></div>
-      </Tarjeta>
+      </Tarjeta>}
 
-      <Tarjeta titulo="Distancia pupilar" icono={Ruler}>
+      {parte === "lentes" && <Tarjeta titulo="Distancia pupilar" icono={Ruler}>
         <div className="flex flex-wrap gap-3">
           <Numero id="dpOi" etiqueta="OI (mm)" valor={f.dpOi} onCambiar={(v) => cambiarDp("dpOi", v)} />
           <Numero id="dpOd" etiqueta="OD (mm)" valor={f.dpOd} onCambiar={(v) => cambiarDp("dpOd", v)} />
@@ -111,16 +109,16 @@ export default function PasoAgudeza({ f, set, setVarios, errores, ultimaConsulta
           <Numero id="dpCerca" etiqueta="De cerca (mm, opcional)" valor={f.dpCerca} onCambiar={(v) => set("dpCerca", v)} ancho="w-24" />
         </div>
         {avisoDp && <p role="alert" className="mt-2 text-xs font-medium text-amber-700">{avisoDp}</p>}
-      </Tarjeta>
+      </Tarjeta>}
 
-      <Tarjeta titulo="Cover test y motilidad" icono={Move}>
+      {parte === "cover" && <Tarjeta titulo="Cover test y motilidad" icono={Move}>
         <div className="flex flex-wrap gap-3">
           <Lista id="coverTipo" etiqueta="Cover test — tipo" valor={f.coverTipo} onCambiar={(v) => set("coverTipo", v)} opciones={TIPOS_COVER} ancho="w-40" />
           <Numero id="coverMagnitud" etiqueta="Magnitud (Δ)" valor={f.coverMagnitud} onCambiar={(v) => set("coverMagnitud", v)} placeholder="4" ancho="w-20" />
           <Lista id="coverDistancia" etiqueta="Distancia" valor={f.coverDistancia} onCambiar={(v) => set("coverDistancia", v)} opciones={DISTANCIAS_COVER} ancho="w-36" />
         </div>
         <div className="mt-3"><Texto id="testMotor" etiqueta="Motilidad ocular" valor={f.testMotor} onCambiar={(v) => set("testMotor", v)} placeholder="Ej. movimientos suaves y completos en las nueve posiciones" /></div>
-      </Tarjeta>
+      </Tarjeta>}
     </div>
   )
 }

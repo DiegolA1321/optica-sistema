@@ -5,7 +5,7 @@ import { METODOS_PIO, PRUEBAS_COLOR, INTERPRETACIONES_COLOR, SIN_HALLAZGOS } fro
 import { filtrarSoloNumeros } from "../../utilidades/validaciones"
 import { Tarjeta, Etiqueta, Texto, AreaTexto, Lista, Numero, Opciones, HoraAmPm, OjosLadoALado, CuadroOjo, BotonTexto } from "./piezas"
 
-// Paso 4 · Salud ocular (opcional, se puede saltar): biomicroscopía y fondo de ojo por ojo, presión intraocular (por ojo, con método y hora) y test de color.
+// Paso 2 · Examen, bloque Salud ocular (opcional): biomicroscopía y fondo de ojo por ojo, presión intraocular (por ojo, con método y hora) y test de color.
 export default function PasoSalud({ f, set, setVarios }) {
   const otro = (P) => (P === "Od" ? "Oi" : "Od")
   const BIO = ["Parpados", "Cornea", "Camara"]
@@ -43,7 +43,6 @@ export default function PasoSalud({ f, set, setVarios }) {
   }
   return (
     <div className="space-y-3">
-      <p role="note" className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">Este paso es opcional: se puede saltar con «Siguiente» y la ficha queda como «Omitido».</p>
       <Tarjeta titulo="Biomicroscopía" icono={Eye} derecha={<Etiqueta>Lámpara de hendidura</Etiqueta>}>
         <OjosLadoALado izquierdo={bioOjo("oi")} derecho={bioOjo("od")} />
       </Tarjeta>
