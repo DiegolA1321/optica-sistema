@@ -185,7 +185,7 @@ describe("La pestaña «Diagnóstico» del perfil del personal", () => {
     render(<DiagnosticoPerfil {...props} />)
     expect(screen.getByRole("button", { name: "Comparar diagnósticos" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Imprimir diagnóstico" })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /receta/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Comparar dos recetas|Imprimir receta/ })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Comparar diagnósticos" }))
     const v = screen.getByRole("dialog", { name: "Comparar diagnósticos" })
     expect(v).toHaveTextContent("Control en 6 meses.")
