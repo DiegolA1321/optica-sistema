@@ -31,14 +31,26 @@ export function pacientesPorLlegada(lista = [], rango = null, todos = lista) {
   return r
 }
 
-// La tendencia por mes (del más antiguo al más reciente) de los pacientes ya repartidos: [{ clave: "2026-10", referido, web, propio, total, pacientes: {referido:[…],…} }]
-export function llegadaPorMes(porLlegada) {
+// La tendencia por mes (del más antiguo al más reciente) de los pacientes ya repartidos: [{ clave: "2026-10", referido, web, propio, total, pacientes: {referido:[…],…} }].
+// Con `rango` ({ inicio, fin }) salen todos los meses del período, también los que no tuvieron pacientes (hasta 24).
+export function llegadaPorMes(porLlegada, rango = null) {
   const meses = new Map()
+  const vacio = (clave) => ({ clave, referido: 0, web: 0, propio: 0, total: 0, pacientes: { referido: [], web: [], propio: [] } })
+  if (rango?.inicio && rango?.fin) {
+    let [a, m] = rango.inicio.slice(0, 7).split("-").map(Number)
+    const fin = rango.fin.slice(0, 7)
+    for (let i = 0; i < 24; i++) {
+      const clave = `${a}-${String(m).padStart(2, "0")}`
+      if (clave > fin) break
+      meses.set(clave, vacio(clave))
+      if (++m > 12) { m = 1; a++ }
+    }
+  }
   for (const tipo of ["referido", "web", "propio"]) {
     for (const p of porLlegada[tipo]) {
       const clave = String(p.fechaRegistro || "").slice(0, 7)
       if (!/^\d{4}-\d{2}$/.test(clave)) continue
-      if (!meses.has(clave)) meses.set(clave, { clave, referido: 0, web: 0, propio: 0, total: 0, pacientes: { referido: [], web: [], propio: [] } })
+      if (!meses.has(clave)) meses.set(clave, vacio(clave))
       const m = meses.get(clave)
       m[tipo]++
       m.total++

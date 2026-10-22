@@ -9,6 +9,7 @@ import { categoriasDeConsulta } from "../../utilidades/reportesDiagnosticos"
 import { diasVencido } from "../../utilidades/fidelizacion"
 import { cobradoDeFactura } from "../../utilidades/vendidoCobrado"
 import { saldoDeFactura, nombreMetodo } from "../../utilidades/reportesDatos"
+import { comoLlego } from "../../utilidades/comoLlego"
 
 const FECHA = 124, MONTO = 116, ESTADO = 116
 
@@ -33,6 +34,7 @@ export function crearColumnas({ pacientes = [], abonos = [], historial = [] }) {
       { titulo: "Paciente", valor: (f) => f.nombre },
       { titulo: "Teléfono", ancho: 130, valor: (f) => f.telefono || "—" },
       { titulo: "Cédula", ancho: 130, valor: (f) => f.cedula || "—" },
+      { titulo: "Cómo llegó", ancho: 190, valor: (f) => comoLlego(f, pacientes).texto },
     ],
     cita: [
       { titulo: "Fecha", ancho: FECHA, valor: (f) => fechaLegible(f.fecha), tipo: "fecha", crudo: (f) => f.fecha },

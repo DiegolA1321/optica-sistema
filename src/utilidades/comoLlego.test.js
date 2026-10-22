@@ -42,3 +42,10 @@ describe("pacientesPorLlegada y llegadaPorMes", () => {
     expect(meses.reduce((s, m) => s + m.referido, 0)).toBe(2)
   })
 })
+
+describe("llegadaPorMes con el período", () => {
+  it("incluye los meses sin pacientes entre el inicio y el fin", () => {
+    const meses = llegadaPorMes(pacientesPorLlegada([ana, beto]), { inicio: "2026-07-01", fin: "2026-10-22" })
+    expect(meses.map((m) => [m.clave, m.total])).toEqual([["2026-07", 0], ["2026-08", 1], ["2026-09", 1], ["2026-10", 0]])
+  })
+})

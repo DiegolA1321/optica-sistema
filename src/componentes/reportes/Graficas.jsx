@@ -26,6 +26,28 @@ export function BarrasMes({ datos, onElegir, color = AZUL, alto = 150 }) {
   )
 }
 
+// Barras verticales apiladas (un mes, varias partes de colores). datos: [{ clave, etiqueta, total, partes: [{ id, etiqueta, valor, color, tip }] }]. Cada parte se pulsa y abre su lista.
+export function BarrasApiladasMes({ datos, onElegir, alto = 130 }) {
+  const max = Math.max(1, ...datos.map((d) => d.total || 0))
+  return (
+    <div className="flex items-end gap-2" style={{ height: alto + 44 }}>
+      {datos.map((d) => (
+        <div key={d.clave} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
+          <span className="text-xs font-semibold tabular-nums" style={{ color: INK }}>{d.total}</span>
+          <div className="flex w-full flex-col-reverse overflow-hidden rounded-t-md" style={{ height: `${Math.max(d.total > 0 ? 3 : 1, (d.total / max) * alto)}px`, background: d.total > 0 ? undefined : "#e2e8f0" }}>
+            {d.partes.filter((p) => p.valor > 0).map((p) => (
+              <Sugerencia key={p.id} texto={p.tip} as="div" style={{ flex: p.valor }} className="min-h-[2px]">
+                <button type="button" data-lista onClick={onElegir ? () => onElegir(d, p) : undefined} aria-label={p.tip || `${d.etiqueta}, ${p.etiqueta}: ${p.valor}`} className="block h-full w-full outline-none transition-[filter] hover:brightness-90 focus-visible:brightness-90 cursor-pointer" style={{ background: p.color }} />
+              </Sugerencia>
+            ))}
+          </div>
+          <span className="max-w-full truncate text-xs text-slate-500">{d.etiqueta}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // Filas con una barra horizontal: nombre a la izquierda, barra y valor. filas: [{ id, etiqueta, valor, texto, tip, color }]
 export function BarrasLista({ filas, onElegir, color = AZUL, ancho = "w-44", anchoValor = "w-20" }) {
   const max = Math.max(1, ...filas.map((f) => f.valor || 0))

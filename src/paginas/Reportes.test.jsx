@@ -378,3 +378,29 @@ describe("Reportes: la pestaña Inventario", () => {
     expect(tarjeta("Margen promedio")).toHaveAccessibleName("Margen promedio: 75%. Ver la lista")
   })
 })
+
+describe("Reportes: Clínico · cómo llegan los pacientes nuevos", () => {
+  const nuevos = [
+    { ...pacientes[0], origen: "paciente" }, // se registró por la web
+    { ...pacientes[1], referidoPorId: "p3", referidoPor: "Cris Vera" }, // lo refirió otro paciente
+    { id: "p4", nombre: "Dani Mora", fechaRegistro: "2026-10-09", origen: "staff" }, // por su cuenta
+    pacientes[2],
+  ]
+  it("reparte los pacientes nuevos del período en referidos, por la web y por su cuenta, con la misma regla del perfil", () => {
+    render(<Reportes usuario={admin} {...datos} pacientes={nuevos} />)
+    pestana("Clínico")
+    const bloque = screen.getByRole("heading", { name: "Cómo llegan los pacientes nuevos" }).closest("div").parentElement
+    expect(bloque).toHaveTextContent("Referidos1")
+    expect(bloque).toHaveTextContent("Por la web1")
+    expect(bloque).toHaveTextContent("Por su cuenta1")
+  })
+  it("un segmento abre la lista de esos pacientes, con su columna «Cómo llegó»", () => {
+    render(<Reportes usuario={admin} {...datos} pacientes={nuevos} />)
+    pestana("Clínico")
+    fireEvent.click(screen.getAllByRole("button", { name: /Por la web: 1/ })[0])
+    const v = ventana()
+    expect(v).toHaveTextContent("Ana Pérez")
+    expect(v).toHaveTextContent("Por la web")
+    expect(v).not.toHaveTextContent("Beto Ríos")
+  })
+})

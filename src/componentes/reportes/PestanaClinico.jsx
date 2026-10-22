@@ -1,14 +1,15 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Stethoscope, AlertTriangle, ShieldCheck, Eye } from "lucide-react"
+import { Stethoscope, AlertTriangle, ShieldCheck, Eye, UserPlus } from "lucide-react"
 import { Seccion, Caja, SinResultados, NumeroPulsable, REJILLA_TARJETAS_4 } from "./bloques"
-import { BarrasLista, BarraRepartida } from "./Graficas"
+import { BarrasLista, BarraRepartida, BarrasApiladasMes } from "./Graficas"
 import { crearDestinos } from "./destinos"
 import { col } from "./listas"
 import { nombreMes } from "../../utilidades/formatoFecha"
 import { etiquetaCorreccion, AYUDA_CORRECCION } from "../../utilidades/correccion"
 import { aniosConConsultas } from "../../utilidades/reportesDiagnosticos"
+import { COMO_LLEGO, pacientesPorLlegada, llegadaPorMes } from "../../utilidades/comoLlego"
 import { diagnosticosDelPeriodo, diagnosticosPorEdad, diagnosticosPorMes, pacientesPorCorreccion, pacientesControlVencido, pacientesDeAlta, ESTADOS_CORRECCION, GRUPOS_EDAD } from "../../utilidades/reportesDatos"
 
 const COLOR_CORRECCION = { "Bien corregido": "#059669", "Requiere ajuste": "#dc2626", "Sin evaluar": "#475569", "Sin evaluación": "#d97706" }
@@ -32,6 +33,11 @@ export default function PestanaClinico({ r }) {
   const vencidos = useMemo(() => pacientesControlVencido(f.pacientes, historial), [f.pacientes, historial])
   const deAlta = useMemo(() => pacientesDeAlta(f.pacientes), [f.pacientes])
 
+  // «Cómo llegan los pacientes nuevos»: los registrados en el período (con los filtros), repartidos con la misma regla de «Cómo llegó» del perfil del paciente.
+  const llegada = useMemo(() => pacientesPorLlegada(act.nuevos, null, r.datos.pacientes), [act.nuevos, r.datos.pacientes])
+  const llegadaMes = useMemo(() => llegadaPorMes(llegada, r.rango), [llegada, r.rango])
+  const abrirNuevos = (titulo, lista) => abrir({ titulo, valor: lista.length, icono: UserPlus, columnas: cols.pacienteNuevo, filas: lista, abrirEn: d.pacientesNuevos() })
+
   const abrirConsultas = (titulo, lista, valor = lista.length) => abrir({ titulo, valor, icono: Stethoscope, columnas: cols.consulta, filas: lista, abrirEn: d.consultas() })
   const sinConsultas = f.consultas.length === 0
 
@@ -41,6 +47,34 @@ export default function PestanaClinico({ r }) {
         <div className={REJILLA_TARJETAS_4}>
           {tarjeta({ titulo: "Consultas", valor: act.cons.length, ayuda: "Fichas clínicas guardadas en el período.", onClick: () => abrirConsultas("Consultas realizadas", act.cons) }, act.cons.length, ant.cons.length)}
         </div>
+      </Seccion>
+
+      <Seccion titulo="Pacientes nuevos">
+        <Caja
+          titulo="Cómo llegan los pacientes nuevos"
+          ayuda="Pacientes registrados en el período, según cómo llegaron: referidos por otro paciente, por la web (se registraron ellos mismos) o por su cuenta. Es la misma regla que «Cómo llegó» en el perfil de cada paciente."
+          exportar={r.bloque("Cómo llegan los pacientes nuevos",
+            () => ({ columnas: [col("Mes", (x) => x.clave), ...COMO_LLEGO.map((c) => col(c.etiqueta, (x) => x[c.id], "entero")), col("Total", (x) => x.total, "entero")], filas: llegadaMes }),
+            () => ({ columnas: cols.pacienteNuevo, filas: act.nuevos }))}
+        >
+          {act.nuevos.length === 0 ? (
+            <SinResultados texto="No hay pacientes nuevos en este período. Prueba con otro período o quita los filtros." acciones={[{ etiqueta: "Ver este año", onClick: () => r.setPeriodo("anio") }, ...(r.hay ? [{ etiqueta: "Limpiar filtros", onClick: r.quitarFiltros }] : [])]} />
+          ) : (
+            <div className="space-y-5">
+              <BarraRepartida
+                segmentos={COMO_LLEGO.map((c) => ({ id: c.id, etiqueta: c.etiqueta, valor: llegada[c.id].length, color: c.color, tip: `${c.etiqueta}: ${llegada[c.id].length}`, lista: llegada[c.id] }))}
+                onElegir={(s) => abrirNuevos(`Pacientes nuevos · ${s.etiqueta}`, s.lista)}
+              />
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Por mes</p>
+                <BarrasApiladasMes
+                  datos={llegadaMes.map((m) => ({ clave: m.clave, etiqueta: `${nombreMes(Number(m.clave.slice(5, 7)) - 1, "corto")}${llegadaMes.length > 1 && m.clave.slice(5, 7) === "01" ? " " + m.clave.slice(0, 4) : ""}`, total: m.total, partes: COMO_LLEGO.map((c) => ({ id: c.id, etiqueta: c.etiqueta, valor: m[c.id], color: c.color, tip: `${nombreMes(Number(m.clave.slice(5, 7)) - 1)} de ${m.clave.slice(0, 4)} · ${c.etiqueta}: ${m[c.id]}`, lista: m.pacientes[c.id] })), mes: m }))}
+                  onElegir={(mes, parte) => abrirNuevos(`${parte.etiqueta} · ${nombreMes(Number(mes.clave.slice(5, 7)) - 1)} de ${mes.clave.slice(0, 4)}`, parte.lista)}
+                />
+              </div>
+            </div>
+          )}
+        </Caja>
       </Seccion>
 
       <Seccion titulo="Diagnósticos del período">
