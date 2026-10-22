@@ -1,5 +1,5 @@
 // Inicio del administrador y del optómetra (reunión del 7 oct., I1 a I18): Totales con el mes, "Requiere tu atención" en un bloque por área,
-// desenlace de las citas (Hoy · Esta semana · Este mes · Todas) conectado a la lista de citas, y registro de actividad compacto.
+// desenlace de las citas (Hoy · Esta semana · Este mes) conectado a la lista de citas, y registro de actividad compacto.
 // Corre contra la óptica de pruebas y crea sus propios datos (stock bajo, control vencido, orden atrasada, citas de Paula);
 // con E2E_ENTORNO=DEMO corre en solo lectura contra la Demo, sin crear nada.
 // Con E2E_CAPTURAS=1 guarda capturas a 1366x768 en docs/inicio-capturas/.
@@ -66,7 +66,7 @@ test.describe('Inicio del administrador', () => {
     await expect(cuerpo.getByRole('heading', { name: /Desenlace de las citas · hoy/i })).toBeVisible({ timeout: 20_000 })
     const periodo = cuerpo.getByRole('group', { name: 'Período del desenlace' })
     await expect(periodo.getByRole('button', { name: 'Hoy', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    for (const [boton, titulo] of [['Esta semana', /· esta semana/i], ['Este mes', /· este mes/i], ['Todas', /· todas/i]]) {
+    for (const [boton, titulo] of [['Esta semana', /· esta semana/i], ['Este mes', /· este mes/i]]) {
       await periodo.getByRole('button', { name: boton, exact: true }).click()
       await expect(cuerpo.getByRole('heading', { name: titulo })).toBeVisible()
       await expect(periodo.getByRole('button', { name: boton, exact: true })).toHaveAttribute('aria-pressed', 'true')
@@ -78,7 +78,7 @@ test.describe('Inicio del administrador', () => {
   test('la tarjeta del desenlace abre Citas con ese estado y ese período (el mismo número en las dos pantallas)', async ({ page }) => {
     await entrar(page, 'ADMIN')
     const cuerpo = main(page)
-    await cuerpo.getByRole('group', { name: 'Período del desenlace' }).getByRole('button', { name: 'Todas', exact: true }).click()
+    await cuerpo.getByRole('group', { name: 'Período del desenlace' }).getByRole('button', { name: 'Este mes', exact: true }).click()
     const tarjeta = cuerpo.getByRole('button', { name: /^Atendidas:/ })
     await expect(tarjeta).toBeVisible({ timeout: 20_000 })
     const n = Number((await tarjeta.getAttribute('aria-label')).match(/(\d+)/)[1])

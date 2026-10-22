@@ -42,8 +42,8 @@ export function resumenHoy(citas) {
   }
 }
 
-// Períodos del desenlace: "hoy", "semana" (lunes a domingo, igual que Citas), "mes" (el mes en curso) o "siempre".
-export const PERIODOS_DESENLACE = [["hoy", "Hoy"], ["semana", "Esta semana"], ["mes", "Este mes"], ["siempre", "Todas"]]
+// Períodos del desenlace: "hoy", "semana" (lunes a domingo, igual que Citas), "mes" (el mes en curso). Sin «Todas» en el selector: «siempre» solo lo usan los enlaces.
+export const PERIODOS_DESENLACE = [["hoy", "Hoy"], ["semana", "Esta semana"], ["mes", "Este mes"]]
 
 // Las citas que caen dentro del período.
 export function citasDelPeriodo(citas, periodo = "mes", ahora = ahoraEcuador()) {

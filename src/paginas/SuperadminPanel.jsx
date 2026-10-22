@@ -2125,15 +2125,15 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       {/* ─── SIDEBAR ─── */}
       <aside
         className={
-          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between overflow-hidden border-r border-slate-200/70 bg-slate-50/80 transition-all duration-300 lg:static lg:translate-x-0 " +
-          (colapsado ? "lg:w-20 " : "lg:w-72 ") +
+          "fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col justify-between overflow-hidden border-r border-slate-200/70 bg-slate-50/80 transition-all duration-300 lg:static lg:translate-x-0 " +
+          (colapsado ? "lg:w-20 " : "lg:w-[232px] ") +
           (menuAbierto ? "translate-x-0" : "-translate-x-full")
         }
       >
         <div className="pointer-events-none absolute -left-24 top-1/4 h-56 w-56 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(37,99,235,0.06), transparent 70%)" }} />
 
         <div className="sidebar-scroll relative z-10 min-h-0 flex-1 overflow-y-auto">
-          <div className={"flex items-center justify-between border-b border-slate-200/70 px-6 py-5 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
+          <div className={"flex items-center justify-between border-b border-slate-200/70 px-4 py-5 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
             <div className="flex items-center gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD, boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
                 <ShieldCheck size={22} strokeWidth={2.2} />
@@ -2150,7 +2150,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
             </button>
           </div>
 
-          <nav className="space-y-1.5 px-4 py-6">
+          <nav className="space-y-1.5 px-3 py-6">
             <p className={"mb-2 px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400 " + (colapsado ? "lg:hidden" : "")}>Menú</p>
             {NAV_VISIBLE.map((opcion) => {
               const Icono = opcion.icono
@@ -2162,11 +2162,11 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   onClick={() => { setSeccion(opcion.id); setMenuAbierto(false) }}
                   title={colapsado ? opcion.nombre : undefined}
                   aria-label={opcion.nombre}
-                  className={"group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white shadow-md shadow-blue-500/20" : "bg-transparent text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm")}
+                  className={"group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium whitespace-nowrap transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 " + (colapsado ? "lg:justify-center lg:px-0 " : "") + (activo ? "text-white shadow-md shadow-blue-500/20" : "bg-transparent text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm")}
                   style={activo ? { background: GRAD } : undefined}
                 >
                   <Icono size={20} className={activo ? "text-white" : "text-slate-500 group-hover:text-slate-900"} />
-                  <span className={colapsado ? "lg:hidden" : ""}>{opcion.nombre}</span>
+                  <span className={"truncate " + (colapsado ? "lg:hidden" : "")}>{opcion.nombre}</span>
                   {opcion.id === "mensajes" && consultasAbiertas > 0 ? (
                     <span className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs font-bold " + (activo ? "bg-white/25 text-white" : "bg-amber-400 text-amber-950") + (colapsado ? " lg:hidden" : "")}>
                       {consultasAbiertas}

@@ -168,6 +168,9 @@ export const TONOS = {
   pendiente: { punto: "#B7791F", numero: INK, nombre: "Pendiente" },
   info: { punto: "#2563EB", numero: INK, nombre: "Informativo" },
 }
+const RANGO_TONO = { urgente: 0, pendiente: 1, info: 2 }
+export const ordenarPorUrgencia = (filas) =>
+  filas.map((f, i) => [f, i]).sort((a, b) => (RANGO_TONO[a[0].tono] ?? 1) - (RANGO_TONO[b[0].tono] ?? 1) || a[1] - b[1]).map(([f]) => f)
 const COLUMNAS = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3", 4: "lg:grid-cols-4" }
 export default function RequiereAtencionPorArea({ bloques, compacto = false, lateral = null }) {
   const [abierto, setAbierto] = useState(null) // { bloqueId, filaId, soloFila }
@@ -182,8 +185,10 @@ export default function RequiereAtencionPorArea({ bloques, compacto = false, lat
       <div className={"grid grid-cols-1 sm:grid-cols-2 rounded-2xl border border-slate-200/70 bg-white shadow-sm " + (COLUMNAS[Math.min(bloques.length, 4)] || COLUMNAS[4])}>
         {bloques.map((b, n) => {
           const Icono = b.icono
-          const visibles = b.filas.slice(0, AVISOS_POR_TARJETA)
-          const mas = b.filas.length - visibles.length
+          // Primero los urgentes (rojos), luego los pendientes (ámbar) y al final los informativos (azules); dentro de cada tono, el orden de siempre.
+          const ordenadas = ordenarPorUrgencia(b.filas)
+          const visibles = ordenadas.slice(0, AVISOS_POR_TARJETA)
+          const mas = ordenadas.length - visibles.length
           // «Ver en [módulo]» lleva al módulo; si el área tiene un solo tipo de aviso con su filtro, lleva a esa lista filtrada.
           const verTodo = b.filas.length === 1 && b.filas[0].enlace ? b.filas[0].enlace.onClick : b.onVerTodo
           return (

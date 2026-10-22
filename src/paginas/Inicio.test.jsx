@@ -65,7 +65,7 @@ describe("Inicio del administrador", () => {
     render(<Inicio {...base} />)
     const orden = ["Totales", "Requiere tu atención", "Desenlace de las citas · hoy"].map((n) => screen.getByRole("region", { name: n }))
     for (let i = 0; i < orden.length - 1; i++) antes(orden[i], orden[i + 1])
-    expect(screen.getByRole("group", { name: "Período del desenlace" })).toHaveTextContent("HoyEsta semanaEste mesTodas")
+    expect(screen.getByRole("group", { name: "Período del desenlace" })).toHaveTextContent(/^HoyEsta semanaEste mes$/)
     expect(screen.getByRole("button", { name: "Hoy" })).toHaveAttribute("aria-pressed", "true")
     expect(within(orden[2]).getByRole("button", { name: "Ir a Citas" })).toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Citas del día" })).not.toBeInTheDocument() // el detalle vive en el módulo Citas
@@ -329,15 +329,16 @@ describe("Desenlace del administrador", () => {
 
   it("cambia de período con el selector y lo dice en el título", () => {
     render(<Inicio {...base} />)
-    fireEvent.click(screen.getByRole("button", { name: "Todas" }))
-    expect(screen.getByRole("region", { name: "Desenlace de las citas · todas" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Todas" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.queryByRole("button", { name: "Todas" })).not.toBeInTheDocument() // el selector ya no ofrece «Todas»
+    fireEvent.click(screen.getByRole("button", { name: "Este mes" }))
+    expect(screen.getByRole("region", { name: "Desenlace de las citas · este mes" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Este mes" })).toHaveAttribute("aria-pressed", "true")
   })
 
   it("recepción: la tarjeta filtra la lista de abajo y el enlace lleva a Citas con el mismo estado y período, y dice qué abre", () => {
     const llamadas = []
     render(<Inicio {...base} {...rol("recepcion", PERMISOS_RECEPCION)} onVerCitas={(...a) => llamadas.push(a)} />)
-    const lista = () => screen.getByRole("region", { name: /^(Citas del día|Todas las citas)$/ })
+    const lista = () => screen.getByRole("region", { name: /^(Citas del día|Citas del mes)$/ })
     expect(within(lista()).getByText("En espera")).toBeInTheDocument()
     expect(within(lista()).getByRole("button", { name: "Ver todas en Citas" })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: /^Atendidas:/ }))
@@ -347,7 +348,7 @@ describe("Desenlace del administrador", () => {
     fireEvent.click(within(lista()).getByRole("button", { name: "Ver atendidas en Citas" }))
     fireEvent.click(screen.getByRole("button", { name: /^Atendidas:/ })) // volver a tocarla la quita
     expect(within(lista()).getByText("En espera")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Todas" }))
+    fireEvent.click(screen.getByRole("button", { name: "Este mes" }))
     fireEvent.click(screen.getByRole("button", { name: /^Canceladas:/ }))
     expect(within(lista()).getByText("Ninguna cita con ese resultado en el período.")).toBeInTheDocument()
     expect(within(lista()).queryByRole("button", { name: /en Citas$/ })).not.toBeInTheDocument()
