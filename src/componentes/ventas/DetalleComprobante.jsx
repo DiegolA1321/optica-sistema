@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Ban, FlaskConical, Pencil, Plus, Printer, Receipt, Wallet } from "lucide-react"
+import { Ban, Landmark, Pencil, Plus, Printer, Receipt, Wallet } from "lucide-react"
 import { GRAD_MARCA } from "@/lib/tema"
 import { supabase } from "../../lib/supabaseClient"
 import { Cascaron } from "../AtencionPaciente"
@@ -9,7 +9,8 @@ import { Bloque, Columna, Dato } from "./Detalle"
 import { Insignia } from "./Lista"
 import BloqueFacturaElectronica from "./BloqueFacturaElectronica"
 import { useFacturaElectronica } from "./useFacturaElectronica"
-import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, TONO_ESTADO_ORDEN } from "./estilos"
+import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA } from "./estilos"
+import { VentanaRevision } from "./PagosPorVerificar"
 import { dinero } from "../../utilidades/formatoMoneda"
 import { fechaLegible, fechaHoraLegible, hora } from "../../utilidades/formatoFecha"
 import { numeroComprobante } from "../../utilidades/comprobantes"
@@ -22,15 +23,16 @@ import { diaDeRegistro } from "../../utilidades/periodoLista"
 import { imprimirHtml, datosOpticaProforma } from "../../utilidades/proforma"
 import { registrarLog } from "../../utilidades/logs"
 import { puede } from "../../utilidades/permisosUi"
-import { numeroOrden, diasDeAtraso, estadoVisible } from "../../utilidades/ordenesLaboratorio"
-import { textoEstadoOrden } from "../../utilidades/ventasModulo"
+import { numeroOrden, diasDeAtraso, nombreDeLentes } from "../../utilidades/ordenesLaboratorio"
+import { estadoDePedido } from "../../utilidades/ventasModulo"
 
 const TONO_ESTADO = { pagada: "verde", saldo: "ambar", anulada: "gris" }
 
 // El detalle de un comprobante de venta guardado: sus datos, las líneas con sus descuentos, los pagos (con quién los registró), sus órdenes de laboratorio
 // y la factura electrónica. Aquí están todas las acciones; la fila de la lista solo lleva "Abonar" (regla 9). Se puede reimprimir.
-export default function DetalleComprobante({ factura: f, paciente, abonos = [], abonosAnulados = [], ordenes = [], equipo = [], usuario, parametrizacion, v, ordenesApi = null, puedeVender, puedeEditar, puedeAnular, onCerrar, onVerPaciente, onAviso }) {
+export default function DetalleComprobante({ factura: f, paciente, abonos = [], abonosAnulados = [], ordenes = [], equipo = [], usuario, parametrizacion, v, ordenesApi = null, puedeVender, puedeEditar, puedeAnular, onCerrar, onVerPaciente, onAviso, pagosPorVerificar = [], onPagoConfirmado, onPagoRechazado }) {
   const [cambios, setCambios] = useState([]) // lo que se corrigió o anuló de los abonos
+  const [pagoAbierto, setPagoAbierto] = useState(null) // la transferencia que se está revisando
   const fe = useFacturaElectronica(f.id, f.facturaElectronica)
   const estado = estadoDeComprobante(f, abonos)
   const anulada = estado.id === "anulada"
@@ -39,6 +41,7 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
   const ordenesDeVenta = ordenes.filter((o) => o.facturaId === f.id)
   const anuladosDeVenta = abonosAnulados.filter((a) => a.facturaId === f.id) // no cuentan en nada, pero el registro se conserva
   const nombre = (id) => (id ? equipo.find((m) => m.id === id)?.nombre || (id === usuario?.id ? usuario?.nombre : null) || "Equipo" : "—")
+  const puedeVerRevision = puede(usuario, "ventas", "ver")
   const restoAlContado = f.estado === "pagada" ? redondear((Number(f.montoTotal) || 0) - propios.reduce((s, a) => s + a.monto, 0)) : 0
 
   // Qué se corrigió o anuló de los abonos de esta venta (la base lo guarda: lo anterior, el motivo, quién y cuándo).
@@ -58,12 +61,13 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
   const con = (accion) => () => accion({ factura: f, paciente })
 
   return (
+    <>
     <Cascaron
-      titulo={`Comprobante ${numeroComprobante(f.numero)}`}
+      titulo={`Venta ${numeroComprobante(f.numero)}`}
       subtitulo={`${paciente?.nombre || "Paciente"} · ${fechaLegible(diaDeRegistro(f.creadoEn)) || "—"}`}
       Icono={Receipt}
       ancho="max-w-4xl"
-      etiqueta={`Comprobante ${numeroComprobante(f.numero)}`}
+      etiqueta={`Venta ${numeroComprobante(f.numero)}`}
       onCerrar={onCerrar}
       derecha={<Insignia tono={TONO_ESTADO[estado.id]}>{estado.id === "saldo" ? `Con saldo ${dinero(estado.saldo)}` : estado.etiqueta}</Insignia>}
       pie={(
@@ -71,8 +75,7 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
           {puedeAnular && !anulada ? <button type="button" onClick={con(v.setAnularPara)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200/60 px-3.5 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 cursor-pointer"><Ban size={14} aria-hidden="true" /> Anular venta</button> : <span />}
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             <button type="button" onClick={imprimir} className={CLASE_ACCION_SECUNDARIA}><Printer size={14} aria-hidden="true" /> Imprimir comprobante</button>
-            {puedeVender && !anulada && <button type="button" onClick={con(v.setOrdenParaVenta)} className={CLASE_ACCION_SECUNDARIA}><FlaskConical size={14} aria-hidden="true" /> {ordenesDeVenta.length > 0 ? "Otra orden" : "Crear orden"}</button>}
-            {puedeEditar && estado.id === "saldo" && <button type="button" onClick={con(v.setAbonoPara)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}><Wallet size={14} aria-hidden="true" /> Abonar</button>}
+            {puedeEditar && estado.id === "saldo" && <button type="button" onClick={con(v.setAbonoPara)} className={CLASE_ACCION_PRINCIPAL} style={{ background: GRAD_MARCA }}><Wallet size={14} aria-hidden="true" /> Registrar abono</button>}
             <button type="button" onClick={onCerrar} className={BOTON_CERRAR}>Cerrar</button>
           </div>
         </>
@@ -204,18 +207,32 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
           </Bloque>
         )}
 
-        <Bloque titulo="Órdenes de laboratorio" derecha={puedeVender && !anulada ? <button type="button" onClick={con(v.setOrdenParaVenta)} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer"><Plus size={13} aria-hidden="true" /> {ordenesDeVenta.length > 0 ? "Otra orden" : "Crear orden"}</button> : null}>
+        {puedeVerRevision && pagosPorVerificar.length > 0 && (
+          <Bloque titulo="Pago por verificar">
+            <ul className="divide-y divide-amber-100 overflow-hidden rounded-xl border border-amber-200/70 bg-amber-50/50" aria-label="Transferencias por verificar">
+              {pagosPorVerificar.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
+                  <Landmark size={15} className="shrink-0 text-amber-700" aria-hidden="true" />
+                  <span className="min-w-0 flex-1 text-slate-700">Transferencia de <span className="font-mono font-semibold">{dinero(p.monto)}</span> · enviada el {fechaLegible(diaDeRegistro(p.creadoEn)) || "—"}</span>
+                  <button type="button" onClick={() => setPagoAbierto(p)} aria-haspopup="dialog" className={CLASE_ACCION_SECUNDARIA}>Revisar</button>
+                </li>
+              ))}
+            </ul>
+          </Bloque>
+        )}
+
+        <Bloque titulo="Estado de los lentes" derecha={puedeVender && !anulada ? <button type="button" onClick={con(v.setOrdenParaVenta)} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer"><Plus size={13} aria-hidden="true" /> {ordenesDeVenta.length > 0 ? "Otro pedido de lentes" : "Crear pedido de lentes"}</button> : null}>
           {ordenesDeVenta.length === 0 ? (
-            <p className="text-sm text-slate-500">Esta venta no tiene órdenes de laboratorio.</p>
+            <p className="text-sm text-slate-500">Esta venta no tiene pedido de lentes.</p>
           ) : (
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/60" aria-label="Órdenes de la venta">
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/60" aria-label="Pedidos de lentes de la venta">
               {ordenesDeVenta.map((o) => {
-                const visible = estadoVisible(o)
+                const estadoPedido = estadoDePedido(o, diasDeAtraso(o))
                 return (
                   <li key={o.id} className="flex items-center gap-3 px-3 py-2 text-sm">
                     <button type="button" onClick={() => ordenesApi?.verDetalle(o)} disabled={!ordenesApi} className="font-mono font-bold text-blue-700 transition-colors hover:text-blue-800 hover:underline cursor-pointer disabled:cursor-default disabled:text-slate-700 disabled:no-underline">{numeroOrden(o.numero)}</button>
-                    <span className="min-w-0 flex-1 truncate text-slate-600" title={o.laboratorio || "Sin laboratorio"}>{o.laboratorio || "Sin laboratorio"} · prometida el {fechaLegible(o.fechaPrometida) || "—"}</span>
-                    <Insignia tono={TONO_ESTADO_ORDEN[visible]}>{textoEstadoOrden(o, diasDeAtraso(o))}</Insignia>
+                    <span className="min-w-0 flex-1 truncate text-slate-600" title={o.laboratorio || "Sin laboratorio"}>{nombreDeLentes(o)} · {o.laboratorio || "Sin laboratorio"} · prometido el {fechaLegible(o.fechaPrometida) || "—"}</span>
+                    <Insignia tono={estadoPedido.tono}>{estadoPedido.etiqueta}</Insignia>
                   </li>
                 )
               })}
@@ -224,5 +241,10 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
         </Bloque>
       </div>
     </Cascaron>
+    {pagoAbierto && (
+      <VentanaRevision pago={pagoAbierto} puedeEditar={puedeEditar} onCerrar={() => setPagoAbierto(null)}
+        onConfirmado={(p, r) => { setPagoAbierto(null); onPagoConfirmado?.(p, r) }} onRechazado={(p) => { setPagoAbierto(null); onPagoRechazado?.(p) }} />
+    )}
+    </>
   )
 }

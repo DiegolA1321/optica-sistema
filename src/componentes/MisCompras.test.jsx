@@ -41,7 +41,7 @@ describe("Portal: Mis compras", () => {
     expect(tarjetas[0]).toHaveTextContent("Debes $140.00")
     expect(tarjetas[0]).toHaveTextContent("Estado de tus lentes")
     expect(tarjetas[0]).toHaveTextContent("En el laboratorio")
-    expect(tarjetas[0]).toHaveTextContent("Listos para retirar · aprox. 20 ene")
+    expect(tarjetas[0]).toHaveTextContent("Listo · aprox. 20 ene")
     expect(tarjetas[0]).toHaveTextContent("Ver detalle")
   })
 
@@ -87,7 +87,7 @@ describe("Portal: Mis compras", () => {
     expect(tarjetas[0]).toHaveTextContent("Lentes progresivos")
     expect(tarjetas[0]).toHaveTextContent("Estado de tus lentes")
     expect(tarjetas[0]).toHaveTextContent("En el laboratorio")
-    expect(tarjetas[1]).toHaveTextContent("Listos para retirar · desde el 16 oct")
+    expect(tarjetas[1]).toHaveTextContent("Listo · desde el 16 oct")
   })
 
   it("una compra sin orden de laboratorio no muestra nada de lentes", () => {

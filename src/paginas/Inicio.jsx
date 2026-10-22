@@ -50,7 +50,6 @@ import VentanaActividad from "../componentes/VentanaActividad"
 import { puede } from "../utilidades/permisosUi"
 import { textoDiagnostico, textoEspera, diasEnEspera, esDelPortal, etiquetaInteres } from "../utilidades/pasesVenta"
 import { textoAvisoContacto } from "../utilidades/avisosContacto"
-import { DIAS_PARA_SEGUIMIENTO, pacientesParaSeguimiento, solicitudesNuevasDelPortal } from "../utilidades/ventasModulo"
 import { ventasDelMes, nombresResumidos, agendaOptometra, plantillaInicio, citasPropias, esCitaPropia, resumenHoy, resumenPeriodo, citasParaLista, creadosEsteMes, PERIODOS_DESENLACE, agendaHoyOProximas, fichasSinTerminar, pacientesSinAtender, proformasEnSeguimiento, pasesListos } from "../utilidades/inicio"
 import { NOMBRE_MODULO, detalleActividad, moduloDeRegistro } from "../utilidades/logs"
 import { puedeNivel } from "../utilidades/roles"
@@ -106,7 +105,6 @@ export default function Inicio({
   facturasVenta = [],
   abonos = [],
   ventas = [],
-  onVerCola,
   onVerTotal,
   onVerCitas,
   nombreUsuario = "Diego",
@@ -154,7 +152,7 @@ export default function Inicio({
 
   // Control vencido y cumpleaños salen de la lista "Para contactar" del CRM: el aviso cuenta EXACTAMENTE lo mismo que esa lista (solo los que hoy
   // hay que contactar: sin los que ya se contactaron y descansan, ni los que no aceptaron ese tipo de mensaje).
-  const listaCrm = useMemo(() => (paraContactar !== undefined ? paraContactar : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos: [] })), [paraContactar, pacientes, consultas, ordenesLab, citas])
+  const listaCrm = useMemo(() => (paraContactar !== undefined ? paraContactar : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, pases, facturas: facturasVenta, citas, contactos: [] })), [paraContactar, pacientes, consultas, ordenesLab, pases, facturasVenta, citas])
   const cumpleaneros = useMemo(() => (listaCrm?.filas || []).flatMap((f) => { const m = f.motivos.find((x) => x.id === "cumpleanos"); return m ? [{ id: f.id, nombre: f.paciente.nombre, diasCumple: m.dias, esHoy: m.dias === 0 }] : [] }).sort((x, y) => x.diasCumple - y.diasCumple), [listaCrm])
 
   // Controles que el optómetra dejó "para agendar después" (o cuya cita se canceló) y siguen sin cita.
@@ -263,6 +261,8 @@ export default function Inicio({
   const saldos = useMemo(() => resumenSaldos(saldosPorPaciente({ pacientes, facturas: facturasVenta, abonos, ventas })), [pacientes, facturasVenta, abonos, ventas])
   const facturasConSaldo = useMemo(() => facturasVenta.map((f) => ({ f, saldo: saldoFactura(f, abonos) })).filter((x) => x.saldo > 0).sort((a, b) => (a.f.creadoEn < b.f.creadoEn ? -1 : 1)), [facturasVenta, abonos])
   const listos = useMemo(() => pasesListos(pases), [pases])
+  // «Por vender» vive en «Para contactar» del CRM: quien no ve el CRM mira la lista sin poder abrirla.
+  const irAPorVender = () => { if (veCrm) (onVerCrm ? onVerCrm({ filtro: "por_vender" }) : setVista?.("crm")) }
   const proformas = useMemo(() => proformasEnSeguimiento(pases), [pases])
   const atencionesVista = esVistaOptometra ? atencionesAntiguas.filter(({ cita }) => esCitaPropia(cita, usuario?.id)) : atencionesAntiguas
   // Las tarjetas solo llevan a su lista (un clic en cualquier parte). Las acciones de crear van aparte, como atajos, para
@@ -489,7 +489,7 @@ export default function Inicio({
             {nVender > LIMITE_LISTA ? ` · primeras ${LIMITE_LISTA}` : ""}
           </p>
         )}
-        {nVender > 0 && <button type="button" onClick={() => (esListaSaldos ? onVerSaldos?.() : onVerCola?.())} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">{esListaSaldos ? "Ver saldos" : "Ver la cola"} <ArrowRight size={14} aria-hidden="true" /></button>}
+        {nVender > 0 && <button type="button" onClick={() => (esListaSaldos ? onVerSaldos?.() : irAPorVender())} className="ml-auto flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 cursor-pointer">{esListaSaldos ? "Ver saldos" : "Ver en el CRM"} <ArrowRight size={14} aria-hidden="true" /></button>}
       </div>
       <div className="rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         {nVender === 0 ? (
@@ -514,7 +514,7 @@ export default function Inicio({
                 const diagnostico = String(textoDiagnostico(consulta) || "").split(" — ")[0]
                 return (
                   <li key={pase.id}>
-                    <button type="button" onClick={() => onVerCola?.()} className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
+                    <button type="button" onClick={() => irAPorVender()} className="group -mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-slate-50 cursor-pointer">
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-bold text-slate-800">{paciente?.nombre || "Paciente"}</span>
                         <span className="block truncate text-xs text-slate-500">{esDelPortal(pase) ? "Desde el portal · " + etiquetaInteres(pase.interes) : diagnostico || consulta?.motivo || "Consulta"}{pase.proformaEntregadaEn ? " · con proforma" : ""}</span>
@@ -751,7 +751,6 @@ export default function Inicio({
         })),
       })
     }
-    // Quien lleva más de 30 días esperando su venta pasa aquí para contactarlo o cerrarlo con "No compró"; nunca se cierra solo.
     // Pagos por transferencia que los pacientes reportan desde su portal: esperan que Ventas revise el comprobante (el mismo número que en Ventas · Cobros y saldos).
     if (incSaldos && pagosPorVerificar.length > 0) poner("ventas", {
       id: "pagos-por-verificar", cantidad: pagosPorVerificar.length, corto: uno(pagosPorVerificar.length, "pago por verificar", "pagos por verificar"),
@@ -760,57 +759,46 @@ export default function Inicio({
       enlace: { texto: `Abrir en Ventas · Pagos por verificar (${pagosPorVerificar.length})`, onClick: () => onVerSaldos?.() },
       casos: pagosPorVerificar.map((p) => ({ id: p.id, nombre: p.pacienteNombre || nombreDe(p.pacienteId), detalle: `${dinero(p.monto)} · compra ${numeroComprobante(p.facturaNumero)}`, accion: { etiqueta: "Revisar", navega: true, onClick: () => onVerSaldos?.() } })),
     })
-    // Lo que un paciente pide desde su portal («Solicitar lentes nuevos») cuenta mientras nadie lo toma; a los 30 días lo cuenta la línea de abajo (no se cuenta dos veces).
-    const solicitudesPortal = incSaldos ? solicitudesNuevasDelPortal(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
-    const dPortal = solicitudesPortal.length > 0 ? descarteDe("ventas:solicitud_lentes", solicitudesPortal, ({ pase }) => pase.id, ({ pase }) => nombreDe(pase.pacienteId)) : null
-    if (dPortal?.hay) {
-      const n = dPortal.visibles.length
+    // Pacientes que recibieron su diagnóstico (o pidieron lentes desde su portal) y no han comprado: salen de Ventas y viven en «Para contactar» del CRM. El aviso cuenta
+    // EXACTAMENTE esa lista (sin quien ya se contactó y descansa), así que el número que se lee es el que se ve allá; la acción es la misma ventana de Contactar de todo el sistema.
+    const porVender = incSaldos ? (listaCrm?.filas || []).flatMap((f) => { const m = f.motivos.find((x) => x.id === "por_vender"); return m ? [{ paciente: f.paciente, dias: m.dias, detalle: m.detalle, pase: m.pase }] : [] }).sort((x, y) => (y.dias ?? 0) - (x.dias ?? 0)) : []
+    const dPorVender = porVender.length > 0 ? descarteDe("ventas:por_vender", porVender, ({ pase }) => pase.id, ({ paciente }) => paciente.nombre) : null
+    if (dPorVender?.hay) {
+      const n = dPorVender.visibles.length
       poner("ventas", {
-        id: "solicitudes-portal", cantidad: n, corto: uno(n, "pide lentes", "piden lentes"),
-        texto: uno(n, "paciente pidió lentes nuevos desde su portal", "pacientes pidieron lentes nuevos desde su portal"),
-        enlace: { texto: `Abrir en Ventas · Desde el portal (${dPortal.total})`, onClick: () => onVerCola?.("portal") },
-        casos: dPortal.visibles.map(({ pase }) => ({
-          id: pase.id, nombre: nombreDe(pase.pacienteId),
-          detalle: `${etiquetaInteres(pase.interes)} · ${diasEnEspera(pase) === 0 ? "hoy" : "hace " + diasEnEspera(pase) + (diasEnEspera(pase) === 1 ? " día" : " días")}`,
-          accion: { etiqueta: "Atender", navega: true, onClick: () => onVerCola?.("portal") },
+        id: "por-vender", cantidad: n, corto: uno(n, "por vender", "por vender"),
+        texto: uno(n, "paciente recibió su diagnóstico y no ha comprado", "pacientes recibieron su diagnóstico y no han comprado"),
+        nombres: nombresResumidos(dPorVender.visibles.map(({ paciente }) => paciente.nombre)),
+        enlace: veCrm ? { texto: `Abrir en CRM · Por vender (${dPorVender.total})`, onClick: abrirCrm({ filtro: "por_vender" }) } : undefined,
+        casos: dPorVender.visibles.map(({ paciente, detalle, pase }) => ({
+          id: pase.id, nombre: paciente.nombre, detalle,
+          accion: paciente.telefono && puedeContactarPor(paciente, "por_vender") ? { etiqueta: "Contactar", onClick: () => escribirPorWhatsApp({ paciente, motivo: "por_vender" }) } : { etiqueta: "Ver paciente", navega: true, onClick: () => onVerPerfilPaciente?.(paciente.id) },
         })),
-        ...dPortal.extra,
+        ...dPorVender.extra,
       })
     }
-    const esperanMucho = incSaldos ? pacientesParaSeguimiento(listos.map((pase) => ({ pase })), ahoraEcuador()) : []
-    if (esperanMucho.length > 0) poner("ventas", {
-      id: "esperan-venta", cantidad: esperanMucho.length, corto: uno(esperanMucho.length, "espera su venta", "esperan su venta"),
-      texto: uno(esperanMucho.length, `paciente espera su venta hace más de ${DIAS_PARA_SEGUIMIENTO} días`, `pacientes esperan su venta hace más de ${DIAS_PARA_SEGUIMIENTO} días`),
-      nombres: nombresResumidos(esperanMucho.map(({ pase }) => nombreDe(pase.pacienteId))),
-      enlace: { texto: `Abrir en Ventas · Más de ${DIAS_PARA_SEGUIMIENTO} días (${esperanMucho.length})`, onClick: () => onVerCola?.("mas30") },
-      casos: esperanMucho.map(({ pase }) => ({
-        id: pase.id, nombre: nombreDe(pase.pacienteId),
-        detalle: `Espera hace ${diasEnEspera(pase)} días`,
-        accion: { etiqueta: "Ver la cola", navega: true, onClick: () => onVerCola?.("mas30") },
-      })),
-    })
     if (incOrdenes && listasSinAvisar.length > 0) {
       poner("ventas", {
         id: "ordenes-listas", cantidad: listasSinAvisar.length, corto: uno(listasSinAvisar.length, "lentes sin avisar", "lentes sin avisar"),
-        texto: uno(listasSinAvisar.length, "orden de laboratorio lista sin avisar al paciente", "órdenes de laboratorio listas sin avisar a los pacientes"),
+        texto: uno(listasSinAvisar.length, "pedido de lentes listo sin avisar al paciente", "pedidos de lentes listos sin avisar a los pacientes"),
         nombres: nombresResumidos(listasSinAvisar.map((o) => nombreDe(o.pacienteId))),
-        enlace: { texto: `Abrir en Ventas · Listas sin avisar (${listasSinAvisar.length})`, onClick: () => onVerOrdenes?.("sinavisar") },
+        enlace: { texto: `Abrir en Ventas · Listos sin avisar (${listasSinAvisar.length})`, onClick: () => onVerOrdenes?.("sinavisar") },
         casos: listasSinAvisar.map((o) => ({
           id: o.id, nombre: nombreDe(o.pacienteId),
-          detalle: `${numeroOrden(o.numero)} · ${o.laboratorio || "Laboratorio"} · lista para entregar`,
-          accion: { etiqueta: puedeV("ventas", "editar") ? "Avisar" : "Ver", navega: true, onClick: () => onVerOrdenes?.("sinavisar") },
+          detalle: `${numeroOrden(o.numero)} · ${o.laboratorio || "Laboratorio"} · listo para entregar`,
+          accion: { etiqueta: puedeV("ventas", "editar") ? "Contactar" : "Ver", navega: true, onClick: () => onVerOrdenes?.("sinavisar") },
         })),
       })
     }
     if (incOrdenes && atrasadas.length > 0) poner("ventas", {
-      id: "ordenes-atrasadas", cantidad: atrasadas.length, tono: "urgente", corto: uno(atrasadas.length, "orden atrasada", "órdenes atrasadas"),
-      texto: uno(atrasadas.length, "orden atrasada", "órdenes atrasadas"),
+      id: "ordenes-atrasadas", cantidad: atrasadas.length, tono: "urgente", corto: uno(atrasadas.length, "pedido atrasado", "pedidos atrasados"),
+      texto: uno(atrasadas.length, "pedido de lentes atrasado", "pedidos de lentes atrasados"),
       nombres: nombresResumidos([...new Set(atrasadas.map((o) => o.laboratorio || "Sin laboratorio"))]),
-      enlace: { texto: `Abrir en Ventas · Órdenes atrasadas (${atrasadas.length})`, onClick: () => onVerOrdenes?.("atrasadas") },
+      enlace: { texto: `Abrir en Ventas · Pedidos atrasados (${atrasadas.length})`, onClick: () => onVerOrdenes?.("atrasadas") },
       casos: atrasadas.map((o) => ({
         id: o.id, nombre: nombreDe(o.pacienteId),
-        insignia: { texto: "Atrasada", tono: "urgente" },
-        detalle: `${numeroOrden(o.numero)} · ${o.laboratorio || "Sin laboratorio"} · prometida el ${fechaLegible(o.fechaPrometida) || "—"}`,
+        insignia: { texto: "Atrasado", tono: "urgente" },
+        detalle: `${numeroOrden(o.numero)} · ${o.laboratorio || "Sin laboratorio"} · prometido el ${fechaLegible(o.fechaPrometida) || "—"}`,
         accion: { etiqueta: "Ver", navega: true, onClick: () => onVerOrdenes?.("atrasadas") },
       })),
     })

@@ -74,7 +74,7 @@ describe("Reportes: el Resumen responde cómo le fue a la óptica", () => {
     render(<Reportes usuario={admin} {...datos} onAbrirModulo={abrir} />)
     fireEvent.click(tarjeta("Vendido"))
     fireEvent.click(within(ventana()).getByRole("button", { name: /^Abrir en Ventas/ }))
-    expect(abrir).toHaveBeenCalledWith("ventas", expect.objectContaining({ tab: "comprobantes", estado: "todos", desde: "2026-10-01", hasta: "2026-10-12" }))
+    expect(abrir).toHaveBeenCalledWith("ventas", expect.objectContaining({ tab: "ventas", estado: "todos", desde: "2026-10-01", hasta: "2026-10-12" }))
     fireEvent.click(tarjeta("Vendido"))
     fireEvent.click(within(ventana()).getByRole("button", { name: /Ir a la pestaña Ventas/ }))
     expect(screen.getByRole("tab", { name: "Ventas" })).toHaveAttribute("aria-selected", "true")

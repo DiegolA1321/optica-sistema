@@ -144,7 +144,7 @@ describe("Resumen", () => {
     const tarjeta = await screen.findByRole("region", { name: "Tus lentes" })
     expect(tarjeta).toHaveTextContent("Progresivos · montura Ray-Ban")
     const items = within(within(tarjeta).getByRole("list", { name: "Seguimiento de tus lentes" })).getAllByRole("listitem")
-    expect(items.map((i) => i.textContent.replace(/^\d+/, "").replace(/\s+/g, " ").trim())).toEqual(["Pedido 8 de octubre", "En el laboratorio Desde el 9 de octubre", "Listos para retirar Estimado: 20 de enero", "Entregados"])
+    expect(items.map((i) => i.textContent.replace(/^\d+/, "").replace(/\s+/g, " ").trim())).toEqual(["Pedido 8 de octubre", "En el laboratorio Desde el 9 de octubre", "Listo Estimado: 20 de enero", "Entregado"])
     expect(items[1]).toHaveAttribute("aria-current", "step")
   })
   it("cuando los lentes están listos dice «Ya puedes retirarlos»", async () => {

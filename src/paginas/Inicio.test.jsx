@@ -516,7 +516,7 @@ describe("Inicio de recepción y ventas", () => {
     expect(screen.getByText("$60.00", { selector: "span" })).toBeInTheDocument()
     expect(screen.getByRole("region", { name: "Listos para venta" })).toBeInTheDocument()
     const atencion = screen.getByRole("region", { name: "Requiere tu atención" })
-    expect(within(atencion).getByRole("button", { name: /1 orden atrasada/ })).toBeInTheDocument()
+    expect(within(atencion).getByRole("button", { name: /1 pedido de lentes atrasado/ })).toBeInTheDocument()
     expect(screen.queryByRole("region", { name: "Órdenes de laboratorio" })).not.toBeInTheDocument()
     expect(screen.getByText("Paciente Uno", { selector: "span" })).toBeInTheDocument()
     expect(screen.getAllByRole("button", { name: /producto con stock bajo/i })).toHaveLength(1)

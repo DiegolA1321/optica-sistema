@@ -40,13 +40,13 @@ describe("lentes (órdenes de laboratorio)", () => {
     expect(t).toMatchObject({ clave: "atrasada", tono: "rojo", titulo: "En el laboratorio" })
     expect(t.detalle).toMatch(/Llama a la óptica/)
   })
-  it("lista: «Listos para retirar», en verde, con desde cuándo", () => {
+  it("lista: «Listo», en verde, con desde cuándo", () => {
     const t = textoOrdenPaciente(mapOrdenPaciente({ ...fila, estado: "lista", lista_el: "2026-10-16T14:00:00Z" }), HOY)
-    expect(t).toMatchObject({ clave: "lista", tono: "verde", titulo: "Listos para retirar" })
+    expect(t).toMatchObject({ clave: "lista", tono: "verde", titulo: "Listo" })
     expect(t.detalle).toBe("Están en la óptica desde el 16 oct 2026. Pasa a recogerlos.")
   })
-  it("entregada: «Entregados», en gris", () => {
-    expect(textoOrdenPaciente(mapOrdenPaciente({ ...fila, estado: "entregada", entregada_el: "2026-10-16T14:00:00Z" }), HOY)).toMatchObject({ clave: "entregada", tono: "gris", titulo: "Entregados", detalle: "Los recibiste el 16 oct 2026." })
+  it("entregada: «Entregado», en gris", () => {
+    expect(textoOrdenPaciente(mapOrdenPaciente({ ...fila, estado: "entregada", entregada_el: "2026-10-16T14:00:00Z" }), HOY)).toMatchObject({ clave: "entregada", tono: "gris", titulo: "Entregado", detalle: "Los recibiste el 16 oct 2026." })
   })
   it("solo las enviadas y las listas son «abiertas» (las que van en el Resumen)", () => {
     const o = ["enviada", "lista", "entregada"].map((estado) => mapOrdenPaciente({ ...fila, estado }))
@@ -121,7 +121,7 @@ describe("línea de pasos de los lentes", () => {
   const nombres = (r) => r.pasos.map((p) => p.nombre + ":" + p.estado).join(" ")
   it("enviada: Pedido hecho, En el laboratorio actual", () => {
     const r = pasosDeLosLentes(o("enviada"), HOY)
-    expect(nombres(r)).toBe("Pedido:hecho En el laboratorio:actual Listos para retirar:pendiente Entregados:pendiente")
+    expect(nombres(r)).toBe("Pedido:hecho En el laboratorio:actual Listo:pendiente Entregado:pendiente")
     expect(r.tono).toBe("azul")
   })
   it("atrasada: sigue en el laboratorio, en rojo como en Ventas", () => {
@@ -131,7 +131,7 @@ describe("línea de pasos de los lentes", () => {
   })
   it("lista y entregada avanzan el paso", () => {
     expect(pasosDeLosLentes(o("lista"), HOY)).toMatchObject({ actual: 2, tono: "verde" })
-    expect(nombres(pasosDeLosLentes(o("entregada"), HOY))).toBe("Pedido:hecho En el laboratorio:hecho Listos para retirar:hecho Entregados:hecho")
+    expect(nombres(pasosDeLosLentes(o("entregada"), HOY))).toBe("Pedido:hecho En el laboratorio:hecho Listo:hecho Entregado:hecho")
   })
 })
 

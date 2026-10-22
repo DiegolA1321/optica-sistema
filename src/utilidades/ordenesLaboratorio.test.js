@@ -138,8 +138,8 @@ describe("estado de los lentes de una compra", () => {
   it("sin orden no hay lentes", () => { expect(estadoLentesDeCompra("f1", [o("enviada", "f2")])).toBeNull() })
   it("enviada es «En el laboratorio»; lista, «Listos»; entregada, «Entregados»", () => {
     expect(estadoLentesDeCompra("f1", [o("enviada")]).etiqueta).toBe("En el laboratorio")
-    expect(estadoLentesDeCompra("f1", [o("lista")]).etiqueta).toBe("Listos")
-    expect(estadoLentesDeCompra("f1", [o("entregada")]).etiqueta).toBe("Entregados")
+    expect(estadoLentesDeCompra("f1", [o("lista")]).etiqueta).toBe("Listo")
+    expect(estadoLentesDeCompra("f1", [o("entregada")]).etiqueta).toBe("Entregado")
   })
   it("con varias órdenes manda la que falta, y las canceladas no cuentan", () => {
     expect(estadoLentesDeCompra("f1", [o("entregada"), o("lista")]).id).toBe("listos")

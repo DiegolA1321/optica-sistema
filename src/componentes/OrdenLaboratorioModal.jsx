@@ -9,13 +9,15 @@ import { useEffect, useState } from "react"
 import { FlaskConical, Printer } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { Cascaron } from "./AtencionPaciente"
+import { useLaboratorios } from "./LaboratoriosContexto"
+import { laboratoriosParaElegir } from "../utilidades/laboratorios"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, mensajeDeError } from "../utilidades/permisos"
 import { registrarLog } from "../utilidades/logs"
 import { medidasTexto } from "../utilidades/inventarioKardex"
 import { imprimirHtml, datosOpticaProforma } from "../utilidades/proforma"
 import { numeroComprobante, datosOrdenDeLinea } from "../utilidades/comprobantes"
 import {
-  EVENTO_ORDEN, MATERIALES_LENTE, TIPOS_LENTE, laboratoriosUsados, datosInicialesOrden, datosParaRpc, validarOrden, mapOrden, numeroOrden, armarHtmlOrdenDosCopias, alturasDeTexto, textoDeAlturas,
+  EVENTO_ORDEN, MATERIALES_LENTE, TIPOS_LENTE, datosInicialesOrden, datosParaRpc, validarOrden, mapOrden, numeroOrden, armarHtmlOrdenDosCopias, alturasDeTexto, textoDeAlturas,
 } from "../utilidades/ordenesLaboratorio"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
@@ -33,9 +35,10 @@ const consultaMinima = (c) => ({
 // Trae de la consulta lo que existe; quien vende completa el resto.
 export default function OrdenLaboratorioModal({
   paciente, facturaId, consultaId = null, consulta = null, monturaInicial = "", lunaInicial = null, facturaNumero = null, orden = null,
-  laboratoriosSugeridos: sugeridosIniciales = [], usuario, opticaDatos: datosIniciales = {}, onCreada, onActualizada, onCerrar,
+  laboratorioInicial = "", usuario, opticaDatos: datosIniciales = {}, onCreada, onActualizada, onCerrar,
 }) {
-  const [laboratoriosSugeridos, setLaboratoriosSugeridos] = useState(sugeridosIniciales)
+  // El laboratorio se elige del catálogo de la óptica (Configuración → Laboratorios); uno ya guardado en el pedido que ahora no está en el catálogo se conserva.
+  const { parametrizacion } = useLaboratorios()
   const [opticaDatos, setOpticaDatos] = useState(datosIniciales)
   const [d, setD] = useState(null)
   const [materialOtro, setMaterialOtro] = useState(!!orden?.material && !MATERIALES_LENTE.includes(orden.material))
@@ -69,7 +72,7 @@ export default function OrdenLaboratorioModal({
       if (!vivo) return
       const base = datosInicialesOrden(c, { montura, luna, monturaMedidas })
       const entrega = ahoraEcuador(); entrega.setDate(entrega.getDate() + 7)
-      setD({ ...base, fechaPrometida: iso(entrega) })
+      setD({ ...base, laboratorio: laboratorioInicial || base.laboratorio, fechaPrometida: iso(entrega) })
     }
     if (consulta || !consultaId || !supabase) { armar(consulta); return () => { vivo = false } }
     supabase.from("consultas").select("datos_clinicos, lente_recomendado").eq("id", consultaId).maybeSingle().then(({ data }) => {
@@ -81,14 +84,11 @@ export default function OrdenLaboratorioModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Sugerencias de laboratorio (los ya usados) y datos de contacto de la óptica para las copias.
+  // Los datos de contacto de la óptica para las copias.
   // Se piden aquí para que el modal funcione igual desde cualquier pantalla que lo abra.
   useEffect(() => {
     if (!supabase || !usuario?.opticaId) return
     let vivo = true
-    supabase.from("ordenes_laboratorio").select("laboratorio").not("laboratorio", "is", null).limit(300).then(({ data }) => {
-      if (vivo && data) setLaboratoriosSugeridos(laboratoriosUsados(data.map((o) => ({ laboratorio: o.laboratorio }))))
-    })
     supabase.from("opticas").select("settings").eq("id", usuario.opticaId).maybeSingle().then(({ data }) => {
       if (vivo && data) setOpticaDatos(datosOpticaProforma(data.settings))
     })
@@ -123,7 +123,7 @@ export default function OrdenLaboratorioModal({
       }
       guardada = mapOrden(fila)
     }
-    registrarLog(usuario, "ventas", orden ? "Corrigió una orden de laboratorio" : "Creó una orden de laboratorio", `${paciente?.nombre || ""} · ${guardada ? numeroOrden(guardada.numero) : ""}`)
+    registrarLog(usuario, "ventas", orden ? "Corrigió un pedido de lentes" : "Creó un pedido de lentes", `${paciente?.nombre || ""} · ${guardada ? numeroOrden(guardada.numero) : ""}`)
     setGuardando(false)
     if (guardada) {
       avisarOrdenGuardada(guardada)
@@ -143,7 +143,7 @@ export default function OrdenLaboratorioModal({
 
   return (
     <Cascaron
-      titulo={orden ? `Orden ${numeroOrden(orden.numero)}` : "Nueva orden de laboratorio"}
+      titulo={orden ? `Pedido ${numeroOrden(orden.numero)}` : "Pedido de lentes"}
       subtitulo={`${paciente?.nombre || ""}${!orden ? " · se precargó lo que hay en la consulta" : ""}`}
       Icono={FlaskConical}
       ancho="max-w-2xl"
@@ -169,8 +169,11 @@ export default function OrdenLaboratorioModal({
           <>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Laboratorio</span>
-                <input list="laboratorios-usados" value={d.laboratorio} onChange={(e) => set("laboratorio", e.target.value)} maxLength={80} placeholder="¿A quién se envía?" className={CAMPO} />
-                <datalist id="laboratorios-usados">{laboratoriosSugeridos.map((l) => <option key={l} value={l} />)}</datalist>
+                <select value={d.laboratorio || ""} onChange={(e) => set("laboratorio", e.target.value)} className={CAMPO + " cursor-pointer"}>
+                  <option value="">{laboratoriosParaElegir(parametrizacion, d.laboratorio).length === 0 ? "Sin laboratorios en el catálogo" : "Elegir laboratorio"}</option>
+                  {laboratoriosParaElegir(parametrizacion, d.laboratorio).map((l) => <option key={l} value={l}>{l}</option>)}
+                </select>
+                {laboratoriosParaElegir(parametrizacion, d.laboratorio).length === 0 && <span className="mt-1 block text-xs text-slate-500">Se agregan en Configuración → Laboratorios.</span>}
               </label>
               <div className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Entrega prometida *</span>
                 <CampoFecha id="orden-fecha-prometida" etiqueta="Entrega prometida" requerido valor={d.fechaPrometida} onCambiar={(v) => set("fechaPrometida", v)} min={sumarDiasISO(hoyISO(), -365)} max={sumarDiasISO(hoyISO(), 365)} />

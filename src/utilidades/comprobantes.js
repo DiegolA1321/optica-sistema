@@ -63,3 +63,15 @@ export function datosOrdenDeLinea(linea) {
 // Las líneas con stock y foto son monturas y accesorios: son las únicas con producto_id.
 export const montura = (lineas = []) => lineas.find((l) => l.tipo === "producto") || null
 export const lunaDe = (lineas = []) => lineas.find((l) => l.tipo === "luna") || null
+
+// Lo que «Usar como guía» (Nueva venta) toma del último diagnóstico: de lo que el optómetra escribió en «Lente a recomendar» («progresivo con filtro azul») saca el tipo de luna y sus filtros,
+// para que la persona que vende parta de ahí y no escriba otra vez lo que ya se decidió en la consulta. Lo que no reconoce se deja como estaba (monofocal, sin filtros).
+export function lunaDeTexto(texto) {
+  const t = String(texto ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+  return {
+    tipoLente: /progres/.test(t) ? "progresivo" : /bifocal|doble foco/.test(t) ? "bifocal" : "monofocal",
+    antirreflejo: /anti\s*-?\s*reflej|\bar\b/.test(t),
+    filtroAzul: /filtro\s+azul|luz\s+azul|blue/.test(t),
+    fotocromatico: /fotocrom|photo/.test(t),
+  }
+}

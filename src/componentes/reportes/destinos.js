@@ -8,11 +8,12 @@ export function crearDestinos(r) {
     // estado: todas | atendida | noAsistio | cancelada | abiertas (pendiente, en espera y en atención)
     citas: (estado, r2 = rango) => ({ modulo: "citas", etiqueta: "Abrir en Citas", params: { estado, desde: r2.inicio, hasta: r2.fin, ...paramsFiltros } }),
     // Los comprobantes de Ventas: estado (vigentes | saldo | pagadas), período y, si se pide, solo los sin factura electrónica.
-    ventas: (extra = {}, r2 = rango) => ({ modulo: "ventas", etiqueta: `Abrir en Ventas${sinFiltros}`, params: { tab: "comprobantes", estado: "todos", desde: r2.inicio, hasta: r2.fin, ...extra } }),
-    ordenes: (filtro) => ({ modulo: "ventas", etiqueta: "Abrir en Ventas", params: { tab: "ordenes", filtro } }),
+    ventas: (extra = {}, r2 = rango) => ({ modulo: "ventas", etiqueta: `Abrir en Ventas${sinFiltros}`, params: { tab: "ventas", estado: "todos", desde: r2.inicio, hasta: r2.fin, ...extra } }),
+    ordenes: (filtro) => ({ modulo: "ventas", etiqueta: "Abrir en Ventas", params: { tab: "pedidos", filtro } }),
     // Inventario no tiene filtros que reproduzcan estas listas: abre la lista completa y el texto lo dice (regla 42).
     inventario: () => ({ modulo: "inventario", etiqueta: "Abrir Inventario (lista completa)", params: {} }),
-    cola: () => ({ modulo: "ventas", etiqueta: "Abrir en Ventas", params: { tab: "porvender" } }),
+    // «Por vender» ya no es de Ventas: son los pacientes de «Para contactar» del CRM con el motivo «Recibió su diagnóstico y no ha comprado».
+    cola: () => ({ modulo: "crm", etiqueta: "Abrir en CRM · Para contactar", params: { tab: "contactar", filtro: "por_vender" } }),
     // Pacientes registrados en el período (su fecha de registro).
     pacientesNuevos: (r2 = rango) => ({ modulo: "pacientes", etiqueta: `Abrir en Pacientes${sinFiltros}`, params: { accion: "filtrar", desde: r2.inicio, hasta: r2.fin } }),
     pacientes: (params = {}, etiqueta = "Abrir en Pacientes") => ({ modulo: "pacientes", etiqueta: `${etiqueta}${sinFiltros}`, params: { accion: "filtrar", ...params } }),

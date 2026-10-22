@@ -68,7 +68,6 @@ import { citasPropias, rangoDelMes } from "../utilidades/inicio"
 import { PARAMS_DE_SECCION, escribirParam, leerParam } from "../utilidades/urlEstado"
 import { modulosVisibles, puedeNivel } from "../utilidades/roles"
 import { EVENTO_ORDEN, numeroOrden } from "../utilidades/ordenesLaboratorio"
-import { contarAvisosVentas } from "../utilidades/ventasModulo"
 import { useCrmDatos } from "../utilidades/crmDatos"
 import { EVENTO_SOPORTE_CAMBIADO, leerResumenSoporte } from "../utilidades/soporteDatos"
 import { codigoConsulta } from "../utilidades/soporte"
@@ -80,6 +79,7 @@ import { useSeguimientoDeContacto, registrarContacto } from "../utilidades/conta
 import { ProveedorEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import { useContactar } from "../componentes/useContactar"
 import { ProveedorFidelidad, armarFidelidad } from "../componentes/FidelidadContexto"
+import { ProveedorLaboratorios, armarLaboratorios } from "../componentes/LaboratoriosContexto"
 import { programaDe } from "../utilidades/programaFidelidad"
 
 
@@ -152,10 +152,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // pidió el ing para cuando el optómetra contrata a alguien que le
   // administre el sistema completo.
   // El número del menú de Ventas es el de su botón "Requieren atención" y el del Inicio: una sola cuenta (contarAvisosVentas).
-  const avisosDeVentas = useMemo(() => contarAvisosVentas({ pases, ordenes: ordenesLab, pacientes, facturas: facturasVenta, abonos, ventas, pagosPorVerificar: pagosPorVerificar.length }), [pases, ordenesLab, pacientes, facturasVenta, abonos, ventas, pagosPorVerificar])
-  // El contador del menú es de quien vende (ventas: crear), no de quien solo puede mirar Ventas: aparece sobre "Ventas".
-  const vendeAqui = puede(usuario, "ventas", "crear")
-  const avisosVentas = vendeAqui ? avisosDeVentas : 0
   // Los contactos del CRM se cargan aquí para que el CRM y el Inicio cuenten con la MISMA lista "Para contactar" (mismos pacientes, mismo número).
   const crm = useCrmDatos({
     usuario, habilitado: puede(usuario, "crm", "ver"),
@@ -165,9 +161,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // La ventana de Contactar es una sola para todo el sistema: aquí se guarda el pedido abierto y más abajo se dibuja.
   const { escribir: escribirPorWhatsApp, ventana: ventanaContactar } = useContactar({ plantillas: crm.plantillas, opticaNombre: usuario?.opticaNombre, consultas, contactarDeAviso: crm.contactarDeAviso, contactarManual: crm.contactarManual, avisar: (m) => mostrarAviso(m) })
   // El programa de fidelización (puntos, nivel y descuento sugerido): una sola cuenta para el Resumen del paciente, el CRM y «Nueva venta».
+  const laboratorios = useMemo(() => armarLaboratorios(parametrizacion), [parametrizacion])
   const fidelidad = useMemo(() => armarFidelidad({ programa: programaDe(parametrizacion), pacientes, consultas, facturas: facturasVenta, abonos }), [parametrizacion, pacientes, consultas, facturasVenta, abonos])
-  const paraContactar = useMemo(() => (crm.cargando ? null : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos: crm.contactos })), [crm.cargando, crm.contactos, pacientes, consultas, ordenesLab, citas])
-  const textoAvisosVentas = `${avisosVentas} ${avisosVentas === 1 ? "aviso" : "avisos"} en Ventas`
+  const paraContactar = useMemo(() => (crm.cargando ? null : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, pases, facturas: facturasVenta, citas, contactos: crm.contactos })), [crm.cargando, crm.contactos, pacientes, consultas, ordenesLab, pases, facturasVenta, citas])
   // Vista activa (R50): quien tiene más de un rol, o es administrador y también atiende, elige desde el
   // menú de usuario con qué vista trabajar. La vista enfoca el menú y el Inicio; la base sigue aplicando
   // la suma de los permisos de todos sus roles.
@@ -262,6 +258,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     if (modulo === "citas") setEstadoCitasInicial(params.estado ? { ...params, periodo: "rango" } : null)
     else if (modulo === "pacientes") setAccionPacienteInicio(params.accion ? params : null)
     else if (modulo === "ventas") setAccionVentasInicio(params.tab ? params : null)
+    else if (modulo === "crm") setAccionCrmInicio(params)
     navegar(modulo)
   }
   // Destino pendiente cuando navegar() necesita confirmar que se van a
@@ -272,7 +269,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     const id = new URLSearchParams(window.location.search).get('paciente')
     return id && opcionesVisibles.some((o) => o.id === 'pacientes') ? { pacienteId: id, accion: 'historial' } : null
   })
-  // Destino pedido al módulo de Ventas: { tab: "porvender" | "comprobantes" | "ordenes" | "cobros", filtro?, texto? }
+  // Destino pedido al módulo de Ventas: { tab: "ventas" | "pedidos", dato?: "cobrado" | "porcobrar" | "verificar", filtro? (de los pedidos), periodo?, desde?, hasta?, estado?, texto? }
   const [accionVentasInicio, setAccionVentasInicio] = useState(null)
   // Lo que pide otro módulo al CRM (el Inicio): { filtro, todos }.
   const [accionCrmInicio, setAccionCrmInicio] = useState(null)
@@ -731,7 +728,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         return (
           <CRM
             alcancePropio={alcanceDeVista("citas") === "propio" || alcanceDeVista("consultas") === "propio"}
-            usuario={usuario} crm={crm} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ordenesLab={ordenesLab}
+            usuario={usuario} crm={crm} cargaInicial={cargaInicialStaff} pacientes={pacientes} consultas={consultas} citas={citas} ordenesLab={ordenesLab} pases={pases} facturasVenta={facturasVenta}
             parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onAviso={mostrarAviso}
             onRegistrarPaciente={puede(usuario, "pacientes", "crear") ? () => setAtajoInicio("pacientes") : undefined}
             onVerPerfil={(pacienteId) => { setAccionPacienteInicio({ pacienteId, accion: "historial" }); navegar("pacientes") }}
@@ -794,7 +791,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             facturasVenta={facturasVenta}
             abonos={abonos}
             ventas={ventas}
-            onVerCola={(filtroCola) => { setAccionVentasInicio({ tab: "porvender", filtroCola }); navegar("ventas") }}
             onAtenderEnCitas={(cita) => { setCitaParaAtender(cita.id); navegar("citas") }}
             onVerCitas={(estado, periodo, fecha) => { setEstadoCitasInicial(periodo ? { estado, periodo, fecha } : estado); navegar("citas") }}
             onVerTotal={(modulo, opcion) => {
@@ -802,12 +798,12 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               const mes = opcion === "mes"
               if (modulo === "pacientes") setAccionPacienteInicio({ accion: "filtrar", ...(mes ? rangoDelMes() : {}) })
               else if (modulo === "citas") setEstadoCitasInicial({ estado: "todas", periodo: mes ? "nuevasMes" : "siempre" })
-              else if (modulo === "ventas") setAccionVentasInicio({ tab: "comprobantes", estado: "todos", periodo: mes ? "mes" : "todo" })
+              else if (modulo === "ventas") setAccionVentasInicio({ tab: "ventas", estado: "todos", periodo: mes ? "mes" : "todo" })
               else if (modulo === "inventario") setVerNuevosAlEntrar(mes)
               navegar(modulo)
             }}
-            onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "ordenes", filtro }); navegar("ventas") }}
-            onVerSaldos={() => { setAccionVentasInicio({ tab: "cobros" }); navegar("ventas") }}
+            onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "pedidos", filtro }); navegar("ventas") }}
+            onVerSaldos={(dato = "porcobrar") => { setAccionVentasInicio({ tab: "ventas", dato, periodo: "todo" }); navegar("ventas") }}
             onVerStockBajo={() => { setVerStockBajoAlEntrar(true); navegar("inventario") }}
             onVerPerfilPaciente={(pacienteId, tab) => { setAccionPacienteInicio({ pacienteId, accion: "historial", ...(tab ? { tab } : {}) }); navegar("pacientes") }}
             onAgendarRapido={() => { setControlParaAgendar(null); setAtajoInicio("citas") }}
@@ -843,6 +839,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   return (
     <ProveedorEscribirPorWhatsApp value={escribirPorWhatsApp}>
     <ProveedorFidelidad value={fidelidad}>
+    <ProveedorLaboratorios value={laboratorios}>
     <div className="flex h-screen bg-slate-50 font-sans">
       {verAvisosInternos && <VentanaAvisosInternos usuario={usuario} onCerrar={() => setVerAvisosInternos(false)} />}
       {dialogoAtenderInicio}
@@ -897,17 +894,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
                 >
                   <Icono size={20} className={activo ? "text-white" : "text-slate-500 group-hover:text-slate-900"} />
                   <span className={"truncate " + (colapsado ? "lg:hidden" : "")}>{opcion.nombre}</span>
-                  {/* Pacientes listos para venta (R35) y órdenes por atender: se ven sobre el módulo de Ventas. */}
-                  {opcion.id === "ventas" && avisosVentas > 0 && (
-                    <span
-                      title={textoAvisosVentas}
-                      aria-label={textoAvisosVentas}
-                      className={"ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-xs font-bold " + (activo ? "bg-white text-blue-700" : "bg-emerald-600 text-white") + (colapsado ? " lg:absolute lg:right-1 lg:top-1 lg:ml-0 lg:h-4 lg:min-w-4 lg:px-1 lg:text-xs" : "")}
-                    >
-                      {avisosVentas}
-                    </span>
-                  )}
-                  {activo && <span className={(opcion.id === "ventas" && avisosVentas > 0 ? "ml-1.5 " : "ml-auto ") + "h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
+                  {activo && <span className={"ml-auto " + "h-1.5 w-1.5 rounded-full bg-white/80 " + (colapsado ? "lg:hidden" : "")} />}
                 </button>
               )
             })}
@@ -1229,6 +1216,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       )}
       {ventanaContactar}
     </div>
+    </ProveedorLaboratorios>
     </ProveedorFidelidad>
     </ProveedorEscribirPorWhatsApp>
   )

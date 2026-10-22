@@ -5,6 +5,7 @@ import { diasDesdeUltimaVisita, diasCumpleEnVentana, diasVencido, esInactivo, co
 import { fechaAISO, hoyISO, isoAFechaLocal } from "./disponibilidad"
 import { diaDeRegistro } from "./periodoLista"
 import { formatoFecha } from "./formatoFecha"
+import { diasEnEspera, esDelPortal } from "./pasesVenta"
 
 // ─── Motivos ───
 // consentimiento: qué permiso del paciente hace falta para escribirle por ese motivo: "salud" = Recordatorios de salud (control y seguimiento de la compra),
@@ -15,18 +16,19 @@ export const MOTIVOS = {
   cumpleanos: { id: "cumpleanos", etiqueta: "Cumpleaños", corta: "Cumpleaños", consentimiento: "promocion" },
   postventa: { id: "postventa", etiqueta: "Seguimiento después de la compra", corta: "Después de la compra", consentimiento: "salud" },
   control_proximo: { id: "control_proximo", etiqueta: "Control que vence pronto", corta: "Control próximo", consentimiento: "salud" },
+  // Recibió su diagnóstico (o pidió lentes desde su portal) y todavía no compra: sale de Ventas y vive aquí (reunión del 20 oct.).
+  por_vender: { id: "por_vender", etiqueta: "Recibió su diagnóstico y no ha comprado", corta: "Por vender", consentimiento: "salud" },
 }
 // El que se muestra primero (y el que da el mensaje) cuando un paciente cumple varios: el más específico o más urgente.
-export const ORDEN_MOTIVOS = ["sin_visitar", "control_vencido", "cumpleanos", "postventa", "control_proximo"]
+export const ORDEN_MOTIVOS = ["sin_visitar", "control_vencido", "por_vender", "cumpleanos", "postventa", "control_proximo"]
 export const MOTIVO_PROMOCION = "promocion"
 // Los motivos de los avisos que ofrecen WhatsApp (migración 0135): no arman la lista «Para contactar» (esa la arman los de arriba), pero cada uno tiene su plantilla editable y su contacto
-// queda en el Seguimiento. control_vencido ya es un motivo de arriba y se comparte: el mensaje del aviso del Inicio es el mismo del CRM.
+// queda en el Seguimiento. control_vencido y por_vender ya son motivos de arriba y se comparten: el mensaje del aviso del Inicio es el mismo del CRM.
 export const MOTIVOS_DE_AVISO = {
   cita_no_efectuada: { id: "cita_no_efectuada", etiqueta: "Cita no efectuada", corta: "Cita no efectuada" },
   cita_reagendada: { id: "cita_reagendada", etiqueta: "Cita reagendada", corta: "Cita reagendada" },
   lentes_listos: { id: "lentes_listos", etiqueta: "Lentes listos para retirar", corta: "Lentes listos" },
   medidas_montaje: { id: "medidas_montaje", etiqueta: "Medidas de montaje pedidas", corta: "Medidas de montaje" },
-  por_vender: { id: "por_vender", etiqueta: "Recibió su diagnóstico y no ha comprado", corta: "Por vender" },
 }
 export const ETIQUETA_MOTIVO = {
   ...Object.fromEntries(Object.values(MOTIVOS).map((m) => [m.id, m.corta])),
@@ -75,8 +77,16 @@ const sumarDias = (iso, n) => { const d = isoAFechaLocal(iso); d.setDate(d.getDa
 
 // ─── Los grupos: quién entra en cada motivo ───
 // Devuelve { id, detalle, dias } por cada motivo que cumple el paciente, o [].
-export function motivosDe(paciente, { consultas = [], ordenes = [], hoy = hoyISO() } = {}) {
+export function motivosDe(paciente, { consultas = [], ordenes = [], pases = [], facturas = [], hoy = hoyISO() } = {}) {
   const resultado = []
+  // Recibió su diagnóstico y no ha comprado: el pase «listo» más antiguo (lleva más tiempo esperando). Un paciente dado de alta puede seguir con una compra pendiente.
+  // Si compró algo después de recibir su diagnóstico (aunque la venta no quedara vinculada a esa consulta), ya no está por vender.
+  const porVender = pases.filter((p) => p.pacienteId === paciente.id && p.estado === "listo").sort((a, b) => (a.pasadaEn < b.pasadaEn ? -1 : 1))[0]
+  if (porVender && !facturas.some((f) => f.pacienteId === paciente.id && f.estado !== "anulada" && (f.creadoEn || "") > (porVender.pasadaEn || ""))) {
+    const dias = diasEnEspera(porVender, isoAFechaLocal(hoy))
+    const cuando = dias === 0 ? "hoy" : `hace ${dias} ${dias === 1 ? "día" : "días"}`
+    resultado.push({ id: "por_vender", dias, pase: porVender, detalle: esDelPortal(porVender) ? `Pidió lentes desde su portal ${cuando}` : `Recibió su diagnóstico ${cuando}${porVender.proformaEntregadaEn ? " · con proforma" : ""}` })
+  }
   if (paciente.estadoClinico === "De alta") return resultado // tratamiento finalizado: no tiene control pendiente
   const vencido = diasVencido(paciente, consultas)
   if (esInactivo(paciente, consultas)) {
@@ -146,7 +156,7 @@ export function estadoDelMotivo(contactosDelMotivo, citas, hoy = hoyISO()) {
 // Una fila por paciente, con los motivos por los que hoy hay que escribirle. Quedan fuera el motivo que el paciente no permitió (cada motivo pide su permiso)
 // y el que descansa por un contacto reciente. Es la ÚNICA definición de "por contactar hoy": el CRM y los avisos del Inicio cuentan con ella.
 // sinPermiso es cuántos pacientes tienen algún motivo que se dejó fuera por falta de permiso (para decirlo, no esconderlo).
-export function listaParaContactar({ pacientes = [], consultas = [], ordenes = [], citas = [], contactos = [], hoy = hoyISO() } = {}) {
+export function listaParaContactar({ pacientes = [], consultas = [], ordenes = [], pases = [], facturas = [], citas = [], contactos = [], hoy = hoyISO() } = {}) {
   const contactosDe = new Map()
   for (const c of contactos) {
     if (!contactosDe.has(c.pacienteId)) contactosDe.set(c.pacienteId, [])
@@ -155,7 +165,7 @@ export function listaParaContactar({ pacientes = [], consultas = [], ordenes = [
   const filas = []
   let sinPermiso = 0
   for (const paciente of pacientes) {
-    const motivos = motivosDe(paciente, { consultas, ordenes, hoy })
+    const motivos = motivosDe(paciente, { consultas, ordenes, pases, facturas, hoy })
     if (motivos.length === 0) continue
     const suyos = contactosDe.get(paciente.id) || []
     const permitidos = motivos.filter((m) => puedeContactarPor(paciente, m.id))

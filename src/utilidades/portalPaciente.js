@@ -71,8 +71,8 @@ export function textoOrdenPaciente(orden, hoy = ahoraEcuador()) {
   const visible = estadoVisible(orden, hoy)
   const fecha = (v) => fechaLegible(diaDeRegistro(v))
   if (visible === "atrasada") return { clave: "atrasada", tono: "rojo", titulo: "En el laboratorio", detalle: "Se están demorando un poco más de lo previsto. Llama a la óptica para saber cuándo estarán." }
-  if (visible === "lista") return { clave: "lista", tono: "verde", titulo: "Listos para retirar", detalle: orden.listaEl ? `Están en la óptica desde el ${fecha(orden.listaEl)}. Pasa a recogerlos.` : "Ya están en la óptica. Pasa a recogerlos." }
-  if (visible === "entregada") return { clave: "entregada", tono: "gris", titulo: "Entregados", detalle: orden.entregadaEl ? `Los recibiste el ${fecha(orden.entregadaEl)}.` : "Ya los recibiste." }
+  if (visible === "lista") return { clave: "lista", tono: "verde", titulo: "Listo", detalle: orden.listaEl ? `Están en la óptica desde el ${fecha(orden.listaEl)}. Pasa a recogerlos.` : "Ya están en la óptica. Pasa a recogerlos." }
+  if (visible === "entregada") return { clave: "entregada", tono: "gris", titulo: "Entregado", detalle: orden.entregadaEl ? `Los recibiste el ${fecha(orden.entregadaEl)}.` : "Ya los recibiste." }
   return { clave: "enviada", tono: "azul", titulo: "En el laboratorio", detalle: orden.fechaPrometida ? `Fecha estimada: ${fechaLegible(orden.fechaPrometida)}.` : "Te avisaremos cuando estén listos." }
 }
 
@@ -85,12 +85,12 @@ export function proximoPasoLentes(orden, hoy = ahoraEcuador()) {
   return orden.fechaPrometida ? `Retíralos en la óptica desde el ${formatoFecha(orden.fechaPrometida, "largoSinDia").replace(/ de \d{4}$/, "")}.` : "Te avisaremos cuando estén listos para retirar."
 }
 
-// La línea de pasos del seguimiento de unos lentes (como el de un envío): Pedido → En el laboratorio → Listos para retirar → Entregados. «Atrasada» es
+// La línea de pasos del seguimiento de unos lentes (como el de un envío): Pedido → En el laboratorio → Listo → Entregado. «Atrasada» es
 // la misma orden en el paso del laboratorio, con su aviso en rojo (igual que en Ventas).
-export const PASOS_LENTES = ["Pedido", "En el laboratorio", "Listos para retirar", "Entregados"]
+export const PASOS_LENTES = ["Pedido", "En el laboratorio", "Listo", "Entregado"]
 export function pasosDeLosLentes(orden, hoy = ahoraEcuador()) {
   const visible = estadoVisible(orden, hoy)
-  // Entregados es el último paso: ya cumplido (todos los pasos quedan hechos).
+  // Entregado es el último paso: ya cumplido (todos los pasos quedan hechos).
   const actual = { enviada: 1, atrasada: 1, lista: 2, entregada: 4 }[visible] ?? 1
   const tono = visible === "atrasada" ? "rojo" : visible === "lista" ? "verde" : visible === "entregada" ? "gris" : "azul"
   return { actual, tono, pasos: PASOS_LENTES.map((nombre, i) => ({ nombre, estado: i < actual ? "hecho" : i === actual ? "actual" : "pendiente" })) }

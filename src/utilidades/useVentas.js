@@ -1,5 +1,5 @@
 import { dinero } from "./formatoMoneda"
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { supabase } from "../lib/supabaseClient"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "./permisos"
 import { saldoPacienteFacturas } from "./abonos"
@@ -24,7 +24,6 @@ export function useVentas({
   const [ordenParaVenta, setOrdenParaVenta] = useState(null) // venta a la que se le crea una orden de laboratorio
   const [facturaElectronicaPara, setFacturaElectronicaPara] = useState(null) // { factura, paciente }
   const [corregirAbonoPara, setCorregirAbonoPara] = useState(null) // { abono, factura, paciente }
-  const [reabriendoId, setReabriendoId] = useState(null)
 
   // Una venta nueva entra a la lista; si venía de la cola, el pase pasa a "vendido".
   const registrarFactura = (factura) => {
@@ -68,15 +67,6 @@ export function useVentas({
     window.dispatchEvent(new CustomEvent(EVENTO_FE_CAMBIADA, { detail: factura.id })) // el detalle del comprobante vuelve a leer sus archivos
   }
 
-  // Una solicitud del portal no nace de una consulta: se le muestra la última del paciente (la que tiene su receta vigente).
-  const ultimaConsultaDe = (pacienteId) => consultas.filter((c) => c.pacienteId === pacienteId).slice().sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0))[0] || null
-  const construirCola = (estado) => pases
-    .filter((p) => p.estado === estado)
-    .map((pase) => ({ pase, paciente: pacientes.find((x) => x.id === pase.pacienteId) || null, consulta: (pase.consultaId ? consultas.find((c) => c.id === pase.consultaId) : ultimaConsultaDe(pase.pacienteId)) || null }))
-    .sort((a, b) => (estado === "listo" ? (a.pase.pasadaEn < b.pase.pasadaEn ? -1 : 1) : (a.pase.pasadaEn < b.pase.pasadaEn ? 1 : -1)))
-  const colaListos = useMemo(() => construirCola("listo"), [pases, pacientes, consultas]) // eslint-disable-line react-hooks/exhaustive-deps
-  const colaDescartados = useMemo(() => construirCola("descartado"), [pases, pacientes, consultas]) // eslint-disable-line react-hooks/exhaustive-deps
-
   // La proforma no se guarda como documento: el pase solo anota cuándo se entregó y por cuánto.
   const imprimirProformaCola = async ({ lineas, total, incluirMedidas }) => {
     const item = ventaCola
@@ -100,32 +90,18 @@ export function useVentas({
     notificar?.("Proforma registrada e impresa.")
   }
 
-  // «Tomar datos del diagnóstico»: una solicitud del portal se marca «En atención» (lo ve el paciente en su portal) antes de abrir la venta.
-  const tomarDatos = async (item) => {
-    const { pase } = item
-    if (pase.origen === "portal" && !pase.enAtencionEn && supabase) {
-      const { data, error } = await supabase.rpc("tomar_solicitud_portal", { p_pase_id: pase.id })
-      if (error) { avisarError?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo tomar la solicitud. Revisa tu conexión e intenta de nuevo."); return }
-      setPases?.((prev) => prev.map((p) => (p.id === pase.id ? { ...p, enAtencionEn: data } : p)))
-    }
-    setVentaCola(item)
+  // Al usar el último diagnóstico como guía de una venta, una solicitud del portal se marca «En atención» (lo ve el paciente en su portal). Devuelve false si no se pudo.
+  const tomarSolicitud = async (pase) => {
+    if (!pase || pase.origen !== "portal" || pase.enAtencionEn || !supabase) return true
+    const { data, error } = await supabase.rpc("tomar_solicitud_portal", { p_pase_id: pase.id })
+    if (error) { avisarError?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo tomar la solicitud. Revisa tu conexión e intenta de nuevo."); return false }
+    setPases?.((prev) => prev.map((p) => (p.id === pase.id ? { ...p, enAtencionEn: data } : p)))
+    return true
   }
 
   const alVenderDesdeCola = (factura) => {
     registrarFactura(factura)
     notificar?.(`Venta registrada: ${ventaCola?.paciente?.nombre || "el paciente"} salió de la lista de espera.`)
-  }
-
-  const reabrirPase = async ({ pase, paciente }) => {
-    setReabriendoId(pase.id)
-    const { error } = supabase ? await supabase.rpc("reabrir_pase", { p_pase_id: pase.id }) : { error: null }
-    setReabriendoId(null)
-    if (error) {
-      avisarError?.(esErrorSinPermiso(error) ? MENSAJE_SIN_PERMISO : "No se pudo volver a la lista de espera. Revisa tu conexión e intenta de nuevo.")
-      return
-    }
-    setPases?.((prev) => prev.map((p) => (p.id === pase.id ? { ...p, estado: "listo", motivoDescarte: null, detalleDescarte: null } : p)))
-    notificar?.(`${paciente?.nombre || "El paciente"} volvió a la lista de espera.`)
   }
 
   const alNoComprar = ({ motivo, detalle }) => {
@@ -140,8 +116,8 @@ export function useVentas({
 
   return {
     ventaCola, setVentaCola, noComproPara, setNoComproPara, abonoPara, setAbonoPara, anularPara, setAnularPara,
-    ordenParaVenta, setOrdenParaVenta, facturaElectronicaPara, setFacturaElectronicaPara, corregirAbonoPara, setCorregirAbonoPara, reabriendoId,
-    colaListos, colaDescartados, saldoDe,
-    registrarFactura, alAbonar, alCorregirAbono, alAnular, alGuardarFacturaElectronica, imprimirProformaCola, tomarDatos, alVenderDesdeCola, reabrirPase, alNoComprar,
+    ordenParaVenta, setOrdenParaVenta, facturaElectronicaPara, setFacturaElectronicaPara, corregirAbonoPara, setCorregirAbonoPara,
+    saldoDe,
+    registrarFactura, alAbonar, alCorregirAbono, alAnular, alGuardarFacturaElectronica, imprimirProformaCola, tomarSolicitud, alVenderDesdeCola, alNoComprar,
   }
 }

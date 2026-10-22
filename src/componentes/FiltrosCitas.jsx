@@ -13,7 +13,7 @@ const ESTILO_ACTIVO = { background: GRAD_MARCA, backgroundOrigin: "border-box" }
 // Piezas de la barra de Citas: la barra única de búsqueda y filtros, el periodo de la Lista y el conteo.
 
 // Cierra un popover con Escape o al hacer clic fuera.
-function useCierre(abierto, cerrar) {
+export function useCierre(abierto, cerrar) {
   const ref = useRef(null)
   useEffect(() => {
     if (!abierto) return
@@ -124,7 +124,7 @@ const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
 
 // Calendario del rango, con el mismo estilo del selector de fecha de las citas: el primer clic marca el inicio, el
 // segundo el final (si es anterior, se intercambian) y el trayecto queda sombreado. "Borrar" quita el rango.
-function CalendarioRango({ rango }) {
+export function CalendarioRango({ rango }) {
   const hoy = hoyISO()
   const ref = rango.desde || rango.hasta || hoy
   const [mes, setMes] = useState(() => new Date(Number(ref.slice(0, 4)), Number(ref.slice(5, 7)) - 1, 1))

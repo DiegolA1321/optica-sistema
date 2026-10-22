@@ -11,7 +11,7 @@ export const TIPOS_DESCARTABLES = {
   "citas:control_sin_agendar": { motivos: ["El paciente no quiere control", "Se controla en otro lugar", "Otro"], dias: 60 },
   "pacientes:control_vencido": { motivos: ["No volverá", "Se controla en otro lugar", "Otro"], dias: 90 },
   "pacientes:sin_consulta": { motivos: ["Registrado solo para el portal", "Duplicado", "No vendrá", "Otro"], dias: null },
-  "ventas:solicitud_lentes": { motivos: ["No concretó", "Compró en otro lugar", "Otro"], dias: null },
+  "ventas:por_vender": { motivos: ["No concretó", "Compró en otro lugar", "Otro"], dias: null },
   "inventario:stock_bajo": { motivos: ["No se repondrá", "Se repone en otra fecha", "Otro"], dias: 30 },
 }
 

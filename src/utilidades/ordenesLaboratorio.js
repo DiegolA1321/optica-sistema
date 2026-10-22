@@ -16,11 +16,11 @@ export const TIPOS_LENTE = [
 ]
 
 export const ETIQUETA_ESTADO = {
-  enviada: "Enviada al laboratorio",
-  lista: "Lista para entregar",
-  entregada: "Entregada",
-  cancelada: "Cancelada",
-  atrasada: "Atrasada",
+  enviada: "En el laboratorio",
+  lista: "Listo",
+  entregada: "Entregado",
+  cancelada: "Cancelado",
+  atrasada: "Atrasado",
 }
 
 export const numeroOrden = (n) => `OL-${String(n ?? 0).padStart(4, "0")}`
@@ -228,10 +228,14 @@ export const esLineaDeLente = (l) => l?.tipo === "luna" || (l?.tipo === "servici
 // El estado de los lentes de una compra, como lo entiende el paciente (reunión del 20 oct., D7): «En el laboratorio» (lo están haciendo, aunque vayan atrasados),
 // «Listos» (para retirar) o «Entregados». Con varias órdenes manda la que falta: si alguna sigue en proceso, «En el laboratorio»; si no, si alguna está lista, «Listos». Las canceladas no cuentan.
 // Una compra sin lentes (sin orden de laboratorio) devuelve null. Una sola cuenta para el perfil del paciente y sus compras.
-export const ETIQUETA_LENTES = { proceso: "En el laboratorio", listos: "Listos", entregados: "Entregados" }
+export const ETIQUETA_LENTES = { proceso: "En el laboratorio", listos: "Listo", entregados: "Entregado" }
 export function estadoLentesDeCompra(facturaId, ordenes = []) {
   const vivas = ordenes.filter((o) => o.facturaId === facturaId && o.estado !== "cancelada")
   if (vivas.length === 0) return null
   const id = vivas.some((o) => o.estado === "enviada") ? "proceso" : vivas.some((o) => o.estado === "lista") ? "listos" : "entregados"
   return { id, etiqueta: ETIQUETA_LENTES[id] }
 }
+
+// Cómo se nombran los lentes de un pedido en las listas: «Lentes progresivos».
+const NOMBRE_LENTES = { monofocal: "Lentes monofocales", bifocal: "Lentes bifocales", progresivo: "Lentes progresivos" }
+export const nombreDeLentes = (orden) => NOMBRE_LENTES[orden?.tipoLente] || "Lentes"

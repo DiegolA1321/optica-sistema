@@ -17,7 +17,7 @@ import { CLASE_ACCION_SECUNDARIA } from "../componentes/ventas/estilos"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { puede } from "../utilidades/permisosUi"
 import { motivoDeCampana } from "../utilidades/crmDatos"
-import { avisosDelCrm, contarPorMotivo, listaParaContactar, MOTIVOS } from "../utilidades/crmContactos"
+import { avisosDelCrm, contarPorMotivo, listaParaContactar, MOTIVOS, MOTIVOS_DE_AVISO } from "../utilidades/crmContactos"
 import { useFidelidadCon } from "../componentes/FidelidadContexto"
 import { useEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import { fechaLegible } from "../utilidades/formatoFecha"
@@ -31,7 +31,7 @@ const uno = (n, singular, plural) => (n === 1 ? singular : plural)
 // CRM y fidelización: responde "¿a quién tengo que contactar hoy, por qué y qué pasó cuando lo contacté?". Cuatro pestañas: Para contactar (la lista de trabajo),
 // Seguimiento (el historial), Campañas (un mensaje para un grupo) y Fidelización (los rankings). El análisis va en Reportes.
 export default function CRM({
-  usuario, crm, alcancePropio = false, pacientes = [], consultas = [], citas = [], ordenesLab = [], parametrizacion, setParametrizacion, cargaInicial = false,
+  usuario, crm, alcancePropio = false, pacientes = [], consultas = [], citas = [], ordenesLab = [], pases = [], facturasVenta = [], parametrizacion, setParametrizacion, cargaInicial = false,
   onVerPerfil, onRegistrarPaciente, onAviso, accionInicial, onAccionInicialConsumida,
 }) {
   const puedeContactar = puede(usuario, "crm", "crear")
@@ -54,7 +54,7 @@ export default function CRM({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accionInicial])
 
-  const { filas, sinPermiso } = useMemo(() => listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos, hoy }), [pacientes, consultas, ordenesLab, citas, contactos, hoy])
+  const { filas, sinPermiso } = useMemo(() => listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, pases, facturas: facturasVenta, citas, contactos, hoy }), [pacientes, consultas, ordenesLab, pases, facturasVenta, citas, contactos, hoy])
   const avisos = useMemo(() => avisosDelCrm(filas, contactos, hoy), [filas, contactos, hoy])
   const pacienteDe = useMemo(() => new Map(pacientes.map((p) => [p.id, p])), [pacientes])
 
@@ -63,7 +63,8 @@ export default function CRM({
   const escribirPorWhatsApp = useEscribirPorWhatsApp()
   const contactar = (fila, motivo) => escribirPorWhatsApp({
     paciente: fila.paciente, telefono: fila.telefono, motivo,
-    registro: ({ paciente, motivo: m, mensaje }) => crm.contactar({ paciente, motivo: m, canal: "whatsapp", mensaje }),
+    // Los motivos de un aviso de otro módulo («Por vender») anotan su contacto con el permiso de ese módulo, igual que desde el Inicio; los propios del CRM, con el del CRM.
+    registro: MOTIVOS_DE_AVISO[motivo] || motivo === "por_vender" ? undefined : ({ paciente, motivo: m, mensaje }) => crm.contactar({ paciente, motivo: m, canal: "whatsapp", mensaje }),
     alRegistrar: (r) => notificar(r.ok ? `Contacto con ${fila.paciente.nombre} registrado. Cuando responda, anota qué pasó.` : r.error),
   })
   const contactoPendiente = (pacienteId, motivo) => contactos.find((c) => c.pacienteId === pacienteId && !c.resultado && !c.campanaId && c.motivo === motivo)
@@ -73,7 +74,13 @@ export default function CRM({
 
   const guardarResultado = async ({ canal, resultado, volverEl }) => {
     const { paciente, motivo, contacto } = resultadoDe
-    const r = contacto ? await crm.anotarResultado(contacto, resultado, volverEl) : await crm.contactar({ paciente, motivo, canal, mensaje: "", resultado, volverEl })
+    // Sin un contacto anotado todavía, un motivo de otro módulo («Por vender») se anota primero como el contacto de ese aviso y después se le pone el resultado.
+    let r
+    if (contacto) r = await crm.anotarResultado(contacto, resultado, volverEl)
+    else if (motivo === "por_vender") {
+      const c = await crm.contactarDeAviso({ paciente, motivo, mensaje: "" })
+      r = c.ok ? await crm.anotarResultado({ id: c.id, pacienteId: paciente.id }, resultado, volverEl) : c
+    } else r = await crm.contactar({ paciente, motivo, canal, mensaje: "", resultado, volverEl })
     if (!r.ok) return r
     setResultadoDe(null)
     notificar(

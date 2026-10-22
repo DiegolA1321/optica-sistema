@@ -5,7 +5,7 @@ import { Insignia } from "../ventas/Lista"
 import { ETIQUETA_MOTIVO, RESULTADOS } from "../../utilidades/crmContactos"
 
 // El color solo comunica urgencia o estado (regla 14): rojo = vencido o perdido, azul = una ocasión para escribir.
-const TONO_MOTIVO = { control_vencido: "rojo", sin_visitar: "rojo", control_proximo: "azul", cumpleanos: "azul", postventa: "azul", promocion: "gris" }
+const TONO_MOTIVO = { control_vencido: "rojo", sin_visitar: "rojo", por_vender: "ambar", control_proximo: "azul", cumpleanos: "azul", postventa: "azul", promocion: "gris" }
 
 export const InsigniaMotivo = ({ motivo, title }) => <Insignia tono={TONO_MOTIVO[motivo] || "gris"} title={title}>{ETIQUETA_MOTIVO[motivo] || motivo}</Insignia>
 

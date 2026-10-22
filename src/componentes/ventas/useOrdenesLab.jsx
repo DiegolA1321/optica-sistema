@@ -15,7 +15,7 @@ import OrdenLaboratorioModal from "../OrdenLaboratorioModal"
 import EntregaConSaldoModal from "../EntregaConSaldoModal"
 import DetalleOrden from "./DetalleOrden"
 
-// Todo lo que se hace con una orden de laboratorio (marcarla lista, avisar al paciente, entregarla, imprimir las copias, corregirla, crear otra y
+// Todo lo que se hace con un pedido de lentes (marcarlo listo, contactar al paciente, entregarlo, imprimir las copias, corregirla, crear otra y
 // volver al estado anterior) en un solo lugar (regla 18): lo usan la pestaña Órdenes de laboratorio del módulo, el detalle de un comprobante y
 // la pestaña de órdenes del perfil del paciente. `ventanas` son las ventanas que abren esas acciones; quien llama las dibuja una sola vez.
 export function useOrdenesLab({ ordenes, setOrdenes, pacientes = [], equipo = [], usuario, facturas = [], abonos = [], pacienteFijo = null, onAbonar, onAviso, onVerComprobante }) {
@@ -49,8 +49,8 @@ export function useOrdenesLab({ ordenes, setOrdenes, pacientes = [], equipo = []
     setTrabajando(null)
     if (error) { falla(error, "No se pudo cambiar el estado. Revisa tu conexión e intenta de nuevo."); return }
     reemplazar(o.id, { estado, historial: [...(o.historial || []), { estado, cambiadoEn: new Date().toISOString() }], ...(estado === "enviada" || estado === "lista" ? { pacienteAvisadoEn: null, pacienteAvisadoPor: null } : {}) })
-    registrarLog(usuario, "ventas", "Cambió el estado de una orden de laboratorio", `${numeroOrden(o.numero)} → ${ETIQUETA_ESTADO[estado]}`)
-    onAviso?.(estado === "lista" ? `${numeroOrden(o.numero)} lista para entregar. Avísale al paciente.` : `${numeroOrden(o.numero)}: ${ETIQUETA_ESTADO[estado].toLowerCase()}.`)
+    registrarLog(usuario, "ventas", "Cambió el estado de un pedido de lentes", `${numeroOrden(o.numero)} → ${ETIQUETA_ESTADO[estado]}`)
+    onAviso?.(estado === "lista" ? `${numeroOrden(o.numero)} listo para entregar. Contacta al paciente para avisarle.` : `${numeroOrden(o.numero)}: ${ETIQUETA_ESTADO[estado].toLowerCase()}.`)
   }
 
   // Entregar con saldo pendiente: antes de marcarla entregada se muestra lo que falta por cobrar.

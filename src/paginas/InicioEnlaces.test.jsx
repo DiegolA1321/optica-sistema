@@ -161,9 +161,9 @@ describe("Requiere tu atención: la ventana y sus enlaces", () => {
     expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Abrir en Citas · En atención (2)" })).toBeInTheDocument()
     fireEvent.keyDown(document, { key: "Escape" })
     // Ventas: "Órdenes listas" cuenta las dos listas (una ya avisada); el aviso, solo la que falta avisar. Saldos: por paciente
-    fireEvent.click(within(area("Ventas")).getByRole("button", { name: /orden de laboratorio lista sin avisar al paciente/ }))
-    const ordenes = screen.getByRole("dialog", { name: "1 orden de laboratorio lista sin avisar al paciente" })
-    expect(within(ordenes).getByRole("button", { name: "Abrir en Ventas · Listas sin avisar (1)" })).toBeInTheDocument()
+    fireEvent.click(within(area("Ventas")).getByRole("button", { name: /pedido de lentes listo sin avisar al paciente/ }))
+    const ordenes = screen.getByRole("dialog", { name: "1 pedido de lentes listo sin avisar al paciente" })
+    expect(within(ordenes).getByRole("button", { name: "Abrir en Ventas · Listos sin avisar (1)" })).toBeInTheDocument()
     fireEvent.keyDown(document, { key: "Escape" })
     fireEvent.click(within(area("Ventas")).getByRole("button", { name: /ventas con saldo/ }))
     const ventas = screen.getByRole("dialog", { name: /2 ventas con saldo · 1 paciente/ })
@@ -255,29 +255,25 @@ describe("Ventas: 'Requieren atención' lo que dice / lo que abre", () => {
     return screen.getByRole("dialog", { name: nombre })
   }
 
-  it("'1 paciente espera su venta hace más de 30 días' abre Por vender con el filtro 'Más de 30 días (1)'", () => {
+  it("'2 pacientes recibieron su diagnóstico y no han comprado' abre el CRM con el motivo «Por vender» (la lista que cuenta el aviso)", () => {
     const pedidos = []
-    const ventana = abrirAvisos({ onVerCola: (...a) => pedidos.push(a) }, "1 paciente espera su venta hace más de 30 días")
-    fireEvent.click(within(ventana).getByRole("button", { name: "Abrir en Ventas · Más de 30 días (1)" }))
-    expect(pedidos).toEqual([["mas30"]])
+    const ventana = abrirAvisos({ onVerCrm: (...a) => pedidos.push(a) }, "2 pacientes recibieron su diagnóstico y no han comprado")
+    fireEvent.click(within(ventana).getByRole("button", { name: "Abrir en CRM · Por vender (2)" }))
+    expect(pedidos).toEqual([[{ filtro: "por_vender" }]])
   })
 
-  it("'3 órdenes listas sin avisar' abre Órdenes con el filtro 'Listas sin avisar (3)'", () => {
+  it("'3 pedidos de lentes listos sin avisar' abre Pedidos de lentes con el filtro 'Listos sin avisar (3)'", () => {
     const pedidos = []
-    const ventana = abrirAvisos({ onVerOrdenes: (...a) => pedidos.push(a) }, "3 órdenes de laboratorio listas sin avisar a los pacientes")
-    fireEvent.click(within(ventana).getByRole("button", { name: "Abrir en Ventas · Listas sin avisar (3)" }))
+    const ventana = abrirAvisos({ onVerOrdenes: (...a) => pedidos.push(a) }, "3 pedidos de lentes listos sin avisar a los pacientes")
+    fireEvent.click(within(ventana).getByRole("button", { name: "Abrir en Ventas · Listos sin avisar (3)" }))
     expect(pedidos).toEqual([["sinavisar"]])
   })
 
-  it("Ventas, al recibir esos filtros, muestra exactamente esos números", () => {
+  it("Ventas, al recibir ese filtro, muestra exactamente ese número", () => {
     const comun = { usuario: base.usuario, pacientes, pases, ordenesLab, consultas, facturasVenta: [], abonos: [], equipo: [], onAccionInicialConsumida: () => {} }
-    const { unmount } = render(<Ventas {...comun} accionInicial={{ tab: "porvender", filtroCola: "mas30" }} />)
-    expect(screen.getByText("1 paciente con más de 30 días esperando")).toBeInTheDocument()
-    expect(within(screen.getByRole("list", { name: "Pacientes por vender" })).getAllByRole("listitem")).toHaveLength(1)
-    unmount()
     window.history.replaceState({}, "", "/")
-    render(<Ventas {...comun} accionInicial={{ tab: "ordenes", filtro: "sinavisar" }} />)
-    expect(screen.getByText("3 órdenes listas sin avisar")).toBeInTheDocument()
-    expect(within(screen.getByRole("list", { name: "Órdenes de laboratorio" })).getAllByRole("listitem")).toHaveLength(3)
+    render(<Ventas {...comun} accionInicial={{ tab: "pedidos", filtro: "sinavisar" }} />)
+    expect(screen.getByRole("button", { name: /Listos sin avisar/ })).toHaveTextContent("3")
+    expect(within(screen.getByRole("list", { name: "Pedidos de lentes" })).getAllByRole("listitem")).toHaveLength(3)
   })
 })

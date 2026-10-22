@@ -159,7 +159,7 @@ describe("Excel: inventario y órdenes pendientes", () => {
         { id: 4, numero: 4, pacienteId: "p1", laboratorio: "Lab A", estado: "entregada", creadaEn: "2026-10-01T10:00:00-05:00", fechaPrometida: "2026-10-09" },
       ],
     })
-    expect(m.filas.map((f) => [f.celdas[0], f.celdas[1], f.celdas[6], f.celdas[7]])).toEqual([["Lab A", "OL-0002", 4, "Atrasada"], ["Lab A", "OL-0003", 0, "Lista para entregar"], ["Lab B", "OL-0001", 0, "Enviada al laboratorio"]])
+    expect(m.filas.map((f) => [f.celdas[0], f.celdas[1], f.celdas[6], f.celdas[7]])).toEqual([["Lab A", "OL-0002", 4, "Atrasado"], ["Lab A", "OL-0003", 0, "Listo"], ["Lab B", "OL-0001", 0, "En el laboratorio"]])
   })
 })
 

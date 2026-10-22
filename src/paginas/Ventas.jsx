@@ -2,34 +2,32 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
-import { FlaskConical, Receipt, ShoppingBag, ShoppingCart, Wallet } from "lucide-react"
+import { Plus, ShoppingBag } from "lucide-react"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import ModalesVentas from "../componentes/ModalesVentas"
-import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
 import TablaSkeleton from "../componentes/TablaSkeleton"
-import PestanaPorVender from "../componentes/ventas/PestanaPorVender"
-import PestanaComprobantes from "../componentes/ventas/PestanaComprobantes"
-import PestanaCobros from "../componentes/ventas/PestanaCobros"
+import PestanaVentas from "../componentes/ventas/PestanaVentas"
+import PestanaPedidos from "../componentes/ventas/PestanaPedidos"
+import { Pestanas } from "../componentes/ventas/Piezas"
 import DetalleComprobante from "../componentes/ventas/DetalleComprobante"
 import { useOrdenesLab } from "../componentes/ventas/useOrdenesLab"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { useVentas } from "../utilidades/useVentas"
 import { puede } from "../utilidades/permisosUi"
 import { ordenesAbiertas } from "../utilidades/ordenesLaboratorio"
-import { saldosPorPaciente } from "../utilidades/saldosVentas"
-import { formatoFecha, fechaLegible } from "../utilidades/formatoFecha"
 import { numeroComprobante } from "../utilidades/comprobantes"
 import { periodoDeDestino } from "../utilidades/periodoLista"
 import { filtroDeOrdenesValido } from "../utilidades/ventasModulo"
 
-const TABS = ["porvender", "comprobantes", "ordenes", "cobros"]
-// Los nombres de antes (los usan los enlaces del Inicio, de Reportes y las direcciones guardadas).
-const TAB_ANTIGUO = { cola: "porvender", ventas: "comprobantes", saldos: "cobros" }
+const TABS = ["ventas", "pedidos"]
+// Los nombres de antes (los usan los enlaces del Inicio, de Reportes y las direcciones guardadas): «Por vender» ya no es de Ventas (está en «Para contactar» del CRM) y
+// «Comprobantes» y «Cobros y saldos» son una sola lista.
+const TAB_ANTIGUO = { cola: "ventas", porvender: "ventas", comprobantes: "ventas", cobros: "ventas", saldos: "ventas", ordenes: "pedidos" }
+const DATO_DE_ESTADO = { saldo: "porcobrar", pagadas: "cobrado" }
 
-// Módulo de Ventas: lo operativo de la venta, en el orden en que pasa. Por vender (pacientes con receta que esperan su venta), Comprobantes (las ventas
-// registradas), Órdenes de laboratorio y Cobros y saldos (lo cobrado en el día y lo que se debe). El análisis va en Reportes.
-// Los datos siguen viniendo de Dashboard; esta página solo los muestra y abre las mismas ventanas que usa el perfil del paciente.
+// Módulo de Ventas: solo lo vendido, en dos pestañas. «Ventas» (la lista de ventas con su franja de datos: vendido, cobrado, por cobrar, pagos por verificar y lentes en el laboratorio) y «Pedidos de lentes».
+// El análisis va en Reportes. Los datos siguen viniendo de Dashboard; esta página solo los muestra y abre las mismas ventanas que usa el perfil del paciente.
 export default function Ventas({
   usuario, cargaInicial = false, parametrizacion, pacientes = [], consultas = [], inventario = [], setInventario,
   categoriasInventario = [], setCategoriasInventario, ventas = [], facturasVenta = [], setFacturasVenta,
@@ -40,7 +38,7 @@ export default function Ventas({
   const puedeEditar = puede(usuario, "ventas", "editar")
   const puedeAnular = puede(usuario, "ventas", "eliminar")
 
-  const [tabUrl, setTab] = useParamUrl("tab", "porvender", [...TABS, ...Object.keys(TAB_ANTIGUO)])
+  const [tabUrl, setTab] = useParamUrl("tab", "ventas", [...TABS, ...Object.keys(TAB_ANTIGUO)])
   const tab = TAB_ANTIGUO[tabUrl] || tabUrl
   const [destino, setDestino] = useState({ n: 0 }) // lo que pidió otro módulo: se reinicia la pestaña con esos filtros
   const [nuevaVenta, setNuevaVenta] = useState(false)
@@ -54,18 +52,18 @@ export default function Ventas({
     onAbonar: abonar, onAviso: notificar, onVerComprobante: (f) => setDetalleId(f.id),
   })
 
-  // Destino pedido desde el Inicio, Reportes o el menú: { tab, filtro, estado, desde, hasta, periodo, sinFE, texto }
+  // Destino pedido desde el Inicio, Reportes o el menú: { tab, dato, filtro, estado, desde, hasta, periodo, sinFE, texto }
   useEffect(() => {
     if (!accionInicial) return
     const pedida = TAB_ANTIGUO[accionInicial.tab] || accionInicial.tab
     if (pedida) setTab(pedida)
     setDestino((d) => ({
       n: d.n + 1,
-      filtroOrdenes: filtroDeOrdenesValido(accionInicial.filtro),
-      filtroCola: accionInicial.filtroCola || "todos",
-      comprobantes: {
+      filtroPedidos: filtroDeOrdenesValido(accionInicial.filtro),
+      ventas: {
         periodo: periodoDeDestino(accionInicial),
-        estado: !accionInicial.estado || accionInicial.estado === "vigentes" || accionInicial.estado === "todas" ? "todos" : accionInicial.estado,
+        dato: accionInicial.dato || DATO_DE_ESTADO[accionInicial.estado] || (accionInicial.tab === "cobros" || accionInicial.tab === "saldos" ? "porcobrar" : null),
+        estado: accionInicial.estado === "anuladas" ? "anuladas" : "vigentes",
         sinFE: !!accionInicial.sinFE,
         texto: accionInicial.texto || "",
       },
@@ -74,29 +72,15 @@ export default function Ventas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accionInicial])
 
-  const saldos = useMemo(() => saldosPorPaciente({ pacientes, facturas: facturasVenta, abonos, ventas }), [pacientes, facturasVenta, abonos, ventas])
   const pacienteDe = (id) => pacientes.find((p) => p.id === id) || null
   const verPaciente = (p) => p && onVerPaciente?.(p.id)
   const detalle = detalleId ? facturasVenta.find((f) => f.id === detalleId) || null : null
-
+  const enCurso = useMemo(() => ordenesAbiertas(ordenesLab).length, [ordenesLab])
+  const vigentes = useMemo(() => facturasVenta.filter((f) => f.estado !== "anulada").length, [facturasVenta])
   const pestanas = [
-    { id: "porvender", etiqueta: "Por vender", cuenta: v.colaListos.length, Icono: ShoppingBag },
-    { id: "comprobantes", etiqueta: "Comprobantes", cuenta: facturasVenta.filter((f) => f.estado !== "anulada").length, Icono: Receipt },
-    { id: "ordenes", etiqueta: "Órdenes de laboratorio", cuenta: ordenesAbiertas(ordenesLab).length, Icono: FlaskConical },
-    { id: "cobros", etiqueta: "Cobros y saldos", cuenta: saldos.length, Icono: Wallet },
+    { id: "ventas", titulo: "Ventas", cuenta: vigentes },
+    { id: "pedidos", titulo: "Pedidos de lentes", cuenta: enCurso },
   ]
-
-  // Excel de "Cobrado": el mismo modelo del reporte "Cobros del período" de Reportes, de un solo día.
-  const exportarCobros = async (dia) => {
-    try {
-      const { modeloCobros, descargarModelo } = await import("../utilidades/reportesExcel")
-      const rango = { inicio: dia, fin: dia }
-      await descargarModelo(modeloCobros({ facturas: facturasVenta, abonos, pacientes, rango }), { usuario, opticaNombre: usuario?.opticaNombre, usuarioNombre: usuario?.nombre, rango, filtrosTexto: "ninguno" })
-      notificar(`Se descargó lo cobrado el ${formatoFecha(dia, "medio")}.`)
-    } catch {
-      notificar("No se pudo descargar el Excel. Vuelve a intentarlo.", "error")
-    }
-  }
 
   return (
     <div className="w-full space-y-5 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
@@ -108,67 +92,34 @@ export default function Ventas({
         <AccionesDeCabecera avisos={avisosDelModulo}>
           {puedeVender && (
             <button type="button" onClick={() => setNuevaVenta(true)} className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer" style={{ background: GRAD_MARCA, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
-              <ShoppingCart size={18} aria-hidden="true" /> Nueva venta
+              <Plus size={18} aria-hidden="true" /> Nueva venta
             </button>
           )}
         </AccionesDeCabecera>
       </div>
 
-      {cargaInicial && facturasVenta.length === 0 && pases.length === 0 && ordenesLab.length === 0 ? (
+      {cargaInicial && facturasVenta.length === 0 && ordenesLab.length === 0 ? (
         <TablaSkeleton />
       ) : (
         <>
-          <div role="tablist" aria-label="Secciones de ventas" className="flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-            {pestanas.map(({ id, etiqueta, cuenta, Icono }) => {
-              const activo = tab === id
-              return (
-                <button key={id} type="button" role="tab" id={`ventas-tab-${id}`} aria-selected={activo} aria-controls="ventas-panel" onClick={() => setTab(id)}
-                  className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                  style={activo ? { background: GRAD_MARCA } : undefined}>
-                  <Icono size={14} aria-hidden="true" /> {etiqueta}
-                  <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (activo ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{cuenta}</span>
-                </button>
-              )
-            })}
-          </div>
+          <Pestanas etiqueta="Secciones de ventas" pestanas={pestanas} activa={tab} onCambiar={setTab} idBase="ventas" />
 
           <div id="ventas-panel" role="tabpanel" aria-labelledby={`ventas-tab-${tab}`}>
-            {tab === "porvender" && (
-              <PestanaPorVender key={destino.n} filtroInicial={destino.filtroCola} v={v} usuario={usuario} puedeVender={puedeVender} onVerPaciente={onVerPaciente} onNuevaVenta={() => setNuevaVenta(true)} />
-            )}
-            {tab === "comprobantes" && (
-              <PestanaComprobantes
+            {tab === "ventas" && (
+              <PestanaVentas
                 key={destino.n}
-                facturas={facturasVenta} abonos={abonos} pacientes={pacientes}
-                puedeVender={puedeVender} puedeEditar={puedeEditar} inicial={destino.comprobantes}
+                facturas={facturasVenta} abonos={abonos} pacientes={pacientes} ordenes={ordenesLab} pagosPorVerificar={pagosPorVerificar}
+                puedeVender={puedeVender} inicial={destino.ventas}
                 onNuevaVenta={() => setNuevaVenta(true)}
                 onAbrir={(f) => setDetalleId(f.id)}
-                onAbonar={(f) => abonar(f, pacienteDe(f.pacienteId))}
-                onVerPaciente={verPaciente}
+                onVerPedidos={(filtro) => { setDestino((d) => ({ ...d, n: d.n + 1, filtroPedidos: filtroDeOrdenesValido(filtro) })); setTab("pedidos") }}
               />
             )}
-            {tab === "ordenes" && (
-              <OrdenesLaboratorio
+            {tab === "pedidos" && (
+              <PestanaPedidos
                 key={destino.n} api={ordenesApi}
-                ordenes={ordenesLab} pacientes={pacientes} filtroInicial={destino.filtroOrdenes}
-                onVerPerfil={verPaciente} onVerComprobantes={() => setTab("comprobantes")}
-              />
-            )}
-            {tab === "cobros" && (
-              <PestanaCobros
-                pagosPorVerificar={pagosPorVerificar}
-                onPagoConfirmado={(p, r) => {
-                  setFacturasVenta?.((prev) => prev.map((f) => (f.id === p.facturaId ? { ...f, estado: r.estado || f.estado, cuotasPagadas: r.cuotasPagadas ?? f.cuotasPagadas } : f)))
-                  notificar(r.estado === "pagada" ? `Pago confirmado: la venta de ${p.pacienteNombre || "el paciente"} quedó pagada.` : "Pago confirmado: quedó registrado como abono por transferencia.")
-                  recargarPagos?.()
-                }}
-                onPagoRechazado={() => { notificar("Pago rechazado: el paciente verá el motivo en su portal."); recargarPagos?.() }}
-                facturas={facturasVenta} abonos={abonos} abonosAnulados={abonosAnulados} pacientes={pacientes} ventas={ventas} ordenes={ordenesLab}
-                puedeEditar={puedeEditar}
-                onCobrar={abonar}
-                onVerComprobante={(f) => setDetalleId(f.id)}
-                onVerPaciente={verPaciente}
-                onExportar={exportarCobros}
+                ordenes={ordenesLab} parametrizacion={parametrizacion} filtroInicial={destino.filtroPedidos}
+                puedeVender={puedeVender} onNuevaVenta={() => setNuevaVenta(true)}
               />
             )}
           </div>
@@ -179,6 +130,13 @@ export default function Ventas({
         <DetalleComprobante
           factura={detalle} paciente={pacienteDe(detalle.pacienteId)} abonos={abonos} abonosAnulados={abonosAnulados} ordenes={ordenesLab} equipo={equipo} usuario={usuario} parametrizacion={parametrizacion}
           v={v} ordenesApi={ordenesApi} puedeVender={puedeVender} puedeEditar={puedeEditar} puedeAnular={puedeAnular} onAviso={notificar}
+          pagosPorVerificar={pagosPorVerificar.filter((p) => p.facturaId === detalle.id)}
+          onPagoConfirmado={(p, r) => {
+            setFacturasVenta?.((prev) => prev.map((f) => (f.id === p.facturaId ? { ...f, estado: r.estado || f.estado, cuotasPagadas: r.cuotasPagadas ?? f.cuotasPagadas } : f)))
+            notificar(r.estado === "pagada" ? `Pago confirmado: la venta de ${p.pacienteNombre || "el paciente"} quedó pagada.` : "Pago confirmado: quedó registrado como abono por transferencia.")
+            recargarPagos?.()
+          }}
+          onPagoRechazado={() => { notificar("Pago rechazado: el paciente verá el motivo en su portal."); recargarPagos?.() }}
           onCerrar={() => setDetalleId(null)} onVerPaciente={(p) => { setDetalleId(null); verPaciente(p) }}
         />
       )}
@@ -190,12 +148,10 @@ export default function Ventas({
           categorias={categoriasInventario}
           setCategorias={setCategoriasInventario}
           pacientes={pacientes}
-          vinculoParaPaciente={(p) => {
-            const pase = pases.find((x) => x.pacienteId === p.id && x.estado === "listo")
-            if (!pase) return null
-            const c = consultas.find((k) => k.id === pase.consultaId)
-            return { consultaId: pase.consultaId, citaId: pase.citaId, etiqueta: `¿Esta venta es de la consulta del ${fechaLegible(c?.fecha) || "paciente"}? (listo para venta)` }
-          }}
+          consultas={consultas}
+          pases={pases}
+          parametrizacion={parametrizacion}
+          onTomarSolicitud={v.tomarSolicitud}
           onGuardado={(factura) => { v.registrarFactura(factura); notificar(`Venta ${numeroComprobante(factura.numero)} registrada.`) }}
           onCerrar={() => setNuevaVenta(false)}
         />

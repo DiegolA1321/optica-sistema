@@ -8,12 +8,12 @@ import { supabase } from "../../lib/supabaseClient"
 import { Cascaron } from "../AtencionPaciente"
 import { Bloque, Columna, Dato } from "./Detalle"
 import { Insignia } from "./Lista"
-import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, TONO_ESTADO_ORDEN } from "./estilos"
+import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA } from "./estilos"
 import { dinero } from "../../utilidades/formatoMoneda"
 import { fechaLegible, fechaHoraLegible } from "../../utilidades/formatoFecha"
 import { numeroComprobante } from "../../utilidades/comprobantes"
 import { ETIQUETA_ESTADO, TIPOS_LENTE, numeroOrden, diasDeAtraso, estadoVisible, tratamientos } from "../../utilidades/ordenesLaboratorio"
-import { ESTADO_ANTERIOR, textoEstadoOrden } from "../../utilidades/ventasModulo"
+import { ESTADO_ANTERIOR, estadoDePedido } from "../../utilidades/ventasModulo"
 
 const medida = (o) => ["esfera", "cilindro", "eje", "adicion"].map((k) => (k === "eje" ? o?.[k] : dioptriaTexto(o?.[k])) || "—")
 
@@ -23,6 +23,7 @@ export default function DetalleOrden({ orden, paciente, factura, saldo, api, equ
   const [historial, setHistorial] = useState(null)
   const visible = estadoVisible(orden)
   const dias = diasDeAtraso(orden)
+  const estado = estadoDePedido(orden, dias)
   const sig = api.siguiente(orden)
   const ocupado = api.trabajando === orden.id
   const anterior = ESTADO_ANTERIOR[orden.estado]
@@ -47,19 +48,19 @@ export default function DetalleOrden({ orden, paciente, factura, saldo, api, equ
 
   return (
     <Cascaron
-      titulo={`Orden ${numeroOrden(orden.numero)}`}
+      titulo={`Pedido ${numeroOrden(orden.numero)}`}
       subtitulo={`${paciente?.nombre || "Paciente"}${orden.laboratorio ? ` · ${orden.laboratorio}` : ""}`}
       Icono={FlaskConical}
       ancho="max-w-3xl"
-      etiqueta={`Orden de laboratorio ${numeroOrden(orden.numero)}`}
+      etiqueta={`Pedido de lentes ${numeroOrden(orden.numero)}`}
       onCerrar={onCerrar}
-      derecha={<Insignia tono={TONO_ESTADO_ORDEN[visible]}>{textoEstadoOrden(orden, dias)}</Insignia>}
+      derecha={<Insignia tono={estado.tono}>{estado.etiqueta}</Insignia>}
       pie={(
         <>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => api.imprimir(orden)} className={CLASE_ACCION_SECUNDARIA}><Printer size={14} aria-hidden="true" /> Imprimir copias</button>
             {api.puedeEditar && (orden.estado === "enviada" || orden.estado === "lista") && <button type="button" onClick={() => api.editar(orden)} className={CLASE_ACCION_SECUNDARIA}><Pencil size={14} aria-hidden="true" /> Editar</button>}
-            {api.puedeCrear && orden.estado !== "cancelada" && <button type="button" onClick={() => api.otraOrden(orden)} title="Crear otra orden para la misma venta (por ejemplo, un segundo par)" className={CLASE_ACCION_SECUNDARIA}><Plus size={14} aria-hidden="true" /> Otra orden</button>}
+            {api.puedeCrear && orden.estado !== "cancelada" && <button type="button" onClick={() => api.otraOrden(orden)} title="Crear otro pedido para la misma venta (por ejemplo, un segundo par)" className={CLASE_ACCION_SECUNDARIA}><Plus size={14} aria-hidden="true" /> Otro pedido</button>}
             {api.puedeEditar && anterior && <button type="button" onClick={() => api.volver(orden)} disabled={ocupado} className={CLASE_ACCION_SECUNDARIA}><Undo2 size={14} aria-hidden="true" /> Volver al estado anterior</button>}
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -71,11 +72,11 @@ export default function DetalleOrden({ orden, paciente, factura, saldo, api, equ
     >
       <div className="space-y-5 p-5">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-          <Columna titulo="La orden">
-            <Dato etiqueta="Estado">{textoEstadoOrden(orden, dias)}</Dato>
+          <Columna titulo="El pedido">
+            <Dato etiqueta="Estado">{estado.etiqueta}</Dato>
             <Dato etiqueta="Laboratorio" vacio={!orden.laboratorio}>{orden.laboratorio || "Sin laboratorio"}</Dato>
             <Dato etiqueta="Entrega prometida"><span className={visible === "atrasada" ? "text-red-700" : ""}>{fechaLegible(orden.fechaPrometida) || "—"}</span></Dato>
-            {orden.estado === "lista" && <Dato etiqueta="Aviso al paciente" vacio={!orden.pacienteAvisadoEn}>{orden.pacienteAvisadoEn ? `Avisado el ${fechaLegible(orden.pacienteAvisadoEn)}${nombre(orden.pacienteAvisadoPor) ? ` por ${nombre(orden.pacienteAvisadoPor)}` : ""}` : "Falta avisar al paciente"}</Dato>}
+            {orden.estado === "lista" && <Dato etiqueta="Contacto con el paciente" vacio={!orden.pacienteAvisadoEn}>{orden.pacienteAvisadoEn ? `Contactado el ${fechaLegible(orden.pacienteAvisadoEn)}${nombre(orden.pacienteAvisadoPor) ? ` por ${nombre(orden.pacienteAvisadoPor)}` : ""}` : "Falta contactar al paciente"}</Dato>}
           </Columna>
           <Columna titulo="La venta">
             <Dato etiqueta="Comprobante">
@@ -87,7 +88,7 @@ export default function DetalleOrden({ orden, paciente, factura, saldo, api, equ
             <Dato etiqueta="Saldo" vacio={!(saldo > 0)}>{saldo > 0 ? <span className="text-amber-700">{dinero(saldo)}</span> : "Sin saldo"}</Dato>
             <Dato etiqueta="Paciente" vacio={!paciente?.telefono}>{paciente?.telefono || "Sin teléfono"}</Dato>
           </Columna>
-          <Columna titulo="El pedido">
+          <Columna titulo="Los lentes">
             <Dato etiqueta="Lente">{[tipo, orden.material].filter(Boolean).join(" · ") || "—"}</Dato>
             <Dato etiqueta="Tratamientos" vacio={trat.length === 0}>{trat.length > 0 ? trat.join(", ") : "Ninguno"}</Dato>
             <Dato etiqueta="Montura" vacio={!orden.montura}>{orden.montura ? `${orden.montura}${orden.monturaMedidas ? ` · ${orden.monturaMedidas}` : ""}` : "Sin montura"}</Dato>
@@ -117,7 +118,7 @@ export default function DetalleOrden({ orden, paciente, factura, saldo, api, equ
           ) : historial.length === 0 ? (
             <p className="text-sm text-slate-500">Todavía no hay cambios de estado.</p>
           ) : (
-            <ol className="space-y-1 text-sm text-slate-600" aria-label="Historial de la orden">
+            <ol className="space-y-1 text-sm text-slate-600" aria-label="Historial del pedido">
               {historial.map((h, i) => (
                 <li key={i}><span className="font-semibold text-slate-800">{ETIQUETA_ESTADO[h.estado]}</span> · {fechaHoraLegible(h.cambiado_en, { anio: true })} · {nombre(h.cambiado_por) || "Equipo"}{h.nota ? ` · ${h.nota}` : ""}</li>
               ))}

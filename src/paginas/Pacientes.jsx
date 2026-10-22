@@ -90,7 +90,6 @@ import { fechaLegible, fechaReciente, formatoFecha } from "../utilidades/formato
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import {  } from "../utilidades/correccion"
-import OrdenesLaboratorio from "../componentes/OrdenesLaboratorio"
 import { puede } from "../utilidades/permisosUi"
 import { cambiarPermisosPaciente } from "../utilidades/permisosMensajes"
 import PermisosAlRegistrar from "../componentes/PermisosAlRegistrar"

@@ -1,22 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Landmark, ChevronRight, Check, X } from "lucide-react"
-import { INK, GRAD_MARCA } from "@/lib/tema"
+import { Landmark, Check, X } from "lucide-react"
+import { GRAD_MARCA } from "@/lib/tema"
 import { Cascaron } from "../AtencionPaciente"
 import { Columna, Dato } from "./Detalle"
-import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, BOTON_CERRAR, plural } from "./estilos"
+import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, BOTON_CERRAR } from "./estilos"
 import { dinero } from "../../utilidades/formatoMoneda"
 import { fechaLegible } from "../../utilidades/formatoFecha"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
 import { numeroComprobante } from "../../utilidades/comprobantes"
 import { archivoDelPago, confirmarPago, rechazarPago } from "../../utilidades/pagosTransferencia"
 
-// «Pagos por verificar» (Cobros y saldos): lo que los pacientes dicen haber transferido desde su portal. Cada fila abre el comprobante; quien puede editar Ventas lo confirma (queda como un abono
-// con el método «Transferencia») o lo rechaza con un motivo que el paciente lee en su portal.
-const COLUMNAS = "lg:grid-cols-[minmax(0,1.4fr)_minmax(7rem,0.8fr)_7rem_minmax(8rem,0.8fr)_1rem]"
-
-function VentanaRevision({ pago, puedeEditar, onCerrar, onConfirmado, onRechazado }) {
+// La revisión de un pago por transferencia (el detalle de la venta la abre desde «Pago por verificar»): lo que el paciente dice haber transferido desde su portal. Quien puede editar Ventas lo confirma
+// (queda como un abono con el método «Transferencia») o lo rechaza con un motivo que el paciente lee en su portal.
+export function VentanaRevision({ pago, puedeEditar, onCerrar, onConfirmado, onRechazado }) {
   const [archivo, setArchivo] = useState(null)
   const [error, setError] = useState("")
   const [trabajando, setTrabajando] = useState(false)
@@ -85,32 +83,5 @@ function VentanaRevision({ pago, puedeEditar, onCerrar, onConfirmado, onRechazad
       )}
       {error && <p role="alert" className="mx-5 mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p>}
     </Cascaron>
-  )
-}
-
-export default function PagosPorVerificar({ pagos = [], puedeEditar, onConfirmado, onRechazado }) {
-  const [abierto, setAbierto] = useState(null)
-  if (pagos.length === 0) return null
-  return (
-    <section aria-label="Pagos por verificar" className="min-w-0 rounded-2xl border border-blue-200/70 bg-blue-50/40 shadow-sm lg:col-span-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-blue-100 px-4 py-3">
-        <h2 className="flex items-center gap-2 text-base font-bold" style={{ color: INK }}><Landmark size={16} aria-hidden="true" /> Pagos por verificar</h2>
-        <p className="text-sm text-slate-600">{plural(pagos.length, "pago por transferencia", "pagos por transferencia")} que {pagos.length === 1 ? "espera" : "esperan"} tu revisión</p>
-      </div>
-      <div aria-hidden="true" className={"hidden gap-x-3 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 lg:grid " + COLUMNAS}><span>Paciente</span><span>Compra</span><span className="text-right">Monto</span><span>Enviado</span><span /></div>
-      <ul data-lista="pagos-por-verificar" aria-label="Pagos por verificar" className="divide-y divide-blue-100/70">
-        {pagos.map((p) => (
-          <li key={p.id} data-fila className={"relative grid grid-cols-1 gap-x-3 gap-y-0.5 px-4 py-3 transition-colors hover:bg-white/70 lg:items-center " + COLUMNAS}>
-            <button type="button" onClick={() => setAbierto(p)} aria-haspopup="dialog" aria-label={`Revisar el pago de ${p.pacienteNombre || "un paciente"} por ${dinero(p.monto)}`} className="absolute inset-0 cursor-pointer" />
-            <p className="min-w-0 truncate text-sm font-bold" style={{ color: INK }} title={p.pacienteNombre}>{p.pacienteNombre || "Paciente"}</p>
-            <p className="font-mono text-sm text-slate-600">{numeroComprobante(p.facturaNumero)}</p>
-            <p data-col="monto" className="font-mono text-sm font-bold text-slate-800 lg:text-right">{dinero(p.monto)}</p>
-            <p className="text-sm text-slate-600">{fechaLegible(diaDeRegistro(p.creadoEn)) || "—"}</p>
-            <ChevronRight size={16} className="hidden text-slate-400 lg:block" aria-hidden="true" />
-          </li>
-        ))}
-      </ul>
-      {abierto && <VentanaRevision pago={abierto} puedeEditar={puedeEditar} onCerrar={() => setAbierto(null)} onConfirmado={(p, r) => { setAbierto(null); onConfirmado?.(p, r) }} onRechazado={(p) => { setAbierto(null); onRechazado?.(p) }} />}
-    </section>
   )
 }

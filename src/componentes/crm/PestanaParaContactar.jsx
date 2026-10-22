@@ -10,12 +10,14 @@ import { InsigniaMotivo, InsigniaResultado, NombrePaciente } from "./piezas"
 import { CLASE_PILDORA } from "./estilosCrm"
 import { CANALES, MOTIVOS, contarPorMotivo, filtrarPorMotivo } from "../../utilidades/crmContactos"
 import { fechaLegible, formatoFecha } from "../../utilidades/formatoFecha"
+import { dinero } from "../../utilidades/formatoMoneda"
+import { Insignia } from "../ventas/Lista"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
 import { hoyISO } from "../../utilidades/disponibilidad"
 
 const POR_PAGINA = 30
 // El orden de los filtros es el del pedido: primero lo vencido, luego lo que viene.
-const FILTROS = ["control_vencido", "control_proximo", "cumpleanos", "sin_visitar", "postventa"]
+const FILTROS = ["control_vencido", "control_proximo", "por_vender", "cumpleanos", "sin_visitar", "postventa"]
 const COLUMNAS = "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_19.5rem]"
 const ENCABEZADO = [{ texto: "Paciente" }, { texto: "Motivo" }, { texto: "Último contacto" }, { texto: "" }]
 const sinTildes = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
@@ -83,6 +85,7 @@ export default function PestanaParaContactar({ filas, sinPermiso, filtro, onFilt
             {lista.slice(0, visibles).map((f) => {
               const motivoActivo = filtro !== "todos" && f.motivos.some((m) => m.id === filtro) ? filtro : f.principal
               const detalle = f.motivos.find((m) => m.id === motivoActivo)?.detalle
+              const pasePorVender = f.motivos.find((m) => m.id === "por_vender")?.pase
               const u = f.ultimoContacto
               const pendiente = Boolean(f.sinResultado)
               return (
@@ -97,6 +100,8 @@ export default function PestanaParaContactar({ filas, sinPermiso, filtro, onFilt
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-1.5">{f.motivos.map((m) => <InsigniaMotivo key={m.id} motivo={m.id} />)}</div>
                     {detalle && <p className="truncate text-xs text-slate-500">{detalle}</p>}
+                    {/* La proforma que ya se le entregó, para saber de cuánto fue la oferta al contactarlo. */}
+                    {pasePorVender?.proformaEntregadaEn && <Insignia tono="azul" title={`Proforma entregada el ${fechaLegible(pasePorVender.proformaEntregadaEn)}`}>{pasePorVender.proformaTotal ? `Proforma ${dinero(Number(pasePorVender.proformaTotal))}` : "Proforma"}</Insignia>}
                   </div>
                   <div className="min-w-0 space-y-1 text-sm">
                     {u ? (
