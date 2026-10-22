@@ -75,6 +75,25 @@ describe("Resumen del perfil", () => {
     fireEvent.click(within(lista).getByRole("button", { name: "Agendar" }))
     expect(onClick).toHaveBeenCalled()
   })
+  it("«Pidió sus medidas» es una etiqueta como las demás, con una sola acción: Atender", () => {
+    const atender = vi.fn()
+    montarResumen({ avisos: [
+      { id: "c", tono: "ambar", texto: "Control sin agendar · 5 abr 2027", accion: { etiqueta: "Agendar", onClick: vi.fn() } },
+      { id: "medidas", tono: "azul", texto: "Pidió sus medidas · 18 oct", accion: { etiqueta: "Atender", onClick: atender } },
+    ] })
+    const lista = screen.getByRole("list", { name: "Avisos del paciente" })
+    expect(within(lista).getAllByRole("status")).toHaveLength(2)
+    expect(lista).toHaveTextContent("Pidió sus medidas · 18 oct")
+    expect(within(lista).queryByRole("button", { name: /WhatsApp|Marcar como enviadas|Agendar toma/ })).not.toBeInTheDocument()
+    fireEvent.click(within(lista).getByRole("button", { name: "Atender" }))
+    expect(atender).toHaveBeenCalledTimes(1)
+  })
+  it("en «Actividad reciente» cada fecha va en una sola línea", () => {
+    montarResumen({ citas: [{ id: "k1", pacienteId: "p1", paciente: "Diego Alarcón", fecha: "2026-04-20", hora: "09:00 AM", estado: "Atendida", motivo: "Consulta General" }] })
+    const fechas = screen.getByRole("region", { name: "Actividad reciente" }).querySelectorAll("li > span:first-child")
+    expect(fechas.length).toBeGreaterThan(0)
+    for (const f of fechas) expect(f.className).toContain("whitespace-nowrap")
+  })
   it("el cumpleaños dice la edad que cumplirá y cuándo; la fidelización es compacta", () => {
     montarResumen()
     const f = screen.getByRole("region", { name: "Fidelización" })

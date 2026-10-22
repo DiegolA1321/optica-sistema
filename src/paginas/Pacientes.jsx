@@ -73,13 +73,13 @@ import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, 
 import { minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
 import { linkWhatsApp } from "../utilidades/whatsapp"
 import { medidasDelPaciente } from "../utilidades/medidasMontaje"
+import MedidasPedidasModal from "../componentes/MedidasPedidasModal"
 import { useEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import {  } from "../utilidades/agudeza"
 import { puedeIngresarCita } from "../utilidades/filtrosCitas"
 import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
 import ConfirmarOtraConsulta from "../componentes/ConfirmarOtraConsulta"
 import { atencionDeHoy } from "../utilidades/atencionDeHoy"
-import AvisoMedidasPedidas from "../componentes/AvisoMedidasPedidas"
 import { marcarContactadoHoy } from "../utilidades/contactosCrm"
 import DiagnosticoPerfil from "../componentes/graduacion/DiagnosticoPerfil"
 import {  } from "../utilidades/resultadoDeCita"
@@ -457,6 +457,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
   // Solicitud de medidas del portal: si se agenda la toma de medidas desde su aviso, al guardarse la cita la solicitud se cierra con esa fecha y hora.
   const [medidasAlAgendar, setMedidasAlAgendar] = useState(null)
   const [cerrandoMedidas, setCerrandoMedidas] = useState(false)
+  const [atendiendoMedidas, setAtendiendoMedidas] = useState(false) // la ventana de «Atender» las medidas que pidió el paciente
   const [agendarFecha, setAgendarFecha] = useState("")
   const [agendarHora, setAgendarHora] = useState("")
   const [agendarMotivo, setAgendarMotivo] = useState("")
@@ -1780,45 +1781,6 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
             return slot ? createPortal(botonVolver, slot) : <div className="flex shrink-0 items-center justify-between border-b border-slate-200/60 bg-white px-4 py-3 sm:px-8">{botonVolver}</div>
           })()}
 
-          {(() => {
-            const solicitudEliminacion = solicitudesEliminacion.find((s) => s.pacienteId === pacienteHistorial.id)
-            if (!solicitudEliminacion) return null
-            return (
-              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-amber-200/60 bg-amber-50 px-4 py-3 sm:px-8">
-                <div className="flex items-start gap-2.5">
-                  <AlertCircle size={18} className="mt-0.5 shrink-0 text-amber-600" />
-                  <div>
-                    <p className="text-sm font-semibold text-amber-800">Este paciente solicitó eliminar su cuenta y sus datos.</p>
-                    {solicitudEliminacion.motivo && <p className="text-xs text-amber-700">Motivo: {solicitudEliminacion.motivo}</p>}
-                    <p className="text-xs text-amber-600">Usa "Eliminar paciente" en el menú de acciones para completarlo, y marca esta solicitud como atendida.</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => marcarSolicitudEliminacionAtendida?.(solicitudEliminacion.id)}
-                  className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 cursor-pointer"
-                >
-                  Marcar atendida
-                </button>
-              </div>
-            )
-          })()}
-
-          {pacienteHistorial.medidasSolicitadasEn && (() => {
-            const medidasPedidas = medidasDelPaciente({ consultas: consultas.filter((c) => c.pacienteId === pacienteHistorial.id || c.paciente === pacienteHistorial.nombre), ordenes: ordenesLab.filter((o) => o.pacienteId === pacienteHistorial.id) })
-            return (
-              <AvisoMedidasPedidas
-                solicitadaEn={pacienteHistorial.medidasSolicitadasEn}
-                medidas={medidasPedidas}
-                puedeEscribirWhatsApp={!!pacienteHistorial.telefono && pacienteHistorial.telefono !== "Sin Teléfono"}
-                ocupado={cerrandoMedidas}
-                onWhatsApp={() => escribirPorWhatsApp({ paciente: pacienteHistorial, motivo: "medidas_montaje", contexto: { medidas: medidasPedidas } })}
-                onMarcarEnviadas={() => responderMedidas(pacienteHistorial, { resultado: "enviadas", dp: medidasPedidas.dp || null, altura: medidasPedidas.altura || null }, "Marcaste las medidas como enviadas.")}
-                onAgendar={puedeAgendar ? () => { abrirAgendar(pacienteHistorial); setAgendarMotivo(motivosConsulta.find((m) => /medida/i.test(m)) || ""); setMedidasAlAgendar(pacienteHistorial.id) } : undefined}
-              />
-            )
-          })()}
-
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="px-4 pb-6 pt-3 sm:px-8 sm:pb-8 sm:pt-4">
 
@@ -1946,6 +1908,8 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
               // Los avisos del paciente, solo en el Resumen y arriba: lo que conviene saber de un vistazo, cada uno con su acción. tono: ambar (por hacer), rojo (urgente), azul (en curso), verde (listo), gris (informa).
               const citaEnAtencion = citasPaciente.find((c) => c.estado === "En Atención") || null
               const cobrosDelPaciente = sinMontos ? [] : cobrosPendientes(consultasPaciente, facturasVenta, citas)
+              const solicitudEliminacion = solicitudesEliminacion.find((s) => s.pacienteId === pacienteHistorial.id) || null
+              const medidasPedidas = pacienteHistorial.medidasSolicitadasEn ? medidasDelPaciente({ consultas: consultasPaciente, ordenes: ordenesPaciente }) : null
               const avisosPerfil = [
                 citaEnAtencion && { id: "atencion", tono: "azul", texto: `Cita en atención · ${fechaReciente(citaEnAtencion.fecha) || "sin fecha"} · ${citaEnAtencion.hora}${diasAtencionAbierta(citaEnAtencion) !== null ? " · " + textoAtencionAbierta(diasAtencionAbierta(citaEnAtencion)) : ""}` },
                 paseListo && { id: "pase", tono: "verde", texto: `Recibió su diagnóstico y no ha comprado · desde ${fechaLegible(paseListo.pasadaEn)}`, accion: puedeVender ? { etiqueta: "Vender la receta", onClick: () => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null }) } : null },
@@ -1962,12 +1926,30 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
                   const monto = costoBaseMotivo(parametrizacion, consulta.motivo)
                   return { id: "cobro-" + consulta.id, tono: "rojo", texto: `Cobro pendiente ${monto > 0 ? dinero(monto) + " · " : ""}Consulta del ${fechaReciente(consulta.fecha)}`, accion: puedeVender ? { etiqueta: "Cobrar", onClick: () => setCobrandoPendiente({ consulta, cita }) } : null }
                 }),
+                // Lo que el paciente pidió o solicitó desde el portal: va con los demás avisos, nunca arriba del encabezado.
+                solicitudEliminacion && {
+                  id: "eliminacion", tono: "ambar", texto: "Solicitó eliminar su cuenta y sus datos",
+                  detalle: [solicitudEliminacion.motivo && `Motivo: ${solicitudEliminacion.motivo}.`, "Usa «Eliminar paciente» en el menú de acciones para completarlo y marca esta solicitud como atendida."].filter(Boolean).join(" "),
+                  acciones: [{ etiqueta: "Marcar atendida", onClick: () => marcarSolicitudEliminacionAtendida?.(solicitudEliminacion.id) }],
+                },
+                pacienteHistorial.medidasSolicitadasEn && { id: "medidas", tono: "azul", texto: `Pidió sus medidas · ${formatoFecha(pacienteHistorial.medidasSolicitadasEn, "medioSinAnio")}`, accion: { etiqueta: "Atender", onClick: () => setAtendiendoMedidas(true) } },
               ].filter(Boolean)
 
               return (
                 <>
                   <CabeceraPerfil paciente={pacienteHistorial} edad={textoEdadPaciente} pestanas={pestanasPerfil} pestana={tabHistorial} onPestana={setTabHistorial} acciones={accionesPerfil} atender={atender} accesoPortal={accesoPortal} />
 
+
+                  {atendiendoMedidas && medidasPedidas && (
+                    <MedidasPedidasModal
+                      paciente={pacienteHistorial} solicitadaEn={pacienteHistorial.medidasSolicitadasEn} medidas={medidasPedidas} ocupado={cerrandoMedidas}
+                      puedeEscribirWhatsApp={!!pacienteHistorial.telefono && pacienteHistorial.telefono !== "Sin Teléfono"}
+                      onWhatsApp={() => { setAtendiendoMedidas(false); escribirPorWhatsApp({ paciente: pacienteHistorial, motivo: "medidas_montaje", contexto: { medidas: medidasPedidas } }) }}
+                      onMarcarEnviadas={async () => { await responderMedidas(pacienteHistorial, { resultado: "enviadas", dp: medidasPedidas.dp || null, altura: medidasPedidas.altura || null }, "Marcaste las medidas como enviadas."); setAtendiendoMedidas(false) }}
+                      onAgendar={puedeAgendar ? () => { setAtendiendoMedidas(false); abrirAgendar(pacienteHistorial); setAgendarMotivo(motivosConsulta.find((m) => /medida/i.test(m)) || ""); setMedidasAlAgendar(pacienteHistorial.id) } : undefined}
+                      onCerrar={() => setAtendiendoMedidas(false)}
+                    />
+                  )}
 
                   {/* key={tabHistorial}: remonta el panel en cada cambio de
                       pestaña para que "rise-in" (ya estándar en el resto del

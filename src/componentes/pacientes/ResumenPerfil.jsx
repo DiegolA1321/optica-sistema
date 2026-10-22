@@ -115,11 +115,11 @@ export default function ResumenPerfil({ paciente, pacientes = [], citas = [], co
             {actividad.length > 0 && onVerCitas && <button type="button" onClick={onVerCitas} className="text-sm font-semibold text-blue-600 transition-colors after:absolute after:inset-0 after:rounded-2xl hover:text-blue-700 cursor-pointer">Ver todo →</button>}
           </div>
           {actividad.length > 0 ? (
-            <ul className="mt-3 space-y-2.5">
+            <ul className="mt-3 grid grid-cols-[max-content_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2.5 text-[15px]">
               {actividad.map((e) => (
-                <li key={e.id} className="grid grid-cols-[3.75rem_minmax(0,1fr)] items-baseline gap-x-2 text-[15px]">
-                  <span className="flex items-center gap-2.5 text-slate-500"><span aria-hidden="true" className={"h-2 w-2 shrink-0 rounded-full " + PUNTO_ACTIVIDAD[e.tono]} />{fechaReciente(e.fecha)}</span>
-                  <span className="min-w-0 break-words pl-4 text-slate-800">{e.texto}</span>
+                <li key={e.id} className="contents">
+                  <span className="flex items-center gap-2.5 whitespace-nowrap text-slate-500"><span aria-hidden="true" className={"h-2 w-2 shrink-0 rounded-full " + PUNTO_ACTIVIDAD[e.tono]} />{fechaReciente(e.fecha)}</span>
+                  <span className="min-w-0 break-words text-slate-800">{e.texto}</span>
                 </li>
               ))}
             </ul>
