@@ -98,6 +98,19 @@ export function useCrmDatos({ usuario, alCambiarPermisos, habilitado = true }) {
     return { ok: true, id }
   }, [opticaId, usuario?.id, usuario?.nombre])
 
+  // «Enviar mensaje» del perfil del paciente (texto libre, por WhatsApp o correo): queda en el Seguimiento como los demás contactos (migración 0139).
+  const contactarManual = useCallback(async ({ paciente, canal = "whatsapp", mensaje = "" }) => {
+    let id = idLocal()
+    if (supabase && opticaId) {
+      const { data, error: e } = await supabase.rpc("registrar_contacto_manual", { p_paciente_id: paciente.id, p_canal: canal, p_mensaje: mensaje || null })
+      if (e || !data) return { ok: false, error: textoDeError(e) }
+      id = data
+    }
+    const nuevo = { id, pacienteId: paciente.id, motivo: "mensaje_manual", canal, mensaje, campanaId: null, resultado: null, volverEl: null, resultadoEn: null, resultadoPorNombre: "", creadoPor: usuario?.id || null, creadoPorNombre: usuario?.nombre || "", creadoEn: new Date().toISOString() }
+    setDatos((d) => ({ ...d, contactos: [nuevo, ...d.contactos] }))
+    return { ok: true, id }
+  }, [opticaId, usuario?.id, usuario?.nombre])
+
   const anotarResultado = useCallback(async (contacto, resultado, volverEl = null) => {
     if (conBase) {
       const { error: e } = await supabase.rpc("registrar_resultado_contacto_crm", { p_contacto_id: contacto.id, p_resultado: resultado, p_volver_el: volverEl })
@@ -137,5 +150,5 @@ export function useCrmDatos({ usuario, alCambiarPermisos, habilitado = true }) {
     return { ok: true }
   }, [conBase])
 
-  return { ...datos, cargando, error, recargar: cargar, contactar, contactarDeAviso, anotarResultado, crearCampana, guardarPlantilla }
+  return { ...datos, cargando, error, recargar: cargar, contactar, contactarDeAviso, contactarManual, anotarResultado, crearCampana, guardarPlantilla }
 }

@@ -17,14 +17,15 @@ const SIN_PROVEEDOR = ({ paciente, telefono, motivo, contexto = {} }) => {
   if (tel) abrirWhatsApp(tel, mensaje)
   return { mensaje }
 }
+SIN_PROVEEDOR.manual = async () => ({ ok: true })
 
 // escribir({ paciente, telefono?, motivo, contexto? }): `motivo` es el del aviso (utilidades/crmContactos: MOTIVOS_DE_AVISO o control_vencido); `contexto`, lo propio de ese aviso
 // ({ cita, orden, medidas }). Devuelve { mensaje } (o { sinTelefono: true }). Va síncrono dentro del clic: si se espera a otra cosa antes de abrir WhatsApp, el navegador bloquea la ventana.
 export const useEscribirPorWhatsApp = () => useContext(Contexto) || SIN_PROVEEDOR
 
 // Lo que arma el Dashboard con los datos del CRM: la plantilla de la óptica, el contacto registrado y el aviso flotante.
-export function crearEscribirPorWhatsApp({ plantillas, opticaNombre, consultas, contactarDeAviso, avisar }) {
-  return ({ paciente, telefono, motivo, contexto = {} }) => {
+export function crearEscribirPorWhatsApp({ plantillas, opticaNombre, consultas, contactarDeAviso, contactarManual, avisar }) {
+  const escribir = ({ paciente, telefono, motivo, contexto = {} }) => {
     const tel = telefono || paciente?.telefono
     if (!tel || /^sin /i.test(tel)) { avisar?.(`${paciente?.nombre || "El paciente"} no tiene teléfono registrado.`); return { sinTelefono: true } }
     const mensaje = armarMensaje(plantillaDe(motivo, plantillas), { paciente, opticaNombre, consultas, ...contexto })
@@ -36,4 +37,7 @@ export function crearEscribirPorWhatsApp({ plantillas, opticaNombre, consultas, 
     } else avisar?.(`WhatsApp abierto para ${paciente?.nombre || "el paciente"}.`)
     return { mensaje }
   }
+  // El mensaje escrito a mano desde el perfil (WhatsApp o correo): queda en el Seguimiento del CRM; devuelve { ok, error? }.
+  escribir.manual = async ({ paciente, canal, mensaje }) => (contactarManual ? contactarManual({ paciente, canal, mensaje }) : { ok: true })
+  return escribir
 }

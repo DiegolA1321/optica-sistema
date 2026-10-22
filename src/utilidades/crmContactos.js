@@ -32,6 +32,7 @@ export const ETIQUETA_MOTIVO = {
   ...Object.fromEntries(Object.values(MOTIVOS).map((m) => [m.id, m.corta])),
   ...Object.fromEntries(Object.values(MOTIVOS_DE_AVISO).map((m) => [m.id, m.corta])),
   [MOTIVO_PROMOCION]: "Promoción",
+  mensaje_manual: "Mensaje desde el perfil",
 }
 
 export const DIAS_CONTROL_PROXIMO = 30 // el control vence dentro de los próximos 30 días

@@ -54,6 +54,7 @@ import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/errore
 import { puede } from "../utilidades/permisosUi"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
+import CampoDocumento from "../componentes/CampoDocumento"
 import { useEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import { horarioEfectivo, diaAbierto, isoAFechaLocal, fechaAISO, esHoy, etiquetaFecha, parseFechaFlexible, minutosDesdeMedianoche, hoyISO, horaA12, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado } from "../utilidades/disponibilidad"
 import { filtrarSoloLetras, filtrarSoloNumeros } from "../utilidades/validaciones"
@@ -375,6 +376,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
   const [mostrarNuevoPaciente, setMostrarNuevoPaciente] = useState(false)
   const [npNombre, setNpNombre] = useState("")
   const [npCedula, setNpCedula] = useState("")
+  const [npTipoDoc, setNpTipoDoc] = useState("cedula")
   const [npTelefono, setNpTelefono] = useState("")
   const [npCorreo, setNpCorreo] = useState("")
   const [npFechaNacimiento, setNpFechaNacimiento] = useState("")
@@ -419,6 +421,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
   const [cpSolo, setCpSolo] = useState(false) // true: solo registrar y vincular al paciente (desde el detalle), sin atender ni cambiar el estado
   const [cpNombre, setCpNombre] = useState("")
   const [cpCedula, setCpCedula] = useState("")
+  const [cpTipoDoc, setCpTipoDoc] = useState("cedula")
   const [cpTelefono, setCpTelefono] = useState("")
   const [cpCorreo, setCpCorreo] = useState("")
   const [cpFechaNacimiento, setCpFechaNacimiento] = useState("")
@@ -431,15 +434,15 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
   // "Completar registro" (Atender sobre una cita sin paciente vinculado).
   // La alta en sí (insert + shape) vive en utilidades/pacientes.js, compartida
   // con Pacientes.jsx, para no tener dos copias que puedan desincronizarse.
-  const crearPacienteInline = async ({ nombre, cedula, telefono, correo, fechaNacimiento, permisos = PERMISOS_INICIALES }) => {
-    const { paciente: nuevoPaciente, error } = await crearRegistroPaciente(supabase, opticaId, { nombre, cedula, telefono, correo, fechaNacimiento, aceptaRecordatorios: permisos.recordatorios, aceptaPromociones: permisos.promociones })
+  const crearPacienteInline = async ({ nombre, cedula, tipoDocumento = "cedula", telefono, correo, fechaNacimiento, permisos = PERMISOS_INICIALES }) => {
+    const { paciente: nuevoPaciente, error } = await crearRegistroPaciente(supabase, opticaId, { nombre, cedula, tipoDocumento, telefono, correo, fechaNacimiento, aceptaRecordatorios: permisos.recordatorios, aceptaPromociones: permisos.promociones })
     if (error) return { error }
     setPacientes?.([nuevoPaciente, ...pacientes])
     return { paciente: nuevoPaciente }
   }
 
-  const validarDatosPacienteInline = (nombre, cedula, telefono, correo, idEnEdicion) =>
-    validarDatosPaciente(pacientes, { nombre, cedula, telefono, correo }, idEnEdicion)
+  const validarDatosPacienteInline = (nombre, cedula, telefono, correo, idEnEdicion, tipoDocumento = "cedula") =>
+    validarDatosPaciente(pacientes, { nombre, cedula, telefono, correo, tipoDocumento }, idEnEdicion)
 
   // Días colapsados manualmente (feedback del asesor: si hay muchas citas en un
   // día, poder colapsarlo para ver el siguiente sin tener que hacer scroll).
@@ -587,6 +590,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
     setMostrarNuevoPaciente(false)
     setNpNombre("")
     setNpCedula("")
+    setNpTipoDoc("cedula")
     setNpTelefono("")
     setNpCorreo("")
     setNpFechaNacimiento("")
@@ -596,13 +600,13 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
 
   const guardarNuevoPacienteInline = async (e) => {
     e.preventDefault()
-    const errs = validarDatosPacienteInline(npNombre, npCedula, npTelefono, npCorreo, null)
+    const errs = validarDatosPacienteInline(npNombre, npCedula, npTelefono, npCorreo, null, npTipoDoc)
     setNpErrores(errs)
     if (Object.keys(errs).length > 0) return
 
     setNpGuardando(true)
     const { paciente: nuevoPaciente, error } = await crearPacienteInline({
-      nombre: npNombre, cedula: npCedula, telefono: npTelefono, correo: npCorreo, fechaNacimiento: npFechaNacimiento, permisos: npPermisos,
+      nombre: npNombre, cedula: npCedula, tipoDocumento: npTipoDoc, telefono: npTelefono, correo: npCorreo, fechaNacimiento: npFechaNacimiento, permisos: npPermisos,
     })
     setNpGuardando(false)
     if (error) {
@@ -614,6 +618,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
     setMostrarNuevoPaciente(false)
     setNpNombre("")
     setNpCedula("")
+    setNpTipoDoc("cedula")
     setNpTelefono("")
     setNpCorreo("")
     setNpFechaNacimiento("")
@@ -754,6 +759,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
     setCpSolo(false)
     setCpNombre("")
     setCpCedula("")
+    setCpTipoDoc("cedula")
     setCpTelefono("")
     setCpCorreo("")
     setCpFechaNacimiento("")
@@ -763,14 +769,14 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
 
   const guardarCompletarRegistro = async (e) => {
     e.preventDefault()
-    const errs = validarDatosPacienteInline(cpNombre, cpCedula, cpTelefono, cpCorreo, null)
+    const errs = validarDatosPacienteInline(cpNombre, cpCedula, cpTelefono, cpCorreo, null, cpTipoDoc)
     setCpErrores(errs)
     if (Object.keys(errs).length > 0) return
 
     setCpGuardando(true)
 
     const { paciente: nuevoPaciente, error } = await crearPacienteInline({
-      nombre: cpNombre, cedula: cpCedula, telefono: cpTelefono, correo: cpCorreo, fechaNacimiento: cpFechaNacimiento, permisos: cpPermisos,
+      nombre: cpNombre, cedula: cpCedula, tipoDocumento: cpTipoDoc, telefono: cpTelefono, correo: cpCorreo, fechaNacimiento: cpFechaNacimiento, permisos: cpPermisos,
     })
     if (error) {
       setCpGuardando(false)
@@ -1630,14 +1636,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
                   </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <div className="relative">
-                        <IdCard size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                        <input
-                          type="text" inputMode="numeric" maxLength={10} placeholder="Cédula" value={npCedula}
-                          onChange={(e) => setNpCedula(filtrarSoloNumeros(e.target.value, 10))}
-                          className={"w-full rounded-lg border bg-white py-2 pl-8 pr-2 font-mono text-sm outline-none transition focus-visible:ring-2 " + (npErrores.cedula ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                        />
-                      </div>
+                      <CampoDocumento compacto tipo={npTipoDoc} valor={npCedula} onTipo={setNpTipoDoc} onValor={setNpCedula} error={!!npErrores.cedula} />
                       {npErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{npErrores.cedula}</p>}
                     </div>
                     <div>
@@ -1801,15 +1800,8 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Cédula</label>
-              <div className="relative">
-                <IdCard size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text" inputMode="numeric" maxLength={10} value={cpCedula}
-                  onChange={(e) => setCpCedula(filtrarSoloNumeros(e.target.value, 10))}
-                  className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm outline-none transition focus-visible:bg-white focus-visible:ring-2 " + (cpErrores.cedula ? "border-red-400 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                />
-              </div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Documento</label>
+              <CampoDocumento tipo={cpTipoDoc} valor={cpCedula} onTipo={setCpTipoDoc} onValor={setCpCedula} error={!!cpErrores.cedula} />
               {cpErrores.cedula && <p className="mt-1 text-xs font-medium text-red-600">{cpErrores.cedula}</p>}
             </div>
             <div>

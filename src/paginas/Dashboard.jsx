@@ -161,8 +161,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   })
   // Todo aviso con «WhatsApp» escribe con la plantilla del CRM y deja su contacto en el Seguimiento (un solo camino: EscribirPorWhatsApp.jsx).
   const escribirPorWhatsApp = useMemo(
-    () => crearEscribirPorWhatsApp({ plantillas: crm.plantillas, opticaNombre: usuario?.opticaNombre, consultas, contactarDeAviso: crm.contactarDeAviso, avisar: (m) => mostrarAviso(m) }),
-    [crm.plantillas, crm.contactarDeAviso, usuario?.opticaNombre, consultas],
+    () => crearEscribirPorWhatsApp({ plantillas: crm.plantillas, opticaNombre: usuario?.opticaNombre, consultas, contactarDeAviso: crm.contactarDeAviso, contactarManual: crm.contactarManual, avisar: (m) => mostrarAviso(m) }),
+    [crm.plantillas, crm.contactarDeAviso, crm.contactarManual, usuario?.opticaNombre, consultas],
   )
   const paraContactar = useMemo(() => (crm.cargando ? null : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos: crm.contactos })), [crm.cargando, crm.contactos, pacientes, consultas, ordenesLab, citas])
   const textoAvisosVentas = `${avisosVentas} ${avisosVentas === 1 ? "aviso" : "avisos"} en Ventas`

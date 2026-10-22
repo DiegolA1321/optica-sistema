@@ -6,7 +6,8 @@
 // unificar) no dependa de acordarse de aplicarla dos veces.
 
 import { hoyISO } from "./disponibilidad"
-import { esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido } from "./validaciones"
+import { esNombreValido, esTelefonoValido, esEmailValido } from "./validaciones"
+import { errorDeDocumento } from "./documento"
 
 // `referidoPor`/`referidoPorId` son opcionales: Citas.jsx no pide ese dato en
 // sus formularios rápidos, así que quedan null/"" y el registro se guarda
@@ -62,11 +63,12 @@ export async function crearRegistroPaciente(supabase, opticaId, { nombre, cedula
 
 // Validación compartida de los datos básicos de un paciente (nombre, cédula,
 // teléfono, correo): la cédula se valida con la regla oficial de Ecuador (dígito verificador) y no puede repetirse en la óptica.
-export function validarDatosPaciente(pacientes, { nombre, cedula, telefono, correo }, idEnEdicion = null) {
+export function validarDatosPaciente(pacientes, { nombre, cedula, telefono, correo, tipoDocumento = "cedula" }, idEnEdicion = null) {
   const errs = {}
   if (!esNombreValido(nombre)) errs.nombre = "Ingresa un nombre válido (solo letras)."
-  if (!esCedulaValida(cedula)) errs.cedula = "Esa cédula no es válida — revisa los dígitos."
-  else if (pacientes.some((p) => p.id !== idEnEdicion && p.cedula === cedula)) errs.cedula = "Ya existe un paciente registrado con esa cédula."
+  const errDoc = errorDeDocumento(tipoDocumento, cedula)
+  if (errDoc) errs.cedula = errDoc
+  else if (pacientes.some((p) => p.id !== idEnEdicion && p.cedula === cedula)) errs.cedula = `Ya existe un paciente registrado con ese ${tipoDocumento === "cedula" ? "número de cédula" : "documento"}.`
   if (!esTelefonoValido(telefono)) errs.telefono = "El teléfono debe tener entre 7 y 10 dígitos."
   if (correo && !esEmailValido(correo)) errs.correo = "Ingresa un correo válido (ej. nombre@dominio.com)."
   return errs

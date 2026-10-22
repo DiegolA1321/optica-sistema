@@ -126,6 +126,7 @@ import ComprasBasicas from "../componentes/ComprasBasicas"
 
 // ─── Paleta de firma (consistente con login / agenda / dashboard) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
+const SOLO_DEL_PANEL = ["SinConsulta", "DadosDeAlta"] // los filtros de la lista que no tienen tarjeta: viven en «Filtrar»
 const BOTON_CABECERA = "flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-semibold transition-colors cursor-pointer"
 
 // Búsqueda insensible a tildes/mayúsculas — "jose" debe encontrar "José" sin
@@ -521,16 +522,22 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     setTextoMensaje(plantillasMensaje(paciente)[0].texto)
   }
   const tieneCorreoValido = (pa) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pa?.correo || "")
+  // El mensaje del perfil queda en el Seguimiento del CRM como los demás contactos (migración 0139); si no se pudo anotar, se dice.
+  const anotarEnCrm = (paciente, canal, mensaje) => {
+    escribirPorWhatsApp.manual({ paciente, canal, mensaje }).then((r) => onAviso?.(r.ok ? `Mensaje a ${paciente.nombre} abierto. Queda en el Seguimiento del CRM.` : `Mensaje abierto, pero no se pudo anotar en el CRM: ${r.error}`))
+  }
   const enviarMensajeGmail = () => {
     const asunto = `Mensaje de ${nombreOptica}`
     window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(mensajePara.correo)}&su=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textoMensaje)}`, "_blank")
     marcarContactadoHoy(mensajePara.id)
+    anotarEnCrm(mensajePara, "correo", textoMensaje)
     registrarLog(usuario, "crm", "Escribió un correo desde el perfil del paciente", mensajePara.nombre)
     setMensajePara(null)
   }
   const enviarMensajeWhatsApp = () => {
     window.open(linkWhatsApp(mensajePara.telefono, textoMensaje), "_blank")
     marcarContactadoHoy(mensajePara.id)
+    anotarEnCrm(mensajePara, "whatsapp", textoMensaje)
     registrarLog(usuario, "crm", "Envió un mensaje por WhatsApp desde el perfil del paciente", mensajePara.nombre)
     setMensajePara(null)
   }
@@ -1130,10 +1137,13 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
 
   const corta = (iso) => formatoFecha(iso, "medioSinAnio")
   const seccionesFiltro = [
-    { id: "estado", titulo: "Estado", valor: filtroEstado, onChange: setFiltroEstado, opciones: [{ id: "Todos", etiqueta: "Todos" }, { id: "Activo", etiqueta: "Activo" }, { id: "De alta", etiqueta: "Tratamiento finalizado" }] },
+    // Los filtros que tienen tarjeta (nuevos, control vencido, saldo) se piden con la tarjeta; aquí solo los que no la tienen (decisión del 21 oct.): Sin consulta y Dados de alta.
+    ...([{ id: "mostrar", titulo: "Mostrar", valor: SOLO_DEL_PANEL.includes(filtroRapido) ? filtroRapido : "Todos", onChange: (v) => setFiltroRapido(v), opciones: [{ id: "Todos", etiqueta: "Todos" }, ...(puedeVerFichas ? [{ id: "SinConsulta", etiqueta: "Sin consulta" }] : []), { id: "DadosDeAlta", etiqueta: "Dados de alta · tratamiento finalizado" }] }]),
     { id: "fecha", titulo: "Fecha de registro", tipo: "rango", rango: { desde: filtroDesde, hasta: filtroHasta, onDesde: setFiltroDesde, onHasta: setFiltroHasta } },
   ]
   const etiquetasFiltro = [
+    // El filtro rápido activo que no es una tarjeta (o que llegó desde un aviso) se ve como etiqueta y se quita con un gesto (regla 6).
+    ...(SOLO_DEL_PANEL.includes(filtroRapido) || FILTROS_POR_ENLACE[filtroRapido] ? [{ id: "rapido", texto: SOLO_DEL_PANEL.includes(filtroRapido) ? FILTROS_LISTA.find((f) => f.id === filtroRapido).etiqueta : FILTROS_POR_ENLACE[filtroRapido].etiqueta, quitar: () => setFiltroRapido("Todos") }] : []),
     ...(filtroEstado !== "Todos" ? [{ id: "estado", texto: etiquetaEstadoClinico(filtroEstado), quitar: () => setFiltroEstado("Todos") }] : []),
     ...(filtroCorreccion !== "Todos" ? [{ id: "correccion", texto: CORRECCION[filtroCorreccion]?.label || filtroCorreccion, quitar: () => setFiltroCorreccion("Todos") }] : []),
     ...(filtroDesde || filtroHasta ? [{ id: "fecha", texto: filtroDesde && filtroHasta ? `${corta(filtroDesde)} – ${corta(filtroHasta)}` : `Desde el ${corta(filtroDesde || filtroHasta)}`, quitar: () => { setFiltroDesde(""); setFiltroHasta("") } }] : []),
@@ -1149,16 +1159,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     setFiltroRapido("Todos")
   }
 
-  // Los filtros rápidos: solo los que sirven, cada uno con su explicación al pasar el cursor y el mismo número que su tarjeta. «Control vencido» y «Con saldo» no se ofrecen sin el permiso de
-  // lo que cuentan. Los que llegan desde un aviso del Inicio o de Reportes (control sin agendar, no compraron, recientes) solo se ven mientras están activos y se quitan con un gesto.
-  const badgesRapidos = [
-    ...FILTROS_LISTA.filter((f) => (!f.consultas || puedeVerFichas) && (!f.ventas || puedeVerVentas)).map((f) => ({ key: f.id, label: f.id === "Todos" ? f.etiqueta : `${f.etiqueta} (${conteos[f.id] ?? 0})`, ayuda: f.ayuda })),
-    ...(FILTROS_POR_ENLACE[filtroRapido] ? [{ key: filtroRapido, label: `${FILTROS_POR_ENLACE[filtroRapido].etiqueta} (${pacientesSinRapido.filter((p) => cumpleRapido(p, filtroRapido)).length})`, ayuda: "Filtro abierto desde otra pantalla." }] : []),
-  ]
-  const badgeRapidoActivo = filtroRapido
   // "120 pacientes" sin filtros; "Mostrando 5 de 120 pacientes" cuando la búsqueda o algún filtro dejan menos (igual que Citas).
   const textoConteo = pacientesFiltrados.length === pacientes.length ? `${pacientes.length} ${pacientes.length === 1 ? "paciente" : "pacientes"}` : `Mostrando ${pacientesFiltrados.length} de ${pacientes.length} ${pacientes.length === 1 ? "paciente" : "pacientes"}`
-  const activarBadgeRapido = (key) => setFiltroRapido((prev) => (prev === key ? "Todos" : key))
 
   return (
     <div className="w-full space-y-5 text-left" style={overlaySolo ? undefined : { animation: "rise-in 320ms ease-out both" }}>
@@ -1253,25 +1255,6 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
         etiquetaPanel="Filtrar pacientes"
         panelId="pacientes-filtrar-panel"
       />
-
-      {/* ─── FILTROS RÁPIDOS (badges) ─── */}
-      <div className="flex flex-wrap items-center gap-2">
-        {badgesRapidos.map((b) => {
-          const activo = badgeRapidoActivo === b.key
-          return (
-            <button
-              key={b.key}
-              type="button"
-              onClick={() => activarBadgeRapido(b.key)}
-              title={b.ayuda}
-              aria-pressed={activo}
-              className={"rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-blue-600 bg-blue-600 text-white shadow-sm" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
-            >
-              {b.label}
-            </button>
-          )
-        })}
-      </div>
 
       <p role="status" className="-mt-2 text-sm font-semibold text-slate-600">{textoConteo}</p>
       </>)}
