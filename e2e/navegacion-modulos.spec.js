@@ -8,7 +8,7 @@ const MODULOS = [
   { menu: 'Inicio', titulo: null },
   { menu: 'Citas médicas', titulo: 'Citas médicas' },
   { menu: 'Pacientes', titulo: 'Pacientes' },
-  { menu: 'Ventas', titulo: 'Ventas', pestanas: ['Ventas', 'Pedidos de lentes'] },
+  { menu: 'Ventas', titulo: 'Ventas', pestanas: ['Ventas', 'Pedidos'] },
   { menu: 'Inventario', titulo: 'Inventario', pestanas: ['Activos', 'Descontinuados'] },
   { menu: 'CRM y fidelización', titulo: 'CRM y fidelización' },
   { menu: 'Mi horario', titulo: null },

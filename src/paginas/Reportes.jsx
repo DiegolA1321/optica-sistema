@@ -12,7 +12,7 @@ import PestanaResumen from "../componentes/reportes/PestanaResumen"
 import PestanaCitas from "../componentes/reportes/PestanaCitas"
 import PestanaClinico from "../componentes/reportes/PestanaClinico"
 import PestanaVentas from "../componentes/reportes/PestanaVentas"
-import PestanaLaboratorios from "../componentes/reportes/PestanaLaboratorios"
+import PestanaPedidos from "../componentes/reportes/PestanaPedidos"
 import PestanaInventario from "../componentes/reportes/PestanaInventario"
 import { useTodosLosMovimientos } from "../componentes/inventario/useMovimientos"
 import { puede } from "../utilidades/permisosUi"
@@ -34,7 +34,7 @@ const PESTANAS = [
   { id: "citas", etiqueta: "Citas", pregunta: "¿Cómo usamos la agenda y quién viene?" },
   { id: "clinico", etiqueta: "Clínico", pregunta: "¿Qué atendemos y cómo están nuestros pacientes?" },
   { id: "ventas", etiqueta: "Ventas", pregunta: "¿Cuánto vendemos, cuánto cobramos y por qué no compran?" },
-  { id: "laboratorios", etiqueta: "Laboratorios", pregunta: "¿Cumplen los laboratorios?" },
+  { id: "pedidos", etiqueta: "Pedidos", pregunta: "¿Se entregan a tiempo los pedidos?" },
   { id: "inventario", etiqueta: "Inventario", pregunta: "¿Cuánto vale lo que tenemos y qué se mueve?" },
 ]
 const ETIQUETA_ORIGEN = Object.fromEntries(ORIGENES_FILTRO.map((o) => [o.id, o.etiqueta]))
@@ -198,7 +198,7 @@ export default function Reportes({ usuario, cargaInicial = false, pacientes = []
         {actual.id === "citas" && <PestanaCitas r={r} />}
         {actual.id === "clinico" && <PestanaClinico r={r} />}
         {actual.id === "ventas" && <PestanaVentas r={r} />}
-        {actual.id === "laboratorios" && <PestanaLaboratorios r={r} />}
+        {actual.id === "pedidos" && <PestanaPedidos r={r} />}
         {actual.id === "inventario" && <PestanaInventario r={r} />}
       </div>
 

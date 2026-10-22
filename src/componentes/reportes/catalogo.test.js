@@ -24,10 +24,10 @@ const item = (r, id, opciones) => catalogoExportaciones(r, rango, opciones).find
 describe("Qué se puede exportar, por módulo", () => {
   it("el administrador ve los seis módulos, cada uno con su PDF, y el Inventario va al final", () => {
     const c = catalogoExportaciones(base, rango)
-    expect([...new Set(c.map((x) => x.modulo))]).toEqual(["resumen", "citas", "clinico", "ventas", "laboratorios", "inventario"])
-    expect(c.filter((x) => x.pdf).map((x) => x.modulo)).toEqual(["resumen", "citas", "clinico", "ventas", "laboratorios", "inventario"])
+    expect([...new Set(c.map((x) => x.modulo))]).toEqual(["resumen", "citas", "clinico", "ventas", "pedidos", "inventario"])
+    expect(c.filter((x) => x.pdf).map((x) => x.modulo)).toEqual(["resumen", "citas", "clinico", "ventas", "pedidos", "inventario"])
   })
-  it("quien no ve montos no ve los reportes de ventas ni de laboratorios, pero sí los de citas y clínico", () => {
+  it("quien no ve montos no ve los reportes de ventas ni de pedidos, pero sí los de citas y clínico", () => {
     const c = catalogoExportaciones({ ...base, ocultarMontos: true, propio: true }, rango)
     expect(c.some((x) => x.modulo === "ventas")).toBe(false)
     expect(c.some((x) => x.id === "ordenes" || x.id === "labs-desempeno")).toBe(false)

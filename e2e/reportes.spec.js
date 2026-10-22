@@ -8,7 +8,7 @@ import { iniciarSesion } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
-const PESTANAS = ['Resumen', 'Citas', 'Clínico', 'Ventas', 'Laboratorios']
+const PESTANAS = ['Resumen', 'Citas', 'Clínico', 'Ventas', 'Pedidos']
 const MAXIMO_POR_PESTANA = 45
 
 async function irAReportes(page, rol = 'ADMIN') {
@@ -140,7 +140,7 @@ test('Exportar está ordenado por módulo, permite marcar varios y el inventario
   await page.getByRole('button', { name: 'Exportar', exact: true }).click()
   const ventana = page.getByRole('dialog', { name: 'Exportar' })
   await expect(ventana.getByRole('tab')).toHaveCount(6)
-  const pasos = { Resumen: ['Resumen mes a mes'], Citas: ['Citas del período', 'Citas no efectuadas para reagendar'], 'Clínico': ['Consultas del período', 'Pacientes para campaña'], Ventas: ['Ventas para el contador', 'Cobros del período'], Laboratorios: ['Órdenes pendientes por laboratorio'], Inventario: ['Inventario actual', 'Movimientos del período'] }
+  const pasos = { Resumen: ['Resumen mes a mes'], Citas: ['Citas del período', 'Citas no efectuadas para reagendar'], 'Clínico': ['Consultas del período', 'Pacientes para campaña'], Ventas: ['Ventas para el contador', 'Cobros del período'], Pedidos: ['Pedidos pendientes'], Inventario: ['Inventario actual', 'Movimientos del período'] }
   for (const [modulo, nombres] of Object.entries(pasos)) {
     await ventana.getByRole('tab', { name: new RegExp('^' + modulo) }).click()
     for (const nombre of nombres) await expect(ventana.getByText(nombre).first()).toBeVisible()

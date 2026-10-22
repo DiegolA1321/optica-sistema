@@ -1,12 +1,12 @@
 import { ahoraEcuador, aEcuador } from "./horaEcuador"
 import { fechaAISO } from "./disponibilidad"
-// Reportes de laboratorio y de lunas: lógica pura.
+// Reportes de pedidos y de lunas: lógica pura.
 import { estaAtrasada } from "./ordenesLaboratorio"
 import { TIPOS_LENTE } from "./ordenesLaboratorio"
 
 const DIA = 86400000
-const SIN_LAB = "Sin laboratorio"
-const nombreLab = (o) => (o.laboratorio || "").trim() || SIN_LAB
+const NOMBRE_ENTREGA = { retira: "Retira en la óptica", envio: "Envío a domicilio" }
+const nombreEntrega = (o) => NOMBRE_ENTREGA[o.entrega === "envio" ? "envio" : "retira"]
 
 // Fecha en que la orden pasó a "entregada" (según su historial), o null.
 export const entregadaEn = (o) => {
@@ -28,16 +28,16 @@ export const entregoATiempo = (o) => {
   return fechaAISO(aEcuador(cuando)) <= o.fechaPrometida
 }
 
-// Por laboratorio: abiertas, atrasadas, % entregado a tiempo y tiempo promedio de entrega (en días) de las entregadas.
+// Por tipo de entrega (retira en la óptica o envío a domicilio): pedidos en proceso, atrasados, % entregado a tiempo y tiempo promedio de entrega (en días) de las entregadas.
 // `enRango(fechaISO)` limita las ENTREGADAS al período (por fecha de entrega); las atrasadas son el estado actual.
-export function resumenPorLaboratorio(ordenes = [], { hoy = ahoraEcuador(), enRango = () => true } = {}) {
+export function resumenPorEntrega(ordenes = [], { hoy = ahoraEcuador(), enRango = () => true } = {}) {
   const mapa = new Map()
-  const fila = (lab) => {
-    if (!mapa.has(lab)) mapa.set(lab, { laboratorio: lab, abiertas: 0, atrasadas: 0, entregadas: 0, aTiempo: 0, sumaDias: 0 })
-    return mapa.get(lab)
+  const fila = (nombre) => {
+    if (!mapa.has(nombre)) mapa.set(nombre, { entrega: nombre, abiertas: 0, atrasadas: 0, entregadas: 0, aTiempo: 0, sumaDias: 0 })
+    return mapa.get(nombre)
   }
   for (const o of ordenes) {
-    const f = fila(nombreLab(o))
+    const f = fila(nombreEntrega(o))
     if (o.estado === "enviada" || o.estado === "lista") f.abiertas++
     if (estaAtrasada(o, hoy)) f.atrasadas++
     if (o.estado === "entregada") {
@@ -47,9 +47,9 @@ export function resumenPorLaboratorio(ordenes = [], { hoy = ahoraEcuador(), enRa
     }
   }
   return [...mapa.values()]
-    .map((f) => ({ laboratorio: f.laboratorio, abiertas: f.abiertas, atrasadas: f.atrasadas, entregadas: f.entregadas, aTiempo: f.aTiempo, pctATiempo: f.entregadas ? Math.round((f.aTiempo / f.entregadas) * 100) : null, promedioDias: f.entregadas ? f.sumaDias / f.entregadas : null }))
+    .map((f) => ({ entrega: f.entrega, abiertas: f.abiertas, atrasadas: f.atrasadas, entregadas: f.entregadas, aTiempo: f.aTiempo, pctATiempo: f.entregadas ? Math.round((f.aTiempo / f.entregadas) * 100) : null, promedioDias: f.entregadas ? f.sumaDias / f.entregadas : null }))
     .filter((f) => f.abiertas > 0 || f.entregadas > 0)
-    .sort((a, b) => b.atrasadas - a.atrasadas || b.abiertas - a.abiertas || a.laboratorio.localeCompare(b.laboratorio))
+    .sort((a, b) => b.atrasadas - a.atrasadas || b.abiertas - a.abiertas || a.entrega.localeCompare(b.entrega))
 }
 
 // Productos (monturas y accesorios) más vendidos por unidades, de los comprobantes de venta no anulados

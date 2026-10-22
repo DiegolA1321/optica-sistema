@@ -56,6 +56,7 @@ import { puedeNivel } from "../utilidades/roles"
 import { saldoFactura } from "../utilidades/abonos"
 import { saldosPorPaciente, resumenSaldos, textoSaldos, textoSaldosSinNumero } from "../utilidades/saldosVentas"
 import { ordenesAtrasadas, ordenesListasSinAvisar, numeroOrden } from "../utilidades/ordenesLaboratorio"
+import { etiquetaEntrega } from "../utilidades/ventasModulo"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con login / agenda) ───
@@ -783,26 +784,26 @@ export default function Inicio({
     }
     if (incOrdenes && listasSinAvisar.length > 0) {
       poner("ventas", {
-        id: "ordenes-listas", cantidad: listasSinAvisar.length, corto: uno(listasSinAvisar.length, "lentes sin avisar", "lentes sin avisar"),
-        texto: uno(listasSinAvisar.length, "pedido de lentes listo sin avisar al paciente", "pedidos de lentes listos sin avisar a los pacientes"),
+        id: "ordenes-listas", cantidad: listasSinAvisar.length, corto: uno(listasSinAvisar.length, "pedido sin avisar", "pedidos sin avisar"),
+        texto: uno(listasSinAvisar.length, "pedido listo sin avisar al paciente", "pedidos listos sin avisar a los pacientes"),
         nombres: nombresResumidos(listasSinAvisar.map((o) => nombreDe(o.pacienteId))),
         enlace: { texto: `Abrir en Ventas · Listos sin avisar (${listasSinAvisar.length})`, onClick: () => onVerOrdenes?.("sinavisar") },
         casos: listasSinAvisar.map((o) => ({
           id: o.id, nombre: nombreDe(o.pacienteId),
-          detalle: `${numeroOrden(o.numero)} · ${o.laboratorio || "Laboratorio"} · listo para entregar`,
+          detalle: `${numeroOrden(o.numero)} · ${etiquetaEntrega(o)} · listo para entregar`,
           accion: { etiqueta: puedeV("ventas", "editar") ? "Contactar" : "Ver", navega: true, onClick: () => onVerOrdenes?.("sinavisar") },
         })),
       })
     }
     if (incOrdenes && atrasadas.length > 0) poner("ventas", {
       id: "ordenes-atrasadas", cantidad: atrasadas.length, tono: "urgente", corto: uno(atrasadas.length, "pedido atrasado", "pedidos atrasados"),
-      texto: uno(atrasadas.length, "pedido de lentes atrasado", "pedidos de lentes atrasados"),
-      nombres: nombresResumidos([...new Set(atrasadas.map((o) => o.laboratorio || "Sin laboratorio"))]),
+      texto: uno(atrasadas.length, "pedido atrasado", "pedidos atrasados"),
+      nombres: nombresResumidos([...new Set(atrasadas.map((o) => nombreDe(o.pacienteId)))]),
       enlace: { texto: `Abrir en Ventas · Pedidos atrasados (${atrasadas.length})`, onClick: () => onVerOrdenes?.("atrasadas") },
       casos: atrasadas.map((o) => ({
         id: o.id, nombre: nombreDe(o.pacienteId),
         insignia: { texto: "Atrasado", tono: "urgente" },
-        detalle: `${numeroOrden(o.numero)} · ${o.laboratorio || "Sin laboratorio"} · prometido el ${fechaLegible(o.fechaPrometida) || "—"}`,
+        detalle: `${numeroOrden(o.numero)} · ${etiquetaEntrega(o)} · listo hacia el ${fechaLegible(o.fechaPrometida) || "—"}`,
         accion: { etiqueta: "Ver", navega: true, onClick: () => onVerOrdenes?.("atrasadas") },
       })),
     })

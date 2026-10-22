@@ -62,12 +62,12 @@ export function resumenDeVentas({ ventas = [], abonos = [], pagosPorVerificar = 
   const porCobrar = redondear(vigentes.reduce((s, f) => s + saldoFactura(f, abonos), 0))
   const conSaldo = vigentes.filter((f) => saldoFactura(f, abonos) > 0).length
   const verificar = pagosPorVerificar.filter((p) => ids.has(p.facturaId))
-  const enLaboratorio = ordenes.filter((o) => ids.has(o.facturaId) && o.estado === "enviada")
+  const enProceso = ordenes.filter((o) => ids.has(o.facturaId) && o.estado === "enviada")
   return {
     ventas: vigentes.length, vendido, cobrado: redondear(vendido - porCobrar), porCobrar, conSaldo,
     cobradas: vigentes.length - conSaldo,
     porVerificar: redondear(verificar.reduce((s, p) => s + (Number(p.monto) || 0), 0)), transferencias: verificar.length,
     ventasPorVerificar: vigentes.filter((f) => ventaDelDato(f, "verificar", abonos, pagosPorVerificar)).length,
-    enLaboratorio: enLaboratorio.length, atrasados: enLaboratorio.filter((o) => estaAtrasada(o)).length,
+    enProceso: enProceso.length, atrasados: enProceso.filter((o) => estaAtrasada(o)).length,
   }
 }

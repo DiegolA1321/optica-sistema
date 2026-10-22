@@ -13,7 +13,7 @@ import { dinero } from "../../utilidades/formatoMoneda"
 import { fechaLegible, fechaHoraLegible } from "../../utilidades/formatoFecha"
 import { numeroComprobante } from "../../utilidades/comprobantes"
 import { ETIQUETA_ESTADO, TIPOS_LENTE, numeroOrden, diasDeAtraso, estadoVisible, tratamientos } from "../../utilidades/ordenesLaboratorio"
-import { ESTADO_ANTERIOR, estadoDePedido } from "../../utilidades/ventasModulo"
+import { ESTADO_ANTERIOR, estadoDePedido, etiquetaEntrega } from "../../utilidades/ventasModulo"
 
 const medida = (o) => ["esfera", "cilindro", "eje", "adicion"].map((k) => (k === "eje" ? o?.[k] : dioptriaTexto(o?.[k])) || "—")
 
@@ -49,10 +49,10 @@ export default function DetalleOrden({ orden, paciente, factura, saldo, api, equ
   return (
     <Cascaron
       titulo={`Pedido ${numeroOrden(orden.numero)}`}
-      subtitulo={`${paciente?.nombre || "Paciente"}${orden.laboratorio ? ` · ${orden.laboratorio}` : ""}`}
+      subtitulo={paciente?.nombre || "Paciente"}
       Icono={FlaskConical}
       ancho="max-w-3xl"
-      etiqueta={`Pedido de lentes ${numeroOrden(orden.numero)}`}
+      etiqueta={`Pedido ${numeroOrden(orden.numero)}`}
       onCerrar={onCerrar}
       derecha={<Insignia tono={estado.tono}>{estado.etiqueta}</Insignia>}
       pie={(
@@ -74,8 +74,9 @@ export default function DetalleOrden({ orden, paciente, factura, saldo, api, equ
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           <Columna titulo="El pedido">
             <Dato etiqueta="Estado">{estado.etiqueta}</Dato>
-            <Dato etiqueta="Laboratorio" vacio={!orden.laboratorio}>{orden.laboratorio || "Sin laboratorio"}</Dato>
-            <Dato etiqueta="Entrega prometida"><span className={visible === "atrasada" ? "text-red-700" : ""}>{fechaLegible(orden.fechaPrometida) || "—"}</span></Dato>
+            <Dato etiqueta="Entrega">{etiquetaEntrega(orden)}</Dato>
+            {orden.entrega === "envio" && <Dato etiqueta="Dirección" vacio={!orden.direccionEntrega}>{orden.direccionEntrega || "Sin dirección"}</Dato>}
+            <Dato etiqueta="Listo hacia el"><span className={visible === "atrasada" ? "text-red-700" : ""}>{fechaLegible(orden.fechaPrometida) || "—"}</span></Dato>
             {orden.estado === "lista" && <Dato etiqueta="Contacto con el paciente" vacio={!orden.pacienteAvisadoEn}>{orden.pacienteAvisadoEn ? `Contactado el ${fechaLegible(orden.pacienteAvisadoEn)}${nombre(orden.pacienteAvisadoPor) ? ` por ${nombre(orden.pacienteAvisadoPor)}` : ""}` : "Falta contactar al paciente"}</Dato>}
           </Columna>
           <Columna titulo="La venta">

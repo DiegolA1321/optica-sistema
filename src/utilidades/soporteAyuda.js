@@ -28,7 +28,7 @@ export const AYUDA_POR_MODULO = [
     modulo: "ventas", nombre: "Ventas",
     preguntas: [
       { p: "¿Cómo hago una venta?", r: "Pulsa «Nueva venta» y elige al paciente: si ya tiene un diagnóstico, «Usar como guía» lleva el tipo de luna y sus filtros a la venta. Agrega las líneas (montura, lunas, servicios), escribe cuánto paga hoy y con qué (puedes dividir el pago) y confirma. Lo que no pague hoy queda como saldo. Si hay lunas, se crea el pedido de lentes con su laboratorio." },
-      { p: "¿Qué hay en cada pestaña de Ventas?", r: "Ventas: lo vendido, lo cobrado, lo que falta por cobrar, los pagos por verificar y los lentes en el laboratorio (cada dato filtra la lista). Pedidos de lentes: los lentes que se mandan a hacer, con su laboratorio y su fecha prometida. Los pacientes que recibieron su diagnóstico y no han comprado están en «Para contactar» del CRM." },
+      { p: "¿Qué hay en cada pestaña de Ventas?", r: "Ventas: lo vendido, lo cobrado, lo que falta por cobrar, los pagos por verificar y los pedidos en proceso (cada dato filtra la lista). Pedidos: lo que se encarga afuera (las lunas), con su entrega (retira en la óptica o envío a domicilio) y la fecha aproximada en que estará listo; pasa de En proceso a Listo y a Entregado, y aparece Atrasado si pasa la fecha sin estar listo. Los pacientes que recibieron su diagnóstico y no han comprado están en «Para contactar» del CRM." },
       { p: "¿Cómo registro, corrijo o anulo un abono?", r: "Abre la venta y pulsa «Registrar abono». Para corregirlo o anularlo se pide un motivo; un abono anulado no se borra: queda marcado, con quién lo anuló, y deja de contar." },
       { p: "¿Cómo guardo la factura electrónica?", r: "El sistema no emite la factura: guarda la que la óptica emite por fuera. En el comprobante registra la clave de acceso y sube el PDF y el XML. Después puedes descargarla, imprimir el RIDE o enviarla al paciente por WhatsApp (el enlace vence en 7 días)." },
       { p: "¿Cómo anulo una venta?", r: "Desde el detalle del comprobante, con el permiso de eliminar en Ventas. Se pide el motivo de la anulación y la venta queda anulada, sin borrarse." },
@@ -46,7 +46,7 @@ export const AYUDA_POR_MODULO = [
   {
     modulo: "reportes", nombre: "Reportes",
     preguntas: [
-      { p: "¿Qué muestra cada pestaña?", r: "Resumen, Citas, Clínico, Ventas y Laboratorios. Todas comparten los mismos filtros (período, motivo, origen, visita y profesional) y comparan con el período anterior equivalente." },
+      { p: "¿Qué muestra cada pestaña?", r: "Resumen, Citas, Clínico, Ventas, Pedidos e Inventario. Todas comparten los mismos filtros (período, motivo, origen, visita y profesional) y comparan con el período anterior equivalente." },
       { p: "¿Cómo compruebo un número?", r: "Pulsa el número o la barra: se abre el detalle con las filas que lo forman. Desde ahí, «Abrir en…» te lleva al módulo con el mismo filtro." },
       { p: "¿Cómo exporto a Excel o PDF?", r: "Usa «Exportar» en la cabecera para elegir módulos y fechas, o el botón «Exportar» de cada bloque y de cada ventana de detalle. Los datos personales exportados quedan en la actividad de la óptica." },
       { p: "¿Por qué mis reportes muestran menos que los de otra persona?", r: "Si tu rol tiene alcance «propio», Reportes se calcula solo con tus citas y fichas. Los montos de ventas solo se ven con permiso de Ventas." },

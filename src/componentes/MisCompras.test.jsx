@@ -40,7 +40,7 @@ describe("Portal: Mis compras", () => {
     expect(tarjetas[0]).toHaveTextContent("Abonaste $60.00 de $200.00")
     expect(tarjetas[0]).toHaveTextContent("Debes $140.00")
     expect(tarjetas[0]).toHaveTextContent("Estado de tus lentes")
-    expect(tarjetas[0]).toHaveTextContent("En el laboratorio")
+    expect(tarjetas[0]).toHaveTextContent("En proceso")
     expect(tarjetas[0]).toHaveTextContent("Listo · aprox. 20 ene")
     expect(tarjetas[0]).toHaveTextContent("Ver detalle")
   })
@@ -86,13 +86,13 @@ describe("Portal: Mis compras", () => {
     const tarjetas = [...screen.getByRole("list", { name: "Compras con saldo o lentes en camino" }).children]
     expect(tarjetas[0]).toHaveTextContent("Lentes progresivos")
     expect(tarjetas[0]).toHaveTextContent("Estado de tus lentes")
-    expect(tarjetas[0]).toHaveTextContent("En el laboratorio")
+    expect(tarjetas[0]).toHaveTextContent("En proceso")
     expect(tarjetas[1]).toHaveTextContent("Listo · desde el 16 oct")
   })
 
   it("una compra sin orden de laboratorio no muestra nada de lentes", () => {
     render(<MisCompras usuario={usuario} compras={[compra()]} ordenes={[orden({ facturaId: "otra" })]} />)
-    expect(screen.queryByText(/En el laboratorio/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/En proceso/)).not.toBeInTheDocument()
   })
 
   it("descargar pide el archivo con la sesión del paciente", async () => {

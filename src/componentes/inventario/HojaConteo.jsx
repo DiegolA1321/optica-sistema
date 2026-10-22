@@ -47,13 +47,13 @@ export default function HojaConteo({ optica = {}, secciones = [], fecha = "" }) 
                 <div style={{ flex: 1 }}><span>Contó:</span><div style={{ borderBottom: `1px solid ${GRIS}`, height: 22 }} /></div>
                 <div style={{ flex: 1 }}><span>Revisó:</span><div style={{ borderBottom: `1px solid ${GRIS}`, height: 22 }} /></div>
               </div>
-              <p style={{ margin: "0 0 12px", fontSize: 11, color: GRIS }}>Escribe lo que cuentes en «Contado». Las diferencias se corrigen en el sistema con «Ajustar stock».</p>
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: GRIS }}>Escribe lo que cuentes en «Contado». Las diferencias se corrigen en el sistema con «Ajustar stock».</p>
             </div>
           ) : (
             <div style={{ height: 46, fontSize: 12, color: GRIS, borderBottom: `1px solid ${LINEA}`, boxSizing: "border-box", paddingTop: 4 }}>{optica.nombre || "Tu óptica"} · Hoja de conteo físico · {fecha} · página {n + 1}</div>
           )}
 
-          <div style={{ display: "flex", height: ALTO_CABECERA_TABLA, background: "#f1f5f9", border: `1px solid ${LINEA}`, boxSizing: "border-box", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: GRIS }}>
+          <div style={{ display: "flex", height: ALTO_CABECERA_TABLA, background: "#f1f5f9", border: `1px solid ${LINEA}`, boxSizing: "border-box", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: GRIS }}>
             {columnas.map((c, i) => <div key={c.id} style={estiloCol(c, celda({ borderLeft: i === 0 ? "none" : `1px solid ${LINEA}` }))}>{c.titulo}</div>)}
           </div>
           {pg.elementos.map((el, i) => el.tipo === "titulo" ? (

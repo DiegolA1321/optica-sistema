@@ -27,7 +27,7 @@ export const MOTIVO_PROMOCION = "promocion"
 export const MOTIVOS_DE_AVISO = {
   cita_no_efectuada: { id: "cita_no_efectuada", etiqueta: "Cita no efectuada", corta: "Cita no efectuada" },
   cita_reagendada: { id: "cita_reagendada", etiqueta: "Cita reagendada", corta: "Cita reagendada" },
-  lentes_listos: { id: "lentes_listos", etiqueta: "Lentes listos para retirar", corta: "Lentes listos" },
+  lentes_listos: { id: "lentes_listos", etiqueta: "Pedido listo", corta: "Pedido listo" },
   medidas_montaje: { id: "medidas_montaje", etiqueta: "Medidas de montaje pedidas", corta: "Medidas de montaje" },
 }
 export const ETIQUETA_MOTIVO = {
@@ -229,7 +229,7 @@ export const PLANTILLAS_BASE = {
   [MOTIVO_PROMOCION]: "Hola {nombre}, en {óptica} tenemos una promoción para ti. Escríbenos y te contamos los detalles.",
   cita_no_efectuada: "Hola {nombre}, te escribimos de {óptica}. No pudimos atenderte en tu cita del {fecha_de_la_cita}. Cuéntanos qué día y hora te quedan bien y la reagendamos.",
   cita_reagendada: "Hola {nombre}, te escribimos de {óptica} para avisarte que tu cita fue reagendada. Nueva fecha: {fecha_de_la_cita}. Cualquier duda, contáctanos por aquí.",
-  lentes_listos: "Hola {nombre}, te escribimos de {óptica}: tus lentes (orden {orden}) ya están listos para retirar. Te esperamos.",
+  lentes_listos: "Hola {nombre}, te escribimos de {óptica}: tu pedido (orden {orden}) ya está listo. {entrega}",
   medidas_montaje: "Hola {nombre}, te escribimos de {óptica}. Estas son las medidas que nos pediste para tus lentes:\n{medidas}\nCualquier duda, escríbenos.",
   por_vender: "Hola {nombre}, te escribimos de {óptica}. Quedamos pendientes de los lentes que te recomendó el optómetra: ¿pudiste revisar tu proforma o quieres que te ayudemos con tu compra? Con gusto te atendemos.",
 }
@@ -238,7 +238,8 @@ export const VARIABLES_PLANTILLA = [
   { id: "{óptica}", ayuda: "Nombre de tu óptica" },
   { id: "{fecha_del_control}", ayuda: "Fecha de su próximo control" },
   { id: "{fecha_de_la_cita}", ayuda: "Día y hora de la cita", solo: ["cita_no_efectuada", "cita_reagendada"] },
-  { id: "{orden}", ayuda: "Número de la orden de lentes", solo: ["lentes_listos"] },
+  { id: "{orden}", ayuda: "Número del pedido", solo: ["lentes_listos"] },
+  { id: "{entrega}", ayuda: "Cómo recibe su pedido: «Te esperamos en la óptica para retirarlo» o «Te lo enviaremos a su dirección»", solo: ["lentes_listos"] },
   { id: "{medidas}", ayuda: "La distancia pupilar y la altura de montaje que ya existen", solo: ["medidas_montaje"] },
 ]
 // Las variables que se ofrecen al editar la plantilla de un motivo: las de siempre y las propias de ese motivo. Sin motivo (una campaña), solo las de siempre.
@@ -268,9 +269,12 @@ export function insertarEnCursor(texto, variable, inicio, fin) {
 // El texto de una plantilla: la de la óptica si la editó, la base si no.
 export const plantillaDe = (motivo, guardadas = {}) => (guardadas[motivo] && guardadas[motivo].trim() ? guardadas[motivo] : PLANTILLAS_BASE[motivo] || PLANTILLAS_BASE.control_vencido)
 
+// Lo que se le dice al paciente sobre cómo recibe su pedido listo: retira en la óptica (por defecto) o se le envía a su dirección.
+export const textoEntrega = (entrega) => (entrega?.tipo === "envio" ? `Te lo enviaremos${entrega.direccion ? ` a ${String(entrega.direccion).trim()}` : " a tu domicilio"}.` : "Te esperamos en la óptica para retirarlo.")
+
 // Lo propio de un aviso va en el segundo argumento: cita ({ fecha, hora }), orden (el número ya escrito) y medidas ({ dp, altura }). Con `ejemplo`, las variables de esos avisos llevan
 // un dato de muestra (la vista previa de la plantilla en el CRM).
-export function armarMensaje(plantilla, { paciente, opticaNombre, consultas = [], cita = null, orden = "", medidas = null, ejemplo = false } = {}) {
+export function armarMensaje(plantilla, { paciente, opticaNombre, consultas = [], cita = null, orden = "", entrega = null, medidas = null, ejemplo = false } = {}) {
   const control = paciente ? fechaProximoControl(paciente, consultas) : null
   const textoControl = control ? formatoFecha(fechaAISO(control), "medio") : "pronto"
   const textoCita = cita?.fecha ? `${formatoFecha(cita.fecha, "calendario", { enFrase: true })}${cita.hora ? ` a las ${cita.hora}` : ""}` : ejemplo ? "martes 20 de octubre a las 04:00 PM" : "tu cita"
@@ -283,6 +287,7 @@ export function armarMensaje(plantilla, { paciente, opticaNombre, consultas = []
     .replaceAll("{fecha_del_control}", textoControl)
     .replaceAll("{fecha_de_la_cita}", textoCita)
     .replaceAll("{orden}", orden || (ejemplo ? "000012" : ""))
+    .replaceAll("{entrega}", textoEntrega(entrega))
     .replaceAll("{medidas}", textoMedidas)
     .replace(/[ \t]+([,.!?])/g, "$1")
     .replace(/ {2,}/g, " ")

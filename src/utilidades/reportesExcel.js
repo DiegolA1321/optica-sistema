@@ -5,6 +5,7 @@ import { formatoFecha, hora, fechaLegible } from "./formatoFecha"
 import { ahoraEcuador } from "./horaEcuador"
 import { registrarLog } from "./logs"
 import { numeroComprobante } from "./comprobantes"
+import { etiquetaEntrega } from "./ventasModulo"
 import { numeroOrden, ETIQUETA_ESTADO, estaAtrasada, diasDeAtraso, ordenesAbiertas } from "./ordenesLaboratorio"
 import { diasVencido } from "./fidelizacion"
 import { pacientesQueNoCompraron } from "./pasesVenta"
@@ -167,21 +168,21 @@ export function modeloInventario({ inventario, conCosto = false }) {
   }
 }
 
-// 6. Órdenes pendientes por laboratorio: para reclamar los atrasos.
+// 6. Pedidos pendientes: para reclamar los atrasos.
 export function modeloOrdenesPendientes({ ordenes, pacientes, hoy = ahoraEcuador() }) {
   const abiertas = ordenesAbiertas(ordenes)
   const filas = abiertas
     .map((o) => ({ o, atraso: diasDeAtraso(o, hoy) }))
-    .sort((a, b) => (a.o.laboratorio || "~").localeCompare(b.o.laboratorio || "~") || b.atraso - a.atraso || (a.o.fechaPrometida || "").localeCompare(b.o.fechaPrometida || ""))
+    .sort((a, b) => b.atraso - a.atraso || (a.o.fechaPrometida || "").localeCompare(b.o.fechaPrometida || ""))
     .map(({ o, atraso }) => ({
-      celdas: [o.laboratorio || "Sin laboratorio", numeroOrden(o.numero), nombreDe(pacientes, o.pacienteId), pacientes.find((p) => p.id === o.pacienteId)?.telefono || "", fechaExcel(o.creadaEn), fechaExcel(o.fechaPrometida), atraso, estaAtrasada(o, hoy) ? ETIQUETA_ESTADO.atrasada : ETIQUETA_ESTADO[o.estado] || o.estado],
+      celdas: [etiquetaEntrega(o), numeroOrden(o.numero), nombreDe(pacientes, o.pacienteId), pacientes.find((p) => p.id === o.pacienteId)?.telefono || "", fechaExcel(o.creadaEn), fechaExcel(o.fechaPrometida), atraso, estaAtrasada(o, hoy) ? ETIQUETA_ESTADO.atrasada : ETIQUETA_ESTADO[o.estado] || o.estado],
     }))
   return {
-    archivo: `ordenes-pendientes-laboratorio`, hoja: "Órdenes pendientes", titulo: "Órdenes pendientes por laboratorio",
-    nota: "Órdenes enviadas o listas que aún no se entregan, con las atrasadas primero dentro de cada laboratorio. Estado de hoy.",
+    archivo: `pedidos-pendientes`, hoja: "Pedidos pendientes", titulo: "Pedidos pendientes",
+    nota: "Pedidos en proceso o listos que aún no se entregan, con los atrasados primero. Estado de hoy.",
     columnas: [
-      { titulo: "Laboratorio", tipo: "texto" }, { titulo: "Orden", tipo: "texto" }, { titulo: "Paciente", tipo: "texto" }, { titulo: "Teléfono", tipo: "texto" },
-      { titulo: "Enviada", tipo: "fecha" }, { titulo: "Prometida", tipo: "fecha" }, { titulo: "Días de atraso", tipo: "entero" }, { titulo: "Estado", tipo: "texto" },
+      { titulo: "Entrega", tipo: "texto" }, { titulo: "Pedido", tipo: "texto" }, { titulo: "Paciente", tipo: "texto" }, { titulo: "Teléfono", tipo: "texto" },
+      { titulo: "Creado", tipo: "fecha" }, { titulo: "Listo hacia", tipo: "fecha" }, { titulo: "Días de atraso", tipo: "entero" }, { titulo: "Estado", tipo: "texto" },
     ],
     filas, bloques: [], personal: true, sinPeriodo: true, sinFiltros: true, cuenta: "órdenes",
   }

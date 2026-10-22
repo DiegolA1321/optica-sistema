@@ -72,11 +72,11 @@ describe("la franja de datos", () => {
     expect(r.conSaldo).toBe(2)
     expect(r.cobradas).toBe(1)
   })
-  it("los pagos por verificar y los lentes en el laboratorio son solo de las ventas que se ven", () => {
+  it("los pagos por verificar y los pedidos en proceso son solo de las ventas que se ven", () => {
     expect(r.porVerificar).toBe(20) // la transferencia de la venta anulada no cuenta
     expect(r.transferencias).toBe(1)
     expect(r.ventasPorVerificar).toBe(1)
-    expect(r.enLaboratorio).toBe(2) // o1 y o2: o3 ya está lista, o4 es de una venta anulada, o5 de una que no se ve
+    expect(r.enProceso).toBe(2) // o1 y o2: o3 ya está lista, o4 es de una venta anulada, o5 de una que no se ve
     expect(r.atrasados).toBe(1)
   })
   it("cada dato cuenta las mismas ventas que filtra la lista", () => {
@@ -87,6 +87,6 @@ describe("la franja de datos", () => {
     expect(ventaDelDato(ventas[3], "porcobrar", abonos, transferencias)).toBe(false) // una anulada no cuenta en ningún dato
   })
   it("sin ventas todo es cero", () => {
-    expect(resumenDeVentas({})).toMatchObject({ ventas: 0, vendido: 0, cobrado: 0, porCobrar: 0, porVerificar: 0, enLaboratorio: 0 })
+    expect(resumenDeVentas({})).toMatchObject({ ventas: 0, vendido: 0, cobrado: 0, porCobrar: 0, porVerificar: 0, enProceso: 0 })
   })
 })

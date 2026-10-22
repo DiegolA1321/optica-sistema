@@ -8,7 +8,7 @@ import { nombreDeMiembro } from "../../utilidades/equipo"
 import { diagnosticosPorMes } from "../../utilidades/reportesDiagnosticos"
 import { nombreMes } from "../../utilidades/formatoFecha"
 import { enRango, mesesDelRango } from "../../utilidades/reportesPeriodo"
-import { metricasDelPeriodo, resumenLaboratorios } from "../../utilidades/reportesDatos"
+import { metricasDelPeriodo, resumenPedidos } from "../../utilidades/reportesDatos"
 import { movimientosDelRango } from "../../utilidades/reportesInventario"
 import { etiquetaOrigenCita } from "../../utilidades/filtrosCitas"
 import { lineasDeProducto, masVendidas, monturasSinVender, DIAS_SIN_VENDER } from "../../utilidades/inventarioKardex"
@@ -19,7 +19,7 @@ export const MODULOS = [
   { id: "citas", etiqueta: "Citas" },
   { id: "clinico", etiqueta: "Clínico" },
   { id: "ventas", etiqueta: "Ventas" },
-  { id: "laboratorios", etiqueta: "Laboratorios" },
+  { id: "pedidos", etiqueta: "Pedidos" },
   { id: "inventario", etiqueta: "Inventario" },
 ]
 
@@ -75,12 +75,12 @@ export function catalogoExportaciones(r, rango, { incluirNoCompraron = false } =
       modelo: () => modeloCobros({ facturas: datos.facturas, abonos: datos.abonos, pacientes: datos.pacientes, rango }) },
     { ...pdf("ventas", "Ventas"), visible: montos },
 
-    // ── Laboratorios ──
-    { id: "ordenes", modulo: "laboratorios", nombre: "Órdenes pendientes por laboratorio", linea: "Las órdenes abiertas de cada laboratorio, con las atrasadas primero. Para reclamar los atrasos.", aHoy: true, visible: montos,
+    // ── Pedidos ──
+    { id: "ordenes", modulo: "pedidos", nombre: "Pedidos pendientes", linea: "Los pedidos que todavía no se entregan, con los atrasados primero. Para reclamar los atrasos.", aHoy: true, visible: montos,
       modelo: () => modeloOrdenesPendientes({ ordenes: datos.ordenes, pacientes: datos.pacientes, hoy: r.hoy }) },
-    { id: "labs-desempeno", modulo: "laboratorios", nombre: "Desempeño de cada laboratorio", linea: "Órdenes abiertas y atrasadas, entregadas a tiempo y tiempo promedio de entrega.", visible: montos,
-      modelo: () => lista("Desempeño de los laboratorios", [col("Laboratorio", (l) => l.laboratorio), col("Abiertas (hoy)", (l) => l.abiertas, "entero"), col("Atrasadas (hoy)", (l) => l.atrasadas, "entero"), col("Entregadas en el período", (l) => l.entregadas, "entero"), col("Entregadas a tiempo", (l) => l.pctATiempo, "tasa"), col("Promedio de entrega (días)", (l) => (l.promedioDias == null ? null : Math.round(l.promedioDias * 10) / 10), "decimal")], resumenLaboratorios(datos.ordenes, rango, r.hoy), false) },
-    pdf("laboratorios", "Laboratorios"),
+    { id: "labs-desempeno", modulo: "pedidos", nombre: "Entrega de pedidos", linea: "Pedidos en proceso y atrasados, entregados a tiempo y tiempo promedio de entrega, según retire o se envíe.", visible: montos,
+      modelo: () => lista("Entrega de pedidos", [col("Entrega", (l) => l.entrega), col("En proceso (hoy)", (l) => l.abiertas, "entero"), col("Atrasados (hoy)", (l) => l.atrasadas, "entero"), col("Entregados en el período", (l) => l.entregadas, "entero"), col("Entregados a tiempo", (l) => l.pctATiempo, "tasa"), col("Promedio de entrega (días)", (l) => (l.promedioDias == null ? null : Math.round(l.promedioDias * 10) / 10), "decimal")], resumenPedidos(datos.ordenes, rango, r.hoy), false) },
+    pdf("pedidos", "Pedidos"),
 
     // ── Inventario ──
     { id: "inventario", modulo: "inventario", nombre: "Inventario actual", linea: "Producto, categoría, código, existencia, precio y valor (a costo si lo puedes ver), con una columna «Contado» en blanco. Para el conteo físico.", aHoy: true, visible: verInventario,

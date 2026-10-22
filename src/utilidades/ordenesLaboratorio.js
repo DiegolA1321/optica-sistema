@@ -16,7 +16,7 @@ export const TIPOS_LENTE = [
 ]
 
 export const ETIQUETA_ESTADO = {
-  enviada: "En el laboratorio",
+  enviada: "En proceso",
   lista: "Listo",
   entregada: "Entregado",
   cancelada: "Cancelado",
@@ -41,26 +41,6 @@ export const diasDeAtraso = (orden, hoy = ahoraEcuador()) => {
 export const ordenesAtrasadas = (ordenes, hoy = ahoraEcuador()) => ordenes.filter((o) => estaAtrasada(o, hoy))
 export const ordenesListasSinAvisar = (ordenes) => ordenes.filter((o) => o.estado === "lista" && !o.pacienteAvisadoEn)
 export const ordenesAbiertas = (ordenes) => ordenes.filter((o) => o.estado === "enviada" || o.estado === "lista")
-
-// Cuántas atrasadas tiene cada laboratorio (las órdenes sin laboratorio van juntas).
-export function atrasosPorLaboratorio(ordenes, hoy = ahoraEcuador()) {
-  const mapa = new Map()
-  for (const o of ordenesAtrasadas(ordenes, hoy)) {
-    const lab = o.laboratorio || "Sin laboratorio"
-    mapa.set(lab, (mapa.get(lab) || 0) + 1)
-  }
-  return [...mapa.entries()].map(([laboratorio, atrasadas]) => ({ laboratorio, atrasadas })).sort((a, b) => b.atrasadas - a.atrasadas || a.laboratorio.localeCompare(b.laboratorio))
-}
-
-// Laboratorios ya usados en la óptica, el más usado primero (para sugerir al escribir).
-export function laboratoriosUsados(ordenes) {
-  const cuenta = new Map()
-  for (const o of ordenes) {
-    const l = (o.laboratorio || "").trim()
-    if (l) cuenta.set(l, (cuenta.get(l) || 0) + 1)
-  }
-  return [...cuenta.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([l]) => l)
-}
 
 // La altura de montaje depende de la montura elegida, así que NO va en la ficha clínica: se pide aquí, por ojo. Se guarda en el mismo campo de texto de siempre: «OD 18 · OI 17».
 // Una altura escrita de la forma antigua («18», una sola) vale para los dos ojos.
@@ -111,6 +91,8 @@ export function datosInicialesOrden(consulta, { montura = "", luna = null, montu
     monturaMedidas,
     laboratorio: "",
     fechaPrometida: "",
+    entrega: "retira",
+    direccionEntrega: "",
     // Las observaciones son para lo que el laboratorio debe saber además de los datos de la orden. Ya no se
     // precargan con el lente recomendado de la consulta: si la venta lleva otro lente, la nota quedaba contradiciendo la orden.
     // El prisma sí lo necesita el laboratorio y viene de la ficha.
@@ -127,11 +109,13 @@ export const datosParaRpc = (d) => ({
   antirreflejo: !!d.antirreflejo, filtro_azul: !!d.filtroAzul, fotocromatico: !!d.fotocromatico, otros_tratamientos: d.otrosTratamientos,
   montura: d.montura, montura_medidas: d.monturaMedidas, laboratorio: d.laboratorio,
   fecha_prometida: d.fechaPrometida, observaciones: d.observaciones,
+  entrega: d.entrega === "envio" ? "envio" : "retira", direccion_entrega: d.entrega === "envio" ? String(d.direccionEntrega || "").trim() : "",
 })
 
 export function validarOrden(d) {
   if (!d.tipoLente) return "Elige el tipo de lente."
-  if (!d.fechaPrometida) return "Indica la fecha prometida de entrega."
+  if (!d.fechaPrometida) return "Indica la fecha aproximada en que estará listo."
+  if (d.entrega === "envio" && !String(d.direccionEntrega || "").trim()) return "Escribe la dirección de envío."
   return ""
 }
 
@@ -162,7 +146,7 @@ export function armarHtmlOrdenLaboratorio({ opticaNombre = "Óptica", opticaDato
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden ${numeroOrden(orden.numero)} — Laboratorio</title><style>${ESTILO}</style></head><body>
 <div class="fila"><div><h1>${escapar(opticaNombre)}</h1>${contactoOptica(opticaDatos) ? `<p class="contacto">${contactoOptica(opticaDatos)}</p>` : ""}<p><b>Orden de laboratorio</b> · copia para el laboratorio</p></div><div class="num">${numeroOrden(orden.numero)}</div></div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}</p>
-<p><b>Laboratorio:</b> ${v(orden.laboratorio)} &nbsp; <b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))} &nbsp; <b>Entrega prometida:</b> ${escapar(fechaLegible(orden.fechaPrometida))}${orden.facturaNumero ? ` &nbsp; <b>Comprobante de venta:</b> ${escapar(orden.facturaNumero)}` : ""}</p>
+<p><b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))} &nbsp; <b>Listo hacia el:</b> ${escapar(fechaLegible(orden.fechaPrometida))}${orden.facturaNumero ? ` &nbsp; <b>Comprobante de venta:</b> ${escapar(orden.facturaNumero)}` : ""}</p>
 <h2>Receta</h2>
 <table><thead><tr><th></th><th>Esfera</th><th>Cilindro</th><th>Eje</th><th>Adición</th></tr></thead><tbody>${ojoFila("OD", orden.recetaOd)}${ojoFila("OI", orden.recetaOi)}</tbody></table>
 <p style="margin-top:8px"><b>DP lejos:</b> ${mm(orden.dpLejos)} &nbsp; <b>DP cerca:</b> ${mm(orden.dpCerca)} &nbsp; <b>Altura de montaje:</b> ${mm(orden.alturaMontaje)}</p>
@@ -202,6 +186,7 @@ export function mapOrden(o) {
     tipoLente: o.tipo_lente, material: o.material || "",
     antirreflejo: !!o.antirreflejo, filtroAzul: !!o.filtro_azul, fotocromatico: !!o.fotocromatico, otrosTratamientos: o.otros_tratamientos || "",
     montura: o.montura || "", monturaMedidas: o.montura_medidas || "", laboratorio: o.laboratorio || "",
+    entrega: o.entrega === "envio" ? "envio" : "retira", direccionEntrega: o.direccion_entrega || "",
     fechaPrometida: o.fecha_prometida, observaciones: o.observaciones || "",
     estado: o.estado, creadaPor: o.creada_por, creadaEn: o.creada_en,
     pacienteAvisadoEn: o.paciente_avisado_en || null, pacienteAvisadoPor: o.paciente_avisado_por || null,
@@ -228,7 +213,7 @@ export const esLineaDeLente = (l) => l?.tipo === "luna" || (l?.tipo === "servici
 // El estado de los lentes de una compra, como lo entiende el paciente (reunión del 20 oct., D7): «En el laboratorio» (lo están haciendo, aunque vayan atrasados),
 // «Listos» (para retirar) o «Entregados». Con varias órdenes manda la que falta: si alguna sigue en proceso, «En el laboratorio»; si no, si alguna está lista, «Listos». Las canceladas no cuentan.
 // Una compra sin lentes (sin orden de laboratorio) devuelve null. Una sola cuenta para el perfil del paciente y sus compras.
-export const ETIQUETA_LENTES = { proceso: "En el laboratorio", listos: "Listo", entregados: "Entregado" }
+export const ETIQUETA_LENTES = { proceso: "En proceso", listos: "Listo", entregados: "Entregado" }
 export function estadoLentesDeCompra(facturaId, ordenes = []) {
   const vivas = ordenes.filter((o) => o.facturaId === facturaId && o.estado !== "cancelada")
   if (vivas.length === 0) return null

@@ -27,17 +27,17 @@ describe("citas del portal", () => {
   })
 })
 
-describe("lentes (órdenes de laboratorio)", () => {
+describe("lentes (pedidos)", () => {
   const fila = { id: "o1", numero: 7, estado: "enviada", fecha_prometida: "2026-10-25", tipo_lente: "progresivo", montura: "Ray-Ban", factura_id: "f1", creada_en: "2026-10-10T15:00:00Z", lista_el: null, entregada_el: null }
   it("mapea la fila con los mismos nombres que el personal", () => {
     expect(mapOrdenPaciente(fila)).toMatchObject({ id: "o1", numero: 7, estado: "enviada", fechaPrometida: "2026-10-25", tipoLente: "progresivo", facturaId: "f1" })
   })
-  it("enviada: «En el laboratorio» con la fecha estimada, en azul como en Ventas", () => {
-    expect(textoOrdenPaciente(mapOrdenPaciente(fila), HOY)).toEqual({ clave: "enviada", tono: "azul", titulo: "En el laboratorio", detalle: "Fecha estimada: 25 oct 2026." })
+  it("enviada: «En proceso» con la fecha estimada, en azul como en Ventas", () => {
+    expect(textoOrdenPaciente(mapOrdenPaciente(fila), HOY)).toEqual({ clave: "enviada", tono: "azul", titulo: "En proceso", detalle: "Fecha estimada: 25 oct 2026." })
   })
-  it("enviada con la fecha vencida: sigue diciendo «En el laboratorio», en rojo como «Atrasada» de Ventas, y manda a llamar", () => {
+  it("enviada con la fecha vencida: sigue diciendo «En proceso», en rojo como «Atrasada» de Ventas, y manda a llamar", () => {
     const t = textoOrdenPaciente(mapOrdenPaciente({ ...fila, fecha_prometida: "2026-10-10" }), HOY)
-    expect(t).toMatchObject({ clave: "atrasada", tono: "rojo", titulo: "En el laboratorio" })
+    expect(t).toMatchObject({ clave: "atrasada", tono: "rojo", titulo: "En proceso" })
     expect(t.detalle).toMatch(/Llama a la óptica/)
   })
   it("lista: «Listo», en verde, con desde cuándo", () => {
@@ -119,19 +119,19 @@ describe("receta", () => {
 describe("línea de pasos de los lentes", () => {
   const o = (estado, fechaPrometida = "2026-10-25") => ({ estado, fechaPrometida })
   const nombres = (r) => r.pasos.map((p) => p.nombre + ":" + p.estado).join(" ")
-  it("enviada: Pedido hecho, En el laboratorio actual", () => {
+  it("enviada: Pedido hecho, En proceso actual", () => {
     const r = pasosDeLosLentes(o("enviada"), HOY)
-    expect(nombres(r)).toBe("Pedido:hecho En el laboratorio:actual Listo:pendiente Entregado:pendiente")
+    expect(nombres(r)).toBe("Pedido:hecho En proceso:actual Listo:pendiente Entregado:pendiente")
     expect(r.tono).toBe("azul")
   })
-  it("atrasada: sigue en el laboratorio, en rojo como en Ventas", () => {
+  it("atrasada: sigue en proceso, en rojo como en Ventas", () => {
     const r = pasosDeLosLentes(o("enviada", "2026-10-10"), HOY)
     expect(r.actual).toBe(1)
     expect(r.tono).toBe("rojo")
   })
   it("lista y entregada avanzan el paso", () => {
     expect(pasosDeLosLentes(o("lista"), HOY)).toMatchObject({ actual: 2, tono: "verde" })
-    expect(nombres(pasosDeLosLentes(o("entregada"), HOY))).toBe("Pedido:hecho En el laboratorio:hecho Listo:hecho Entregado:hecho")
+    expect(nombres(pasosDeLosLentes(o("entregada"), HOY))).toBe("Pedido:hecho En proceso:hecho Listo:hecho Entregado:hecho")
   })
 })
 
@@ -173,7 +173,7 @@ describe("identidad de la óptica", () => {
 
 describe("proximoPasoLentes: lo que sigue, en una frase", () => {
   const o = { estado: "enviada", fechaPrometida: "2026-10-22" }
-  it("en el laboratorio con fecha: cuándo retirarlos", () => expect(proximoPasoLentes(o, HOY)).toBe("Retíralos en la óptica desde el 22 de octubre."))
+  it("en proceso con fecha: cuándo retirarlos", () => expect(proximoPasoLentes(o, HOY)).toBe("Retíralos en la óptica desde el 22 de octubre."))
   it("sin fecha prometida: te avisan", () => expect(proximoPasoLentes({ estado: "enviada" }, HOY)).toBe("Te avisaremos cuando estén listos para retirar."))
   it("listos: retirarlos ya", () => expect(proximoPasoLentes({ estado: "lista" }, HOY)).toBe("Ya están listos: retíralos en la óptica."))
   it("entregados: nada que decir", () => expect(proximoPasoLentes({ estado: "entregada" }, HOY)).toBe(""))

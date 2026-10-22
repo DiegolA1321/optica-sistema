@@ -51,11 +51,11 @@ export const NOTA_ESTADO_CITA = {
   Cancelada: "Esta cita se canceló. Puedes agendar otra.",
 }
 
-// ── Lentes (órdenes de laboratorio) ──
+// ── Lentes (pedidos) ──
 // Fila de mis_ordenes_paciente → objeto de la app. Mismos nombres que el personal (`mapOrden`), solo lo que el paciente recibe.
 export const mapOrdenPaciente = (o) => ({
   id: o.id, numero: o.numero, estado: o.estado, fechaPrometida: o.fecha_prometida, tipoLente: o.tipo_lente, montura: o.montura || "",
-  facturaId: o.factura_id, creadaEn: o.creada_en, listaEl: o.lista_el || null, entregadaEl: o.entregada_el || null,
+  entrega: o.entrega === "envio" ? "envio" : "retira", facturaId: o.factura_id, creadaEn: o.creada_en, listaEl: o.lista_el || null, entregadaEl: o.entregada_el || null,
 })
 
 export const ordenesAbiertasDelPaciente = (ordenes = []) => ordenes.filter((o) => o.estado === "enviada" || o.estado === "lista")
@@ -70,24 +70,25 @@ export const nombreDeLosLentes = (orden) => [TIPO_LENTE[orden.tipoLente] || "Tus
 export function textoOrdenPaciente(orden, hoy = ahoraEcuador()) {
   const visible = estadoVisible(orden, hoy)
   const fecha = (v) => fechaLegible(diaDeRegistro(v))
-  if (visible === "atrasada") return { clave: "atrasada", tono: "rojo", titulo: "En el laboratorio", detalle: "Se están demorando un poco más de lo previsto. Llama a la óptica para saber cuándo estarán." }
-  if (visible === "lista") return { clave: "lista", tono: "verde", titulo: "Listo", detalle: orden.listaEl ? `Están en la óptica desde el ${fecha(orden.listaEl)}. Pasa a recogerlos.` : "Ya están en la óptica. Pasa a recogerlos." }
+  if (visible === "atrasada") return { clave: "atrasada", tono: "rojo", titulo: "En proceso", detalle: "Se están demorando un poco más de lo previsto. Llama a la óptica para saber cuándo estarán." }
+  if (visible === "lista") return { clave: "lista", tono: "verde", titulo: "Listo", detalle: orden.entrega === "envio" ? "Ya están listos: te los enviaremos a tu domicilio." : orden.listaEl ? `Están en la óptica desde el ${fecha(orden.listaEl)}. Pasa a recogerlos.` : "Ya están en la óptica. Pasa a recogerlos." }
   if (visible === "entregada") return { clave: "entregada", tono: "gris", titulo: "Entregado", detalle: orden.entregadaEl ? `Los recibiste el ${fecha(orden.entregadaEl)}.` : "Ya los recibiste." }
-  return { clave: "enviada", tono: "azul", titulo: "En el laboratorio", detalle: orden.fechaPrometida ? `Fecha estimada: ${fechaLegible(orden.fechaPrometida)}.` : "Te avisaremos cuando estén listos." }
+  return { clave: "enviada", tono: "azul", titulo: "En proceso", detalle: orden.fechaPrometida ? `Fecha estimada: ${fechaLegible(orden.fechaPrometida)}.` : "Te avisaremos cuando estén listos." }
 }
 
 // Lo que sigue para el paciente, en una frase: «Retíralos en la óptica desde el 22 de octubre.»
 export function proximoPasoLentes(orden, hoy = ahoraEcuador()) {
   const visible = estadoVisible(orden, hoy)
-  if (visible === "lista") return "Ya están listos: retíralos en la óptica."
+  if (visible === "lista") return orden.entrega === "envio" ? "Ya están listos: te los enviaremos a tu domicilio." : "Ya están listos: retíralos en la óptica."
   if (visible === "entregada") return ""
   if (visible === "atrasada") return "Se están demorando un poco más de lo previsto: llama a la óptica para saber cuándo estarán."
+  if (orden.entrega === "envio") return orden.fechaPrometida ? `Te los enviaremos a tu domicilio hacia el ${formatoFecha(orden.fechaPrometida, "largoSinDia").replace(/ de \d{4}$/, "")}.` : "Te avisaremos cuando salgan hacia tu domicilio."
   return orden.fechaPrometida ? `Retíralos en la óptica desde el ${formatoFecha(orden.fechaPrometida, "largoSinDia").replace(/ de \d{4}$/, "")}.` : "Te avisaremos cuando estén listos para retirar."
 }
 
-// La línea de pasos del seguimiento de unos lentes (como el de un envío): Pedido → En el laboratorio → Listo → Entregado. «Atrasada» es
-// la misma orden en el paso del laboratorio, con su aviso en rojo (igual que en Ventas).
-export const PASOS_LENTES = ["Pedido", "En el laboratorio", "Listo", "Entregado"]
+// La línea de pasos del seguimiento de unos lentes (como el de un envío): Pedido → En proceso → Listo → Entregado. «Atrasada» es
+// el mismo pedido en el paso «En proceso», con su aviso en rojo (igual que en Ventas).
+export const PASOS_LENTES = ["Pedido", "En proceso", "Listo", "Entregado"]
 export function pasosDeLosLentes(orden, hoy = ahoraEcuador()) {
   const visible = estadoVisible(orden, hoy)
   // Entregado es el último paso: ya cumplido (todos los pasos quedan hechos).

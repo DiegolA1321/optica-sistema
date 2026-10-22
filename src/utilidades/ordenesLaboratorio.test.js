@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import {
-  numeroOrden, estaAtrasada, estadoVisible, diasDeAtraso, ordenesListasSinAvisar, atrasosPorLaboratorio, laboratoriosUsados,
+  numeroOrden, estaAtrasada, estadoVisible, diasDeAtraso, ordenesListasSinAvisar,
   datosInicialesOrden, datosParaRpc, validarOrden, armarHtmlOrdenLaboratorio, armarHtmlOrdenPaciente, observacionesParaLaboratorio,
 } from "./ordenesLaboratorio"
 
@@ -21,20 +21,6 @@ describe("ordenesLaboratorio", () => {
     expect(estaAtrasada(orden({ fechaPrometida: "2026-10-05", estado: "lista" }), hoy)).toBe(false)
     expect(estadoVisible(orden({ fechaPrometida: "2026-10-01" }), hoy)).toBe("atrasada")
     expect(diasDeAtraso(orden({ fechaPrometida: "2026-10-01" }), hoy)).toBe(5)
-  })
-
-  it("cuenta los atrasos por laboratorio y sugiere los más usados", () => {
-    const todas = [
-      orden({ id: "a", fechaPrometida: "2026-10-01" }),
-      orden({ id: "b", fechaPrometida: "2026-10-02" }),
-      orden({ id: "c", fechaPrometida: "2026-10-02", laboratorio: "Lab Sur" }),
-      orden({ id: "d", fechaPrometida: "2026-10-02", laboratorio: "" }),
-      orden({ id: "e", estado: "lista", fechaPrometida: "2026-10-01" }),
-    ]
-    expect(atrasosPorLaboratorio(todas, hoy)).toEqual([
-      { laboratorio: "Lab Norte", atrasadas: 2 }, { laboratorio: "Lab Sur", atrasadas: 1 }, { laboratorio: "Sin laboratorio", atrasadas: 1 },
-    ])
-    expect(laboratoriosUsados(todas)).toEqual(["Lab Norte", "Lab Sur"])
   })
 
   it("las listas sin avisar son las que piden aviso al paciente", () => {
@@ -67,7 +53,7 @@ describe("ordenesLaboratorio", () => {
     expect(h).toContain("+1.50")
     expect(h).toContain("Antirreflejo")
     expect(h).toContain("52-18-140")
-    expect(h).toContain("Lab Norte")
+    expect(h).not.toContain("Lab Norte")
     expect(h).toContain("62 mm")
     expect(h).toContain("18 mm")
     expect(h).not.toContain("$")
@@ -136,8 +122,8 @@ import { estadoLentesDeCompra } from "./ordenesLaboratorio"
 describe("estado de los lentes de una compra", () => {
   const o = (estado, facturaId = "f1") => ({ facturaId, estado })
   it("sin orden no hay lentes", () => { expect(estadoLentesDeCompra("f1", [o("enviada", "f2")])).toBeNull() })
-  it("enviada es «En el laboratorio»; lista, «Listos»; entregada, «Entregados»", () => {
-    expect(estadoLentesDeCompra("f1", [o("enviada")]).etiqueta).toBe("En el laboratorio")
+  it("enviada es «En proceso»; lista, «Listo»; entregada, «Entregado»", () => {
+    expect(estadoLentesDeCompra("f1", [o("enviada")]).etiqueta).toBe("En proceso")
     expect(estadoLentesDeCompra("f1", [o("lista")]).etiqueta).toBe("Listo")
     expect(estadoLentesDeCompra("f1", [o("entregada")]).etiqueta).toBe("Entregado")
   })

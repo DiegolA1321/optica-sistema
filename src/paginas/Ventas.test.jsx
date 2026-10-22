@@ -19,11 +19,11 @@ const dato = (nombre) => screen.getByRole("button", { name: new RegExp(`^${nombr
 beforeEach(() => { window.history.replaceState({}, "", "/") })
 
 describe("Ventas — estructura", () => {
-  it("solo hay dos pestañas, «Ventas» (la de siempre) y «Pedidos de lentes», con su número, y «Nueva venta» a la derecha", () => {
+  it("solo hay dos pestañas, «Ventas» (la de siempre) y «Pedidos», con su número, y «Nueva venta» a la derecha", () => {
     render(<Ventas {...base} />)
     expect(screen.getByRole("heading", { level: 1, name: "Ventas" })).toBeInTheDocument()
     const tabs = screen.getAllByRole("tab").map((t) => t.textContent.replace(/\d+$/, "").trim())
-    expect(tabs).toEqual(["Ventas", "Pedidos de lentes"])
+    expect(tabs).toEqual(["Ventas", "Pedidos"])
     expect(screen.getByRole("tab", { name: /^Ventas/ })).toHaveAttribute("aria-selected", "true")
     expect(screen.getAllByRole("button", { name: /Nueva venta/i })[0]).toBeInTheDocument()
     for (const viejo of [/Por vender/, /Comprobantes/, /Cobros y saldos/, /Órdenes de laboratorio/]) expect(screen.queryByRole("tab", { name: viejo })).not.toBeInTheDocument()
@@ -33,13 +33,13 @@ describe("Ventas — estructura", () => {
     render(<Ventas {...base} />)
     expect(screen.getByText(/Todavía no hay ventas registradas/i)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Registrar la primera venta/i })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("tab", { name: /Pedidos de lentes/ }))
-    expect(screen.getByText(/Todavía no hay pedidos de lentes/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("tab", { name: /Pedidos/ }))
+    expect(screen.getByText(/Todavía no hay pedidos/i)).toBeInTheDocument()
     expect(screen.getAllByRole("button", { name: /Nueva venta/i }).length).toBeGreaterThan(1)
   })
 
   it("los enlaces de antes (cola, comprobantes, saldos, órdenes) llegan a su pestaña nueva", () => {
-    for (const [antes, tab] of [["cola", /^Ventas/], ["porvender", /^Ventas/], ["comprobantes", /^Ventas/], ["cobros", /^Ventas/], ["ordenes", /Pedidos de lentes/]]) {
+    for (const [antes, tab] of [["cola", /^Ventas/], ["porvender", /^Ventas/], ["comprobantes", /^Ventas/], ["cobros", /^Ventas/], ["ordenes", /Pedidos/]]) {
       window.history.replaceState({}, "", "/")
       const { unmount } = render(<Ventas {...base} {...ir(antes)} />)
       expect(screen.getByRole("tab", { name: tab })).toHaveAttribute("aria-selected", "true")
@@ -122,14 +122,14 @@ describe("Ventas — la lista y su franja de datos", () => {
     expect(within(d).getByRole("button", { name: "Revisar" })).toBeInTheDocument()
   })
 
-  it("«Lentes en el laboratorio» lleva a Pedidos de lentes con ese filtro", () => {
+  it("«Pedidos en proceso» lleva a Pedidos con ese filtro", () => {
     const ordenes = [{ id: "o1", numero: 1, pacienteId: "p1", estado: "enviada", fechaPrometida: "2099-01-01", laboratorio: "Lab A", facturaId: "a" }, { id: "o2", numero: 2, pacienteId: "p2", estado: "lista", fechaPrometida: "2099-01-01", laboratorio: "Lab B", facturaId: "b" }]
     render(<Ventas {...base} facturasVenta={facturas} abonos={abonos} ordenesLab={ordenes} {...ir("ventas")} />)
-    expect(dato("Lentes en el laboratorio")).toHaveTextContent("1")
-    fireEvent.click(dato("Lentes en el laboratorio"))
-    expect(screen.getByRole("tab", { name: /Pedidos de lentes/ })).toHaveAttribute("aria-selected", "true")
-    expect(within(screen.getByRole("list", { name: "Pedidos de lentes" })).getAllByRole("listitem")).toHaveLength(1)
-    expect(screen.getByRole("status")).toHaveTextContent("En el laboratorio")
+    expect(dato("Pedidos en proceso")).toHaveTextContent("1")
+    fireEvent.click(dato("Pedidos en proceso"))
+    expect(screen.getByRole("tab", { name: /Pedidos/ })).toHaveAttribute("aria-selected", "true")
+    expect(within(screen.getByRole("list", { name: "Pedidos" })).getAllByRole("listitem")).toHaveLength(1)
+    expect(screen.getByRole("button", { name: /^En proceso/ })).toHaveAttribute("aria-pressed", "true")
   })
 
   it("«Filtrar» ofrece las ventas anuladas y la forma de pago", () => {
@@ -178,7 +178,7 @@ describe("Ventas — la lista y su franja de datos", () => {
     expect(filas()).toHaveLength(1)
   })
 
-  it("pulsar una venta abre su detalle completo: líneas, abonos con su método, saldo, estado de los lentes y sus acciones", () => {
+  it("pulsar una venta abre su detalle completo: líneas, abonos con su método, saldo, su pedido y sus acciones", () => {
     const ordenes = [{ id: "o2", numero: 2, pacienteId: "p2", estado: "lista", fechaPrometida: "2099-01-01", laboratorio: "Lab B", facturaId: "b", tipoLente: "progresivo" }]
     render(<Ventas {...base} facturasVenta={facturas} abonos={abonos} ordenesLab={ordenes} {...ir("ventas")} />)
     fireEvent.click(screen.getByRole("button", { name: /Ver la venta CV-0002 de Luis Mora/ }))
@@ -186,7 +186,7 @@ describe("Ventas — la lista y su franja de datos", () => {
     expect(within(d).getByText("Estuche")).toBeInTheDocument()
     expect(within(d).getByText("Tarjeta")).toBeInTheDocument()
     expect(within(d).getByText("Saldo")).toBeInTheDocument()
-    expect(within(d).getByText("Estado de los lentes")).toBeInTheDocument()
+    expect(within(d).getByText("Pedido")).toBeInTheDocument()
     expect(within(d).getByText("Listo · sin avisar")).toBeInTheDocument()
     expect(within(d).getByRole("button", { name: /Imprimir comprobante/ })).toBeInTheDocument()
     expect(within(d).getByRole("button", { name: /Anular venta/ })).toBeInTheDocument()
@@ -213,50 +213,52 @@ describe("Ventas — la lista y su franja de datos", () => {
   })
 })
 
-describe("Ventas — Pedidos de lentes", () => {
+describe("Ventas — Pedidos", () => {
   const ordenes = [
-    { id: "o1", numero: 1, pacienteId: "p1", estado: "enviada", fechaPrometida: "2020-01-01", laboratorio: "Lab A", facturaId: "a", tipoLente: "progresivo" },
+    { id: "o1", numero: 1, pacienteId: "p1", estado: "enviada", fechaPrometida: "2020-01-01", entrega: "envio", direccionEntrega: "Av. Sol 12", facturaId: "a", tipoLente: "progresivo" },
     { id: "o2", numero: 2, pacienteId: "p2", estado: "lista", fechaPrometida: "2099-01-01", laboratorio: "Lab B", facturaId: "b", tipoLente: "monofocal" },
     { id: "o3", numero: 3, pacienteId: "p1", estado: "entregada", fechaPrometida: "2099-01-01", laboratorio: "Lab A", facturaId: "a", tipoLente: "bifocal" },
     { id: "o4", numero: 4, pacienteId: "p2", estado: "lista", fechaPrometida: "2099-01-01", laboratorio: "Lab B", facturaId: "b", pacienteAvisadoEn: "2026-10-01T10:00:00Z" },
   ]
   const facturas = [factura("a"), factura("b", { numero: 2, pacienteId: "p2", estado: "pendiente_pago", metodoPago: "abonos", montoTotal: 100 })]
-  const lista = () => screen.getByRole("list", { name: "Pedidos de lentes" })
+  const lista = () => screen.getByRole("list", { name: "Pedidos" })
   const pedidos = () => within(lista()).getAllByRole("listitem")
 
-  it("el número de la pestaña son los pedidos en curso y la lista arranca en «En curso»", () => {
+  it("el número de la pestaña son los pedidos abiertos y la lista arranca en «En proceso»", () => {
     render(<Ventas {...base} ordenesLab={ordenes} facturasVenta={facturas} {...ir("pedidos")} />)
-    expect(screen.getByRole("tab", { name: /Pedidos de lentes/ })).toHaveTextContent(String(ordenesAbiertas(ordenes).length))
-    expect(screen.getByRole("button", { name: /^En curso/ })).toHaveAttribute("aria-pressed", "true")
-    expect(pedidos()).toHaveLength(3)
+    expect(screen.getByRole("tab", { name: /Pedidos/ })).toHaveTextContent(String(ordenesAbiertas(ordenes).length))
+    expect(screen.getByRole("button", { name: /^En proceso/ })).toHaveAttribute("aria-pressed", "true")
+    expect(pedidos()).toHaveLength(1)
     expect(screen.queryByText("OL-0003")).not.toBeInTheDocument()
   })
 
-  it("cada fila trae pedido, paciente con sus lentes, laboratorio, fecha prometida, estado y UNA acción según el momento", () => {
+  it("cada fila trae pedido, paciente con sus lentes, entrega, fecha aproximada, estado y UNA acción según el momento", () => {
     render(<Ventas {...base} ordenesLab={ordenes} facturasVenta={facturas} {...ir("pedidos")} />)
+    fireEvent.click(screen.getByRole("button", { name: /^Todos/ }))
     const de = (n) => pedidos().find((li) => li.textContent.includes(n))
     const [atrasado, sinAvisar, avisado] = [de("OL-0001"), de("OL-0002"), de("OL-0004")]
     expect(atrasado).toHaveTextContent("OL-0001")
     expect(atrasado).toHaveTextContent("Ana Prueba")
     expect(atrasado).toHaveTextContent("Lentes progresivos")
-    expect(atrasado).toHaveTextContent("Lab A")
+    expect(atrasado).toHaveTextContent("Envío a domicilio")
+    expect(sinAvisar).toHaveTextContent("Retira en la óptica")
     expect(atrasado).toHaveTextContent(/Atrasado \d+ días/)
     expect(within(atrasado).getByRole("button", { name: "Marcar listo" })).toBeInTheDocument()
     expect(sinAvisar).toHaveTextContent("Listo · sin avisar")
-    expect(within(sinAvisar).getByRole("button", { name: "Contactar" })).toBeInTheDocument()
+    expect(within(sinAvisar).getByRole("button", { name: "Avisar al paciente" })).toBeInTheDocument()
     expect(avisado).toHaveTextContent("Listo · avisado")
     expect(within(avisado).getByRole("button", { name: "Entregar" })).toBeInTheDocument()
     for (const li of [atrasado, sinAvisar, avisado]) expect(within(li).queryByRole("button", { name: /Imprimir|Editar|Otro pedido|Volver/ })).not.toBeInTheDocument()
   })
 
-  it("los filtros son En curso, Atrasados, Listos sin avisar, Entregados y Todos, con el número de lo que listan", () => {
+  it("los filtros son En proceso, Atrasados, Listos para entregar, Entregados y Todos, con el número de lo que listan", () => {
     render(<Ventas {...base} ordenesLab={ordenes} facturasVenta={facturas} {...ir("pedidos")} />)
     const grupo = screen.getByRole("group", { name: "Estado de los pedidos" })
-    expect(within(grupo).getAllByRole("button").map((b) => b.textContent.replace(/\s+/g, " ").trim())).toEqual(["En curso", "Atrasados · 1", "Listos sin avisar · 1", "Entregados", "Todos"])
+    expect(within(grupo).getAllByRole("button").map((b) => b.textContent.replace(/\s+/g, " ").trim())).toEqual(["En proceso · 1", "Atrasados · 1", "Listos para entregar · 2", "Entregados", "Todos"])
     fireEvent.click(within(grupo).getByRole("button", { name: /Atrasados/ }))
     expect(pedidos()).toHaveLength(1)
-    fireEvent.click(within(grupo).getByRole("button", { name: /Listos sin avisar/ }))
-    expect(pedidos()).toHaveLength(1)
+    fireEvent.click(within(grupo).getByRole("button", { name: /Listos para entregar/ }))
+    expect(pedidos()).toHaveLength(2)
     expect(screen.getByText("OL-0002")).toBeInTheDocument()
     fireEvent.click(within(grupo).getByRole("button", { name: "Entregados" }))
     expect(screen.getByText("OL-0003")).toBeInTheDocument()
@@ -264,31 +266,34 @@ describe("Ventas — Pedidos de lentes", () => {
     expect(pedidos()).toHaveLength(4)
   })
 
-  it("se filtra por laboratorio y, sin resultados, dice qué hacer", () => {
+  it("se busca por paciente o número y, sin resultados, dice qué hacer", () => {
     render(<Ventas {...base} ordenesLab={ordenes} facturasVenta={facturas} {...ir("pedidos")} />)
-    fireEvent.change(screen.getByLabelText("Laboratorio"), { target: { value: "Lab B" } })
+    fireEvent.click(screen.getByRole("button", { name: /^Todos/ }))
+    fireEvent.change(screen.getByLabelText("Buscar por paciente o número de pedido"), { target: { value: "luis" } })
     expect(pedidos()).toHaveLength(2)
-    fireEvent.click(screen.getByRole("button", { name: /Atrasados/ }))
-    expect(screen.getByText(/Sin pedidos de Lab B con este estado/)).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Ver los pedidos en curso" })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Buscar por paciente o número de pedido"), { target: { value: "zzz" } })
+    expect(screen.getByText("Ningún pedido coincide con la búsqueda")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Ver los pedidos en proceso" })).toBeInTheDocument()
   })
 
   it("llega con el filtro que pidió el Inicio, con los nombres de antes (listas) o los de ahora", () => {
     render(<Ventas {...base} ordenesLab={ordenes} facturasVenta={facturas} {...ir("ordenes", { filtro: "sinavisar" })} />)
-    expect(screen.getByRole("button", { name: /^Listos sin avisar/ })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("status")).toHaveTextContent("Listos sin avisar")
     expect(screen.getByText("OL-0002")).toBeInTheDocument()
     expect(screen.queryByText("OL-0001")).not.toBeInTheDocument()
   })
 
-  it("dice dónde se administran los laboratorios", () => {
+  it("ya no hay laboratorio en la lista de pedidos", () => {
     render(<Ventas {...base} ordenesLab={ordenes} facturasVenta={facturas} {...ir("pedidos")} />)
-    expect(screen.getByText("Los laboratorios se administran en Configuración → Laboratorios.")).toBeInTheDocument()
+    expect(screen.queryByLabelText("Laboratorio")).not.toBeInTheDocument()
+    expect(screen.queryByText(/Configuración → Laboratorios/)).not.toBeInTheDocument()
   })
 
   it("el detalle trae la receta, la venta relacionada, el historial y las acciones", () => {
     render(<Ventas {...base} ordenesLab={ordenes} facturasVenta={facturas} {...ir("pedidos")} />)
+    fireEvent.click(screen.getByRole("button", { name: /^Todos/ }))
     fireEvent.click(screen.getByRole("button", { name: /Ver el pedido OL-0002/ }))
-    const d = screen.getByRole("dialog", { name: /Pedido de lentes OL-0002/ })
+    const d = screen.getByRole("dialog", { name: /Pedido OL-0002/ })
     for (const n of [/Imprimir copias/, /Editar/, /Otro pedido/, /Volver al estado anterior/]) expect(within(d).getByRole("button", { name: n })).toBeInTheDocument()
     expect(within(d).getByText("CV-0002")).toBeInTheDocument()
     expect(within(d).getByText("Receta")).toBeInTheDocument()

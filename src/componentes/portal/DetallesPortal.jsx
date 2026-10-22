@@ -121,8 +121,8 @@ function DetallePedido({ orden, contacto, onCerrar }) {
         </section>
         {!entregada && (
           <section aria-label="Cómo retirarlos" className="space-y-1.5">
-            <h3 className="font-heading text-lg font-bold text-pt-marino">Cómo retirarlos</h3>
-            <p className="text-lg text-slate-800">{lista ? "Ya están listos: pasa por la óptica a recogerlos." : "Pasa por la óptica cuando estén listos: te avisaremos."}</p>
+            <h3 className="font-heading text-lg font-bold text-pt-marino">{orden.entrega === "envio" ? "Cómo los recibes" : "Cómo retirarlos"}</h3>
+            <p className="text-lg text-slate-800">{orden.entrega === "envio" ? (lista ? "Ya están listos: te los enviaremos a tu domicilio." : "Te los enviaremos a tu domicilio cuando estén listos: te avisaremos.") : lista ? "Ya están listos: pasa por la óptica a recogerlos." : "Pasa por la óptica cuando estén listos: te avisaremos."}</p>
             {contacto.direccion && <p className="flex items-start gap-2 text-lg text-slate-800"><MapPin size={20} className="mt-1 shrink-0 text-slate-500" aria-hidden="true" /> {contacto.direccion}</p>}
             {contacto.hoy && <p className="flex items-start gap-2 text-lg text-slate-800"><Clock size={20} className="mt-1 shrink-0 text-slate-500" aria-hidden="true" /> {contacto.hoy.texto}</p>}
             <BotonesContacto contacto={contacto} />

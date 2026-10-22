@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
-import { Settings, Receipt, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2, Gift, FlaskConical } from "lucide-react"
+import { Settings, Receipt, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2, Gift } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
 import DatosBancarios from "../componentes/DatosBancarios"
 import PanelFidelidadConfig from "../componentes/PanelFidelidadConfig"
@@ -14,7 +14,7 @@ import { Cascaron } from "../componentes/AtencionPaciente"
 import { costoBaseMotivo, renombrarCostoMotivo } from "../utilidades/costosConsulta"
 import { datosOpticaProforma } from "../utilidades/proforma"
 import PanelInventarioConfig from "../componentes/configuracion/PanelInventarioConfig"
-import PanelLaboratorios from "../componentes/configuracion/PanelLaboratorios"
+import PanelVentasConfig from "../componentes/configuracion/PanelVentasConfig"
 import { INK } from "@/lib/tema"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -330,7 +330,7 @@ const PESTANAS = [
   { id: "politicas", label: "Políticas y servicios", icon: SlidersHorizontal },
   { id: "catalogos", label: "Catálogos", icon: ListChecks },
   { id: "inventario", label: "Inventario", icon: Package },
-  { id: "laboratorios", label: "Laboratorios", icon: FlaskConical },
+  { id: "ventas", label: "Ventas", icon: Receipt },
   { id: "login", label: "Página pública", icon: MonitorSmartphone },
   { id: "fidelizacion", label: "Fidelización", icon: Gift },
   { id: "privacidad", label: "Privacidad", icon: ShieldCheck },
@@ -370,7 +370,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
   // también la página de login) — el ing pidió explícitamente organizarla en
   // navegación una vez que el resto del sistema estuviera terminado, en vez
   // de un solo scroll interminable.
-  const [tab, setTab] = useParamUrl("tab", "politicas", ["politicas", "catalogos", "inventario", "laboratorios", "login", "fidelizacion", "privacidad"])
+  const [tab, setTab] = useParamUrl("tab", "politicas", ["politicas", "catalogos", "inventario", "ventas", "login", "fidelizacion", "privacidad"])
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
 
@@ -604,10 +604,10 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
         </div>
       )}
 
-      {tab === "laboratorios" && (
-        <div role="tabpanel" id="panel-configuracion" aria-labelledby="tab-laboratorios">
-          <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Laboratorios</p>
-          <PanelLaboratorios usuario={usuario} parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
+      {tab === "ventas" && (
+        <div role="tabpanel" id="panel-configuracion" aria-labelledby="tab-ventas">
+          <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Ventas</p>
+          <PanelVentasConfig parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
         </div>
       )}
 

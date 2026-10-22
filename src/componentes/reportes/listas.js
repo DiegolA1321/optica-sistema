@@ -5,6 +5,7 @@ import { dinero } from "../../utilidades/formatoMoneda"
 import { etiquetaEstadoCita } from "../../utilidades/estadosCita"
 import { numeroComprobante } from "../../utilidades/comprobantes"
 import { numeroOrden, estaAtrasada, ETIQUETA_ESTADO } from "../../utilidades/ordenesLaboratorio"
+import { etiquetaEntrega } from "../../utilidades/ventasModulo"
 import { categoriasDeConsulta } from "../../utilidades/reportesDiagnosticos"
 import { diasVencido } from "../../utilidades/fidelizacion"
 import { cobradoDeFactura } from "../../utilidades/vendidoCobrado"
@@ -91,8 +92,8 @@ export function crearColumnas({ pacientes = [], abonos = [], historial = [] }) {
     orden: [
       { titulo: "Orden", ancho: 100, valor: (f) => numeroOrden(f.numero) },
       { titulo: "Paciente", valor: (f) => nombre(f.pacienteId) },
-      { titulo: "Laboratorio", ancho: 150, valor: (f) => f.laboratorio || "Sin laboratorio" },
-      { titulo: "Prometida", ancho: FECHA, valor: (f) => (f.fechaPrometida ? fechaLegible(f.fechaPrometida) : "—") },
+      { titulo: "Entrega", ancho: 150, valor: (f) => etiquetaEntrega(f) },
+      { titulo: "Listo hacia", ancho: FECHA, valor: (f) => (f.fechaPrometida ? fechaLegible(f.fechaPrometida) : "—") },
       { titulo: "Estado", ancho: 130, valor: estadoOrden },
     ],
     // Los atendidos con receta y si compraron (los ids salen del embudo).

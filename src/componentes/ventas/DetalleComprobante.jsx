@@ -24,7 +24,7 @@ import { imprimirHtml, datosOpticaProforma } from "../../utilidades/proforma"
 import { registrarLog } from "../../utilidades/logs"
 import { puede } from "../../utilidades/permisosUi"
 import { numeroOrden, diasDeAtraso, nombreDeLentes } from "../../utilidades/ordenesLaboratorio"
-import { estadoDePedido } from "../../utilidades/ventasModulo"
+import { estadoDePedido, etiquetaEntrega } from "../../utilidades/ventasModulo"
 
 const TONO_ESTADO = { pagada: "verde", saldo: "ambar", anulada: "gris" }
 
@@ -221,17 +221,17 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
           </Bloque>
         )}
 
-        <Bloque titulo="Estado de los lentes" derecha={puedeVender && !anulada ? <button type="button" onClick={con(v.setOrdenParaVenta)} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer"><Plus size={13} aria-hidden="true" /> {ordenesDeVenta.length > 0 ? "Otro pedido de lentes" : "Crear pedido de lentes"}</button> : null}>
+        <Bloque titulo="Pedido" derecha={puedeVender && !anulada ? <button type="button" onClick={con(v.setOrdenParaVenta)} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer"><Plus size={13} aria-hidden="true" /> {ordenesDeVenta.length > 0 ? "Otro pedido" : "Crear pedido"}</button> : null}>
           {ordenesDeVenta.length === 0 ? (
-            <p className="text-sm text-slate-500">Esta venta no tiene pedido de lentes.</p>
+            <p className="text-sm text-slate-500">Esta venta no tiene pedido.</p>
           ) : (
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/60" aria-label="Pedidos de lentes de la venta">
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/60" aria-label="Pedidos de la venta">
               {ordenesDeVenta.map((o) => {
                 const estadoPedido = estadoDePedido(o, diasDeAtraso(o))
                 return (
                   <li key={o.id} className="flex items-center gap-3 px-3 py-2 text-sm">
                     <button type="button" onClick={() => ordenesApi?.verDetalle(o)} disabled={!ordenesApi} className="font-mono font-bold text-blue-700 transition-colors hover:text-blue-800 hover:underline cursor-pointer disabled:cursor-default disabled:text-slate-700 disabled:no-underline">{numeroOrden(o.numero)}</button>
-                    <span className="min-w-0 flex-1 truncate text-slate-600" title={o.laboratorio || "Sin laboratorio"}>{nombreDeLentes(o)} · {o.laboratorio || "Sin laboratorio"} · prometido el {fechaLegible(o.fechaPrometida) || "—"}</span>
+                    <span className="min-w-0 flex-1 truncate text-slate-600">{nombreDeLentes(o)} · {etiquetaEntrega(o)} · listo hacia el {fechaLegible(o.fechaPrometida) || "—"}</span>
                     <Insignia tono={estadoPedido.tono}>{estadoPedido.etiqueta}</Insignia>
                   </li>
                 )

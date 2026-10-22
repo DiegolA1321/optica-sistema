@@ -233,7 +233,7 @@ describe("Reportes: Exportar", () => {
 
   it("está ordenado por módulo, con las mismas pestañas de Reportes, y cada reporte dice para qué sirve", () => {
     const v = abrirExportar()
-    expect(v.getAllByRole("tab").map((t) => t.textContent.replace(/\d+$/, ""))).toEqual(["Resumen", "Citas", "Clínico", "Ventas", "Laboratorios", "Inventario"])
+    expect(v.getAllByRole("tab").map((t) => t.textContent.replace(/\d+$/, ""))).toEqual(["Resumen", "Citas", "Clínico", "Ventas", "Pedidos", "Inventario"])
     modulo(v, "Citas")
     for (const t of ["Citas del período", "Citas no efectuadas para reagendar", "Citas no efectuadas mes a mes", "Esta pestaña en PDF"]) expect(v.getByText(t)).toBeInTheDocument()
     modulo(v, "Clínico")
@@ -242,8 +242,8 @@ describe("Reportes: Exportar", () => {
     expect(v.getByText(/Para el IVA y el anexo de ventas/)).toBeInTheDocument()
     expect(v.getByText(/Para cuadrar la caja/)).toBeInTheDocument()
     expect(v.queryByText("Inventario actual")).not.toBeInTheDocument() // ya no está en Ventas
-    modulo(v, "Laboratorios")
-    expect(v.getByText("Órdenes pendientes por laboratorio")).toBeInTheDocument()
+    modulo(v, "Pedidos")
+    expect(v.getByText("Pedidos pendientes")).toBeInTheDocument()
     modulo(v, "Inventario")
     for (const t of ["Inventario actual", "Movimientos del período", "Ventas y margen por producto", "Monturas sin venderse"]) expect(v.getByText(t)).toBeInTheDocument()
     expect(v.getByText(/Para el conteo físico/)).toBeInTheDocument()
@@ -307,7 +307,7 @@ describe("Reportes: la pestaña Inventario", () => {
 
   it("es la última pestaña y la ve quien puede ver el inventario", () => {
     render(<Reportes usuario={admin} {...conInv} />)
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Resumen", "Citas", "Clínico", "Ventas", "Laboratorios", "Inventario"])
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Resumen", "Citas", "Clínico", "Ventas", "Pedidos", "Inventario"])
   })
 
   it("no la ve quien solo ve lo suyo ni quien no tiene permiso sobre el inventario", () => {

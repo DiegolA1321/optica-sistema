@@ -148,18 +148,18 @@ describe("Excel: inventario y órdenes pendientes", () => {
     expect(modeloInventario({ inventario, conCosto: false }).columnas).toHaveLength(7)
     expect(modeloInventario({ inventario: [{ nombre: "B", stock: 3, precio: 40 }], conCosto: true }).columnas).toHaveLength(7)
   })
-  it("las órdenes pendientes van por laboratorio, con las atrasadas primero y los días de atraso", () => {
+  it("los pedidos pendientes van con los atrasados primero, su entrega y los días de atraso", () => {
     const hoy = new Date(2026, 9, 12)
     const m = modeloOrdenesPendientes({
       pacientes, hoy,
       ordenes: [
-        { id: 1, numero: 1, pacienteId: "p1", laboratorio: "Lab B", estado: "enviada", creadaEn: "2026-10-01T10:00:00-05:00", fechaPrometida: "2026-10-20" },
-        { id: 2, numero: 2, pacienteId: "p2", laboratorio: "Lab A", estado: "enviada", creadaEn: "2026-10-01T10:00:00-05:00", fechaPrometida: "2026-10-08" },
-        { id: 3, numero: 3, pacienteId: "p1", laboratorio: "Lab A", estado: "lista", creadaEn: "2026-10-01T10:00:00-05:00", fechaPrometida: "2026-10-30" },
-        { id: 4, numero: 4, pacienteId: "p1", laboratorio: "Lab A", estado: "entregada", creadaEn: "2026-10-01T10:00:00-05:00", fechaPrometida: "2026-10-09" },
+        { id: 1, numero: 1, pacienteId: "p1", entrega: "envio", estado: "enviada", creadaEn: "2026-10-01T10:00:00-05:00", fechaPrometida: "2026-10-20" },
+        { id: 2, numero: 2, pacienteId: "p2", estado: "enviada", creadaEn: "2026-10-01T10:00:00-05:00", fechaPrometida: "2026-10-08" },
+        { id: 3, numero: 3, pacienteId: "p1", estado: "lista", creadaEn: "2026-10-01T10:00:00-05:00", fechaPrometida: "2026-10-30" },
+        { id: 4, numero: 4, pacienteId: "p1", estado: "entregada", creadaEn: "2026-10-01T10:00:00-05:00", fechaPrometida: "2026-10-09" },
       ],
     })
-    expect(m.filas.map((f) => [f.celdas[0], f.celdas[1], f.celdas[6], f.celdas[7]])).toEqual([["Lab A", "OL-0002", 4, "Atrasado"], ["Lab A", "OL-0003", 0, "Listo"], ["Lab B", "OL-0001", 0, "En el laboratorio"]])
+    expect(m.filas.map((f) => [f.celdas[0], f.celdas[1], f.celdas[6], f.celdas[7]])).toEqual([["Retira en la óptica", "OL-0002", 4, "Atrasado"], ["Envío a domicilio", "OL-0001", 0, "En proceso"], ["Retira en la óptica", "OL-0003", 0, "Listo"]])
   })
 })
 

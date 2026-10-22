@@ -118,7 +118,7 @@ describe("Compras del perfil", () => {
     const fila = screen.getByRole("list").querySelector("li")
     expect(fila).toHaveTextContent("Lentes progresivos · CV-0021")
     expect(fila).toHaveTextContent("Montura Ray-Ban")
-    expect(fila).toHaveTextContent("En el laboratorio")
+    expect(fila).toHaveTextContent("En proceso")
     expect(fila).toHaveTextContent("$265.00")
     expect(fila).toHaveTextContent("Debe $145.00")
     fireEvent.click(screen.getByRole("button", { name: /Ver la compra/ }))

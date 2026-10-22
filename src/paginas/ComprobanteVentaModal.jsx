@@ -10,7 +10,8 @@ import { UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, mensajeDeError } from "../utilidades/permisos"
 import { puede } from "../utilidades/permisosUi"
 import { useFidelidad } from "../componentes/FidelidadContexto"
-import { useLaboratorios } from "../componentes/LaboratoriosContexto"
+import CampoFecha from "../componentes/CampoFecha"
+import { useParametrizacion } from "../componentes/ParametrizacionContexto"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import CamposPagos, { FILAS_INICIALES } from "../componentes/ventas/CamposPagos"
 import { brutoLinea, descuentoLinea, subtotalLinea, totalesDeLineas, errorDeDescuento, lineaParaRpc, TIPOS_DESCUENTO } from "../utilidades/descuentos"
@@ -20,13 +21,14 @@ import CampoImagenProducto from "../componentes/CampoImagenProducto"
 import MiniaturaProducto from "../componentes/MiniaturaProducto"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
-import OrdenLaboratorioModal from "../componentes/OrdenLaboratorioModal"
 import { esLineaDeLente, TIPOS_LENTE, MATERIALES_LENTE } from "../utilidades/ordenesLaboratorio"
-import { TRATAMIENTOS_LUNA, descripcionLuna, detalleLuna, datosOrdenDeLinea, lunaDe, lunaDeTexto } from "../utilidades/comprobantes"
+import { TRATAMIENTOS_LUNA, descripcionLuna, detalleLuna, lunaDeTexto } from "../utilidades/comprobantes"
 import { mapAbono, EVENTO_ABONO } from "../utilidades/abonos"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
-import { diagnosticoCorto } from "../utilidades/ventasModulo"
-import { laboratoriosParaElegir } from "../utilidades/laboratorios"
+import { diagnosticoCorto, ENTREGAS } from "../utilidades/ventasModulo"
+import { crearPedidoDeVenta, fechaDePedidoPorDefecto } from "../utilidades/pedidosVenta"
+import { hoyISO } from "../utilidades/disponibilidad"
+import { sumarDiasISO } from "../utilidades/controles"
 
 // ─── Colores: el color de cada pestaña llena toda la píldora (sin borde de otro tono); el azul de la marca es el de los botones principales ───
 const AZUL = "#2563EB" // montura / accesorio
@@ -48,7 +50,7 @@ const CAMPO = "w-full rounded-xl border border-slate-200/60 bg-white px-3.5 py-2
 // Una venta tiene montura y accesorios (productos de inventario, los únicos que
 // descuentan stock), la luna (línea de texto con precio, migración 0094) y
 // servicios; se paga hoy lo que se pueda (todo, parte o nada) y el resto queda
-// como saldo. Con lunas, al guardar se crea el pedido de lentes (con su laboratorio).
+// como saldo. Con lunas, al guardar se crea el pedido (con su entrega y la fecha aproximada en que estará listo).
 // Un servicio (examen, ajuste, garantía) no tiene producto_id y no
 // descuenta inventario — ver crear_factura_venta (migración 0072).
 export default function ComprobanteVentaModal({
@@ -104,10 +106,11 @@ export default function ComprobanteVentaModal({
   onCerrar,
 }) {
   const opticaId = usuario?.opticaId
-  const { parametrizacion: parametrosLab } = useLaboratorios()
-  const catalogo = parametrizacion || parametrosLab
-  const [ordenPara, setOrdenPara] = useState(null) // factura recién guardada, a la espera de su pedido de lentes
-  const [laboratorio, setLaboratorio] = useState("")
+  // El pedido de las lunas: cómo lo recibe el paciente y la fecha aproximada en que estará listo (por defecto, los días de Configuración → Ventas).
+  const [entrega, setEntrega] = useState("retira")
+  const [direccionEntrega, setDireccionEntrega] = useState("")
+  const parametrosOptica = useParametrizacion()
+  const [fechaPedido, setFechaPedido] = useState(() => fechaDePedidoPorDefecto(parametrizacion || parametrosOptica))
   const [guia, setGuia] = useState(null) // el último diagnóstico usado como guía
   const [incluirMedidas, setIncluirMedidas] = useState(false)
   const [verMedidas, setVerMedidas] = useState(false)
@@ -328,9 +331,8 @@ export default function ComprobanteVentaModal({
 
   const editarDescuento = (idx, cambios) => setLineas((prev) => prev.map((l, i) => (i === idx ? { ...l, ...cambios } : l)))
   const quitarDescuento = (idx) => { editarDescuento(idx, { descuentoTipo: null, descuentoValor: null, descuentoMotivo: "" }) }
-  // Con lunas en la venta se crea el pedido de lentes (no hay casilla que marcar).
+  // Con lunas en la venta se crea el pedido (no hay casilla que marcar).
   const incluyeLentes = lineas.some(esLineaDeLente)
-  const laboratorios = laboratoriosParaElegir(catalogo, laboratorio)
 
   const imprimirProforma = () => {
     if (lineas.length === 0) { setError("Agrega al menos una línea para armar la proforma."); return }
@@ -351,6 +353,8 @@ export default function ComprobanteVentaModal({
     for (const l of lineas) { const msg = errorDeDescuento(l); if (msg) { setError(msg); return } }
     if (pagoHoy !== null && (pagoHoy.trim() === "" || Number.isNaN(parseFloat(pagoHoy)) || parseFloat(pagoHoy) < 0)) { setError("Revisa el pago de hoy: debe ser un monto de 0 en adelante."); return }
     if (pagoNum > total) { setError(`El pago de hoy no puede pasar del total (${dinero(total)}).`); return }
+    if (incluyeLentes && !fechaPedido) { setError("Indica la fecha aproximada en que estará listo el pedido."); return }
+    if (incluyeLentes && entrega === "envio" && !direccionEntrega.trim()) { setError("Escribe la dirección a la que se enviará el pedido."); return }
 
     // Se paga hoy todo (la venta queda pagada) o una parte (abono inicial; el resto es saldo). Cada cobro, con uno o varios métodos.
     const completo = pagoNum >= total
@@ -426,32 +430,13 @@ export default function ComprobanteVentaModal({
       if (avisoAbono) window.dispatchEvent(new CustomEvent("aviso-global", { detail: avisoAbono }))
       onGuardado?.(facturaGuardada)
       if (incluyeLentes) {
-        setGuardando(false)
-        setOrdenPara(facturaGuardada)
-        return
+        const r = await crearPedidoDeVenta({ factura: facturaGuardada, consulta: diagnostico || guia, entrega, direccion: direccionEntrega, fecha: fechaPedido, inventario })
+        if (!r.ok) window.dispatchEvent(new CustomEvent("aviso-global", { detail: "La venta se guardó, pero no se pudo crear el pedido: créalo desde el detalle de la venta." }))
       }
     }
 
     setGuardando(false)
     onCerrar?.()
-  }
-
-  // Venta guardada con lentes: sigue el pedido de lentes (cerrarlo o crearlo después termina el flujo).
-  if (ordenPara) {
-    return (
-      <OrdenLaboratorioModal
-        paciente={paciente}
-        facturaId={ordenPara.id}
-        consultaId={ordenPara.consultaId}
-        consulta={diagnostico || guia}
-        monturaInicial={ordenPara.lineas.find((l) => l.tipo === "producto")?.descripcion || ""}
-        lunaInicial={datosOrdenDeLinea(lunaDe(ordenPara.lineas))}
-        laboratorioInicial={laboratorio}
-        facturaNumero={ordenPara.numero}
-        usuario={usuario}
-        onCerrar={() => onCerrar?.()}
-      />
-    )
   }
 
   // Pie de la ventana: a la izquierda lo que se hace con la consulta (proforma, "No compró"); a la derecha, salir o registrar.
@@ -676,7 +661,7 @@ export default function ComprobanteVentaModal({
                   </div>
                 ) : tipoLinea === "luna" ? (
                   <div className="space-y-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-3">
-                    <p className="text-xs text-slate-500">La luna se escribe aquí, no sale del inventario. Lo que elijas llena el pedido de lentes.</p>
+                    <p className="text-xs text-slate-500">La luna se escribe aquí, no sale del inventario. Lo que elijas llena el pedido.</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label htmlFor="luna-tipo" className="mb-1 block text-xs font-semibold text-slate-600">Tipo</label>
@@ -782,19 +767,31 @@ export default function ComprobanteVentaModal({
                   </ul>
                 )}
 
-                {/* Con lunas se crea el pedido de lentes: el laboratorio se elige aquí (del catálogo de Configuración → Laboratorios). */}
+                {/* Con lunas se crea el pedido: cómo lo recibe el paciente y la fecha aproximada en que estará listo (por defecto, los días de Configuración → Ventas). */}
                 {incluyeLentes && (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
-                    <p className="text-sm text-slate-700">Incluye lunas: se creará el pedido de lentes.</p>
-                    <label className="flex items-center gap-2 text-sm text-slate-600">
-                      Laboratorio
-                      <select aria-label="Laboratorio del pedido de lentes" value={laboratorio} onChange={(e) => setLaboratorio(e.target.value)}
-                        className="h-9 max-w-[11rem] cursor-pointer rounded-lg border border-slate-200/70 bg-white px-2.5 text-sm font-semibold text-slate-800 outline-none focus-visible:border-blue-500">
-                        <option value="">{laboratorios.length === 0 ? "Sin laboratorios" : "Elegir"}</option>
-                        {laboratorios.map((l) => <option key={l} value={l}>{l}</option>)}
-                      </select>
-                    </label>
-                    {laboratorios.length === 0 && <p className="w-full text-xs text-slate-500">Agrega tus laboratorios en Configuración → Laboratorios; puedes crear el pedido igual y elegirlo después.</p>}
+                  <div className="space-y-3 rounded-xl bg-slate-50 px-4 py-3">
+                    <p className="text-sm text-slate-700">Incluye lunas: se creará el pedido.</p>
+                    <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+                      <div role="group" aria-label="Entrega del pedido" className="flex flex-wrap items-center gap-2">
+                        {ENTREGAS.map((e) => (
+                          <button key={e.id} type="button" aria-pressed={entrega === e.id} onClick={() => setEntrega(e.id)}
+                            className={"inline-flex h-9 cursor-pointer items-center rounded-full border px-3.5 text-sm font-semibold transition-colors " + (entrega === e.id ? "border-transparent text-white" : "border-slate-200/70 bg-white text-slate-700 hover:bg-slate-100")}
+                            style={entrega === e.id ? { background: GRAD_MARCA } : undefined}>
+                            {e.etiqueta}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="w-48">
+                        <span className="mb-1 block text-xs font-semibold text-slate-600">Listo hacia el *</span>
+                        <CampoFecha id="venta-fecha-pedido" etiqueta="Fecha aproximada en que estará listo" requerido valor={fechaPedido} onCambiar={setFechaPedido} min={hoyISO()} max={sumarDiasISO(hoyISO(), 365)} />
+                      </div>
+                    </div>
+                    {entrega === "envio" && (
+                      <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Dirección de envío *</span>
+                        <input value={direccionEntrega} onChange={(e) => setDireccionEntrega(e.target.value)} maxLength={200} placeholder="Calle, número, ciudad y una referencia"
+                          className="h-10 w-full rounded-lg border border-slate-200/70 bg-white px-3 text-sm text-slate-800 outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100" />
+                      </label>
+                    )}
                   </div>
                 )}
 

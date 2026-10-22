@@ -79,7 +79,7 @@ export default function Ventas({
   const vigentes = useMemo(() => facturasVenta.filter((f) => f.estado !== "anulada").length, [facturasVenta])
   const pestanas = [
     { id: "ventas", titulo: "Ventas", cuenta: vigentes },
-    { id: "pedidos", titulo: "Pedidos de lentes", cuenta: enCurso },
+    { id: "pedidos", titulo: "Pedidos", cuenta: enCurso },
   ]
 
   return (

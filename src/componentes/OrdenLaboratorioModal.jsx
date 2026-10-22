@@ -1,16 +1,15 @@
 import CampoFecha from "./CampoFecha"
 "use client"
 
-import { ahoraEcuador } from "../utilidades/horaEcuador"
-
-import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
+import { hoyISO } from "../utilidades/disponibilidad"
 import { sumarDiasISO } from "../utilidades/controles"
 import { useEffect, useState } from "react"
-import { FlaskConical, Printer } from "lucide-react"
+import { Package, Printer } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { Cascaron } from "./AtencionPaciente"
-import { useLaboratorios } from "./LaboratoriosContexto"
-import { laboratoriosParaElegir } from "../utilidades/laboratorios"
+import { useParametrizacion } from "./ParametrizacionContexto"
+import { ENTREGAS } from "../utilidades/ventasModulo"
+import { fechaDePedidoPorDefecto } from "../utilidades/pedidosVenta"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, mensajeDeError } from "../utilidades/permisos"
 import { registrarLog } from "../utilidades/logs"
 import { medidasTexto } from "../utilidades/inventarioKardex"
@@ -22,7 +21,6 @@ import {
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 const CAMPO = "w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2.5 py-2 text-sm text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white"
-const iso = fechaAISO
 
 const avisarOrdenGuardada = (orden) => window.dispatchEvent(new CustomEvent(EVENTO_ORDEN, { detail: orden }))
 
@@ -35,10 +33,9 @@ const consultaMinima = (c) => ({
 // Trae de la consulta lo que existe; quien vende completa el resto.
 export default function OrdenLaboratorioModal({
   paciente, facturaId, consultaId = null, consulta = null, monturaInicial = "", lunaInicial = null, facturaNumero = null, orden = null,
-  laboratorioInicial = "", usuario, opticaDatos: datosIniciales = {}, onCreada, onActualizada, onCerrar,
+  usuario, opticaDatos: datosIniciales = {}, onCreada, onActualizada, onCerrar,
 }) {
-  // El laboratorio se elige del catálogo de la óptica (Configuración → Laboratorios); uno ya guardado en el pedido que ahora no está en el catálogo se conserva.
-  const { parametrizacion } = useLaboratorios()
+  const parametrizacion = useParametrizacion()
   const [opticaDatos, setOpticaDatos] = useState(datosIniciales)
   const [d, setD] = useState(null)
   const [materialOtro, setMaterialOtro] = useState(!!orden?.material && !MATERIALES_LENTE.includes(orden.material))
@@ -71,8 +68,7 @@ export default function OrdenLaboratorioModal({
       }
       if (!vivo) return
       const base = datosInicialesOrden(c, { montura, luna, monturaMedidas })
-      const entrega = ahoraEcuador(); entrega.setDate(entrega.getDate() + 7)
-      setD({ ...base, laboratorio: laboratorioInicial || base.laboratorio, fechaPrometida: iso(entrega) })
+      setD({ ...base, fechaPrometida: fechaDePedidoPorDefecto(parametrizacion) })
     }
     if (consulta || !consultaId || !supabase) { armar(consulta); return () => { vivo = false } }
     supabase.from("consultas").select("datos_clinicos, lente_recomendado").eq("id", consultaId).maybeSingle().then(({ data }) => {
@@ -123,7 +119,7 @@ export default function OrdenLaboratorioModal({
       }
       guardada = mapOrden(fila)
     }
-    registrarLog(usuario, "ventas", orden ? "Corrigió un pedido de lentes" : "Creó un pedido de lentes", `${paciente?.nombre || ""} · ${guardada ? numeroOrden(guardada.numero) : ""}`)
+    registrarLog(usuario, "ventas", orden ? "Corrigió un pedido" : "Creó un pedido", `${paciente?.nombre || ""} · ${guardada ? numeroOrden(guardada.numero) : ""}`)
     setGuardando(false)
     if (guardada) {
       avisarOrdenGuardada(guardada)
@@ -143,9 +139,9 @@ export default function OrdenLaboratorioModal({
 
   return (
     <Cascaron
-      titulo={orden ? `Pedido ${numeroOrden(orden.numero)}` : "Pedido de lentes"}
+      titulo={orden ? `Pedido ${numeroOrden(orden.numero)}` : "Pedido"}
       subtitulo={`${paciente?.nombre || ""}${!orden ? " · se precargó lo que hay en la consulta" : ""}`}
-      Icono={FlaskConical}
+      Icono={Package}
       ancho="max-w-2xl"
       onCerrar={cerrar}
       pie={(
@@ -168,15 +164,13 @@ export default function OrdenLaboratorioModal({
         ) : (
           <>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Laboratorio</span>
-                <select value={d.laboratorio || ""} onChange={(e) => set("laboratorio", e.target.value)} className={CAMPO + " cursor-pointer"}>
-                  <option value="">{laboratoriosParaElegir(parametrizacion, d.laboratorio).length === 0 ? "Sin laboratorios en el catálogo" : "Elegir laboratorio"}</option>
-                  {laboratoriosParaElegir(parametrizacion, d.laboratorio).map((l) => <option key={l} value={l}>{l}</option>)}
+              <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Entrega</span>
+                <select value={d.entrega === "envio" ? "envio" : "retira"} onChange={(e) => set("entrega", e.target.value)} className={CAMPO + " cursor-pointer"}>
+                  {ENTREGAS.map((e) => <option key={e.id} value={e.id}>{e.etiqueta}</option>)}
                 </select>
-                {laboratoriosParaElegir(parametrizacion, d.laboratorio).length === 0 && <span className="mt-1 block text-xs text-slate-500">Se agregan en Configuración → Laboratorios.</span>}
               </label>
-              <div className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Entrega prometida *</span>
-                <CampoFecha id="orden-fecha-prometida" etiqueta="Entrega prometida" requerido valor={d.fechaPrometida} onCambiar={(v) => set("fechaPrometida", v)} min={sumarDiasISO(hoyISO(), -365)} max={sumarDiasISO(hoyISO(), 365)} />
+              <div className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Listo hacia el *</span>
+                <CampoFecha id="orden-fecha-prometida" etiqueta="Fecha aproximada en que estará listo" requerido valor={d.fechaPrometida} onCambiar={(v) => set("fechaPrometida", v)} min={sumarDiasISO(hoyISO(), -365)} max={sumarDiasISO(hoyISO(), 365)} />
               </div>
               <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Tipo de lente *</span>
                 <select value={d.tipoLente} onChange={(e) => set("tipoLente", e.target.value)} className={CAMPO}>
@@ -184,6 +178,12 @@ export default function OrdenLaboratorioModal({
                 </select>
               </label>
             </div>
+
+            {d.entrega === "envio" && (
+              <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Dirección de envío *</span>
+                <input value={d.direccionEntrega || ""} onChange={(e) => set("direccionEntrega", e.target.value)} maxLength={200} placeholder="Calle, número, ciudad y una referencia" className={CAMPO} />
+              </label>
+            )}
 
             <fieldset>
               <legend className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Receta</legend>

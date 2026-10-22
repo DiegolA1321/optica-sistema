@@ -9,7 +9,7 @@ import { pagosDeAbono, pagosAlContado } from "./pagos"
 import { calcularEmbudo, consultaEsPrimeraVez, tieneReceta } from "./embudo"
 import { esInactivo, fechaProximoControl } from "./fidelizacion"
 import { estaAtrasada, ordenesAbiertas, ordenesListasSinAvisar } from "./ordenesLaboratorio"
-import { resumenPorLaboratorio, productosMasVendidos, ventasPorTipoLuna } from "./reportesLaboratorio"
+import { resumenPorEntrega, productosMasVendidos, ventasPorTipoLuna } from "./reportesLaboratorio"
 import { categoriasDeConsulta, claveDiagnostico, etiquetaDeVariantes, diagnosticosPorMes } from "./reportesDiagnosticos"
 import { minutosDesdeMedianoche, fechaAISO } from "./disponibilidad"
 import { METODOS_PAGO } from "./ventas"
@@ -262,8 +262,8 @@ export function lineasVendidas(facturas, rango, tipo) {
 export const rankingProductos = (facturas, ventasViejas, rango, limite = 8) => productosMasVendidos({ facturas, ventas: ventasViejas, enRango: (v) => enRango(v, rango), limite })
 export const lunasPorTipo = (facturas, rango) => ventasPorTipoLuna(facturas, { enRango: (v) => enRango(v, rango) })
 
-// ─── Laboratorios ───
-export function resumenLaboratorios(ordenes, rango, hoy = ahoraEcuador()) {
-  return resumenPorLaboratorio(ordenes, { hoy, enRango: (cuando) => !!cuando && enRango(cuando, rango) })
+// ─── Pedidos ───
+export function resumenPedidos(ordenes, rango, hoy = ahoraEcuador()) {
+  return resumenPorEntrega(ordenes, { hoy, enRango: (cuando) => !!cuando && enRango(cuando, rango) })
 }
 export { estaAtrasada, ordenesAbiertas, ordenesListasSinAvisar, tieneReceta }

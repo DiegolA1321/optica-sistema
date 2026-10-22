@@ -3,7 +3,10 @@ import { describe, it, expect } from "vitest"
 import { render, screen, fireEvent, within } from "@testing-library/react"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { ProveedorFidelidad, armarFidelidad } from "../componentes/FidelidadContexto"
-import { ProveedorLaboratorios, armarLaboratorios } from "../componentes/LaboratoriosContexto"
+import { ProveedorParametrizacion } from "../componentes/ParametrizacionContexto"
+import { hoyISO } from "../utilidades/disponibilidad"
+import { sumarDiasISO } from "../utilidades/controles"
+import { formatoFecha } from "../utilidades/formatoFecha"
 import { PROGRAMA_POR_DEFECTO } from "../utilidades/programaFidelidad"
 
 const PACIENTES = [{ id: "p1", nombre: "Ana Prueba", cedula: "0101010101" }]
@@ -87,9 +90,9 @@ describe("ComprobanteVentaModal — montura, luna y servicio", () => {
     expect(total("$120.00")).toBeInTheDocument()
   })
 
-  it("agrega una línea de luna con su precio, sin tocar el inventario, y avisa que se creará el pedido de lentes", () => {
+  it("agrega una línea de luna con su precio, sin tocar el inventario, y avisa que se creará el pedido", () => {
     render(<ComprobanteVentaModal usuario={{}} inventario={[PRODUCTO]} pacienteFijo={PACIENTES[0]} onCerrar={() => {}} />)
-    expect(screen.queryByText(/se creará el pedido de lentes/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/se creará el pedido/i)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Luna" }))
     fireEvent.change(screen.getByLabelText("Material"), { target: { value: "CR-39" } })
     fireEvent.click(screen.getByLabelText("Antirreflejo"))
@@ -97,18 +100,30 @@ describe("ComprobanteVentaModal — montura, luna y servicio", () => {
     fireEvent.click(screen.getByRole("button", { name: /Agregar luna/i }))
     expect(screen.getByText("Luna: Monofocal · CR-39 · antirreflejo")).toBeInTheDocument()
     expect(total("$55.00")).toBeInTheDocument()
-    expect(screen.getByText("Incluye lunas: se creará el pedido de lentes.")).toBeInTheDocument()
+    expect(screen.getByText("Incluye lunas: se creará el pedido.")).toBeInTheDocument()
   })
 
-  it("con lunas se elige el laboratorio del catálogo de la óptica; sin catálogo dice dónde agregarlos", () => {
+  it("con lunas se elige la entrega (retira o envío con su dirección) y la fecha aproximada, sin laboratorio", () => {
     const luna = [{ tipo: "luna", descripcion: "Luna: Progresivo", cantidad: 1, precioUnitario: 180 }]
-    const catalogo = armarLaboratorios({ laboratorios: [{ nombre: "Visión Norte", activo: true }, { nombre: "Óptica Lab", activo: true }, { nombre: "Viejo Lab", activo: false }] })
-    const { unmount } = render(<ProveedorLaboratorios value={catalogo}><ComprobanteVentaModal usuario={{}} pacienteFijo={PACIENTES[0]} lineasIniciales={luna} onCerrar={() => {}} /></ProveedorLaboratorios>)
-    const select = screen.getByLabelText("Laboratorio del pedido de lentes")
-    expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual(["Elegir", "Visión Norte", "Óptica Lab"]) // el desactivado no se ofrece
-    unmount()
     render(<ComprobanteVentaModal usuario={{}} pacienteFijo={PACIENTES[0]} lineasIniciales={luna} onCerrar={() => {}} />)
-    expect(screen.getByText(/Configuración → Laboratorios/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Laboratorio/)).not.toBeInTheDocument()
+    const grupo = screen.getByRole("group", { name: "Entrega del pedido" })
+    expect(within(grupo).getByRole("button", { name: "Retira en la óptica" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.queryByLabelText(/Dirección de envío/)).not.toBeInTheDocument()
+    fireEvent.click(within(grupo).getByRole("button", { name: "Envío a domicilio" }))
+    expect(within(grupo).getByRole("button", { name: "Envío a domicilio" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByLabelText(/Dirección de envío/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Guardar venta" }))
+    expect(screen.getByText("Escribe la dirección a la que se enviará el pedido.")).toBeInTheDocument()
+  })
+
+  it("la fecha aproximada arranca con los días que configuró la óptica (7 si no hay)", () => {
+    const luna = [{ tipo: "luna", descripcion: "Luna: Progresivo", cantidad: 1, precioUnitario: 180 }]
+    const { unmount } = render(<ComprobanteVentaModal usuario={{}} pacienteFijo={PACIENTES[0]} lineasIniciales={luna} onCerrar={() => {}} />)
+    expect(screen.getByRole("button", { name: new RegExp("Fecha aproximada en que estará listo: " + formatoFecha(sumarDiasISO(hoyISO(), 7), "medio")) })).toBeInTheDocument()
+    unmount()
+    render(<ProveedorParametrizacion value={{ diasPedido: 10 }}><ComprobanteVentaModal usuario={{}} pacienteFijo={PACIENTES[0]} lineasIniciales={luna} onCerrar={() => {}} /></ProveedorParametrizacion>)
+    expect(screen.getByRole("button", { name: new RegExp("Fecha aproximada en que estará listo: " + formatoFecha(sumarDiasISO(hoyISO(), 10), "medio")) })).toBeInTheDocument()
   })
 
   it("no ofrece un producto descontinuado", () => {

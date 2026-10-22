@@ -16,7 +16,7 @@ export default function AvisoMedidasPedidas({ solicitadaEn, medidas, puedeEscrib
           <p className="text-sm font-semibold text-blue-800">Este paciente pidió sus medidas el {formatoFecha(solicitadaEn, "largoSinDia")}.</p>
           <p className="text-xs text-blue-700">
             Distancia pupilar: <b>{medidas.dp ? medidaConUnidad(medidas.dp) : "no registrada"}</b> · Altura de montaje: <b>{medidas.altura ? medidaConUnidad(medidas.altura) : "no registrada"}</b>
-            {medidas.faltan && <span> · Lo que falta se toma en la óptica (la altura se registra en el pedido de lentes).</span>}
+            {medidas.faltan && <span> · Lo que falta se toma en la óptica (la altura se registra en el pedido).</span>}
           </p>
         </div>
       </div>

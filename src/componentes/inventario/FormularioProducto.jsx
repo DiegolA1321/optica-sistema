@@ -183,7 +183,7 @@ export default function FormularioProducto({ producto = null, categorias, setCat
                       </div>
                     ))}
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">Cuando una venta incluye esta montura, el pedido de lentes las trae escritas (calibre-puente-varilla).</p>
+                  <p className="mt-1 text-xs text-slate-500">Cuando una venta incluye esta montura, el pedido las trae escritas (calibre-puente-varilla).</p>
                 </fieldset>
               )}
               <div><label htmlFor="inv-proveedor" className={ETIQUETA}>Proveedor</label><input id="inv-proveedor" value={d.proveedor} onChange={(e) => set("proveedor", e.target.value)} maxLength={80} className={CAMPO + OK} /></div>

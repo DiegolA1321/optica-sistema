@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 
 // jsdom no mide el texto: el armado se prueba por su estructura (páginas, tamaño de hoja); el dibujo lo ve Diego en pantalla.
-Range.prototype.getClientRects = () => []
+globalThis.Range.prototype.getClientRects = () => []
 import { armarPdfConteo, nombreArchivoConteo } from "./descargarHojaConteo"
 
 const decodificar = (u8) => new TextDecoder("latin1").decode(u8)

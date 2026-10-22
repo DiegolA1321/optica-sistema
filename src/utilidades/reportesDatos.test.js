@@ -6,7 +6,7 @@ import { vendidoYCobrado } from "./vendidoCobrado"
 import { ventasDelMes } from "./inicio"
 import { calcularEmbudo } from "./embudo"
 import { esInactivo } from "./fidelizacion"
-import { resumenPorLaboratorio } from "./reportesLaboratorio"
+import { resumenPorEntrega } from "./reportesLaboratorio"
 import { enRango } from "./reportesPeriodo"
 
 // Los números de Reportes son los mismos que cuentan Citas, Ventas, Pacientes y el Inicio con los mismos filtros, con cualquier dato.
@@ -264,10 +264,10 @@ describe("Ventas: qué se vende y cómo se paga", () => {
   })
 })
 
-describe("Laboratorios: porcentaje entregado a tiempo", () => {
-  const entregada = (id, prometida, entregadaEl) => ({ id, estado: "entregada", laboratorio: "Lab A", creadaEn: "2026-10-01T10:00:00-05:00", fechaPrometida: prometida, historial: [{ estado: "entregada", cambiadoEn: entregadaEl }] })
+describe("Pedidos: porcentaje entregado a tiempo", () => {
+  const entregada = (id, prometida, entregadaEl) => ({ id, estado: "entregada", entrega: "retira", creadaEn: "2026-10-01T10:00:00-05:00", fechaPrometida: prometida, historial: [{ estado: "entregada", cambiadoEn: entregadaEl }] })
   it("una orden entregada en la fecha prometida o antes cuenta a tiempo; después, no", () => {
-    const r = resumenPorLaboratorio([
+    const r = resumenPorEntrega([
       entregada(1, "2026-10-10", "2026-10-09T12:00:00-05:00"),
       entregada(2, "2026-10-10", "2026-10-10T20:00:00-05:00"), // el mismo día de Ecuador (01:00 UTC del 11): a tiempo
       entregada(3, "2026-10-10", "2026-10-12T09:00:00-05:00"),
@@ -275,6 +275,6 @@ describe("Laboratorios: porcentaje entregado a tiempo", () => {
     expect(r[0]).toMatchObject({ entregadas: 3, aTiempo: 2, pctATiempo: 67 })
   })
   it("sin entregas no hay porcentaje", () => {
-    expect(resumenPorLaboratorio([{ id: 1, estado: "enviada", laboratorio: "Lab A", fechaPrometida: "2026-12-01", historial: [] }], { hoy: new Date(2026, 9, 13) })[0].pctATiempo).toBeNull()
+    expect(resumenPorEntrega([{ id: 1, estado: "enviada", entrega: "retira", fechaPrometida: "2026-12-01", historial: [] }], { hoy: new Date(2026, 9, 13) })[0].pctATiempo).toBeNull()
   })
 })

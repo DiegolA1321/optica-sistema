@@ -274,7 +274,7 @@ describe("mensajes", () => {
     expect(insertarEnCursor("Hola", "{nombre}").texto).toBe("Hola {nombre}")
   })
   it("las variables tienen nombre claro y explicación; las propias de un aviso solo se ofrecen en su motivo", () => {
-    expect(VARIABLES_PLANTILLA.map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}", "{fecha_de_la_cita}", "{orden}", "{medidas}"])
+    expect(VARIABLES_PLANTILLA.map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}", "{fecha_de_la_cita}", "{orden}", "{entrega}", "{medidas}"])
     expect(VARIABLES_PLANTILLA.every((v) => v.ayuda.length > 5)).toBe(true)
     expect(variablesDe("cumpleanos").map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}"])
     expect(variablesDe().map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}"])

@@ -49,7 +49,7 @@ export function useOrdenesLab({ ordenes, setOrdenes, pacientes = [], equipo = []
     setTrabajando(null)
     if (error) { falla(error, "No se pudo cambiar el estado. Revisa tu conexión e intenta de nuevo."); return }
     reemplazar(o.id, { estado, historial: [...(o.historial || []), { estado, cambiadoEn: new Date().toISOString() }], ...(estado === "enviada" || estado === "lista" ? { pacienteAvisadoEn: null, pacienteAvisadoPor: null } : {}) })
-    registrarLog(usuario, "ventas", "Cambió el estado de un pedido de lentes", `${numeroOrden(o.numero)} → ${ETIQUETA_ESTADO[estado]}`)
+    registrarLog(usuario, "ventas", "Cambió el estado de un pedido", `${numeroOrden(o.numero)} → ${ETIQUETA_ESTADO[estado]}`)
     onAviso?.(estado === "lista" ? `${numeroOrden(o.numero)} listo para entregar. Contacta al paciente para avisarle.` : `${numeroOrden(o.numero)}: ${ETIQUETA_ESTADO[estado].toLowerCase()}.`)
   }
 
@@ -64,14 +64,14 @@ export function useOrdenesLab({ ordenes, setOrdenes, pacientes = [], equipo = []
     if (!p?.telefono) return
     // La plantilla «Lentes listos» del CRM en la ventana de Contactar; el aviso se registra al enviar (si se cierra la ventana no pasa nada) y el contacto queda en el Seguimiento del CRM.
     escribirPorWhatsApp({
-      paciente: p, motivo: "lentes_listos", contexto: { orden: numeroOrden(o.numero) },
+      paciente: p, motivo: "lentes_listos", contexto: { orden: numeroOrden(o.numero), entrega: { tipo: o.entrega, direccion: o.direccionEntrega } },
       alEnviar: async () => {
         setTrabajando(o.id)
         const { data, error } = supabase ? await supabase.rpc("registrar_aviso_paciente", { p_orden_id: o.id }) : { data: new Date().toISOString(), error: null }
         setTrabajando(null)
         if (error) { falla(error, "No se pudo registrar el aviso. Revisa tu conexión e intenta de nuevo."); return }
         reemplazar(o.id, { pacienteAvisadoEn: data, pacienteAvisadoPor: usuario?.id || null })
-        registrarLog(usuario, "ventas", "Avisó al paciente que sus lentes están listos", `${p.nombre} · ${numeroOrden(o.numero)}`)
+        registrarLog(usuario, "ventas", "Avisó al paciente que su pedido está listo", `${p.nombre} · ${numeroOrden(o.numero)}`)
       },
     })
   }

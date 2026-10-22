@@ -79,7 +79,7 @@ import { useSeguimientoDeContacto, registrarContacto } from "../utilidades/conta
 import { ProveedorEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import { useContactar } from "../componentes/useContactar"
 import { ProveedorFidelidad, armarFidelidad } from "../componentes/FidelidadContexto"
-import { ProveedorLaboratorios, armarLaboratorios } from "../componentes/LaboratoriosContexto"
+import { ProveedorParametrizacion } from "../componentes/ParametrizacionContexto"
 import { programaDe } from "../utilidades/programaFidelidad"
 
 
@@ -161,7 +161,6 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // La ventana de Contactar es una sola para todo el sistema: aquí se guarda el pedido abierto y más abajo se dibuja.
   const { escribir: escribirPorWhatsApp, ventana: ventanaContactar } = useContactar({ plantillas: crm.plantillas, opticaNombre: usuario?.opticaNombre, consultas, contactarDeAviso: crm.contactarDeAviso, contactarManual: crm.contactarManual, avisar: (m) => mostrarAviso(m) })
   // El programa de fidelización (puntos, nivel y descuento sugerido): una sola cuenta para el Resumen del paciente, el CRM y «Nueva venta».
-  const laboratorios = useMemo(() => armarLaboratorios(parametrizacion), [parametrizacion])
   const fidelidad = useMemo(() => armarFidelidad({ programa: programaDe(parametrizacion), pacientes, consultas, facturas: facturasVenta, abonos }), [parametrizacion, pacientes, consultas, facturasVenta, abonos])
   const paraContactar = useMemo(() => (crm.cargando ? null : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, pases, facturas: facturasVenta, citas, contactos: crm.contactos })), [crm.cargando, crm.contactos, pacientes, consultas, ordenesLab, pases, facturasVenta, citas])
   // Vista activa (R50): quien tiene más de un rol, o es administrador y también atiende, elige desde el
@@ -238,7 +237,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const timeoutAviso = useRef(null)
   // Un pedido de lentes creado o corregido desde cualquier pantalla avisa aquí (micro-feedback).
   useEffect(() => {
-    const alGuardar = (e) => mostrarAviso(`Pedido de lentes ${numeroOrden(e.detail.numero)} guardado.`)
+    const alGuardar = (e) => mostrarAviso(`Pedido ${numeroOrden(e.detail.numero)} guardado.`)
     window.addEventListener(EVENTO_ORDEN, alGuardar)
     return () => window.removeEventListener(EVENTO_ORDEN, alGuardar)
   }, [])
@@ -846,7 +845,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   return (
     <ProveedorEscribirPorWhatsApp value={escribirPorWhatsApp}>
     <ProveedorFidelidad value={fidelidad}>
-    <ProveedorLaboratorios value={laboratorios}>
+    <ProveedorParametrizacion value={parametrizacion}>
     <div className="flex h-screen bg-slate-50 font-sans">
       {verAvisosInternos && <VentanaAvisosInternos usuario={usuario} onCerrar={() => setVerAvisosInternos(false)} />}
       {dialogoAtenderInicio}
@@ -1223,7 +1222,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       )}
       {ventanaContactar}
     </div>
-    </ProveedorLaboratorios>
+    </ProveedorParametrizacion>
     </ProveedorFidelidad>
     </ProveedorEscribirPorWhatsApp>
   )
