@@ -665,6 +665,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             usuario={usuario}
             umbralStock={umbralStock(parametrizacion)}
             maximoStock={umbralMaximo(parametrizacion)}
+            parametrizacion={parametrizacion}
             cargaInicial={cargaInicialStaff}
             inventario={inventario}
             setInventario={setInventario}

@@ -3,13 +3,14 @@
 import { dinero } from "../utilidades/formatoMoneda"
 import { esDeEsteMes } from "../utilidades/inicio"
 import React, { useState, useMemo, useEffect, useRef } from "react"
-import { Package, Plus, Archive, AlertTriangle, ChevronUp, ChevronDown, ArrowUpDown, Printer, Undo2 } from "lucide-react"
+import { Package, Plus, Archive, AlertTriangle, Printer, Undo2 } from "lucide-react"
 import { UMBRAL_STOCK_BAJO, UMBRAL_STOCK_MAXIMO, estadoDeStock, minimoDe, maximoDe, proporcionDeStock, esErrorDeMaximoNoDisponible, MENSAJE_MAXIMO_NO_DISPONIBLE } from "../utilidades/inventario"
 import { valorInventario, CATEGORIA_MONTURA, etiquetaMovimiento, monturasSinVender } from "../utilidades/inventarioKardex"
-import { htmlHojaConteo } from "../utilidades/conteoImpresion"
-import { imprimirHtml } from "../utilidades/proforma"
+import { descargarHojaConteo } from "../utilidades/descargarHojaConteo"
+import { datosOpticaReceta } from "../utilidades/datosReceta"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { fechaAISO } from "../utilidades/disponibilidad"
+import { formatoFecha } from "../utilidades/formatoFecha"
 import { tieneVentasDeProducto } from "../utilidades/ventas"
 import { mapProducto } from "../utilidades/mapProducto"
 import { registrarLog } from "../utilidades/logs"
@@ -48,6 +49,7 @@ export default function Inventario({
   usuario,
   umbralStock = UMBRAL_STOCK_BAJO,
   maximoStock = UMBRAL_STOCK_MAXIMO,
+  parametrizacion = {},
   cargaInicial = false,
   inventario: productos = [],
   setInventario: setProductos,
@@ -89,6 +91,7 @@ export default function Inventario({
   // La pestaña (activos o descontinuados) y el filtro de la lista: «todos», una categoría («cat:Monturas»), «bajo», «sobre», «sinvender» o «nuevos» (las altas de este mes: el «+N este mes» del Inicio).
   const [pestana, setPestana] = useState("activos")
   const [filtro, setFiltro] = useState("todos")
+  const [categoria, setCategoria] = useState("todos") // la categoría de las píldoras; la franja resume lo que se ve (búsqueda y categoría)
 
   // Las ventanas. Un producto se abre por su id para que siempre muestre lo último.
   const [detalleId, setDetalleId] = useState(null)
@@ -234,11 +237,19 @@ export default function Inventario({
     return null
   }
 
-  // La hoja para contar en el estante: todos los productos activos con su existencia en el sistema y una columna en blanco para lo contado. Las diferencias se corrigen con «Ajustar stock».
-  const imprimirHojaConteo = () => {
-    imprimirHtml(htmlHojaConteo({ opticaNombre: usuario?.opticaNombre || "", productos: productos.filter((p) => p.activo !== false), fecha: ahoraEcuador() }))
-    registrarLog(usuario, "inventario", "Imprimió la hoja de conteo", `${productos.filter((p) => p.activo !== false).length} productos`)
-    avisar("Hoja de conteo lista para imprimir.")
+  // La hoja de conteo (PDF): todos los productos activos y, al final, los descontinuados que todavía tienen unidades; con la existencia en el sistema y columnas en blanco para lo contado.
+  // Las diferencias se corrigen con «Ajustar stock». Es una sola hoja para todo el inventario: el botón no depende de la pestaña.
+  const [imprimiendo, setImprimiendo] = useState(false)
+  const imprimirHojaConteo = async () => {
+    setImprimiendo(true)
+    const hoy = ahoraEcuador()
+    const ok = await descargarHojaConteo({
+      optica: datosOpticaReceta(usuario, parametrizacion), activos: productos.filter((p) => p.activo !== false), descontinuados: productos.filter((p) => p.activo === false),
+      fecha: formatoFecha(hoy, "largo"),
+    }, fechaAISO(hoy))
+    setImprimiendo(false)
+    if (ok) { registrarLog(usuario, "inventario", "Descargó la hoja de conteo", `${productos.filter((p) => p.activo !== false).length} productos activos`); avisar("Hoja de conteo descargada (PDF).") }
+    else avisar("No se pudo preparar la hoja de conteo. Vuelve a intentarlo.")
   }
 
   // Un producto no se elimina nunca: se descontinúa (deja de poder venderse) y conserva su historial; se puede reactivar.
@@ -281,53 +292,46 @@ export default function Inventario({
   }
   const estadoDe = (p) => estadoDeStock(p, umbralStock, maximoStock)
 
-  // La franja de arriba, siempre sobre los productos activos (los de la lista).
+  // La franja de arriba resume lo que se está viendo (regla única de Ventas e Inventario): los activos que cumplen la búsqueda y la categoría elegidas.
+  // El dato que se pulsa en la franja recorta la lista, pero no cambia las cifras.
+  const vistos = useMemo(() => activos.filter((p) => coincideTexto(p) && (categoria === "todos" || p.categoria === categoria)), [activos, busqueda, categoria]) // eslint-disable-line react-hooks/exhaustive-deps
   const resumen = useMemo(() => {
-    const unidades = activos.reduce((a, p) => a + (Number(p.stock) || 0), 0)
+    const unidades = vistos.reduce((a, p) => a + (Number(p.stock) || 0), 0)
     return {
-      total: activos.length, unidades, valor: valorInventario(activos),
-      bajos: activos.filter((p) => estadoDeStock(p, umbralStock, maximoStock) === "bajo").length,
-      sobre: activos.filter((p) => estadoDeStock(p, umbralStock, maximoStock) === "sobre").length,
+      total: vistos.length, unidades, valor: valorInventario(vistos),
+      bajos: vistos.filter((p) => estadoDeStock(p, umbralStock, maximoStock) === "bajo").length,
+      sobre: vistos.filter((p) => estadoDeStock(p, umbralStock, maximoStock) === "sobre").length,
     }
-  }, [activos, umbralStock, maximoStock])
+  }, [vistos, umbralStock, maximoStock])
   const verCosto = puedeNivel("editar")
   const valorConCosto = verCosto && resumen.valor.hayCosto
   // Monturas con existencia que llevan 90 días o más sin venderse, y lo que representan en dinero (a hoy).
-  const sinVender = useMemo(() => monturasSinVender({ productos: activos, facturas: facturasVenta, movimientos: [], fechaISO: fechaAISO(ahoraEcuador()) }), [activos, facturasVenta])
+  const sinVender = useMemo(() => monturasSinVender({ productos: vistos, facturas: facturasVenta, movimientos: [], fechaISO: fechaAISO(ahoraEcuador()) }), [vistos, facturasVenta])
   const idsSinVender = useMemo(() => new Set(sinVender.map((f) => f.producto.id)), [sinVender])
   const dineroParado = sinVender.reduce((t, f) => t + f.valor, 0)
 
-  const base = pestana === "descontinuados" ? descontinuados : activos
+  const base = pestana === "descontinuados" ? descontinuados.filter(coincideTexto) : vistos
   const cumpleFiltro = (p) => {
     if (pestana === "descontinuados" || filtro === "todos") return true
-    if (filtro.startsWith("cat:")) return p.categoria === filtro.slice(4)
     if (filtro === "bajo") return estadoDe(p) === "bajo"
     if (filtro === "sobre") return estadoDe(p) === "sobre"
     if (filtro === "sinvender") return idsSinVender.has(p.id)
     if (filtro === "nuevos") return esDeEsteMes(p.creadoEn)
     return true
   }
-  const productosFiltrados = base.filter((p) => coincideTexto(p) && cumpleFiltro(p))
+  const productosFiltrados = base.filter((p) => cumpleFiltro(p))
 
-  // Orden de la tabla: por la columna que se pulse (el de siempre, sin pulsar, es el más nuevo primero).
-  const [orden, setOrden] = useState({ campo: null, dir: "asc" })
-  const cambiarOrden = (campo) => setOrden((prev) => (prev.campo === campo ? { campo, dir: prev.dir === "asc" ? "desc" : "asc" } : { campo, dir: "asc" }))
-  const productosOrdenados = !orden.campo ? productosFiltrados : [...productosFiltrados].sort((a, b) => {
-    let cmp
-    if (orden.campo === "nombre" || orden.campo === "categoria") cmp = (a[orden.campo] || "").localeCompare(b[orden.campo] || "", "es")
-    else cmp = (Number(a[orden.campo]) || 0) - (Number(b[orden.campo]) || 0)
-    return orden.dir === "asc" ? cmp : -cmp
-  })
+  const productosOrdenados = productosFiltrados
 
   // Corte de rango — mismo criterio que Pacientes.jsx.
   const [cantidadVisible, setCantidadVisible] = useState(25)
-  useEffect(() => { setCantidadVisible(25) }, [busqueda, filtro, pestana])
+  useEffect(() => { setCantidadVisible(25) }, [busqueda, filtro, categoria, pestana])
   const productosVisibles = productosOrdenados.slice(0, cantidadVisible)
 
-  const hayFiltro = filtro !== "todos" || busqueda.trim() !== ""
-  const limpiarFiltros = () => { setBusqueda(""); setFiltro("todos") }
+  const hayFiltro = filtro !== "todos" || categoria !== "todos" || busqueda.trim() !== ""
+  const limpiarFiltros = () => { setBusqueda(""); setFiltro("todos"); setCategoria("todos") }
   const elegirFiltro = (id) => setFiltro((actual) => (actual === id ? "todos" : id))
-  const cambiarPestana = (id) => { setPestana(id); setFiltro("todos") }
+  const cambiarPestana = (id) => { setPestana(id); setFiltro("todos"); setCategoria("todos") }
   const ventasDe = (id) => tieneVentasDeProducto(ventas, facturasVenta, id)
 
   const datos = [
@@ -337,12 +341,9 @@ export default function Inventario({
     { id: "sobre", etiqueta: "Sobrestock", punto: "ambar", valor: String(resumen.sobre), sub: "sobre su máximo", activo: filtro === "sobre", onClick: () => elegirFiltro("sobre"), ayuda: "Productos con más unidades que su máximo (solo avisa, no limita). Pulsa para ver solo esos." },
     ...(veVentas ? [{ id: "sinvender", etiqueta: "Sin vender en 90 días", valor: String(sinVender.length), sub: sinVender.length > 0 ? `${dinero(dineroParado)} parados` : resumen.total === 0 ? "sin productos todavía" : "todo se está moviendo", activo: filtro === "sinvender", onClick: () => elegirFiltro("sinvender"), ayuda: "Monturas activas con existencia que no se venden desde hace 90 días o más, o que nunca se vendieron (las registradas hace menos de 90 días no cuentan). Pulsa para ver solo esas." }] : []),
   ]
-  const opcionesPildoras = [{ id: "todos", etiqueta: "Todos" }, ...CATEGORIAS.map((c) => ({ id: `cat:${c}`, etiqueta: c })), { id: "bajo", etiqueta: "Stock bajo" }, { id: "sobre", etiqueta: "Sobrestock" }]
-  const pildoraDe = opcionesPildoras.some((o) => o.id === filtro) ? filtro : null
+  const opcionesPildoras = [{ id: "todos", etiqueta: "Todos" }, ...CATEGORIAS.map((c) => ({ id: c, etiqueta: c }))]
   const TEXTO_FILTRO = { sinvender: "Sin vender en 90 días", nuevos: "Nuevos este mes" }
-  const encabezado = [["nombre", "Producto"], ["categoria", "Categoría"], ["stock", "Existencia"], ["precio", "Precio", true], [null, "Estado"], [null, ""]]
-  const IconoOrden = ({ campo }) => (orden.campo !== campo ? <ArrowUpDown size={11} className="text-slate-300" aria-hidden="true" /> : orden.dir === "asc" ? <ChevronUp size={11} aria-hidden="true" /> : <ChevronDown size={11} aria-hidden="true" />)
-  const ariaOrden = (campo) => (orden.campo === campo ? (orden.dir === "asc" ? "ascending" : "descending") : "none")
+  const encabezado = [["Producto"], ["Categoría"], ["Existencia"], ["Precio", true], ["Estado"], [""]]
 
   return (
     <div className={"w-full space-y-5 text-left" + (overlaySolo ? " hidden" : "")} style={{ animation: "rise-in 320ms ease-out both" }}>
@@ -357,8 +358,8 @@ export default function Inventario({
 
         <AccionesDeCabecera avisos={avisosDelModulo}>
           {puedeNivel("editar") && resumen.total > 0 && (
-            <button type="button" onClick={imprimirHojaConteo} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">
-              <Printer size={17} aria-hidden="true" /> Imprimir hoja de conteo
+            <button type="button" onClick={imprimirHojaConteo} disabled={imprimiendo} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer">
+              <Printer size={17} aria-hidden="true" /> {imprimiendo ? "Preparando…" : "Imprimir hoja de conteo"}
             </button>
           )}
           {puedeNivel("crear") && (
@@ -384,7 +385,7 @@ export default function Inventario({
 
         {/* ─── FILTROS Y BÚSQUEDA ─── */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {pestana === "activos" ? <Pildoras etiqueta="Filtrar el inventario" opciones={opcionesPildoras} valor={pildoraDe} onCambiar={(id) => setFiltro(id)} /> : <span />}
+          {pestana === "activos" ? <Pildoras etiqueta="Filtrar el inventario" opciones={opcionesPildoras} valor={categoria} onCambiar={setCategoria} /> : <span />}
           <CampoBusqueda id="inventario-busqueda" valor={busqueda} onCambio={setBusqueda} placeholder="Buscar producto o código" className="max-w-sm" />
         </div>
         {pestana === "activos" && TEXTO_FILTRO[filtro] && <FiltroActivo texto={TEXTO_FILTRO[filtro]} onQuitar={() => setFiltro("todos")} />}
@@ -415,11 +416,7 @@ export default function Inventario({
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm">
             <div aria-hidden="true" className={"hidden gap-x-4 border-b border-slate-200/70 px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 lg:grid " + COLUMNAS}>
-              {encabezado.map(([campo, titulo, derecha], i) => (
-                campo
-                  ? <button key={i} type="button" tabIndex={-1} onClick={() => cambiarOrden(campo)} aria-sort={ariaOrden(campo)} className={"flex cursor-pointer select-none items-center gap-1 font-bold uppercase tracking-wider " + (derecha ? "justify-end" : "")}>{titulo} <IconoOrden campo={campo} /></button>
-                  : <span key={i}>{titulo}</span>
-              ))}
+              {encabezado.map(([titulo, derecha], i) => <span key={i} className={derecha ? "text-right" : ""}>{titulo}</span>)}
             </div>
             <ul role="list" aria-label={pestana === "activos" ? "Productos activos" : "Productos descontinuados"} data-lista="Productos del inventario" className="divide-y divide-slate-200/70">
               {productosVisibles.map((prod) => {
@@ -503,7 +500,7 @@ export default function Inventario({
 
       {resumenAbierto && (
         <VentanaResumen modo={resumenAbierto} productos={activos} descontinuados={descontinuados} categorias={CATEGORIAS} sinVender={sinVender} verCosto={verCosto}
-          onVer={({ categoria }) => { setResumenAbierto(null); setBusqueda(""); if (categoria) setFiltro(`cat:${categoria}`) }} onVerProducto={(p) => { setResumenAbierto(null); abrirDetalle(p) }} onCerrar={() => setResumenAbierto(null)} />
+          onVer={({ categoria }) => { setResumenAbierto(null); setBusqueda(""); if (categoria) setCategoria(categoria) }} onVerProducto={(p) => { setResumenAbierto(null); abrirDetalle(p) }} onCerrar={() => setResumenAbierto(null)} />
       )}
 
       {porDescontinuar && (

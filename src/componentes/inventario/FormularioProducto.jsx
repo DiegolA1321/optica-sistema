@@ -90,7 +90,7 @@ export default function FormularioProducto({ producto = null, categorias, setCat
     <Cascaron
       titulo={editando ? "Editar producto" : "Agregar producto"}
       subtitulo={editando ? producto.nombre : "Monturas y accesorios. Las lunas se escriben en la venta."}
-      Icono={editando ? Pencil : Plus} ancho="max-w-xl" sinAnimarFondo={sinAnimarFondo} onCerrar={onCerrar} formulario={{ onSubmit: enviar }}
+      Icono={editando ? Pencil : Plus} ancho="max-w-xl" sinAnimarFondo={sinAnimarFondo} onCerrar={onCerrar} formulario={{ onSubmit: enviar, noValidate: true }}
       pie={<PieFormulario onCancelar={onCerrar} etiquetaGuardar={editando ? "Guardar cambios" : "Guardar producto"} guardando={guardando} />}
     >
       <div className="space-y-4 p-6">
@@ -101,7 +101,7 @@ export default function FormularioProducto({ producto = null, categorias, setCat
           </div>
           <div>
             <label htmlFor="inv-nombre" className={ETIQUETA}>Descripción</label>
-            <input id="inv-nombre" type="text" required value={d.nombre} onChange={(e) => set("nombre", e.target.value)} placeholder="Ej. Montura 1, marco negro, modelo X" className={CAMPO + (errores.nombre ? MAL : OK)} />
+            <input id="inv-nombre" type="text" value={d.nombre} onChange={(e) => set("nombre", e.target.value)} placeholder="Ej. Montura 1, marco negro, modelo X" className={CAMPO + (errores.nombre ? MAL : OK)} />
           </div>
         </div>
         {/* El producto que ya existe, avisado en el momento. */}
@@ -125,13 +125,13 @@ export default function FormularioProducto({ producto = null, categorias, setCat
           ) : (
             <div>
               <label htmlFor="inv-stock" className={ETIQUETA}>Existencia inicial</label>
-              <input id="inv-stock" type="number" min="0" step="1" required value={d.stock} onChange={(e) => set("stock", e.target.value)} placeholder="10" className={CAMPO + (errores.stock ? MAL : OK)} />
+              <input id="inv-stock" type="number" min="0" step="1" value={d.stock} onChange={(e) => set("stock", e.target.value)} placeholder="10" className={CAMPO + (errores.stock ? MAL : OK)} />
               {errores.stock && <p className="mt-1 text-xs font-medium text-red-600">{errores.stock}</p>}
             </div>
           )}
           <div>
             <label htmlFor="inv-precio" className={ETIQUETA}>Precio</label>
-            <input id="inv-precio" type="number" min="0" step="0.01" required value={d.precio} onChange={(e) => set("precio", e.target.value)} placeholder="45.00" className={CAMPO + (errores.precio ? MAL : OK)} />
+            <input id="inv-precio" type="number" min="0" step="0.01" value={d.precio} onChange={(e) => set("precio", e.target.value)} placeholder="45.00" className={CAMPO + (errores.precio ? MAL : OK)} />
             {errores.precio && <p className="mt-1 text-xs font-medium text-red-600">{errores.precio}</p>}
           </div>
           {puedeVerCosto && (

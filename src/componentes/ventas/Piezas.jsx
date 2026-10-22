@@ -15,12 +15,12 @@ const BOTON_BARRA = "inline-flex h-10 shrink-0 items-center gap-2 whitespace-now
 // Pestañas del módulo: el nombre y, al lado, su número. La activa lleva la línea de la marca debajo.
 export function Pestanas({ etiqueta, pestanas, activa, onCambiar, idBase }) {
   return (
-    <div role="tablist" aria-label={etiqueta} className="flex items-end gap-1 overflow-x-auto border-b border-slate-200/70">
+    <div role="tablist" aria-label={etiqueta} className="flex flex-wrap items-end gap-x-1 border-b border-slate-200/70">
       {pestanas.map(({ id, titulo, cuenta }) => {
         const esta = activa === id
         return (
           <button key={id} type="button" role="tab" id={`${idBase}-tab-${id}`} aria-selected={esta} aria-controls={`${idBase}-panel`} onClick={() => onCambiar(id)}
-            className={"-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-base font-semibold transition-colors cursor-pointer " + (esta ? "border-blue-600 text-blue-700" : "border-transparent text-slate-600 hover:text-slate-900")}>
+            className={"-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3.5 pb-2.5 pt-2.5 text-[15px] font-semibold transition-colors cursor-pointer " + (esta ? "border-blue-600 text-blue-700" : "border-transparent text-slate-600 hover:text-slate-900")}>
             {titulo}
             {cuenta != null && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold tabular-nums text-slate-500">{cuenta}</span>}
           </button>
@@ -99,7 +99,7 @@ export function SelectorPeriodo({ periodo, onCambiar, buscando = false, ariaLabe
   const opcion = "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors cursor-pointer "
   return (
     <div ref={ref} className="relative shrink-0">
-      <button type="button" onClick={() => setAbierto((v) => !v)} disabled={buscando} aria-haspopup="menu" aria-expanded={abierto} aria-label={ariaLabel} className={BOTON_BARRA + " min-w-[9.5rem] justify-between disabled:cursor-default disabled:opacity-70"}>
+      <button type="button" onClick={() => setAbierto((v) => !v)} disabled={buscando} aria-haspopup="menu" aria-expanded={abierto} aria-label={ariaLabel} className={BOTON_BARRA + " disabled:cursor-default disabled:opacity-70"}>
         <span>{etiquetaDePeriodo(periodo, buscando)}</span>
         <ChevronDown size={14} className={"transition-transform " + (abierto ? "rotate-180" : "")} aria-hidden="true" />
       </button>

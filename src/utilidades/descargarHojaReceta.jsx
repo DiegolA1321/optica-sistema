@@ -36,28 +36,52 @@ const anchoEstimado = (texto, fuente) => {
 // ── El PDF a partir de lo leído de la hoja. `rects`: [{ x, y, w, h, color: [r,g,b] }] (px, desde arriba a la izquierda, con el color de relleno 0–1); `palabras`: [{ x, y, w, tam, fuente, color, texto }]
 // (y = línea base). Puro: se prueba sin navegador.
 export function armarPdfVectorial({ ancho = ANCHO_HOJA, alto, rects = [], palabras = [] }) {
-  const escala = Math.min(A4.ancho / ancho, A4.alto / alto)
-  const px = (v) => v * escala
-  const arriba = (y) => A4.alto - px(y)
-  const op = []
-  for (const r of rects) op.push(`${r.color.map(num).join(" ")} rg ${num(px(r.x))} ${num(arriba(r.y + r.h))} ${num(px(r.w))} ${num(px(r.h))} re f`)
-  for (const w of palabras) {
-    const tam = px(w.tam)
-    const natural = (anchoEstimado(w.texto, w.fuente) * tam) / 1000
-    const tz = natural > 0 && w.w > 0 ? Math.min(130, Math.max(70, (px(w.w) / natural) * 100)) : 100
-    const bytes = escapar(aBytes(w.texto))
-    op.push({ bytes: [...aBytes(`${w.color.map(num).join(" ")} rg BT /F${w.fuente + 1} ${num(tam)} Tf ${num(tz)} Tz ${num(px(w.x))} ${num(arriba(w.y))} Td (`), ...bytes, ...aBytes(") Tj ET")] })
-  }
-  const contenido = unir(op.flatMap((o, i) => [typeof o === "string" ? codificar(o) : Uint8Array.from(o.bytes), codificar("\n")]))
-  const fuentes = FUENTES.map((f, i) => `/F${i + 1} ${6 + i} 0 R`).join(" ")
+  return armarPdfPaginas({ paginas: [{ ancho, alto, rects, palabras }], titulo: "Receta de optica" })
+}
+
+// El mismo PDF con VARIAS páginas (la hoja de conteo) y, si se pide, imágenes JPEG (el logo): cada página es { ancho, alto, rects, palabras, imagenes: [{ x, y, w, h, jpeg: Uint8Array, px: ancho, py: alto }] }.
+// Cada página se escala a su A4 por separado; los objetos son: 1 catálogo, 2 páginas, 3 datos, 4–9 fuentes, luego las imágenes y, por página, su contenido y su página.
+export function armarPdfPaginas({ paginas, titulo = "Documento" }) {
+  const imagenes = []
+  const contenidos = paginas.map((pg) => {
+    const escala = Math.min(A4.ancho / (pg.ancho || ANCHO_HOJA), A4.alto / pg.alto)
+    const px = (v) => v * escala
+    const arriba = (y) => A4.alto - px(y)
+    const op = []
+    for (const r of pg.rects || []) op.push(`${r.color.map(num).join(" ")} rg ${num(px(r.x))} ${num(arriba(r.y + r.h))} ${num(px(r.w))} ${num(px(r.h))} re f`)
+    const usadas = []
+    for (const im of pg.imagenes || []) {
+      imagenes.push(im)
+      usadas.push(imagenes.length)
+      op.push(`q ${num(px(im.w))} 0 0 ${num(px(im.h))} ${num(px(im.x))} ${num(arriba(im.y + im.h))} cm /Im${imagenes.length} Do Q`)
+    }
+    for (const w of pg.palabras || []) {
+      const tam = px(w.tam)
+      const natural = (anchoEstimado(w.texto, w.fuente) * tam) / 1000
+      const tz = natural > 0 && w.w > 0 ? Math.min(130, Math.max(70, (px(w.w) / natural) * 100)) : 100
+      const bytes = escapar(aBytes(w.texto))
+      op.push({ bytes: [...aBytes(`${w.color.map(num).join(" ")} rg BT /F${w.fuente + 1} ${num(tam)} Tf ${num(tz)} Tz ${num(px(w.x))} ${num(arriba(w.y))} Td (`), ...bytes, ...aBytes(") Tj ET")] })
+    }
+    return { contenido: unir(op.flatMap((o) => [typeof o === "string" ? codificar(o) : Uint8Array.from(o.bytes), codificar("\n")])), usadas }
+  })
+  const primeraImagen = 4 + FUENTES.length
+  const primeraPagina = primeraImagen + imagenes.length
+  const idPagina = (i) => primeraPagina + i * 2 + 1
+  const idContenido = (i) => primeraPagina + i * 2
+  const fuentes = FUENTES.map((f, i) => `/F${i + 1} ${4 + i} 0 R`).join(" ")
   const cuerpos = [
     codificar("<< /Type /Catalog /Pages 2 0 R >>"),
-    codificar("<< /Type /Pages /Kids [3 0 R] /Count 1 >>"),
-    codificar(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(A4.ancho)} ${num(A4.alto)}] /Resources << /Font << ${fuentes} >> >> /Contents 4 0 R >>`),
-    unir([codificar(`<< /Length ${contenido.length} >>\nstream\n`), contenido, codificar("endstream")]),
-    codificar("<< /Producer (Sistema de optica) /Title (Receta de optica) >>"),
+    codificar(`<< /Type /Pages /Kids [${paginas.map((_, i) => `${idPagina(i)} 0 R`).join(" ")}] /Count ${paginas.length} >>`),
+    codificar(`<< /Producer (Sistema de optica) /Title (${titulo}) >>`),
     ...FUENTES.map((f) => codificar(`<< /Type /Font /Subtype /Type1 /BaseFont /${f} /Encoding /WinAnsiEncoding >>`)),
+    ...imagenes.map((im) => unir([codificar(`<< /Type /XObject /Subtype /Image /Width ${im.px} /Height ${im.py} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.jpeg.length} >>\nstream\n`), im.jpeg, codificar("\nendstream")])),
   ]
+  paginas.forEach((_, i) => {
+    const c = contenidos[i]
+    cuerpos.push(unir([codificar(`<< /Length ${c.contenido.length} >>\nstream\n`), c.contenido, codificar("endstream")]))
+    const xo = c.usadas.length ? ` /XObject << ${c.usadas.map((n) => `/Im${n} ${primeraImagen + n - 1} 0 R`).join(" ")} >>` : ""
+    cuerpos.push(codificar(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(A4.ancho)} ${num(A4.alto)}] /Resources << /Font << ${fuentes} >>${xo} >> /Contents ${idContenido(i)} 0 R >>`))
+  })
   const partes = [codificar("%PDF-1.4\n")]
   const posiciones = []
   let largo = partes[0].length
@@ -67,7 +91,7 @@ export function armarPdfVectorial({ ancho = ANCHO_HOJA, alto, rects = [], palabr
     partes.push(obj)
     largo += obj.length
   })
-  partes.push(codificar(`xref\n0 ${cuerpos.length + 1}\n0000000000 65535 f \n${posiciones.map((o) => String(o).padStart(10, "0") + " 00000 n \n").join("")}trailer\n<< /Size ${cuerpos.length + 1} /Root 1 0 R /Info 5 0 R >>\nstartxref\n${largo}\n%%EOF\n`))
+  partes.push(codificar(`xref\n0 ${cuerpos.length + 1}\n0000000000 65535 f \n${posiciones.map((o) => String(o).padStart(10, "0") + " 00000 n \n").join("")}trailer\n<< /Size ${cuerpos.length + 1} /Root 1 0 R /Info 3 0 R >>\nstartxref\n${largo}\n%%EOF\n`))
   return unir(partes)
 }
 

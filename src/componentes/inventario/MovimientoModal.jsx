@@ -60,7 +60,7 @@ export default function MovimientoModal({ modo, producto, maximo, puedeVerCosto 
   return (
     <Cascaron
       titulo={esIngreso ? "Registrar ingreso" : "Ajustar stock"} subtitulo={esIngreso ? "Productos que llegaron" : producto.nombre} Icono={esIngreso ? ArrowDownToLine : SlidersHorizontal} ancho="max-w-md" sinAnimarFondo={sinAnimarFondo}
-      onCerrar={onCerrar} formulario={{ onSubmit: enviar }}
+      onCerrar={onCerrar} formulario={{ onSubmit: enviar, noValidate: true }}
       pie={(
         <>
           <span />
@@ -93,7 +93,7 @@ export default function MovimientoModal({ modo, producto, maximo, puedeVerCosto 
         <div className={esIngreso && puedeVerCosto ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : ""}>
           <div>
             <label htmlFor="mov-cantidad" className={ETIQUETA}>{esIngreso ? "Unidades que ingresan" : esConteo ? "Unidades que hay realmente" : "Unidades"}</label>
-            <input id="mov-cantidad" type="number" min="0" step="1" required autoFocus value={cantidad} onChange={(e) => setCantidad(e.target.value)} placeholder={esIngreso ? "5" : ""} className={CAMPO + (errores.cantidad ? MAL : OK)} />
+            <input id="mov-cantidad" type="number" min="0" step="1" autoFocus value={cantidad} onChange={(e) => setCantidad(e.target.value)} placeholder={esIngreso ? "5" : ""} className={CAMPO + (errores.cantidad ? MAL : OK)} />
             {errores.cantidad && <p className="mt-1 text-xs font-medium text-red-600">{errores.cantidad}</p>}
           </div>
           {esIngreso && puedeVerCosto && (
@@ -114,7 +114,7 @@ export default function MovimientoModal({ modo, producto, maximo, puedeVerCosto 
         {!esIngreso && (
           <div>
             <label htmlFor="mov-motivo" className={ETIQUETA}>Motivo <span className="font-normal text-slate-500">(obligatorio)</span></label>
-            <input id="mov-motivo" type="text" required maxLength={200} value={motivo} onChange={(e) => setMotivo(e.target.value)}
+            <input id="mov-motivo" type="text" maxLength={200} value={motivo} onChange={(e) => setMotivo(e.target.value)}
               placeholder={esConteo ? "Ej. Faltaban dos en el estante" : tipo === "merma" ? "Ej. Se rompió al limpiarla" : "Ej. Llegó con defecto de fábrica"} className={CAMPO + (errores.motivo ? MAL : OK)} />
             {errores.motivo && <p className="mt-1 text-xs font-medium text-red-600">{errores.motivo}</p>}
           </div>

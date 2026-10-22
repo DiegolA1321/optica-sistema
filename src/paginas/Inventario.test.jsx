@@ -4,9 +4,9 @@ import { render, screen, fireEvent, within, waitFor } from "@testing-library/rea
 
 // Sin base de datos: la pantalla trabaja en memoria (las pruebas nunca tocan una base real aunque haya un .env.local).
 vi.mock("../lib/supabaseClient", () => ({ supabase: null }))
-// Imprimir abre la ventana de impresión: aquí solo se comprueba lo que se mandaría imprimir.
-vi.mock("../utilidades/proforma", async (original) => ({ ...(await original()), imprimirHtml: vi.fn() }))
-import { imprimirHtml } from "../utilidades/proforma"
+// La hoja de conteo baja un PDF: aquí solo se comprueba lo que se le manda.
+vi.mock("../utilidades/descargarHojaConteo", () => ({ descargarHojaConteo: vi.fn(async () => true) }))
+import { descargarHojaConteo } from "../utilidades/descargarHojaConteo"
 import Inventario from "./Inventario"
 
 const admin = { id: "u1", rol: "admin", nombre: "Ana", opticaId: "o1" }
@@ -28,7 +28,7 @@ const filas = () => within(lista()).getAllByRole("listitem")
 const fila = (nombre) => filas().find((li) => li.textContent.includes(nombre))
 const pildora = (nombre) => within(screen.getByRole("group", { name: "Filtrar el inventario" })).getByRole("button", { name: nombre })
 
-beforeEach(() => { imprimirHtml.mockClear() })
+beforeEach(() => { descargarHojaConteo.mockClear() })
 
 describe("Inventario — estructura", () => {
   it("se llama 'Inventario', sus ítems son 'productos', el botón es 'Agregar producto' y hay dos pestañas con su número", () => {
@@ -131,6 +131,36 @@ describe("Inventario — la franja de datos", () => {
   })
 })
 
+describe("Inventario — la franja resume lo que se está viendo", () => {
+  const datos = [
+    producto("a", "Montura roja", 5, { precio: 10 }), producto("b", "Montura negra", 50, { precio: 20 }),
+    producto("c", "Estuche rojo", 3, { categoria: "Accesorios", precio: 2 }), producto("d", "Cordón", 17, { categoria: "Accesorios", precio: 3 }),
+  ]
+  const texto = (nombre) => dato(nombre).textContent
+  it("al buscar, productos, unidades, valor, stock bajo y sobrestock se recalculan con lo que se ve", () => {
+    render(<Con inicial={datos} />)
+    expect(texto("Productos activos")).toContain("4")
+    fireEvent.change(screen.getByLabelText("Buscar producto o código"), { target: { value: "ro" } })
+    expect(filas()).toHaveLength(2)
+    expect(texto("Productos activos")).toContain("2")
+    expect(texto("Productos activos")).toContain("8 unidades") // 5 + 3
+    expect(texto("Valor del inventario")).toContain("$56.00") // 5 × 10 + 3 × 2
+    expect(texto("Stock bajo")).toContain("2")
+    expect(texto("Sobrestock")).toContain("0")
+  })
+  it("al elegir una categoría también, y al pulsar un dato la lista se recorta pero las cifras no cambian", () => {
+    render(<Con inicial={datos} />)
+    fireEvent.click(pildora("Monturas"))
+    expect(texto("Productos activos")).toContain("2")
+    expect(texto("Valor del inventario")).toContain("$1,050.00") // 5 × 10 + 50 × 20
+    expect(texto("Sobrestock")).toContain("1")
+    fireEvent.click(dato("Sobrestock"))
+    expect(filas()).toHaveLength(1)
+    expect(texto("Productos activos")).toContain("2") // las cifras siguen siendo las de lo visto
+    expect(texto("Sobrestock")).toContain("1")
+  })
+})
+
 describe("Inventario — la lista", () => {
   const productos = [
     producto("a", "Estuche rígido", 4, { categoria: "Accesorios", codigo: "EST-01", critico: 5, maximo: 30, precio: 6 }),
@@ -167,17 +197,19 @@ describe("Inventario — la lista", () => {
   it("las píldoras filtran: Todos, cada categoría, Stock bajo y Sobrestock", () => {
     render(<Con inicial={productos} />)
     const grupo = screen.getByRole("group", { name: "Filtrar el inventario" })
-    expect(within(grupo).getAllByRole("button").map((b) => b.textContent)).toEqual(["Todos", "Monturas", "Accesorios", "Stock bajo", "Sobrestock"])
+    expect(within(grupo).getAllByRole("button").map((b) => b.textContent)).toEqual(["Todos", "Monturas", "Accesorios"]) // el stock bajo y el sobrestock se filtran desde la franja
     expect(pildora("Todos")).toHaveAttribute("aria-pressed", "true")
     fireEvent.click(pildora("Monturas"))
     expect(filas()).toHaveLength(1)
     fireEvent.click(pildora("Accesorios"))
     expect(filas()).toHaveLength(3)
-    fireEvent.click(pildora("Stock bajo"))
-    expect(filas()).toHaveLength(2) // el Estuche (4 u., mín 5) y la Montura 10 (3 u., mín 5)
-    fireEvent.click(pildora("Sobrestock"))
+    fireEvent.click(dato("Stock bajo"))
+    expect(filas()).toHaveLength(1) // en Accesorios solo el Estuche (4 u., mín 5)
+    fireEvent.click(dato("Stock bajo"))
+    fireEvent.click(dato("Sobrestock"))
     expect(filas()).toHaveLength(1)
     expect(fila("Líquido")).toBeTruthy()
+    fireEvent.click(dato("Sobrestock"))
     fireEvent.click(pildora("Todos"))
     expect(filas()).toHaveLength(4)
   })
@@ -198,11 +230,11 @@ describe("Inventario — la lista", () => {
   it("desde el aviso del Inicio llega con el filtro puesto (stock bajo, sobrestock, nuevos este mes)", () => {
     const { unmount } = render(<Con inicial={productos} verStockBajoAlEntrar />)
     expect(filas()).toHaveLength(2)
-    expect(pildora("Stock bajo")).toHaveAttribute("aria-pressed", "true")
+    expect(dato("Stock bajo")).toHaveAttribute("aria-pressed", "true")
     unmount()
     const otra = render(<Con inicial={productos} verSobrestockAlEntrar />)
     expect(filas()).toHaveLength(1)
-    expect(pildora("Sobrestock")).toHaveAttribute("aria-pressed", "true")
+    expect(dato("Sobrestock")).toHaveAttribute("aria-pressed", "true")
     otra.unmount()
     render(<Con inicial={[producto("n", "Nueva", 5), producto("v", "Vieja", 5, { creadoEn: "2026-01-05T15:00:00Z" })]} verNuevosAlEntrar />)
     expect(filas()).toHaveLength(1)
@@ -307,15 +339,29 @@ describe("Inventario — la hoja de conteo", () => {
     expect(screen.getByRole("button", { name: /Imprimir hoja de conteo/ })).toBeInTheDocument()
   })
 
-  it("imprime todos los productos activos con su código, su descripción, su existencia en el sistema y una columna en blanco, y lo confirma", () => {
+  it("baja un PDF (no la impresión del navegador) con los activos y los descontinuados, con los datos de la óptica, y lo confirma", async () => {
+    render(<Con inicial={inicial} usuario={{ ...admin, opticaNombre: "Óptica Demo" }} parametrizacion={{ opticaDireccion: "Av. 1", opticaTelefono: "0990000000" }} />)
+    fireEvent.click(screen.getByRole("button", { name: /Imprimir hoja de conteo/ }))
+    expect(await screen.findByText("Hoja de conteo descargada (PDF).")).toBeInTheDocument()
+    expect(descargarHojaConteo).toHaveBeenCalledTimes(1)
+    const [datos, fecha] = descargarHojaConteo.mock.calls[0]
+    expect(datos.optica).toMatchObject({ nombre: "Óptica Demo", direccion: "Av. 1", telefono: "0990000000" })
+    expect(datos.activos.map((x) => x.nombre)).toEqual(["Montura 1", "Montura 2"])
+    expect(datos.descontinuados.map((x) => x.nombre)).toEqual(["Vieja"]) // el armado deja solo los que tienen unidades
+    expect(fecha).toHaveLength(10) // 2026-10-22
+  })
+
+  it("es una sola hoja para todo el inventario: el botón está también con la pestaña «Descontinuados»", () => {
+    render(<Con inicial={inicial} />)
+    fireEvent.click(screen.getByRole("tab", { name: /Descontinuados/ }))
+    expect(screen.getByRole("button", { name: /Imprimir hoja de conteo/ })).toBeInTheDocument()
+  })
+
+  it("si no se pudo preparar lo dice", async () => {
+    descargarHojaConteo.mockResolvedValueOnce(false)
     render(<Con inicial={inicial} />)
     fireEvent.click(screen.getByRole("button", { name: /Imprimir hoja de conteo/ }))
-    expect(imprimirHtml).toHaveBeenCalledTimes(1)
-    const html = imprimirHtml.mock.calls[0][0]
-    for (const texto of ["Código", "Descripción", "En el sistema", "Contado", "M-1", "Montura 1", "Montura 2", "Ajustar stock"]) expect(html).toContain(texto)
-    expect(html).not.toContain("Vieja") // los descontinuados no se cuentan
-    expect(html).toContain('<td class="n">5</td>')
-    expect(screen.getByText("Hoja de conteo lista para imprimir.")).toBeInTheDocument()
+    expect(await screen.findByText(/No se pudo preparar la hoja de conteo/)).toBeInTheDocument()
   })
 })
 
@@ -505,5 +551,37 @@ describe("Inventario — agregar y editar producto", () => {
     fireEvent.click(within(ventana).getByRole("button", { name: "Guardar cambios" }))
     expect(screen.getByText("Cambios guardados correctamente.")).toBeInTheDocument()
     expect(fila("Montura 1")).toHaveTextContent("máx 30")
+  })
+})
+
+describe("Inventario — categoría nueva y avisos del sistema", () => {
+  it("«+» abre una ventanita propia (fuera del formulario) y no mueve los campos; crear la deja elegida", () => {
+    render(<Con inicial={[]} setCategorias={() => {}} />)
+    fireEvent.click(screen.getByRole("button", { name: /Agregar producto/ }))
+    const formulario = screen.getByRole("dialog", { name: "Agregar producto" })
+    fireEvent.click(within(formulario).getByRole("button", { name: "Nueva categoría" }))
+    const ventana = screen.getByRole("dialog", { name: "Nueva categoría" })
+    expect(formulario.contains(ventana)).toBe(false) // no se anida dentro del formulario
+    expect(within(formulario).queryByPlaceholderText("Ej. Lentes de contacto")).not.toBeInTheDocument() // el campo no se monta sobre la descripción
+    fireEvent.click(within(ventana).getByRole("button", { name: "Crear" }))
+    expect(within(ventana).getByRole("alert")).toHaveTextContent("Escribe el nombre de la categoría.")
+    fireEvent.change(within(ventana).getByLabelText("Nombre de la categoría"), { target: { value: "monturas" } })
+    fireEvent.click(within(ventana).getByRole("button", { name: "Crear" }))
+    expect(within(ventana).getByRole("alert")).toHaveTextContent("Ya existe esa categoría.")
+    fireEvent.click(within(ventana).getByRole("button", { name: "Cancelar" }))
+    expect(screen.queryByRole("dialog", { name: "Nueva categoría" })).not.toBeInTheDocument()
+    expect(screen.getByRole("dialog", { name: "Agregar producto" })).toBeInTheDocument()
+  })
+
+  it("los campos obligatorios avisan con el estilo del sistema, en español, no con el globo del navegador", () => {
+    render(<Con inicial={[]} />)
+    fireEvent.click(screen.getByRole("button", { name: /Agregar producto/ }))
+    const formulario = screen.getByRole("dialog", { name: "Agregar producto" })
+    expect(formulario).toHaveAttribute("novalidate")
+    expect(within(formulario).getByLabelText("Descripción")).not.toBeRequired()
+    fireEvent.click(within(formulario).getByRole("button", { name: "Guardar producto" }))
+    expect(within(formulario).getByText("Escribe una descripción para el producto.")).toBeInTheDocument()
+    expect(within(formulario).getByText("Ingresa una cantidad válida (0 o más).")).toBeInTheDocument()
+    expect(within(formulario).getByText("Ingresa un precio válido.")).toBeInTheDocument()
   })
 })
