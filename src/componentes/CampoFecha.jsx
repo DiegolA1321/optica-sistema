@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useRef, useState, useEffect } from "react"
+import { useMemo, useRef, useState, useEffect, useLayoutEffect } from "react"
+import { createPortal } from "react-dom"
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react"
 import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
 import { formatoFecha, MESES_LARGOS } from "../utilidades/formatoFecha"
@@ -15,20 +16,40 @@ const aFecha = (iso) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)
 // fecha de nacimiento, vencimientos... El mes y el año se eligen en listas, para llegar a 1950 sin pulsar 800 veces "anterior".
 // `etiqueta` conecta el campo con su rótulo visible para lectores de pantalla (el nombre incluye la fecha elegida).
 // `grande`: el portal del paciente (texto de 16 px y botones de 44 px o más).
-// El calendario se abre en línea debajo del campo (no flota) para que ningún modal con scroll lo recorte.
-export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min = "", error = false, placeholder = "Elige una fecha", icono: Icono = Calendar, requerido = false, etiqueta = "", grande = false }) {
+// El calendario se abre en línea debajo del campo (no flota) para que ningún modal con scroll lo recorte. Con `flotante` se abre ENCIMA del formulario, pegado al campo (arriba o abajo,
+// donde quepa): no empuja nada, no tapa el campo de al lado de mala manera y no obliga a desplazarse (el formulario de Pacientes).
+export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min = "", error = false, placeholder = "Elige una fecha", icono: Icono = Calendar, requerido = false, etiqueta = "", grande = false, flotante = false }) {
   const [abierto, setAbierto] = useState(false)
   const [mesVista, setMesVista] = useState(() => aFecha(valor || max))
   const raiz = useRef(null)
+  const popover = useRef(null)
+  const [pos, setPos] = useState(null)
 
   useEffect(() => {
     if (!abierto) return undefined
-    const fuera = (e) => { if (raiz.current && !raiz.current.contains(e.target)) setAbierto(false) }
+    const fuera = (e) => { if (raiz.current && !raiz.current.contains(e.target) && !(popover.current && popover.current.contains(e.target))) setAbierto(false) }
     const tecla = (e) => { if (e.key === "Escape") { e.stopPropagation(); setAbierto(false) } }
     document.addEventListener("mousedown", fuera)
     document.addEventListener("keydown", tecla, true)
     return () => { document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", tecla, true) }
   }, [abierto])
+
+  // Posición del calendario flotante: pegado al campo, debajo si cabe y si no arriba, siempre dentro de la pantalla.
+  useLayoutEffect(() => {
+    if (!flotante || !abierto || !raiz.current) { setPos(null); return undefined }
+    const colocar = () => {
+      const r = raiz.current.getBoundingClientRect()
+      const ancho = Math.min(300, window.innerWidth - 16)
+      const alto = popover.current?.offsetHeight || 330
+      const abajo = window.innerHeight - r.bottom
+      const top = abajo >= alto + 8 || abajo >= r.top ? Math.min(r.bottom + 6, window.innerHeight - alto - 8) : Math.max(8, r.top - alto - 6)
+      setPos({ top: Math.max(8, top), left: Math.min(Math.max(8, r.left), window.innerWidth - ancho - 8), width: ancho })
+    }
+    colocar()
+    window.addEventListener("resize", colocar)
+    window.addEventListener("scroll", colocar, true)
+    return () => { window.removeEventListener("resize", colocar); window.removeEventListener("scroll", colocar, true) }
+  }, [flotante, abierto, mesVista])
 
   const anioMax = Number(max.slice(0, 4))
   const anioMin = min ? Number(min.slice(0, 4)) : anioMax - 110
@@ -62,8 +83,11 @@ export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min =
         <Icono size={grande ? 20 : 15} className="shrink-0 text-slate-500" aria-hidden="true" />
         <span className={valor ? "text-slate-800" : "text-slate-400"}>{valor ? formatoFecha(valor, "medio") : placeholder}</span>
       </button>
-      {abierto && (
-        <div role="dialog" aria-label="Elegir fecha" className="mt-2 rounded-xl border border-slate-200/60 bg-slate-50/40 p-3" style={{ animation: "rise-in 180ms ease-out both" }}>
+      {abierto && (() => {
+        const panel = (
+        <div ref={popover} data-popover-abierto={flotante ? "" : undefined} role="dialog" aria-label="Elegir fecha"
+          className={flotante ? "fixed z-[80] rounded-xl border border-slate-200/70 bg-white p-3 shadow-2xl" : "mt-2 rounded-xl border border-slate-200/60 bg-slate-50/40 p-3"}
+          style={flotante ? { top: pos?.top ?? 0, left: pos?.left ?? 0, width: pos?.width ?? 300, visibility: pos ? "visible" : "hidden", animation: "rise-in 180ms ease-out both" } : { animation: "rise-in 180ms ease-out both" }}>
           <div className="mb-2.5 flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <select aria-label="Mes" value={mesVista.getMonth()} onChange={(e) => setMesVista(new Date(mesVista.getFullYear(), Number(e.target.value), 1))} className={lista} style={{ color: INK }}>
@@ -97,7 +121,9 @@ export default function CampoFecha({ id, valor, onCambiar, max = hoyISO(), min =
             })}
           </div>
         </div>
-      )}
+        )
+        return flotante ? createPortal(panel, document.body) : panel
+      })()}
     </div>
   )
 }

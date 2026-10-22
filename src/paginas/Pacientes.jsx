@@ -111,6 +111,7 @@ import SelectorBuscable from "../componentes/SelectorBuscable"
 import ElegirVentaOrdenModal from "../componentes/ElegirVentaOrdenModal"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, listarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos, puntosFidelidad, ultimaVisita } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
+import { TIPOS_DOCUMENTO, tipoDeDocumento, etiquetaDocumento, filtrarDocumento, errorDeDocumento } from "../utilidades/documento"
 import { FILTROS_LISTA, FILTROS_POR_ENLACE, conjuntosLista, conteosLista, cumpleFiltroLista, proximaCitaPorPaciente, etiquetaEstadoClinico } from "../utilidades/listaPacientes"
 import { antecedentesRelevantes, textoAntecedentes } from "../utilidades/antecedentes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso, mensajeDeError } from "../utilidades/permisos"
@@ -206,6 +207,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
   const [cedula, setCedula] = useState("")
+  const [tipoDoc, setTipoDoc] = useState("cedula") // cédula, pasaporte u otro documento (extranjeros): migración 0136
   const [telefono, setTelefono] = useState("")
   const [correo, setCorreo] = useState("")
   const [fechaNacimiento, setFechaNacimiento] = useState("")
@@ -597,6 +599,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
   const limpiarFormulario = () => {
     setNombre("")
     setCedula("")
+    setTipoDoc("cedula")
     setTelefono("")
     setCorreo("")
     setFechaNacimiento("")
@@ -610,16 +613,18 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
   const validarFormularioPaciente = () => {
     const errs = {}
     if (!esNombreValido(nombre)) errs.nombre = "Ingresa un nombre válido (solo letras)."
-    if (!esCedulaValida(cedula)) errs.cedula = "Esa cédula no es válida — revisa los dígitos."
-    else if (pacientes.some((p) => p.id !== idEditando && p.cedula === cedula)) errs.cedula = "Ya existe un paciente registrado con esa cédula."
+    const errDoc = errorDeDocumento(tipoDoc, cedula)
+    if (errDoc) errs.cedula = errDoc
+    else if (pacientes.some((p) => p.id !== idEditando && p.cedula === cedula)) errs.cedula = `Ya existe un paciente registrado con ese ${tipoDoc === "cedula" ? "número de cédula" : "documento"}.`
     if (!esTelefonoValido(telefono)) errs.telefono = "El teléfono debe tener entre 7 y 10 dígitos."
-    if (!esEmailValido(correo)) errs.correo = "Ingresa un correo válido (ej. nombre@dominio.com)."
+    if (correo && !esEmailValido(correo)) errs.correo = "Ingresa un correo válido (ej. nombre@dominio.com)."
     // Igual que el formulario público (AgendarCitaPublica.jsx): la fecha de
     // nacimiento no es un dato "extra" — es la fuente de la edad que se
     // muestra en todo el expediente, así que recepción no puede omitirla
     // como sí puede con el correo/teléfono (que tienen "Sin Correo"/"Sin
     // Teléfono" como relleno válido).
-    if (!fechaNacimiento) errs.fechaNacimiento = "La fecha de nacimiento es obligatoria."
+    // Al EDITAR solo se exige lo indispensable (nombre y documento): lo que falta se sugiere completar, no se bloquea.
+    if (!fechaNacimiento && !idEditando) errs.fechaNacimiento = "La fecha de nacimiento es obligatoria."
     return errs
   }
 
@@ -635,7 +640,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     limpiarFormulario()
     const texto = (query || "").trim()
     if (/^[0-9]+$/.test(texto)) {
-      setCedula(filtrarSoloNumeros(texto, 10))
+      setCedula(filtrarDocumento("cedula", texto))
     } else {
       const letras = filtrarSoloLetras(texto)
       if (letras.trim()) setNombre(letras)
@@ -648,6 +653,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     setIdEditando(paciente.id)
     setNombre(paciente.nombre)
     setCedula(paciente.cedula)
+    setTipoDoc(tipoDeDocumento(paciente))
     setTelefono(paciente.telefono === "Sin Teléfono" ? "" : paciente.telefono)
     setCorreo(paciente.correo === "Sin Correo" ? "" : paciente.correo)
     setFechaNacimiento(paciente.fecha_nacimiento || paciente.fechaNacimiento || "")
@@ -713,6 +719,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       const cambios = {
         nombre,
         cedula,
+        tipoDocumento: tipoDoc,
         telefono: telefono || "Sin Teléfono",
         correo: correo || "Sin Correo",
         fecha_nacimiento: fechaNacimiento || null,
@@ -720,7 +727,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
         referidoPorId: referidoPorIdResuelto,
       }
       if (supabase && opticaId) {
-        const { data: actualizados, error: errorUpdate } = await supabase.from("pacientes").update({ nombre: cambios.nombre, cedula: cambios.cedula, telefono: cambios.telefono, correo: cambios.correo, fecha_nacimiento: cambios.fecha_nacimiento, referido_por: cambios.referidoPor || null, referido_por_id: cambios.referidoPorId }).eq("id", idEditando).select()
+        const { data: actualizados, error: errorUpdate } = await supabase.from("pacientes").update({ nombre: cambios.nombre, cedula: cambios.cedula, tipo_documento: cambios.tipoDocumento, telefono: cambios.telefono, correo: cambios.correo, fecha_nacimiento: cambios.fecha_nacimiento, referido_por: cambios.referidoPor || null, referido_por_id: cambios.referidoPorId }).eq("id", idEditando).select()
         if (fueBloqueadoPorPermiso({ error: errorUpdate, data: actualizados })) {
           setGuardandoPaciente(false)
           mostrarError(MENSAJE_SIN_PERMISO)
@@ -737,14 +744,15 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       setCitas?.((prev) => prev.map((c) => (c.pacienteId === idEditando ? { ...c, paciente: cambios.nombre, cedula: cambios.cedula, telefono: cambios.telefono, correo: cambios.correo } : c)))
       setConsultas?.((prev) => prev.map((c) => (c.pacienteId === idEditando ? { ...c, paciente: cambios.nombre } : c)))
       registrarLog(usuario, "pacientes", "Editó el expediente de un paciente", cambios.nombre)
-      mostrarNotif("Expediente del paciente actualizado correctamente.")
+      const faltan = [!fechaNacimiento && "la fecha de nacimiento", !telefono && "el teléfono", !correo && "el correo"].filter(Boolean)
+      mostrarNotif(`Expediente de ${cambios.nombre} actualizado correctamente.${faltan.length ? ` Te sugerimos completar ${faltan.join(", ")}.` : ""}`)
     } else {
       // La alta en sí (insert + shape) vive en utilidades/pacientes.js,
       // compartida con Citas.jsx, para no tener dos copias que puedan
       // desincronizarse (p. ej. el bug de zona horaria de fechaRegistro que
       // hubo que corregir en ambas por separado antes de unificar).
       const { paciente: nuevoPaciente, error: errorInsert } = await crearRegistroPaciente(supabase, opticaId, {
-        nombre, cedula, telefono, correo, fechaNacimiento, referidoPor, referidoPorId: referidoPorIdResuelto,
+        nombre, cedula, tipoDocumento: tipoDoc, telefono, correo, fechaNacimiento, referidoPor, referidoPorId: referidoPorIdResuelto,
         aceptaRecordatorios: permisosNuevo.recordatorios, aceptaPromociones: permisosNuevo.promociones,
       })
       if (errorInsert) {
@@ -813,6 +821,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       .filter((c) => perteneceAPaciente(c, paciente) && (c.estado === "Pendiente" || c.estado === "En Atención"))
       .slice()
       .sort((a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora)))
+    const deHoy = citasSinTerminar.filter((c) => c.fecha === hoyISO())
+    if (deHoy.length === 1) { pedirAtender(deHoy[0]); return }
     if (citasSinTerminar.length > 0) {
       setSeleccionCitaPara({
         paciente,
@@ -823,14 +833,31 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     abrirAtenderAhora(paciente)
   }
 
-  // "Atender ahora": toda atención pasa por una cita. Abre el mismo modal "Agendar cita" del perfil con "Llegó en un
-  // horario diferente" ya marcado y la hora actual; al confirmar crea la cita "En Atención" y entra a la ficha.
-  const abrirAtenderAhora = (paciente) => {
-    abrirAgendar(paciente, "")
-    setAgendarFecha(hoyISO())
-    setAgendarHoraPersonalizada(true)
+  // "Atender ahora": toda atención pasa por una cita. Si el paciente ya tiene una cita de hoy, se atiende esa. Si no, se crea una cita para este momento (origen «Presencial», «En atención»,
+  // con quien atiende como profesional), queda en Citas (Lista, Semana y Mes) como cualquier otra, y se abre la ficha. Si la hora se cruza con otra cita, se abre el formulario para elegir.
+  const abrirAtenderAhora = async (paciente) => {
+    if (!puedeAtender) { onAviso?.("No tienes permiso para atender pacientes."); return }
+    const deHoy = citas.find((c) => perteneceAPaciente(c, paciente) && c.fecha === hoyISO() && ["Pendiente", "En Espera", "En Atención"].includes(c.estado))
+    if (deHoy) { setPacienteHistorial(null); pedirAtender(deHoy); return }
     const ahora = ahoraEcuador()
-    setAgendarHoraCustom(`${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`)
+    const horaCustom = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
+    const duracion = disponibilidad?.duracionCita || 40
+    const motivo = motivosConsulta.find((m) => /consulta general/i.test(m)) || motivosConsulta[0] || "Consulta general"
+    const { errorHorario } = validarHorarioCita({ fecha: hoyISO(), hora: "", horaPersonalizada: true, horaCustom, duracionCustom: duracion, disponibilidad, citas })
+    if (errorHorario || !puedeAgendar) {
+      // No se puede abrir la cita sola (el horario se cruza o falta el permiso de agendar): el formulario deja elegir.
+      abrirAgendar(paciente, "")
+      setAgendarFecha(hoyISO()); setAgendarHoraPersonalizada(true); setAgendarHoraCustom(horaCustom); setAgendarMotivo(motivo)
+      if (errorHorario) setErrorHorarioAgendar(errorHorario)
+      return
+    }
+    const { cita: nuevaCita, error } = await registrarCita(supabase, opticaId, paciente, { fecha: hoyISO(), hora: horaA12(horaCustom), duracionMinutos: duracion, motivo, asignadoA: usuario?.id || "", estado: "En Atención", origen: "presencial" })
+    if (error) { mostrarError(error); return }
+    setCitas?.((prev) => [...prev, { ...nuevaCita, atendidoPor: usuario?.id || null }])
+    registrarLog(usuario, "citas", "Atendió a un paciente de inmediato", `${nuevaCita.paciente} · ${fechaLegible(nuevaCita.fecha)}`)
+    setPacienteHistorial(null)
+    onAviso?.(`Cita presencial creada para ${paciente.nombre} (${nuevaCita.hora}). Ya está en Citas.`)
+    irAFichaConfirmandoSiHaceFalta(paciente, nuevaCita.id, nuevaCita.motivo)
   }
 
   // Un solo punto de entrada a la ficha clínica desde el perfil (cita elegida, «Atender ahora» o «Atender»).
@@ -1337,7 +1364,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                             <p className="font-semibold text-slate-800 transition-colors group-hover:text-blue-600">
                               {paciente.nombre}
                             </p>
-                            <p className="mt-0.5 font-mono text-xs text-slate-500">{paciente.cedula}</p>
+                            <p className="mt-0.5 font-mono text-xs text-slate-500">{tipoDeDocumento(paciente) !== "cedula" && <span className="font-sans font-semibold">{etiquetaDocumento(paciente)} · </span>}{paciente.cedula}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
                               <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + claseBadgeEstadoClinico(paciente.estadoClinico)}>
                                 {etiquetaEstadoClinico(paciente.estadoClinico)}
@@ -1544,22 +1571,32 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="p-cedula" className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Cédula <span className="text-red-500">*</span>
+                  Documento <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <IdCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
-                  <input
-                    id="p-cedula" type="text" required placeholder="1315556667" inputMode="numeric" maxLength={10} autoComplete="off"
-                    value={cedula} onChange={(e) => setCedula(filtrarSoloNumeros(e.target.value, 10))}
-                    className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.cedula ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
-                  />
+                <div className="flex gap-2">
+                  <select
+                    id="p-tipo-documento" aria-label="Tipo de documento" value={tipoDoc}
+                    onChange={(e) => { setTipoDoc(e.target.value); setCedula(filtrarDocumento(e.target.value, cedula)); setErroresForm((x) => ({ ...x, cedula: undefined })) }}
+                    className="w-[7.5rem] shrink-0 rounded-xl border border-slate-200/60 bg-slate-50 px-2 py-2.5 text-sm font-semibold text-slate-700 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50 cursor-pointer"
+                  >
+                    {TIPOS_DOCUMENTO.map((t) => <option key={t.id} value={t.id}>{t.etiqueta}</option>)}
+                  </select>
+                  <div className="relative min-w-0 flex-1">
+                    <IdCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
+                    <input
+                      id="p-cedula" type="text" placeholder={TIPOS_DOCUMENTO.find((t) => t.id === tipoDoc)?.placeholder} inputMode={tipoDoc === "cedula" ? "numeric" : "text"} maxLength={tipoDoc === "cedula" ? 10 : 20} autoComplete="off"
+                      value={cedula} onChange={(e) => setCedula(filtrarDocumento(tipoDoc, e.target.value))}
+                      className={"w-full rounded-xl border bg-slate-50 py-2.5 pl-9 pr-3 font-mono text-sm text-slate-800 outline-none transition-colors focus-visible:bg-white focus-visible:ring-2 " + (erroresForm.cedula ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-100" : "border-slate-200/60 focus-visible:border-blue-500 focus-visible:ring-blue-50")}
+                    />
+                  </div>
                 </div>
+                {tipoDoc !== "cedula" && !erroresForm.cedula && <p className="mt-1 text-xs text-slate-500">Documento de un extranjero: no pasa por la validación de la cédula ecuatoriana.</p>}
                 {erroresForm.cedula && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.cedula}</p>}
               </div>
 
               <div>
-                <label htmlFor="p-nacimiento" className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento *</label>
-                <CampoFecha id="p-nacimiento" etiqueta="Fecha de nacimiento" valor={fechaNacimiento} onCambiar={setFechaNacimiento} icono={Cake} error={!!erroresForm.fechaNacimiento} requerido placeholder="Elige la fecha" />
+                <label htmlFor="p-nacimiento" className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha de nacimiento {!idEditando ? "*" : <span className="font-normal text-slate-500">(recomendado)</span>}</label>
+                <CampoFecha id="p-nacimiento" etiqueta="Fecha de nacimiento" valor={fechaNacimiento} onCambiar={setFechaNacimiento} icono={Cake} error={!!erroresForm.fechaNacimiento} requerido={!idEditando} flotante placeholder="Elige la fecha" />
                 {erroresForm.fechaNacimiento && <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle size={13} /> {erroresForm.fechaNacimiento}</p>}
               </div>
             </div>
@@ -1626,30 +1663,24 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
         >
           <div className="p-6">
             <p className="text-sm text-slate-500">¿Qué quieres hacer ahora?</p>
-            {/* Antes solo ofrecía "Abrir ficha clínica" — asumía que siempre se
-                está registrando a alguien para atenderlo ya mismo. Pero
-                también se registra gente para agendarla más adelante (no
-                todo el que llega al mostrador es un walk-in) — sin esto,
-                había que cerrar el modal y buscarlo de nuevo en la lista
-                para agendarle una cita. */}
             <div className="mt-4 space-y-2">
-              {puedeAtender && (
+              <button
+                type="button"
+                onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); setPacienteHistorial(p); setTabHistorial("resumen") }}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+              >
+                <IdCard size={15} aria-hidden="true" /> Ir al perfil
+              </button>
+              {puedeAtender && puedeAgendar && (
                 <button
                   type="button"
-                  onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); onIrAFichaClinica?.(p) }}
+                  onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); abrirAtenderAhora(p) }}
                   className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
                   style={{ background: GRAD }}
                 >
-                  <Stethoscope size={15} /> Atenderlo ahora — abrir ficha clínica
+                  <Stethoscope size={15} aria-hidden="true" /> Atender ahora
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => { const p = pacienteRecienCreado; setPacienteRecienCreado(null); abrirAgendar(p) }}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200/60 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
-              >
-                <CalendarPlus size={15} /> Agendarle una cita para después
-              </button>
             </div>
           </div>
         </Cascaron>

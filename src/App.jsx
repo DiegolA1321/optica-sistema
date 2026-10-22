@@ -168,6 +168,8 @@ function mapPaciente(p) {
     // Permisos para recibir mensajes (migración 0114). Mismo hallazgo de siempre: sin estar aquí se guardan bien pero no vuelven al recargar.
     // Si la base todavía no tiene las columnas llegan como undefined y valen lo de siempre (recordatorios sí, promociones no).
     aceptaRecordatorios: p.acepta_recordatorios, aceptaPromociones: p.acepta_promociones,
+    // Tipo de documento (migración 0136): cédula, pasaporte u otro. Los pacientes anteriores son de cédula.
+    tipoDocumento: p.tipo_documento || "cedula",
     consentimientoActualizadoEn: p.consentimiento_actualizado_en, consentimientoActualizadoPor: p.consentimiento_actualizado_por,
   }
 }
