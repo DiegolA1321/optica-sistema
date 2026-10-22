@@ -91,6 +91,11 @@
 
 **Pruebas:** Vitest completo 1635/1635. Playwright de lo tocado, cada archivo en su propia corrida: `ficha-tres-pasos`, `ficha-opcional-y-borrador` (4), `ficha-coherencia` (ficha = receta = perfil = «Mi receta»), `ficha-control`, `flujo-completo` (8), `ronda3b-fidelizacion` (7: Resumen, descuento por rol, configuración, pasaporte desde Citas, mensaje en el CRM), `ronda3a-pacientes`, `perfil-paciente`, `perfil-reorganizado`, `perfil-graduacion`, `diseno-reglas` (ficha y perfil, 1093/1366/1920), `roles`, `portal-recorrido`, `reportes`, `crm-v2`, `ventas-v2`, `inicio`, `ronda1-acciones`. **Sin capturas** esta ronda.
 **Dos pruebas dependen de la hora del día:** «Atender ahora» (`perfil-reorganizado` 169 y 218) falla de noche porque el horario de la óptica no permite crear la cita para «este momento» y se abre el formulario (es la regla de siempre); deben repetirse de día. Las corridas juntas de `flujo-completo` + `perfil-*` de noche chocan por citas a las 11:xx PM: se corren por separado.
+**Pendientes para mañana (por Diego, 22 oct. 2026):**
+1. Explicar qué cambió la migración **0139**, que se aplicó sin mostrarla antes. **Regla desde ahora, sin excepciones: todo SQL se muestra antes de aplicarlo** (con el protocolo: respaldo, ensayo, aplicación, verificación).
+2. Decidir «Atender ahora» fuera del horario de la óptica. Propuesta: permitirlo con un aviso («Estás fuera del horario de atención. ¿Atender igual?»).
+3. Comprobar en pantalla que la cita reagendada con el botón «Reagendar» hereda el borrador de la ficha, y que las fichas antiguas se ven bien en el portal.
+4. Repetir de día las dos pruebas de «Atender ahora» de `perfil-reorganizado` (líneas 169 y 218).
 **Pendiente:** la ficha debe validarla la optómetra de la óptica; suite completa de Playwright al final de todas las rondas; Ronda 4 (Ventas e Inventario).
 
 ## 21 oct. 2026 — Ronda 2c: Inicio igual al diseño aprobado
