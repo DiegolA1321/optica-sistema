@@ -225,10 +225,10 @@ export const EVENTO_ORDEN = "orden-laboratorio:guardada"
 // anteriores las escribían como servicio de texto libre, y eso se sigue reconociendo.
 export const esLineaDeLente = (l) => l?.tipo === "luna" || (l?.tipo === "servicio" && /^(luna|lente|cristal)/i.test((l.descripcion || "").trim()))
 
-// El estado de los lentes de una compra, como lo entiende el paciente (reunión del 20 oct., D7): «En proceso» (el laboratorio los está haciendo, aunque vayan atrasados),
-// «Listos» (para retirar) o «Entregados». Con varias órdenes manda la que falta: si alguna sigue en proceso, «En proceso»; si no, si alguna está lista, «Listos». Las canceladas no cuentan.
+// El estado de los lentes de una compra, como lo entiende el paciente (reunión del 20 oct., D7): «En el laboratorio» (lo están haciendo, aunque vayan atrasados),
+// «Listos» (para retirar) o «Entregados». Con varias órdenes manda la que falta: si alguna sigue en proceso, «En el laboratorio»; si no, si alguna está lista, «Listos». Las canceladas no cuentan.
 // Una compra sin lentes (sin orden de laboratorio) devuelve null. Una sola cuenta para el perfil del paciente y sus compras.
-export const ETIQUETA_LENTES = { proceso: "En proceso", listos: "Listos", entregados: "Entregados" }
+export const ETIQUETA_LENTES = { proceso: "En el laboratorio", listos: "Listos", entregados: "Entregados" }
 export function estadoLentesDeCompra(facturaId, ordenes = []) {
   const vivas = ordenes.filter((o) => o.facturaId === facturaId && o.estado !== "cancelada")
   if (vivas.length === 0) return null

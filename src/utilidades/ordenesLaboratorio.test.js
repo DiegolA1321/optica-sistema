@@ -136,8 +136,8 @@ import { estadoLentesDeCompra } from "./ordenesLaboratorio"
 describe("estado de los lentes de una compra", () => {
   const o = (estado, facturaId = "f1") => ({ facturaId, estado })
   it("sin orden no hay lentes", () => { expect(estadoLentesDeCompra("f1", [o("enviada", "f2")])).toBeNull() })
-  it("enviada es «En proceso»; lista, «Listos»; entregada, «Entregados»", () => {
-    expect(estadoLentesDeCompra("f1", [o("enviada")]).etiqueta).toBe("En proceso")
+  it("enviada es «En el laboratorio»; lista, «Listos»; entregada, «Entregados»", () => {
+    expect(estadoLentesDeCompra("f1", [o("enviada")]).etiqueta).toBe("En el laboratorio")
     expect(estadoLentesDeCompra("f1", [o("lista")]).etiqueta).toBe("Listos")
     expect(estadoLentesDeCompra("f1", [o("entregada")]).etiqueta).toBe("Entregados")
   })

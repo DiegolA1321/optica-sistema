@@ -29,3 +29,13 @@ describe("resultadoDeCita", () => {
     expect(r.at(-1).texto).toContain("Montura Ray-Ban")
   })
 })
+
+describe("recetaEnLinea", () => {
+  it("OI primero, con el eje como × y sin nombrar un ojo vacío", async () => {
+    const { recetaEnLinea } = await import("./resultadoDeCita")
+    const k = { od: { esfera: "0.25", cilindro: "-0.75", eje: "10" }, oi: { esfera: "0.25", cilindro: "-1.00", eje: "170" } }
+    expect(recetaEnLinea(k)).toBe("OI +0.25 −1.00 × 170 · OD +0.25 −0.75 × 10")
+    expect(recetaEnLinea({ od: { esfera: "-1.25" }, oi: {} })).toBe("OD −1.25")
+    expect(recetaEnLinea(null)).toBe("")
+  })
+})

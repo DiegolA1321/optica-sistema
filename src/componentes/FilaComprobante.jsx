@@ -14,7 +14,7 @@ const TONO = { pagada: "verde", saldo: "ambar", anulada: "gris" }
 
 // Una fila de comprobante de venta, la misma en la lista de Ventas y en el perfil del paciente (regla 18): número, fecha, paciente, total, estado
 // y si tiene factura electrónica. Una sola acción de contexto ("Abonar", si tiene saldo); todo lo demás está en el detalle, que abre al pulsar la fila.
-// En el perfil del paciente (sin `mostrarPaciente`) lleva además la columna «Lentes»: el estado de los lentes de esa compra (En proceso, Listos, Entregados), o un guion si la compra no los tiene.
+// En el perfil del paciente (sin `mostrarPaciente`) lleva además la columna «Lentes»: el estado de los lentes de esa compra (En el laboratorio, Listos, Entregados), o un guion si la compra no los tiene.
 const TONO_LENTES = { proceso: "ambar", listos: "azul", entregados: "verde" }
 export default function FilaComprobante({ factura: f, abonos = [], paciente = null, mostrarPaciente = false, puedeEditar = false, onAbonar, onAbrir, onVerPaciente, lentes = null }) {
   const estado = estadoDeComprobante(f, abonos)

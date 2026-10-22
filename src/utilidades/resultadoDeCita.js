@@ -24,3 +24,11 @@ export function resultadoDeCita({ cita, consulta = null, facturas = [], estilo =
   if (productos.length) lineas.push({ clave: "compra", etiqueta: simple ? "Lo que compraste" : "Compró", texto: [...new Set(productos)].join(", ") })
   return lineas
 }
+
+// La receta de una consulta en una línea para el perfil del personal, en el orden en que se ven los ojos (OI a la izquierda, OD a la derecha): «OI +0.25 −1.00 × 170 · OD +0.25 −0.75 × 10».
+// Un ojo sin esfera, cilindro ni eje no se nombra. Sin ningún dato, "".
+const enLinea = (o = {}) => [valorD(o.esfera) || "", valorD(o.cilindro), o.eje ? `× ${o.eje}` : ""].filter(Boolean).join(" ")
+export function recetaEnLinea(consulta) {
+  if (!consulta || !recetasDe([consulta]).length) return ""
+  return [["OI", consulta.oi], ["OD", consulta.od]].map(([n, o]) => { const t = enLinea(o); return t ? `${n} ${t}` : "" }).filter(Boolean).join(" · ")
+}
