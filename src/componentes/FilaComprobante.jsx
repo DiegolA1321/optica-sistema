@@ -14,7 +14,9 @@ const TONO = { pagada: "verde", saldo: "ambar", anulada: "gris" }
 
 // Una fila de comprobante de venta, la misma en la lista de Ventas y en el perfil del paciente (regla 18): número, fecha, paciente, total, estado
 // y si tiene factura electrónica. Una sola acción de contexto ("Abonar", si tiene saldo); todo lo demás está en el detalle, que abre al pulsar la fila.
-export default function FilaComprobante({ factura: f, abonos = [], paciente = null, mostrarPaciente = false, puedeEditar = false, onAbonar, onAbrir, onVerPaciente }) {
+// En el perfil del paciente (sin `mostrarPaciente`) lleva además la columna «Lentes»: el estado de los lentes de esa compra (En proceso, Listos, Entregados), o un guion si la compra no los tiene.
+const TONO_LENTES = { proceso: "ambar", listos: "azul", entregados: "verde" }
+export default function FilaComprobante({ factura: f, abonos = [], paciente = null, mostrarPaciente = false, puedeEditar = false, onAbonar, onAbrir, onVerPaciente, lentes = null }) {
   const estado = estadoDeComprobante(f, abonos)
   const anulada = estado.id === "anulada"
   return (
@@ -30,6 +32,11 @@ export default function FilaComprobante({ factura: f, abonos = [], paciente = nu
       )}
       <p data-col="monto" className={"font-mono text-sm lg:text-right " + (anulada ? "text-slate-400 line-through" : "font-semibold text-slate-800")}>{dinero(f.montoTotal)}</p>
       <div data-col="estado" className="min-w-0"><Insignia tono={TONO[estado.id]}>{estado.id === "saldo" ? `Con saldo ${dinero(estado.saldo)}` : estado.etiqueta}</Insignia></div>
+      {!mostrarPaciente && (
+        <div data-col="lentes" className="min-w-0">
+          {lentes && !anulada ? <Insignia tono={TONO_LENTES[lentes.id]}>{lentes.etiqueta}</Insignia> : <span className="text-sm text-slate-400" aria-label="Sin lentes">—</span>}
+        </div>
+      )}
       <p className="min-w-0 truncate text-sm" title={f.facturaElectronica || undefined}>
         {anulada ? <span className="text-slate-400">—</span> : f.facturaElectronica
           ? <span className="inline-flex items-center gap-1 text-slate-600"><Check size={14} className="text-emerald-600" aria-hidden="true" /> Con factura electrónica</span>

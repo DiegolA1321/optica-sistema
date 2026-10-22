@@ -131,3 +131,20 @@ describe("número del comprobante en las dos copias (R36)", () => {
     expect(armarHtmlOrdenLaboratorio({ opticaNombre: "V", paciente: {}, orden: orden({ observaciones: "Biselar con cuidado" }) })).toContain("Biselar con cuidado")
   })
 })
+
+import { estadoLentesDeCompra } from "./ordenesLaboratorio"
+describe("estado de los lentes de una compra", () => {
+  const o = (estado, facturaId = "f1") => ({ facturaId, estado })
+  it("sin orden no hay lentes", () => { expect(estadoLentesDeCompra("f1", [o("enviada", "f2")])).toBeNull() })
+  it("enviada es «En proceso»; lista, «Listos»; entregada, «Entregados»", () => {
+    expect(estadoLentesDeCompra("f1", [o("enviada")]).etiqueta).toBe("En proceso")
+    expect(estadoLentesDeCompra("f1", [o("lista")]).etiqueta).toBe("Listos")
+    expect(estadoLentesDeCompra("f1", [o("entregada")]).etiqueta).toBe("Entregados")
+  })
+  it("con varias órdenes manda la que falta, y las canceladas no cuentan", () => {
+    expect(estadoLentesDeCompra("f1", [o("entregada"), o("lista")]).id).toBe("listos")
+    expect(estadoLentesDeCompra("f1", [o("lista"), o("enviada")]).id).toBe("proceso")
+    expect(estadoLentesDeCompra("f1", [o("cancelada")])).toBeNull()
+    expect(estadoLentesDeCompra("f1", [o("cancelada"), o("entregada")]).id).toBe("entregados")
+  })
+})

@@ -99,6 +99,7 @@ import { saldoFactura, saldoPacienteFacturas } from "../utilidades/abonos"
 import FilaComprobante from "../componentes/FilaComprobante"
 import DetalleComprobante from "../componentes/ventas/DetalleComprobante"
 import { ContenedorLista, EncabezadoLista } from "../componentes/ventas/Lista"
+import { estadoLentesDeCompra } from "../utilidades/ordenesLaboratorio"
 import { COLUMNAS_COMPROBANTES_PERFIL, ENCABEZADO_COMPROBANTES_PERFIL } from "../componentes/ventas/estilos"
 import ModalesVentas from "../componentes/ModalesVentas"
 import { useVentas } from "../utilidades/useVentas"
@@ -2106,20 +2107,6 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                       {totalComprasCount > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{totalComprasCount}</span>}
                       {deudaTotal > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "pagos" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>${deudaTotal.toFixed(0)}</span>}
                     </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      id="tab-ordenes"
-                      aria-selected={tabHistorial === "ordenes"}
-                      aria-controls="panel-paciente"
-                      onClick={() => setTabHistorial("ordenes")}
-                      className={"flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold transition cursor-pointer " + (tabHistorial === "ordenes" ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700")}
-                      style={tabHistorial === "ordenes" ? { background: GRAD } : undefined}
-                    >
-                      <FlaskConical size={14} /> Órdenes de laboratorio
-                      {ordenesPaciente.length > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{ordenesPaciente.length}</span>}
-                      {ordenesPaciente.some((o) => o.estado === "lista" && !o.pacienteAvisadoEn) && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (tabHistorial === "ordenes" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700")}>Avisar</span>}
-                    </button>
                   </div>
 
                   {/* key={tabHistorial}: remonta el panel en cada cambio de
@@ -2174,18 +2161,21 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                             <Wallet size={16} className="shrink-0 text-amber-600" aria-hidden="true" /> Saldo pendiente de ventas: {dinero(deudaTotal)}
                           </p>
                         )}
-                        {/* Para las ventas sin receta (un líquido, un estuche...). La venta de la receta sale solo de la alerta "Listo para venta". */}
-                        {puedeVender && <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-xs text-slate-500">Venta sin receta: productos y servicios, con pago directo, tarjeta o cuotas.</p>
-                          <button
-                            type="button"
-                            onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
-                            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
-                            style={{ background: GRAD }}
-                          >
-                            <Receipt size={14} aria-hidden="true" /> Nueva venta
-                          </button>
-                        </div>}
+                        <section aria-label="Compras del paciente" className="space-y-3 rounded-2xl border border-slate-200/60 bg-white p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h3 className="flex items-center gap-1.5 text-sm font-bold" style={{ color: INK }}><Receipt size={15} aria-hidden="true" /> Compras <span className="font-normal text-slate-500">· {totalComprasCount}{comprobantesAnulados > 0 ? ` · ${comprobantesAnulados} anulada${comprobantesAnulados === 1 ? "" : "s"}` : ""}</span></h3>
+                            {puedeVender && (
+                              <button
+                                type="button"
+                                title="Venta sin receta o con ella: productos y servicios, con pago directo, tarjeta o cuotas"
+                                onClick={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
+                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
+                                style={{ background: GRAD }}
+                              >
+                                <Receipt size={14} aria-hidden="true" /> Nueva venta
+                              </button>
+                            )}
+                          </div>
                         {sinMontos ? (
                           <ComprasBasicas lista={basicas} cargando={comprasBasicas.id !== pacienteHistorial.id} />
                         ) : comprobantesPaciente.length === 0 ? (
@@ -2201,12 +2191,12 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                             )}
                           </div>
                         ) : (
-                          <section aria-label="Compras del paciente">
-                            <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500"><Receipt size={13} /> Compras <span className="font-normal normal-case text-slate-400">· {totalComprasCount}{comprobantesAnulados > 0 ? ` · ${comprobantesAnulados} anulada${comprobantesAnulados === 1 ? "" : "s"}` : ""}</span></h3>
+                          <div>
                             <ContenedorLista etiqueta="Compras del paciente" encabezado={<EncabezadoLista plantilla={COLUMNAS_COMPROBANTES_PERFIL} etiquetas={ENCABEZADO_COMPROBANTES_PERFIL} />}>
                               {comprobantesPaciente.map((c) => c.factura ? (
                                 <FilaComprobante
                                   key={c.clave} factura={c.factura} abonos={abonos}
+                                  lentes={estadoLentesDeCompra(c.factura.id, ordenesLab)}
                                   puedeEditar={puedeEditarVentas}
                                   onAbrir={(fac) => setDetalleFacturaId(fac.id)}
                                   onAbonar={(fac) => setAbonoPara({ factura: fac, paciente: pacienteHistorial })}
@@ -2248,47 +2238,10 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                                 )
                               })())}
                             </ContenedorLista>
-                          </section>
+                          </div>
                         )}
+                        </section>
                       </div>
-                    ) : tabHistorial === "ordenes" ? (
-                      <OrdenesLaboratorio
-                        accion={puedeVender && comprobantesPaciente.some((c) => c.factura && c.factura.estado !== "anulada") ? (
-                          <button
-                            type="button"
-                            title="Un pedido al laboratorio sale de una venta del paciente (lleva su montura y su luna)"
-                            onClick={() => {
-                              const ventas = comprobantesPaciente.filter((c) => c.factura && c.factura.estado !== "anulada")
-                              if (ventas.length === 1) setOrdenParaVenta({ factura: ventas[0].factura, paciente: pacienteHistorial })
-                              else setElegirVentaOrden(true)
-                            }}
-                            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
-                            style={{ background: GRAD }}
-                          >
-                            <FlaskConical size={14} aria-hidden="true" /> Enviar a laboratorio
-                          </button>
-                        ) : null}
-                        accionVacio={puedeVender && (() => {
-                          const pase = pases.find((p) => p.pacienteId === pacienteHistorial.id && p.estado === "listo")
-                          return pase ? (
-                            <button type="button" onClick={() => ventasApi.tomarDatos({ pase, paciente: pacienteHistorial, consulta: (pase.consultaId ? consultas.find((k) => k.id === pase.consultaId) : consultasPaciente[0]) || null })} className="mt-1 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
-                              <ShoppingBag size={14} aria-hidden="true" /> Vender la receta
-                            </button>
-                          ) : null
-                        })()}
-                        ordenes={ordenesLab}
-                        setOrdenes={setOrdenesLab}
-                        pacientes={pacientes}
-                        equipo={equipo}
-                        usuario={usuario}
-                        pacienteFijo={pacienteHistorial}
-                        filtroInicial="todas"
-                        facturas={facturasVenta}
-                        abonos={abonos}
-                        onAbonar={(factura, paciente) => setAbonoPara({ factura, paciente })}
-                        filtroInicial="todas"
-                        onAviso={mostrarNotif}
-                      />
                     ) : null}
                   </div>
                 </>
@@ -2623,8 +2576,6 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
     setDesde(fechaAISO(f))
     setHasta(hoyISO())
   }
-  const proxima = pendientes[0]
-  const otras = pendientes.slice(1)
   // El historial, como una tabla: Fecha | Motivo y profesional | Diagnóstico | Receta emitida (OD y OI) | Compra relacionada | Estado | flecha. Toda la fila abre el detalle de la cita.
   // En pantalla angosta las columnas se apilan, cada dato con su rótulo.
   const COLUMNAS = "@[40rem]:grid-cols-[6.5rem_minmax(9.5rem,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_6.75rem_1rem]"
@@ -2647,38 +2598,6 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
       </li>
     )
   }
-  const fila = (c, conIngresar) => (
-    <li
-      key={c.id}
-      className={"flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 " + (!conIngresar && consultaDe(c) ? "-mx-2 cursor-pointer rounded-lg px-2 transition-colors hover:bg-slate-50" : "")}
-      onClick={!conIngresar && consultaDe(c) ? () => setCitaAbierta(c) : undefined}
-    >
-      <div className="w-40 shrink-0">
-        <p className="text-sm font-semibold text-slate-800">{fechaLegible(c.fecha) || "Sin fecha"}</p>
-        <p className="text-xs text-slate-500">{c.hora}</p>
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-slate-600">{c.motivo || "Consulta general"}</p>
-        {/* Lo que salió de la cita (en el espacio libre de la fila): el diagnóstico, la receta emitida y lo que compró */}
-        {!conIngresar && c.estado === "Atendida" && (
-          <ul aria-label="Lo que salió de la cita" className="mt-0.5 space-y-0.5 text-xs text-slate-500">
-            {resultadoDeCita({ cita: c, consulta: consultaDe(c), facturas }).map((l) => <li key={l.clave} className="leading-snug"><span className="font-semibold text-slate-600">{l.etiqueta}:</span> {l.texto}</li>)}
-          </ul>
-        )}
-      </div>
-      <BadgeEstadoCita estado={c.estado} />
-      {!conIngresar && consultaDe(c) && (
-        <button type="button" onClick={(e) => { e.stopPropagation(); setCitaAbierta(c) }} aria-haspopup="dialog" aria-label={"Ver la atención del " + (fechaLegible(c.fecha) || "")} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">
-          Ver atención <ChevronRight size={14} aria-hidden="true" />
-        </button>
-      )}
-      {conIngresar && onIngresar && puedeIngresarCita(c) && (
-        <button type="button" onClick={() => onIngresar(c)} className="flex items-center gap-1.5 rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
-          <Stethoscope size={13} aria-hidden="true" /> {c.estado === "En Atención" ? "Seguir atendiendo" : "Atender"}
-        </button>
-      )}
-    </li>
-  )
   return (
     <div className="space-y-5">
       {/* Dos bloques lado a lado: los conteos (cada uno abre su lista) y la tendencia de sus citas; debajo, el historial. */}
@@ -2783,7 +2702,9 @@ function PanelCitasPaciente({ citas, consultas = [], facturas = [], equipo = [],
 // La pestaña que pide una URL (`?tab=`): una de las cinco o, si no existe o no se puede ver (Graduación pide Ficha clínica), el Resumen.
 function pestanaDePerfil(tab, puedeVerFichas) {
   const id = tab === "compras" ? "pagos" : tab
-  if (!["resumen", "citas", "graduacion", "pagos", "ordenes"].includes(id)) return "resumen"
+  // «ordenes» era la pestaña de órdenes de laboratorio (se quitó: el estado de los lentes está en cada compra): los enlaces viejos llevan a Compras.
+  if (id === "ordenes") return "pagos"
+  if (!["resumen", "citas", "graduacion", "pagos"].includes(id)) return "resumen"
   return id === "graduacion" && !puedeVerFichas ? "resumen" : id
 }
 
