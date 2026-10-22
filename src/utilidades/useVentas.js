@@ -14,7 +14,7 @@ import { numeroComprobante } from "./comprobantes"
 // Pacientes.jsx. El estado de datos (comprobantes, pases, órdenes, abonos) sigue en Dashboard/App
 // y llega como props: este hook solo guarda qué modal está abierto y qué hacer al terminar cada uno.
 export function useVentas({
-  usuario, parametrizacion, pacientes = [], consultas = [], pases = [], setPases, setOrdenesLab,
+  usuario, parametrizacion, setPases, setOrdenesLab,
   facturasVenta = [], setFacturasVenta, abonos = [], ventas = [], setInventario, notificar, avisarError,
 }) {
   const [ventaCola, setVentaCola] = useState(null) // { pase, paciente, consulta }

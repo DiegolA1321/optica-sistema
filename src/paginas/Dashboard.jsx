@@ -236,9 +236,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // pantalla, como "Dejar de atender". Se apaga solo.
   const [aviso, setAviso] = useState(null)
   const timeoutAviso = useRef(null)
-  // Una orden de laboratorio creada o corregida desde cualquier pantalla avisa aquí (micro-feedback).
+  // Un pedido de lentes creado o corregido desde cualquier pantalla avisa aquí (micro-feedback).
   useEffect(() => {
-    const alGuardar = (e) => mostrarAviso(`Orden ${numeroOrden(e.detail.numero)} guardada.`)
+    const alGuardar = (e) => mostrarAviso(`Pedido de lentes ${numeroOrden(e.detail.numero)} guardado.`)
     window.addEventListener(EVENTO_ORDEN, alGuardar)
     return () => window.removeEventListener(EVENTO_ORDEN, alGuardar)
   }, [])

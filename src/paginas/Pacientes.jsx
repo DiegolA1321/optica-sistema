@@ -1357,13 +1357,13 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
                                   <Calendar size={11} /> Cita hoy
                                 </span>
                               )}
-                              {idsListosParaVenta.has(paciente.id) && (puedeVerVentas && setVista ? (
-                                <button type="button" onClick={(e) => { e.stopPropagation(); setVista("ventas") }} title="Ir a la cola de Ventas" className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 cursor-pointer">
-                                  <ShoppingCart size={11} /> Listo para venta
+                              {idsListosParaVenta.has(paciente.id) && (puede(usuario, "crm", "ver") && setVista ? (
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setVista("crm") }} title="Recibió su diagnóstico y no ha comprado: verlo en «Para contactar» del CRM" className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 cursor-pointer">
+                                  <ShoppingCart size={11} /> Por vender
                                 </button>
                               ) : (
                                 <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                                  <ShoppingCart size={11} /> Listo para venta
+                                  <ShoppingCart size={11} /> Por vender
                                 </span>
                               ))}
                               {sinAgendarPorPaciente.has(paciente.id) && (
@@ -1948,7 +1948,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
               const cobrosDelPaciente = sinMontos ? [] : cobrosPendientes(consultasPaciente, facturasVenta, citas)
               const avisosPerfil = [
                 citaEnAtencion && { id: "atencion", tono: "azul", texto: `Cita en atención · ${fechaReciente(citaEnAtencion.fecha) || "sin fecha"} · ${citaEnAtencion.hora}${diasAtencionAbierta(citaEnAtencion) !== null ? " · " + textoAtencionAbierta(diasAtencionAbierta(citaEnAtencion)) : ""}` },
-                paseListo && { id: "pase", tono: "verde", texto: `Listo para venta · desde ${fechaLegible(paseListo.pasadaEn)}`, accion: puedeVender ? { etiqueta: "Tomar datos", onClick: () => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null }) } : null },
+                paseListo && { id: "pase", tono: "verde", texto: `Recibió su diagnóstico y no ha comprado · desde ${fechaLegible(paseListo.pasadaEn)}`, accion: puedeVender ? { etiqueta: "Vender la receta", onClick: () => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null }) } : null },
                 antecedentesAlerta.length > 0 && { id: "antecedentes", tono: "ambar", texto: `Antecedentes importantes: ${textoAntecedentes(antecedentesAlerta)}`, accion: { etiqueta: "Ver", onClick: () => setVerHistoriaClinica(true) } },
                 alertaControl && {
                   id: "control",

@@ -78,3 +78,7 @@ export function productoExistente(productos = [], nombre, excluirId = null) {
   if (!clave) return null
   return productos.find((p) => p.id !== excluirId && sinTildes(p.nombre) === clave) || null
 }
+
+// Mientras la base de datos no tenga la columna del máximo propio (migración 0141), guardarlo falla: se dice con palabras del usuario y se sugiere usar el general (que no necesita nada).
+export const esErrorDeMaximoNoDisponible = (error) => /stock_maximo/i.test(String(error?.message || error?.details || ""))
+export const MENSAJE_MAXIMO_NO_DISPONIBLE = "El stock máximo propio todavía no está disponible en esta óptica. Déjalo vacío para usar el general (Configuración → Inventario)."

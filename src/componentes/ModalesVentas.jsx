@@ -24,7 +24,7 @@ export default function ModalesVentas({ v, usuario, parametrizacion, inventario,
           setCategorias={setCategoriasInventario}
           pacienteFijo={v.ventaCola.paciente}
           titulo={`Venta de ${v.ventaCola.paciente.nombre}`}
-          subtitulo="Listo para venta: toma los datos, arma la proforma o registra la venta."
+          subtitulo="Recibió su diagnóstico: arma la proforma o registra la venta."
           etiquetaGuardar="Registrar venta"
           lineasIniciales={lineasProformaDeConsulta(v.ventaCola.consulta, parametrizacion)}
           consultaId={v.ventaCola.pase.consultaId}

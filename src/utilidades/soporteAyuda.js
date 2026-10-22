@@ -27,9 +27,9 @@ export const AYUDA_POR_MODULO = [
   {
     modulo: "ventas", nombre: "Ventas",
     preguntas: [
-      { p: "¿Cómo hago una venta?", r: "Pulsa «Nueva venta» o, en «Por vender», elige al paciente con una receta lista. Agrega las líneas (montura, lunas, servicios), elige la forma de pago y confirma. Puedes dividir el pago y poner descuentos por línea." },
-      { p: "¿Qué hay en cada pestaña de Ventas?", r: "Por vender: pacientes con receta que aún no compraron. Comprobantes: las ventas hechas. Órdenes de laboratorio: los lentes que se mandan a hacer. Cobros y saldos: lo que falta cobrar." },
-      { p: "¿Cómo registro, corrijo o anulo un abono?", r: "Abre el comprobante o el saldo y registra el abono. Para corregirlo o anularlo se pide un motivo; un abono anulado no se borra: queda marcado, con quién lo anuló, y deja de contar." },
+      { p: "¿Cómo hago una venta?", r: "Pulsa «Nueva venta» y elige al paciente: si ya tiene un diagnóstico, «Usar como guía» lleva el tipo de luna y sus filtros a la venta. Agrega las líneas (montura, lunas, servicios), escribe cuánto paga hoy y con qué (puedes dividir el pago) y confirma. Lo que no pague hoy queda como saldo. Si hay lunas, se crea el pedido de lentes con su laboratorio." },
+      { p: "¿Qué hay en cada pestaña de Ventas?", r: "Ventas: lo vendido, lo cobrado, lo que falta por cobrar, los pagos por verificar y los lentes en el laboratorio (cada dato filtra la lista). Pedidos de lentes: los lentes que se mandan a hacer, con su laboratorio y su fecha prometida. Los pacientes que recibieron su diagnóstico y no han comprado están en «Para contactar» del CRM." },
+      { p: "¿Cómo registro, corrijo o anulo un abono?", r: "Abre la venta y pulsa «Registrar abono». Para corregirlo o anularlo se pide un motivo; un abono anulado no se borra: queda marcado, con quién lo anuló, y deja de contar." },
       { p: "¿Cómo guardo la factura electrónica?", r: "El sistema no emite la factura: guarda la que la óptica emite por fuera. En el comprobante registra la clave de acceso y sube el PDF y el XML. Después puedes descargarla, imprimir el RIDE o enviarla al paciente por WhatsApp (el enlace vence en 7 días)." },
       { p: "¿Cómo anulo una venta?", r: "Desde el detalle del comprobante, con el permiso de eliminar en Ventas. Se pide el motivo de la anulación y la venta queda anulada, sin borrarse." },
     ],

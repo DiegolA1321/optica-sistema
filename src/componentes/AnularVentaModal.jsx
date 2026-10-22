@@ -62,7 +62,7 @@ export default function AnularVentaModal({ factura, paciente, abonos, ordenesAbi
         )}
         <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600">
           <li>El stock de los productos de esta venta se repone.</li>
-          {ordenesAbiertas > 0 && <li>{ordenesAbiertas === 1 ? "Su orden de laboratorio sin entregar se cancela" : `Sus ${ordenesAbiertas} órdenes de laboratorio sin entregar se cancelan`}.</li>}
+          {ordenesAbiertas > 0 && <li>{ordenesAbiertas === 1 ? "Su pedido de lentes sin entregar se cancela" : `Sus ${ordenesAbiertas} pedidos de lentes sin entregar se cancelan`}.</li>}
           <li>La venta queda en el historial como anulada; no se puede deshacer.</li>
         </ul>
         <label className="block"><span className="mb-1 block text-xs font-semibold text-slate-600">Motivo *</span>

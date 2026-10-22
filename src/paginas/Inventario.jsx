@@ -4,7 +4,7 @@ import { dinero } from "../utilidades/formatoMoneda"
 import { esDeEsteMes } from "../utilidades/inicio"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { Package, Plus, Archive, AlertTriangle, ChevronUp, ChevronDown, ArrowUpDown, Printer, Undo2 } from "lucide-react"
-import { UMBRAL_STOCK_BAJO, UMBRAL_STOCK_MAXIMO, estadoDeStock, minimoDe, maximoDe, proporcionDeStock } from "../utilidades/inventario"
+import { UMBRAL_STOCK_BAJO, UMBRAL_STOCK_MAXIMO, estadoDeStock, minimoDe, maximoDe, proporcionDeStock, esErrorDeMaximoNoDisponible, MENSAJE_MAXIMO_NO_DISPONIBLE } from "../utilidades/inventario"
 import { valorInventario, CATEGORIA_MONTURA, etiquetaMovimiento, monturasSinVender } from "../utilidades/inventarioKardex"
 import { htmlHojaConteo } from "../utilidades/conteoImpresion"
 import { imprimirHtml } from "../utilidades/proforma"
@@ -36,6 +36,7 @@ const COLUMNAS = "lg:grid-cols-[minmax(0,2fr)_minmax(6rem,0.8fr)_minmax(12rem,2f
 // El mensaje de un error de una función de la base: lo que ella misma explica ("No hay tantas unidades…") se muestra tal cual; lo demás, genérico.
 const mensajeDeError = (error, generico) => {
   if (esErrorSinPermiso(error)) return MENSAJE_SIN_PERMISO
+  if (esErrorDeMaximoNoDisponible(error)) return MENSAJE_MAXIMO_NO_DISPONIBLE
   if (error?.code === "P0001" && error.message) return error.message
   return generico
 }

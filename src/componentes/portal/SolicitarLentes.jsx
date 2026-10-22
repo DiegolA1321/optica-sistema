@@ -9,7 +9,7 @@ import { Insignia } from "./piezas"
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, ESTILO_PRINCIPAL } from "./estilos"
 
 // «Solicitar lentes nuevos» (Mis compras): el paciente avisa a la óptica qué le interesa. No es un carrito: elige UNA opción, puede dejar un comentario y la solicitud le llega a quien vende
-// (en «Por vender», marcada «Desde el portal»). Aquí mismo ve en qué va: Recibida, En atención o Atendida (todo lo que ya se cerró, se haya comprado o no).
+// (en «Para contactar» del CRM, como «por vender» desde el portal). Aquí mismo ve en qué va: Recibida, En atención o Atendida (todo lo que ya se cerró, se haya comprado o no).
 export const INTERESES = [
   { id: "lentes_con_receta", nombre: "Lentes con mi receta vigente", texto: "Lentes nuevos con la graduación de tu última receta." },
   { id: "montura_nueva", nombre: "Una montura nueva", texto: "Quieres cambiar de marco para tus lentes." },

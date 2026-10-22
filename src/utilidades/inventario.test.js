@@ -104,3 +104,14 @@ describe("el producto que ya existe", () => {
     expect(productoExistente(productos, "Estuche rígido", "a")).toBeNull()
   })
 })
+
+import { esErrorDeMaximoNoDisponible, MENSAJE_MAXIMO_NO_DISPONIBLE } from "./inventario"
+describe("el máximo propio sin la columna en la base", () => {
+  it("se reconoce el error de la columna que falta y se explica sin palabras técnicas", () => {
+    expect(esErrorDeMaximoNoDisponible({ message: "Could not find the 'stock_maximo' column of 'inventario' in the schema cache" })).toBe(true)
+    expect(esErrorDeMaximoNoDisponible({ message: 'column "stock_maximo" of relation "inventario" does not exist' })).toBe(true)
+    expect(esErrorDeMaximoNoDisponible({ message: "permission denied for table inventario" })).toBe(false)
+    expect(esErrorDeMaximoNoDisponible(null)).toBe(false)
+    expect(MENSAJE_MAXIMO_NO_DISPONIBLE).toMatch(/Déjalo vacío para usar el general/)
+  })
+})

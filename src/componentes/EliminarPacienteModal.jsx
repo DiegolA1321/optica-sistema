@@ -44,7 +44,7 @@ export default function EliminarPacienteModal({ paciente, nCitas = 0, nConsultas
             <p className="mt-1 text-slate-700">
               {nCitas > 0 ? `${nCitas} cita${nCitas === 1 ? "" : "s"}, ` : "Sus citas, "}
               {nConsultas > 0 ? `${nConsultas} consulta${nConsultas === 1 ? "" : "s"} clínica${nConsultas === 1 ? "" : "s"}` : "sus consultas clínicas"}
-              {nVentas > 0 ? `, ${nVentas} venta${nVentas === 1 ? "" : "s"} con sus abonos y órdenes de laboratorio` : ", sus ventas, abonos y órdenes de laboratorio"}, para los reportes y las estadísticas. Quedan como "Paciente anonimizado".
+              {nVentas > 0 ? `, ${nVentas} venta${nVentas === 1 ? "" : "s"} con sus abonos y pedidos de lentes` : ", sus ventas, abonos y órdenes de laboratorio"}, para los reportes y las estadísticas. Quedan como "Paciente anonimizado".
             </p>
           </div>
         </div>

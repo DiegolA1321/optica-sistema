@@ -37,7 +37,7 @@ export const INICIOS_ROL = [
   { id: "general", etiqueta: "General (según los módulos del rol)", descripcion: "Muestra los bloques de los módulos que el rol puede ver." },
   { id: "optometra", etiqueta: "Optómetra", descripcion: "Su agenda de hoy, siguiente paciente y atenciones abiertas." },
   { id: "recepcion", etiqueta: "Recepción", descripcion: "Citas de hoy, sala de espera, por confirmar y atajos para agendar." },
-  { id: "ventas", etiqueta: "Ventas", descripcion: "Pacientes por vender, órdenes de laboratorio y saldos por cobrar." },
+  { id: "ventas", etiqueta: "Ventas", descripcion: "Ventas, pedidos de lentes y saldos por cobrar." },
 ]
 
 export const permisosCompletos = () => Object.fromEntries(MODULOS_PERMISO.map((m) => [m.id, [...m.niveles]]))

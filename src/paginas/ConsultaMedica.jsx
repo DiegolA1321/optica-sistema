@@ -868,12 +868,12 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   )}
                 </section>
 
-                {/* Atención terminada (R33-R34): la receta está lista; el paciente se pasa a la óptica (queda "Listo para venta") o se cobra ahí mismo. */}
+                {/* Atención terminada (R33-R34): la receta está lista; el paciente se pasa a la óptica (queda en «Para contactar» del CRM como «por vender») o se cobra ahí mismo. */}
                 {fichaGuardada && cobroEstado === "terminada" && (
                   <div role="status" className="no-print space-y-2.5 rounded-lg border border-emerald-200/60 bg-emerald-50 p-3.5">
                     <p className="flex items-center gap-1.5 text-sm font-bold text-emerald-900"><CheckCircle size={16} className="shrink-0 text-emerald-600" /> Atención terminada{citaEnAtencionId ? " · la cita quedó atendida" : ""}. La receta está lista.</p>
                     {paseDeEstaConsulta
-                      ? <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800"><ShoppingBag size={14} className="shrink-0" /> Listo para venta: quien venda verá a este paciente en su lista.</p>
+                      ? <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800"><ShoppingBag size={14} className="shrink-0" /> Pasó a la óptica: quien venda lo verá en «Para contactar» del CRM, como «por vender».</p>
                       : <p className="text-xs text-emerald-800">Si el paciente va a comprar, pásalo a la óptica o cóbralo ahora.</p>}
                     {errorPase && <p role="alert" className="text-xs font-medium text-red-700">{errorPase}</p>}
                     <div className="flex flex-wrap items-center gap-2">
