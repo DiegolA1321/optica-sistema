@@ -17,7 +17,7 @@ const base = {
     { id: "c3", fecha: hoy, hora: "11:00 AM", estado: "Atendida", paciente: "Paciente Uno", pacienteId: "p1" },
   ],
   consultas: [{ id: "k1", pacienteId: "p1", fecha: hoy, motivo: "Control" }],
-  inventario: [{ id: "i1", nombre: "Montura A", stock: 1, stockMinimo: 5, precio: 50 }, { id: "i2", nombre: "Montura B", stock: 40, stockMinimo: 5, precio: 50 }],
+  inventario: [{ id: "i1", nombre: "Montura A", stock: 1, stockMinimo: 5, precio: 50 }, { id: "i2", nombre: "Montura B", stock: 20, stockMinimo: 5, precio: 50 }],
   pases: [{ id: "s1", estado: "listo", pacienteId: "p1", consultaId: "k1", pasadaEn: new Date().toISOString(), proformaEntregadaEn: new Date().toISOString() }],
   facturasVenta: [{ id: "f1", estado: "pendiente_pago", montoTotal: 100, pacienteId: "p1" }],
   abonos: [{ id: "a1", facturaId: "f1", monto: 40 }],
@@ -213,6 +213,26 @@ describe("Inicio del administrador", () => {
     // «Ver todo» de un área con un solo tipo de aviso lleva al módulo ya filtrado, con el mismo número
     fireEvent.click(within(area("Inventario")).getByRole("button", { name: "Ver todo en Inventario" }))
     expect(stock).toEqual(["bajo", "bajo"])
+  })
+
+  it("Inventario avisa también el sobrestock (más unidades que su máximo, el general o el propio) y abre la lista con ese filtro; el máximo no esconde el stock bajo", () => {
+    const sobre = []
+    const inventario = [
+      { id: "i1", nombre: "Montura A", stock: 20, precio: 50 },
+      { id: "i2", nombre: "Líquido limpiador", stock: 38, precio: 5 },
+      { id: "i3", nombre: "Estuche", stock: 12, maximo: 10, precio: 6 }, // su máximo propio es 10
+      { id: "i4", nombre: "Cordón", stock: 2, maximo: 1, precio: 3 }, // en stock bajo: no cuenta como sobrestock
+    ]
+    render(<Inicio {...base} inventario={inventario} maximoStock={30} onVerSobrestock={() => sobre.push("sobre")} />)
+    fireEvent.click(tarj("Inventario", /productos con sobrestock/))
+    const ventana = screen.getByRole("dialog", { name: /productos con sobrestock/ })
+    expect(ventana).toHaveTextContent("Líquido limpiador")
+    expect(ventana).toHaveTextContent("Tiene 38 unidades (su máximo es 30)")
+    expect(ventana).toHaveTextContent("Tiene 12 unidades (su máximo es 10)")
+    expect(ventana).not.toHaveTextContent("Cordón")
+    fireEvent.click(within(ventana).getByRole("button", { name: "Abrir en Inventario · Sobrestock (2)" }))
+    expect(sobre).toEqual(["sobre"])
+    expect(within(area("Inventario")).getByRole("button", { name: /producto con stock bajo/ })).toBeInTheDocument()
   })
 
   it("el stock bajo sale una sola vez y su umbral viene de Configuración", () => {

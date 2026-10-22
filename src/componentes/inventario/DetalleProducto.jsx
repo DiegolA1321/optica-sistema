@@ -9,7 +9,7 @@ import { dinero } from "../../utilidades/formatoMoneda"
 import { fechaHoraLegible, fechaLegible } from "../../utilidades/formatoFecha"
 import { numeroComprobante } from "../../utilidades/comprobantes"
 import { resumenVentasProducto } from "../../utilidades/ventas"
-import { esStockBajo, minimoDe } from "../../utilidades/inventario"
+import { estadoDeStock, minimoDe, maximoDe, UMBRAL_STOCK_MAXIMO } from "../../utilidades/inventario"
 import { etiquetaMovimiento, margenDe, medidasTexto, tieneCosto } from "../../utilidades/inventarioKardex"
 import { useMovimientos } from "./useMovimientos"
 
@@ -37,7 +37,7 @@ const Columna = ({ titulo, children }) => (
 // El detalle de un producto, en la ventana estándar: todo lo que se sabe de él y todas sus acciones (la fila de la tabla solo resume).
 // Tres pestañas: Resumen (sus datos, su existencia y su precio), Movimientos (el kárdex) y Ventas (lo que se ha vendido).
 export default function DetalleProducto({
-  producto, umbralStock, usuarioPuede, veVentas = true, ventas = [], facturasVenta = [], pacientes = [], versionMovimientos = 0, pestana, onPestana, sinAnimarFondo = false,
+  producto, umbralStock, maximoStock = UMBRAL_STOCK_MAXIMO, usuarioPuede, veVentas = true, ventas = [], facturasVenta = [], pacientes = [], versionMovimientos = 0, pestana, onPestana, sinAnimarFondo = false,
   onIngreso, onAjustar, onEditar, onDescontinuar, onReactivar, onVerPerfil, onCerrar,
 }) {
   const { movimientos, cargando, error, hayMas, recargar } = useMovimientos(producto.id, versionMovimientos)
@@ -46,7 +46,9 @@ export default function DetalleProducto({
   const nombrePaciente = (id) => pacientes.find((p) => p.id === id)?.nombre || "Paciente"
   const editar = usuarioPuede("editar")
   const stock = Number(producto.stock) || 0
-  const bajo = esStockBajo(producto, umbralStock)
+  const estadoStock = estadoDeStock(producto, umbralStock, maximoStock)
+  const bajo = estadoStock === "bajo"
+  const sobre = estadoStock === "sobre"
   const margen = margenDe(producto)
   const descontinuado = producto.activo === false
   const medidas = medidasTexto(producto)
@@ -105,8 +107,10 @@ export default function DetalleProducto({
             <Dato etiqueta="Unidades">
               <span className="font-serif text-2xl leading-none tabular-nums">{stock}</span> u.
               {bajo && <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700"><AlertTriangle size={12} aria-hidden="true" /> Stock bajo</span>}
+              {sobre && <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700"><AlertTriangle size={12} aria-hidden="true" /> Sobrestock</span>}
             </Dato>
-            <Dato etiqueta="Alerta desde">{minimoDe(producto, umbralStock)} u.</Dato>
+            <Dato etiqueta="Stock mínimo">{minimoDe(producto, umbralStock)} u.{producto.critico === null || producto.critico === undefined || producto.critico === "" ? <span className="font-normal text-slate-500"> (el general)</span> : null}</Dato>
+            <Dato etiqueta="Stock máximo">{maximoDe(producto, maximoStock)} u.{producto.maximo === null || producto.maximo === undefined || producto.maximo === "" ? <span className="font-normal text-slate-500"> (el general)</span> : null}</Dato>
             <Dato etiqueta="Vale en existencia (a precio)">{dinero(stock * (Number(producto.precio) || 0))}</Dato>
             {editar && tieneCosto(producto) && <Dato etiqueta="Vale en existencia (a costo)">{dinero(stock * Number(producto.costo))}</Dato>}
           </Columna>

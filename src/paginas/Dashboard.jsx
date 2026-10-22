@@ -54,7 +54,7 @@ const Reportes = lazyConReintento(() => import("./Reportes"), "Reportes")
 const Usuarios = lazyConReintento(() => import("./Usuarios"), "Usuarios")
 const Configuracion = lazyConReintento(() => import("./Configuracion"), "Configuracion")
 const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
-import { umbralStock } from "../utilidades/inventario"
+import { umbralStock, umbralMaximo } from "../utilidades/inventario"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
 import { supabase } from "../lib/supabaseClient"
@@ -287,6 +287,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [abrirCrearProductoAlEntrar, setAbrirCrearProductoAlEntrar] = useState(false)
   const [productoIdParaReabastecer, setProductoIdParaReabastecer] = useState(null)
   const [verStockBajoAlEntrar, setVerStockBajoAlEntrar] = useState(false)
+  const [verSobrestockAlEntrar, setVerSobrestockAlEntrar] = useState(false)
   const [verNuevosAlEntrar, setVerNuevosAlEntrar] = useState(false)
   const [fichaClinicaPacienteInicial, setFichaClinicaPacienteInicial] = useState(null)
   const [fichaClinicaMotivoInicial, setFichaClinicaMotivoInicial] = useState(null)
@@ -663,6 +664,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             avisosDelModulo={extra.overlaySolo ? null : renderSeccion("inicio", { soloAvisosDe: "inventario" })}
             usuario={usuario}
             umbralStock={umbralStock(parametrizacion)}
+            maximoStock={umbralMaximo(parametrizacion)}
             cargaInicial={cargaInicialStaff}
             inventario={inventario}
             setInventario={setInventario}
@@ -678,6 +680,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             productoIdParaReabastecer={productoIdParaReabastecer}
             onProductoParaReabastecerConsumido={() => setProductoIdParaReabastecer(null)}
             verStockBajoAlEntrar={verStockBajoAlEntrar}
+            verSobrestockAlEntrar={verSobrestockAlEntrar}
+            onVerSobrestockConsumido={() => setVerSobrestockAlEntrar(false)}
             onVerStockBajoConsumido={() => setVerStockBajoAlEntrar(false)}
             verNuevosAlEntrar={verNuevosAlEntrar}
             onVerNuevosConsumido={() => setVerNuevosAlEntrar(false)}
@@ -769,6 +773,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             setPacientes={setPacientes}
             onVerPacientes={(filtro) => { setAccionPacienteInicio({ accion: "filtrar", ...filtro }); navegar("pacientes") }}
             umbralStock={umbralStock(parametrizacion)}
+            maximoStock={umbralMaximo(parametrizacion)}
             equipo={equipo}
             setCitas={setCitas}
             onAviso={mostrarAviso}
@@ -805,6 +810,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onVerOrdenes={(filtro) => { setAccionVentasInicio({ tab: "pedidos", filtro }); navegar("ventas") }}
             onVerSaldos={(dato = "porcobrar") => { setAccionVentasInicio({ tab: "ventas", dato, periodo: "todo" }); navegar("ventas") }}
             onVerStockBajo={() => { setVerStockBajoAlEntrar(true); navegar("inventario") }}
+            onVerSobrestock={() => { setVerSobrestockAlEntrar(true); navegar("inventario") }}
             onVerPerfilPaciente={(pacienteId, tab) => { setAccionPacienteInicio({ pacienteId, accion: "historial", ...(tab ? { tab } : {}) }); navegar("pacientes") }}
             onAgendarRapido={() => { setControlParaAgendar(null); setAtajoInicio("citas") }}
             onAgendarControl={(paciente, fecha, asignadoA) => { setControlParaAgendar({ pacienteId: paciente.id, fecha, asignadoA }); setAtajoInicio("citas") }}

@@ -203,29 +203,3 @@ export function monturasSinVender({ productos = [], facturas = [], movimientos =
   return filas.sort((a, b) => (a.ultimaVenta || "") .localeCompare(b.ultimaVenta || "") || b.valor - a.valor)
 }
 
-// ─── Conteo físico ───
-// Las diferencias entre lo contado y lo que dice el sistema. `contados`: { [productoId]: texto o número }. Lo que no se escribió no se cuenta.
-export function diferenciasConteo(productos = [], contados = {}) {
-  const filas = []
-  for (const p of productos) {
-    const crudo = contados[p.id]
-    if (crudo === undefined || crudo === null || String(crudo).trim() === "") continue
-    const contado = Number(crudo)
-    const valido = Number.isInteger(contado) && contado >= 0
-    const esperado = Number(p.stock) || 0
-    filas.push({ producto: p, esperado, contado: valido ? contado : null, diferencia: valido ? contado - esperado : null, valido })
-  }
-  return filas
-}
-export const resumenConteo = (filas) => {
-  const validas = filas.filter((x) => x.valido)
-  const conDiferencia = validas.filter((x) => x.diferencia !== 0)
-  return {
-    contados: filas.length, invalidos: filas.length - validas.length, iguales: validas.length - conDiferencia.length, conDiferencia,
-    sobrantes: conDiferencia.filter((x) => x.diferencia > 0).reduce((s, x) => s + x.diferencia, 0),
-    faltantes: conDiferencia.filter((x) => x.diferencia < 0).reduce((s, x) => s - x.diferencia, 0),
-    // Lo que valen las diferencias: a precio de venta y, si los productos tienen costo, a costo (null si ninguno lo tiene).
-    valorPrecio: redondear(conDiferencia.reduce((s, x) => s + x.diferencia * (Number(x.producto.precio) || 0), 0)),
-    valorCosto: conDiferencia.some((x) => tieneCosto(x.producto)) ? redondear(conDiferencia.filter((x) => tieneCosto(x.producto)).reduce((s, x) => s + x.diferencia * Number(x.producto.costo), 0)) : null,
-  }
-}

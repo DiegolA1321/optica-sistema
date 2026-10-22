@@ -33,7 +33,7 @@ import { citasPorReasignar } from "../utilidades/reasignacion"
 import { miembrosActivos } from "../utilidades/equipo"
 import ReasignarCitasModal from "../componentes/ReasignarCitasModal"
 import { parseFechaFlexible } from "../utilidades/disponibilidad"
-import { esStockBajo, UMBRAL_STOCK_BAJO } from "../utilidades/inventario"
+import { esStockBajo, esSobrestock, maximoDe, UMBRAL_STOCK_BAJO, UMBRAL_STOCK_MAXIMO } from "../utilidades/inventario"
 import { supabase } from "../lib/supabaseClient"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
@@ -65,6 +65,7 @@ export default function Inicio({
   onVerPacientes,
   setPacientes,
   umbralStock = UMBRAL_STOCK_BAJO,
+  maximoStock = UMBRAL_STOCK_MAXIMO,
   setVista,
   onVerCrm, // abre el CRM con un motivo: { filtro }
   paraContactar, // la lista "Para contactar" del CRM ({ filas }), o null mientras carga; sin ella (pruebas) se calcula sin contactos
@@ -97,6 +98,7 @@ export default function Inicio({
   onVerOrdenes,
   onVerSaldos,
   onVerStockBajo,
+  onVerSobrestock,
   vista = null,
   avisosContacto = [],
   onAtenderAvisoContacto,
@@ -169,6 +171,8 @@ export default function Inicio({
   // Solo los productos activos: los descontinuados no cuentan (el Inventario tampoco los cuenta ni los lista), así los números coinciden.
   const productosActivos = useMemo(() => inventario.filter((p) => p.activo !== false), [inventario])
   const productosBajoStock = useMemo(() => productosActivos.filter((p) => esStockBajo(p, umbralStock)).sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0)), [productosActivos, umbralStock])
+  // Sobrestock: más unidades que su máximo (el general de Configuración → Inventario o el propio); el que más se pasa, primero. Solo avisa: el máximo no limita nada.
+  const productosSobrestock = useMemo(() => productosActivos.filter((p) => esSobrestock(p, maximoStock, umbralStock)).sort((a, b) => ((Number(b.stock) || 0) - maximoDe(b, maximoStock)) - ((Number(a.stock) || 0) - maximoDe(a, maximoStock))), [productosActivos, maximoStock, umbralStock])
 
   // Para "Mi agenda" (vista del optómetra, D4): pacientes en atención ahora
   // mismo (no acotado a hoy, mismo criterio sin fecha que ya usa el badge de
@@ -827,6 +831,22 @@ export default function Inicio({
           accion: puedeV("inventario", "editar") ? { etiqueta: "Reabastecer", navega: true, onClick: () => (onReabastecerProducto ? onReabastecerProducto(p.id) : setVista?.("inventario")) } : null,
         })),
         ...dStock.extra,
+      })
+    }
+    // Sobrestock: «tienes bastante de esto». Sin acción de reabastecer (sobra): abre la lista de Inventario con el filtro «Sobrestock».
+    const dSobre = incStock && productosSobrestock.length > 0 ? descarteDe("inventario:sobrestock", productosSobrestock, (p) => p.id, (p) => p.nombre) : null
+    if (dSobre?.hay) {
+      const n = dSobre.visibles.length
+      poner("inventario", {
+        id: "sobrestock", cantidad: n, corto: "con sobrestock",
+        texto: uno(n, "producto con sobrestock", "productos con sobrestock"),
+        enlace: { texto: `Abrir en Inventario · Sobrestock (${dSobre.total})`, onClick: () => (onVerSobrestock ? onVerSobrestock() : setVista?.("inventario")) },
+        casos: dSobre.visibles.map((p) => ({
+          id: p.id, nombre: p.nombre,
+          detalle: `Tiene ${p.stock} ${Number(p.stock) === 1 ? "unidad" : "unidades"} (su máximo es ${maximoDe(p, maximoStock)})`,
+          accion: { etiqueta: "Ver", navega: true, onClick: () => (onVerSobrestock ? onVerSobrestock() : setVista?.("inventario")) },
+        })),
+        ...dSobre.extra,
       })
     }
     return filas

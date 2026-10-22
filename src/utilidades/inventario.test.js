@@ -38,3 +38,69 @@ describe("umbralStock", () => {
     expect(umbralStock({ stockMinimo: -3 })).toBe(10)
   })
 })
+
+import { UMBRAL_STOCK_MAXIMO, umbralMaximo, maximoDe, esSobrestock, estadoDeStock, proporcionDeStock, avisoDeSobrestock, productoExistente } from "./inventario"
+
+describe("stock máximo y sobrestock", () => {
+  it("el máximo general sale de la parametrización y, sin guardar o con un valor inválido, es el de siempre", () => {
+    expect(umbralMaximo({ stockMaximo: 50 })).toBe(50)
+    expect(umbralMaximo({ stockMaximo: "40" })).toBe(40)
+    for (const malo of [undefined, {}, { stockMaximo: 0 }, { stockMaximo: -3 }, { stockMaximo: "abc" }, { stockMaximo: null }]) expect(umbralMaximo(malo)).toBe(UMBRAL_STOCK_MAXIMO)
+  })
+  it("cada producto usa el general («usar el general») o el suyo", () => {
+    expect(maximoDe({ stock: 5 }, 30)).toBe(30)
+    expect(maximoDe({ stock: 5, maximo: null }, 30)).toBe(30)
+    expect(maximoDe({ stock: 5, maximo: "" }, 30)).toBe(30)
+    expect(maximoDe({ stock: 5, maximo: 20 }, 30)).toBe(20)
+    expect(maximoDe({ stock: 5, maximo: 0 }, 30)).toBe(30)
+  })
+  it("sobrestock es tener más que el máximo; tener justo el máximo no lo es, y el máximo no limita nada", () => {
+    expect(esSobrestock({ stock: 31 }, 30, 5)).toBe(true)
+    expect(esSobrestock({ stock: 30 }, 30, 5)).toBe(false)
+    expect(esSobrestock({ stock: 38, maximo: 50 }, 30, 5)).toBe(false) // su máximo propio manda
+    expect(esSobrestock({ stock: 25, maximo: 20 }, 30, 5)).toBe(true)
+  })
+  it("un producto en stock bajo nunca está en sobrestock", () => {
+    expect(esSobrestock({ stock: 4, critico: 5, maximo: 3 }, 30, 10)).toBe(false)
+    expect(estadoDeStock({ stock: 4, critico: 5, maximo: 3 }, 10, 30)).toBe("bajo")
+  })
+  it("el estado es bajo, sobre o normal, con el mínimo y el máximo generales o propios", () => {
+    expect(estadoDeStock({ stock: 4, critico: 5 }, 10, 30)).toBe("bajo")
+    expect(estadoDeStock({ stock: 38 }, 5, 30)).toBe("sobre")
+    expect(estadoDeStock({ stock: 17 }, 5, 30)).toBe("normal")
+    expect(estadoDeStock({ stock: 10 }, 10, 30)).toBe("bajo") // el mínimo general entra
+  })
+  it("la barrita llena la proporción del máximo y nunca pasa del 100 %", () => {
+    expect(proporcionDeStock({ stock: 15 }, 30)).toBe(0.5)
+    expect(proporcionDeStock({ stock: 38 }, 30)).toBe(1)
+    expect(proporcionDeStock({ stock: 0 }, 30)).toBe(0)
+    expect(proporcionDeStock({ stock: 10, maximo: 20 }, 30)).toBe(0.5)
+  })
+})
+
+describe("el aviso de un ingreso que pasa del máximo", () => {
+  it("dice con cuánto quedarías y cuánto pasa del máximo, sin bloquear", () => {
+    expect(avisoDeSobrestock({ existencia: 38, ingreso: 20, maximo: 30 })).toBe("Quedarías con 58 u., casi el doble de tu máximo (30). Puedes registrarlo igual.")
+    expect(avisoDeSobrestock({ existencia: 20, ingreso: 15, maximo: 30 })).toBe("Quedarías con 35 u., más de tu máximo (30). Puedes registrarlo igual.")
+    expect(avisoDeSobrestock({ existencia: 30, ingreso: 40, maximo: 30 })).toBe("Quedarías con 70 u., más del doble de tu máximo (30). Puedes registrarlo igual.")
+  })
+  it("sin aviso si no pasa del máximo, si no hay ingreso o si no hay máximo", () => {
+    expect(avisoDeSobrestock({ existencia: 10, ingreso: 20, maximo: 30 })).toBe("") // queda justo en el máximo
+    expect(avisoDeSobrestock({ existencia: 38, ingreso: 0, maximo: 30 })).toBe("")
+    expect(avisoDeSobrestock({ existencia: 38, ingreso: "", maximo: 30 })).toBe("")
+    expect(avisoDeSobrestock({ existencia: 1, ingreso: 99, maximo: undefined })).toBe("")
+  })
+})
+
+describe("el producto que ya existe", () => {
+  const productos = [{ id: "a", nombre: "Estuche rígido", activo: false }, { id: "b", nombre: "Líquido limpiador 60 ml", activo: true }]
+  it("se encuentra sin importar mayúsculas, tildes ni espacios, activo o descontinuado", () => {
+    expect(productoExistente(productos, "  ESTUCHE   rigido ")?.id).toBe("a")
+    expect(productoExistente(productos, "liquido limpiador 60 ML")?.id).toBe("b")
+  })
+  it("un nombre nuevo o vacío no choca, y al editar un producto no choca consigo mismo", () => {
+    expect(productoExistente(productos, "Cordón para gafas")).toBeNull()
+    expect(productoExistente(productos, "   ")).toBeNull()
+    expect(productoExistente(productos, "Estuche rígido", "a")).toBeNull()
+  })
+})

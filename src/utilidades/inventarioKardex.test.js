@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   margenDe, valorInventario, medidasTexto, existenciaEn, valorACostoEn, inicioDelKardex, lineasDeProducto, margenDeLoVendido, rotacion,
-  masVendidas, monturasSinVender, diferenciasConteo, resumenConteo, cambioDeMovimiento, etiquetaMovimiento,
+  masVendidas, monturasSinVender, cambioDeMovimiento, etiquetaMovimiento,
 } from "./inventarioKardex"
 
 const prod = (id, extra = {}) => ({ id, nombre: `Producto ${id}`, categoria: "Monturas", stock: 10, precio: 100, costo: 40, activo: true, creadoEn: "2026-01-05T15:00:00Z", ...extra })
@@ -203,38 +203,5 @@ describe("monturas sin venderse", () => {
     const ms = [mov("x", -2, "2026-10-13T15:00:00Z")]
     expect(monturasSinVender({ productos: [p], facturas: [], movimientos: ms, fechaISO: "2026-10-01" })).toHaveLength(1)
     expect(monturasSinVender({ productos: [p], facturas: [], movimientos: ms, fechaISO: hoy })).toHaveLength(0)
-  })
-})
-
-describe("conteo físico", () => {
-  const productos = [prod("a", { stock: 10 }), prod("b", { stock: 5 }), prod("c", { stock: 3 }), prod("d", { stock: 0 })]
-  it("compara lo contado con lo que dice el sistema y deja fuera lo que no se contó", () => {
-    const f = diferenciasConteo(productos, { a: "8", b: "5", c: "" })
-    expect(f.map((x) => [x.producto.id, x.esperado, x.contado, x.diferencia])).toEqual([["a", 10, 8, -2], ["b", 5, 5, 0]])
-  })
-  it("un 0 contado cuenta (no es lo mismo que no haber contado)", () => {
-    const f = diferenciasConteo(productos, { c: "0" })
-    expect(f).toHaveLength(1)
-    expect(f[0].diferencia).toBe(-3)
-  })
-  it("lo que no es un número entero de 0 o más queda como no válido", () => {
-    const f = diferenciasConteo(productos, { a: "-1", b: "2.5", c: "abc" })
-    expect(f.every((x) => !x.valido && x.diferencia === null)).toBe(true)
-  })
-  it("el resumen separa sobrantes, faltantes e iguales", () => {
-    const r = resumenConteo(diferenciasConteo(productos, { a: "8", b: "5", c: "7", d: "x" }))
-    expect(r.contados).toBe(4)
-    expect(r.iguales).toBe(1)
-    expect(r.conDiferencia).toHaveLength(2)
-    expect(r.sobrantes).toBe(4)
-    expect(r.faltantes).toBe(2)
-    expect(r.invalidos).toBe(1)
-  })
-  it("el valor de las diferencias sale del precio y, si hay costo, del costo", () => {
-    const ps = [prod("a", { stock: 10, precio: 100, costo: 40 }), prod("b", { stock: 5, precio: 20, costo: undefined }), prod("c", { stock: 3, precio: 50, costo: 10 })]
-    const r = resumenConteo(diferenciasConteo(ps, { a: "8", b: "6", c: "3" }))
-    expect(r.valorPrecio).toBe(-200 + 20)
-    expect(r.valorCosto).toBe(-80) // b no tiene costo y no suma
-    expect(resumenConteo(diferenciasConteo([prod("b", { stock: 5, costo: undefined })], { b: "6" })).valorCosto).toBeNull()
   })
 })

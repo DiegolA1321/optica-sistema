@@ -1,14 +1,17 @@
 import React, { useState } from "react"
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, within, waitFor } from "@testing-library/react"
 
 // Sin base de datos: la pantalla trabaja en memoria (las pruebas nunca tocan una base real aunque haya un .env.local).
 vi.mock("../lib/supabaseClient", () => ({ supabase: null }))
+// Imprimir abre la ventana de impresión: aquí solo se comprueba lo que se mandaría imprimir.
+vi.mock("../utilidades/proforma", async (original) => ({ ...(await original()), imprimirHtml: vi.fn() }))
+import { imprimirHtml } from "../utilidades/proforma"
 import Inventario from "./Inventario"
 
 const admin = { id: "u1", rol: "admin", nombre: "Ana", opticaId: "o1" }
 const soloVer = { id: "u2", rol: "asistente", nombre: "Vera", opticaId: "o1", permisosNivel: { inventario: ["ver"], ventas: ["ver"] } }
-// Quien ve el inventario pero no Ventas (el Optómetra): el servidor no le entrega comprobantes, así que no hay "Sin venderse" ni pestaña Ventas.
+// Quien ve el inventario pero no Ventas (el Optómetra): el servidor no le entrega comprobantes, así que no hay "Sin vender" ni pestaña Ventas.
 const sinVentas = { id: "u3", rol: "asistente", nombre: "Paula", opticaId: "o1", permisosNivel: { inventario: ["ver"] } }
 const ahora = new Date().toISOString()
 const producto = (id, nombre, stock, extra = {}) => ({ id, nombre, categoria: "Monturas", stock, precio: 10, creadoEn: ahora, activo: true, ...extra })
@@ -16,16 +19,24 @@ const producto = (id, nombre, stock, extra = {}) => ({ id, nombre, categoria: "M
 // La pantalla con su estado, como la monta el sistema.
 function Con({ inicial, usuario = admin, ...props }) {
   const [inv, setInv] = useState(inicial)
-  return <Inventario usuario={usuario} inventario={inv} setInventario={setInv} categorias={["Monturas", "Accesorios"]} {...props} />
+  return <Inventario usuario={usuario} inventario={inv} setInventario={setInv} categorias={["Monturas", "Accesorios"]} umbralStock={10} maximoStock={30} {...props} />
 }
 const filaDe = (nombre) => screen.getByRole("button", { name: `Ver el detalle de ${nombre}` })
+const dato = (nombre) => within(screen.getByRole("list", { name: "Resumen del inventario" })).getByRole("button", { name: new RegExp("^" + nombre) })
+const lista = () => screen.getByRole("list", { name: /^Productos (activos|descontinuados)$/ })
+const filas = () => within(lista()).getAllByRole("listitem")
+const fila = (nombre) => filas().find((li) => li.textContent.includes(nombre))
+const pildora = (nombre) => within(screen.getByRole("group", { name: "Filtrar el inventario" })).getByRole("button", { name: nombre })
 
-describe("Inventario", () => {
-  it("se llama 'Inventario', sus ítems son 'productos' y el botón es 'Agregar producto'", () => {
-    render(<Con inicial={[producto("a", "Montura 1", 5)]} />)
+beforeEach(() => { imprimirHtml.mockClear() })
+
+describe("Inventario — estructura", () => {
+  it("se llama 'Inventario', sus ítems son 'productos', el botón es 'Agregar producto' y hay dos pestañas con su número", () => {
+    render(<Con inicial={[producto("a", "Montura 1", 5), producto("b", "Vieja", 3, { activo: false })]} />)
     expect(screen.getByRole("heading", { level: 1, name: "Inventario" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Agregar producto/ })).toBeInTheDocument()
-    expect(screen.getByText("Valor del inventario")).toBeInTheDocument()
+    expect(screen.getAllByRole("tab").map((t) => t.textContent.replace(/\s+/g, " ").trim())).toEqual(["Activos1", "Descontinuados1"])
+    expect(screen.getByRole("tab", { name: /^Activos/ })).toHaveAttribute("aria-selected", "true")
     expect(document.body.textContent).not.toMatch(/bodega/i)
   })
 
@@ -33,235 +44,323 @@ describe("Inventario", () => {
     render(<Con inicial={[producto("a", "Montura 1", 5)]} />)
     expect(document.body.textContent).toMatch(/Montura/)
     expect(document.body.textContent).not.toMatch(/armaz[oó]n|armazones/i)
-    expect(screen.getByText(/Existencias de monturas y accesorios/)).toBeInTheDocument()
   })
 
-  it("sin productos no ofrece filtros y dice que no hay productos en el inventario", () => {
+  it("sin productos dice que no hay y ofrece agregar el primero", () => {
     render(<Con inicial={[]} />)
-    expect(screen.queryByRole("button", { name: /Nuevos este mes/ })).not.toBeInTheDocument()
-    expect(screen.getByText("No hay productos en el inventario.")).toBeInTheDocument()
+    expect(screen.getByText("No hay productos en el inventario")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Agregar el primero" })).toBeInTheDocument()
-  })
-
-  it("todos los filtros muestran su número, y el número es lo que lista", () => {
-    render(<Con inicial={[producto("a", "Montura 1", 5), producto("b", "Montura 2", 8), producto("c", "Estuche", 20, { categoria: "Accesorios" })]} />)
-    const filtros = screen.getByRole("group", { name: "Filtros" })
-    expect(within(filtros).getByRole("button", { name: "Todas (3)" })).toBeInTheDocument()
-    expect(within(filtros).getByRole("button", { name: "Monturas (2)" })).toBeInTheDocument()
-    expect(within(filtros).getByRole("button", { name: "Accesorios (1)" })).toBeInTheDocument()
-    expect(within(filtros).getByRole("button", { name: "Nuevos este mes (3)" })).toBeInTheDocument()
-    fireEvent.click(within(filtros).getByRole("button", { name: "Monturas (2)" }))
-    expect(screen.getByText("Mostrando 2 de 2")).toBeInTheDocument()
-    fireEvent.click(within(filtros).getByRole("button", { name: "Accesorios (1)" }))
-    expect(screen.getByText("Mostrando 1 de 1")).toBeInTheDocument()
-  })
-
-  it("los números de los filtros siguen a la búsqueda", () => {
-    render(<Con inicial={[producto("a", "Montura roja", 5), producto("b", "Montura negra", 8), producto("c", "Estuche rojo", 20, { categoria: "Accesorios" })]} />)
-    fireEvent.change(screen.getByRole("textbox", { name: "Buscar producto" }), { target: { value: "rojo" } })
-    const filtros = screen.getByRole("group", { name: "Filtros" })
-    expect(within(filtros).getByRole("button", { name: "Todas (1)" })).toBeInTheDocument()
-    expect(within(filtros).getByRole("button", { name: "Monturas (0)" })).toBeInTheDocument()
-    expect(within(filtros).getByRole("button", { name: "Accesorios (1)" })).toBeInTheDocument()
-  })
-
-  it("busca también por código, marca y color", () => {
-    render(<Con inicial={[producto("a", "Montura 1", 5, { codigo: "RB-3025", marca: "Ray" }), producto("b", "Montura 2", 8, { color: "Carey" })]} />)
-    const caja = screen.getByRole("textbox", { name: "Buscar producto" })
-    fireEvent.change(caja, { target: { value: "rb-3025" } })
-    expect(screen.getByText("Mostrando 1 de 1")).toBeInTheDocument()
-    fireEvent.change(caja, { target: { value: "carey" } })
-    expect(screen.getByText("Mostrando 1 de 1")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Imprimir hoja de conteo/ })).not.toBeInTheDocument()
   })
 })
 
-describe("Inventario: las tarjetas de arriba se comportan igual", () => {
+describe("Inventario — la franja de datos", () => {
   const vieja = "2026-01-05T15:00:00Z"
   const datos = [
     producto("a", "Montura 1", 5, { costo: 4, precio: 10, creadoEn: vieja }), producto("b", "Montura 2", 50, { precio: 20 }),
     producto("c", "Estuche", 30, { categoria: "Accesorios", precio: 2, costo: 1 }), producto("d", "Vieja", 7, { activo: false }),
   ]
-  const tarjeta = (nombre) => screen.getByRole("button", { name: new RegExp("^" + nombre + ": ") })
 
-  it("son cuatro (Productos, Unidades, Valor y Sin venderse en 90 días); todas se pulsan y su número cuenta solo los productos activos", () => {
-    render(<Con inicial={datos} umbralStock={10} />)
-    expect(tarjeta("Productos")).toHaveAccessibleName(/Productos: 3\./)
-    expect(tarjeta("Unidades en stock")).toHaveAccessibleName(/Unidades en stock: 85\./)
-    expect(tarjeta("Valor del inventario")).toHaveAccessibleName(/Valor del inventario: \$1,110\.00/)
-    expect(tarjeta("Sin venderse en 90 días")).toHaveAccessibleName(/Sin venderse en 90 días: 1\. \$50\.00 parados/) // Montura 1: 5 × $10, vieja y nunca vendida
-    expect(screen.queryByRole("button", { name: /^Stock bajo: / })).not.toBeInTheDocument() // el stock bajo vive solo en "Requieren atención"
-    for (const b of screen.getAllByRole("button", { name: /^(Productos|Unidades en stock|Valor del inventario|Sin venderse en 90 días): / })) expect(b).toHaveAttribute("aria-pressed", "false") // ninguna queda seleccionada
+  it("trae los cinco datos: productos activos con sus unidades, valor, stock bajo, sobrestock y sin vender en 90 días", () => {
+    render(<Con inicial={datos} />)
+    const franja = screen.getByRole("list", { name: "Resumen del inventario" })
+    const botones = within(franja).getAllByRole("button")
+    expect(botones.map((b) => b.querySelector("span").textContent.trim())).toEqual(["Productos activos", "Valor del inventario", "Stock bajo", "Sobrestock", "Sin vender en 90 días"])
+    expect(botones[0]).toHaveTextContent("385 unidades")
+    expect(botones[1]).toHaveTextContent("$1,110.00a precio de venta · $50.00 a costo")
+    expect(botones[2]).toHaveTextContent("Stock bajo1bajo su mínimo")
+    expect(botones[3]).toHaveTextContent("Sobrestock1sobre su máximo")
+    expect(botones[4]).toHaveTextContent("Sin vender en 90 días1$50.00 parados")
   })
 
-  it("las cuatro abren una ventana estándar con su desglose; ninguna filtra la tabla por sí sola", () => {
-    render(<Con inicial={datos} umbralStock={10} />)
-    for (const [nombre, titulo] of [["Productos", "Productos"], ["Unidades en stock", "Unidades en stock"], ["Valor del inventario", "Valor del inventario"], ["Sin venderse en 90 días", "Sin venderse en 90 días"]]) {
-      fireEvent.click(tarjeta(nombre))
-      expect(screen.getByRole("dialog", { name: titulo })).toBeInTheDocument()
-      fireEvent.keyDown(document, { key: "Escape" })
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
-      expect(screen.getByText("Mostrando 3 de 3")).toBeInTheDocument()
-    }
+  it("cada dato cuenta los mismos productos que filtra la lista", () => {
+    render(<Con inicial={datos} />)
+    fireEvent.click(dato("Stock bajo"))
+    expect(filas()).toHaveLength(1)
+    expect(fila("Montura 1")).toBeTruthy()
+    expect(dato("Stock bajo")).toHaveAttribute("aria-pressed", "true")
+    fireEvent.click(dato("Stock bajo")) // un clic más lo quita
+    expect(filas()).toHaveLength(3)
+    fireEvent.click(dato("Sobrestock"))
+    expect(filas()).toHaveLength(1)
+    expect(fila("Montura 2")).toBeTruthy() // 50 u. con máximo 30
+    fireEvent.click(dato("Productos activos"))
+    expect(filas()).toHaveLength(3)
   })
 
-  it("'Productos' desglosa por categoría, nuevos este mes y descontinuados, y cada fila lleva a la tabla filtrada", () => {
-    render(<Con inicial={datos} umbralStock={10} />)
-    fireEvent.click(tarjeta("Productos"))
-    const ventana = screen.getByRole("dialog", { name: "Productos" })
-    expect(within(ventana).getByRole("row", { name: /Monturas\s*2/ })).toBeInTheDocument()
-    expect(within(ventana).getByRole("row", { name: /Accesorios\s*1/ })).toBeInTheDocument()
-    expect(within(ventana).getByRole("row", { name: /Nuevos este mes\s*2/ })).toBeInTheDocument() // Montura 2 y Estuche; Montura 1 es vieja
-    expect(within(ventana).getByRole("row", { name: /Descontinuados\s*1/ })).toBeInTheDocument()
-    fireEvent.click(within(ventana).getByRole("button", { name: "Ver los productos descontinuados en la tabla" }))
+  it("«Sin vender en 90 días» filtra con su filtro a la vista y fácil de quitar", () => {
+    render(<Con inicial={datos} />)
+    fireEvent.click(dato("Sin vender en 90 días"))
+    expect(filas()).toHaveLength(1)
+    expect(fila("Montura 1")).toBeTruthy() // vieja y nunca vendida
+    expect(screen.getByRole("status")).toHaveTextContent("Sin vender en 90 días")
+    fireEvent.click(screen.getByRole("button", { name: "Quitar el filtro Sin vender en 90 días" }))
+    expect(filas()).toHaveLength(3)
+  })
+
+  it("«Valor del inventario» abre su desglose, con el costo solo para quien puede editar", () => {
+    render(<Con inicial={datos} />)
+    fireEvent.click(dato("Valor del inventario"))
+    expect(screen.getByRole("dialog", { name: "Valor del inventario" })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: "Escape" })
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
-    expect(screen.getByText("Mostrando 1 de 1")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Ver el detalle de Vieja" })).toBeInTheDocument()
-  })
-
-  it("'Sin venderse en 90 días' lista las monturas y lo que representan en dinero, y 'Ver' abre el producto", () => {
-    render(<Con inicial={datos} umbralStock={10} />)
-    fireEvent.click(tarjeta("Sin venderse en 90 días"))
-    const ventana = screen.getByRole("dialog", { name: "Sin venderse en 90 días" })
-    expect(within(ventana).getByText("Parado a precio de venta")).toBeInTheDocument()
-    expect(within(ventana).getAllByText("$50.00").length).toBeGreaterThan(0)
-    expect(within(ventana).getByText("Parado a costo")).toBeInTheDocument() // Montura 1 tiene costo y quien edita lo ve
-    expect(within(ventana).getByRole("row", { name: /Montura 1.*Nunca/ })).toBeInTheDocument()
-    fireEvent.click(within(ventana).getByRole("button", { name: "Ver Montura 1" }))
-    expect(screen.getByRole("dialog", { name: "Producto Montura 1" })).toBeInTheDocument()
-  })
-
-  it("sin monturas paradas lo dice", () => {
-    render(<Con inicial={[producto("a", "Montura 1", 5)]} />)
-    expect(tarjeta("Sin venderse en 90 días")).toHaveAccessibleName(/Sin venderse en 90 días: 0\. Todo se está moviendo/)
-    fireEvent.click(tarjeta("Sin venderse en 90 días"))
-    expect(screen.getByText(/Ninguna montura lleva 90 días sin venderse/)).toBeInTheDocument()
-  })
-
-  it("'Unidades en stock' y 'Valor del inventario' siguen desglosando por categoría, y cada fila lleva a la tabla filtrada", () => {
-    render(<Con inicial={datos} umbralStock={10} />)
-    fireEvent.click(tarjeta("Unidades en stock"))
-    const ventana = screen.getByRole("dialog", { name: "Unidades en stock" })
-    expect(within(ventana).getByText("55")).toBeInTheDocument() // 5 + 50
-    fireEvent.click(within(ventana).getByRole("button", { name: "Ver los productos de Accesorios en la tabla" }))
-    expect(screen.getByText("Mostrando 1 de 1")).toBeInTheDocument()
-  })
-
-  it("el stock bajo no es una tarjeta: llega desde 'Requieren atención' y se ve como una etiqueta con su 'x'", () => {
-    render(<Con inicial={datos} umbralStock={10} verStockBajoAlEntrar />)
-    expect(screen.getByText("Mostrando 1 de 1")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Quitar el filtro Stock bajo" }))
-    expect(screen.queryByRole("button", { name: "Quitar el filtro Stock bajo" })).not.toBeInTheDocument()
-    expect(screen.getByText("Mostrando 3 de 3")).toBeInTheDocument()
-  })
-
-  it("el valor del inventario dice que es a precio de venta y, si hay costo, lo muestra también a costo", () => {
-    render(<Con inicial={datos} umbralStock={10} />)
-    expect(tarjeta("Valor del inventario")).toHaveAccessibleName(/a precio de venta · \$.* a costo/)
-    expect(tarjeta("Valor del inventario")).toHaveAccessibleName(/\$50\.00 a costo/) // 5×4 + 30×1 (Montura 2 no tiene costo y no suma)
   })
 
   it("sin ningún costo solo dice 'a precio de venta'", () => {
     render(<Con inicial={[producto("a", "Montura 1", 5)]} />)
-    expect(tarjeta("Valor del inventario")).toHaveAccessibleName(/a precio de venta$/)
+    expect(dato("Valor del inventario")).toHaveTextContent(/a precio de venta$/)
   })
 
-  it("quien no tiene Ventas no ve la tarjeta Sin venderse (no tiene con qué calcularla)", () => {
-    render(<Con inicial={datos} usuario={sinVentas} umbralStock={10} />)
-    expect(screen.queryByRole("button", { name: /^Sin venderse en 90 días/ })).not.toBeInTheDocument()
-    expect(tarjeta("Valor del inventario")).toBeInTheDocument()
+  it("quien no tiene Ventas no ve «Sin vender» (no tiene con qué calcularlo)", () => {
+    render(<Con inicial={datos} usuario={sinVentas} />)
+    expect(screen.queryByRole("button", { name: /^Sin vender en 90 días/ })).not.toBeInTheDocument()
+    expect(dato("Valor del inventario")).toBeInTheDocument()
   })
 
   it("quien solo puede ver no ve el costo en ninguna parte", () => {
-    render(<Con inicial={datos} usuario={soloVer} umbralStock={10} />)
-    expect(tarjeta("Valor del inventario").getAttribute("aria-label")).not.toMatch(/costo/)
-    fireEvent.click(tarjeta("Valor del inventario"))
-    expect(within(screen.getByRole("dialog")).queryByText("A costo")).not.toBeInTheDocument()
-    fireEvent.keyDown(document, { key: "Escape" })
-    fireEvent.click(tarjeta("Sin venderse en 90 días"))
-    expect(within(screen.getByRole("dialog")).queryByText("Parado a costo")).not.toBeInTheDocument()
+    render(<Con inicial={datos} usuario={soloVer} />)
+    expect(dato("Valor del inventario")).not.toHaveTextContent(/costo/)
+    expect(screen.queryByRole("button", { name: /Imprimir hoja de conteo/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /Agregar producto/ })).not.toBeInTheDocument()
   })
 
-  it("las tarjetas con ⓘ explican su definición y las cuatro tienen el mismo estilo de ícono (el color solo es para un estado)", () => {
-    const { container } = render(<Con inicial={datos} umbralStock={10} />)
-    expect(screen.getAllByRole("button", { name: /^Qué es / })).toHaveLength(4)
-    const baldosas = [...container.querySelectorAll("div.grid.h-11.w-11.rounded-xl")]
-    expect(baldosas).toHaveLength(4)
-    expect(baldosas.filter((b) => b.className.includes("bg-slate-100"))).toHaveLength(3)
-    expect(baldosas.filter((b) => b.className.includes("bg-amber-50"))).toHaveLength(1) // solo la de lo que no se mueve, porque hay una montura parada
+  it("los productos descontinuados no cuentan en la franja", () => {
+    render(<Con inicial={datos} />)
+    expect(dato("Productos activos")).toHaveTextContent("3")
+    expect(dato("Productos activos")).not.toHaveTextContent("92") // 85 + 7
   })
 })
 
-describe("Inventario: la fila resume y el detalle tiene las acciones", () => {
-  const inicial = [producto("a", "Montura 1", 5, { marca: "Ray", color: "Negro", costo: 4, precio: 10, calibre: 52, puente: 18, varilla: 140 })]
+describe("Inventario — la lista", () => {
+  const productos = [
+    producto("a", "Estuche rígido", 4, { categoria: "Accesorios", codigo: "EST-01", critico: 5, maximo: 30, precio: 6 }),
+    producto("b", "Líquido limpiador 60 ml", 38, { categoria: "Accesorios", codigo: "LIQ-60", precio: 4.5 }),
+    producto("c", "Montura 10, infantil flexible", 3, { codigo: "MON-10", critico: 5, maximo: 20, precio: 38 }),
+    producto("d", "Cordón para gafas", 17, { categoria: "Accesorios", codigo: "COR-01", precio: 3.5 }),
+  ]
 
-  it("la tabla tiene cuatro columnas y ningún botón de acción por fila", () => {
-    render(<Con inicial={inicial} />)
-    const tabla = screen.getByRole("table")
-    expect(within(tabla).getAllByRole("columnheader").map((c) => c.textContent.trim())).toEqual(["Producto", "Categoría", "Existencia", "Precio"])
-    expect(within(tabla).queryByRole("button", { name: /Editar|Eliminar|Vender|reporte|Desactivar/i })).not.toBeInTheDocument()
-    expect(within(tabla).getByText("Ray · Negro")).toBeInTheDocument()
+  it("cada producto trae su nombre con su código, categoría, existencia con su mínimo y su máximo, precio y estado", () => {
+    render(<Con inicial={productos} />)
+    const estuche = fila("Estuche rígido")
+    expect(estuche).toHaveTextContent("EST-01")
+    expect(estuche).toHaveTextContent("Accesorios")
+    expect(estuche).toHaveTextContent("4 u.")
+    expect(estuche).toHaveTextContent("mín 5 · máx 30")
+    expect(estuche).toHaveTextContent("$6.00")
+    expect(estuche).toHaveTextContent("Stock bajo")
+    expect(fila("Líquido")).toHaveTextContent("mín 10 · máx 30") // el mínimo general (10) y el máximo general (30)
+    expect(fila("Líquido")).toHaveTextContent("Sobrestock")
+    expect(fila("Montura 10")).toHaveTextContent("mín 5 · máx 20")
+    expect(fila("Cordón")).not.toHaveTextContent(/Stock bajo|Sobrestock/)
   })
 
-  it("al hacer clic en la fila se abre el detalle en la ventana estándar, con todas las acciones y sin 'Eliminar'", () => {
-    render(<Con inicial={inicial} />)
-    fireEvent.click(screen.getByRole("row", { name: /Montura 1/ }))
+  it("cada producto lleva su barrita de color: rojo si está bajo, ámbar si sobra y verde si está en orden", () => {
+    render(<Con inicial={productos} />)
+    const barra = (nombre) => fila(nombre).querySelector('[aria-hidden="true"] > div')
+    expect(barra("Estuche rígido").style.background).toBe("rgb(220, 38, 38)")
+    expect(barra("Líquido").style.background).toBe("rgb(180, 83, 9)")
+    expect(barra("Cordón").style.background).toBe("rgb(22, 163, 74)")
+    expect(barra("Líquido").style.width).toBe("100%") // el máximo no limita, pero la barra no pasa de llena
+    expect(barra("Cordón").style.width).toBe("57%") // 17 de 30
+  })
+
+  it("las píldoras filtran: Todos, cada categoría, Stock bajo y Sobrestock", () => {
+    render(<Con inicial={productos} />)
+    const grupo = screen.getByRole("group", { name: "Filtrar el inventario" })
+    expect(within(grupo).getAllByRole("button").map((b) => b.textContent)).toEqual(["Todos", "Monturas", "Accesorios", "Stock bajo", "Sobrestock"])
+    expect(pildora("Todos")).toHaveAttribute("aria-pressed", "true")
+    fireEvent.click(pildora("Monturas"))
+    expect(filas()).toHaveLength(1)
+    fireEvent.click(pildora("Accesorios"))
+    expect(filas()).toHaveLength(3)
+    fireEvent.click(pildora("Stock bajo"))
+    expect(filas()).toHaveLength(2) // el Estuche (4 u., mín 5) y la Montura 10 (3 u., mín 5)
+    fireEvent.click(pildora("Sobrestock"))
+    expect(filas()).toHaveLength(1)
+    expect(fila("Líquido")).toBeTruthy()
+    fireEvent.click(pildora("Todos"))
+    expect(filas()).toHaveLength(4)
+  })
+
+  it("busca por nombre, código, marca y color; sin resultados ofrece quitar los filtros", () => {
+    render(<Con inicial={[...productos, producto("e", "Montura 11", 8, { marca: "Ray", color: "Carey" })]} />)
+    const caja = screen.getByLabelText("Buscar producto o código")
+    fireEvent.change(caja, { target: { value: "liq-60" } })
+    expect(filas()).toHaveLength(1) // por su código
+    fireEvent.change(caja, { target: { value: "carey" } })
+    expect(filas()).toHaveLength(1)
+    fireEvent.change(caja, { target: { value: "zzz" } })
+    expect(screen.getByText("Ningún producto coincide con el filtro")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Quitar filtros" }))
+    expect(filas()).toHaveLength(5)
+  })
+
+  it("desde el aviso del Inicio llega con el filtro puesto (stock bajo, sobrestock, nuevos este mes)", () => {
+    const { unmount } = render(<Con inicial={productos} verStockBajoAlEntrar />)
+    expect(filas()).toHaveLength(2)
+    expect(pildora("Stock bajo")).toHaveAttribute("aria-pressed", "true")
+    unmount()
+    const otra = render(<Con inicial={productos} verSobrestockAlEntrar />)
+    expect(filas()).toHaveLength(1)
+    expect(pildora("Sobrestock")).toHaveAttribute("aria-pressed", "true")
+    otra.unmount()
+    render(<Con inicial={[producto("n", "Nueva", 5), producto("v", "Vieja", 5, { creadoEn: "2026-01-05T15:00:00Z" })]} verNuevosAlEntrar />)
+    expect(filas()).toHaveLength(1)
+    expect(screen.getByRole("status")).toHaveTextContent("Nuevos este mes")
+    fireEvent.click(screen.getByRole("button", { name: "Quitar el filtro Nuevos este mes" }))
+    expect(filas()).toHaveLength(2)
+  })
+
+  it("la fila se pulsa entera y abre el detalle en la ventana estándar con todas las acciones y sin 'Eliminar'", () => {
+    render(<Con inicial={[producto("a", "Montura 1", 5, { marca: "Ray", color: "Negro", costo: 4, precio: 10, calibre: 52, puente: 18, varilla: 140 })]} />)
+    expect(within(lista()).queryByRole("button", { name: /Editar|Eliminar|Vender|Desactivar|Reactivar/i })).not.toBeInTheDocument()
+    fireEvent.click(filaDe("Montura 1"))
     const ventana = screen.getByRole("dialog", { name: "Producto Montura 1" })
     for (const nombre of ["Editar", "Ajustar stock", "Registrar ingreso", "Descontinuar"]) expect(within(ventana).getByRole("button", { name: new RegExp(nombre) })).toBeInTheDocument()
     expect(within(ventana).queryByRole("button", { name: /Eliminar/ })).not.toBeInTheDocument()
     expect(within(ventana).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Resumen", "Movimientos", "Ventas (0)"])
+    expect(within(ventana).getByText("52-18-140 mm")).toBeInTheDocument()
+    expect(within(ventana).getByText(/\$6\.00 · 60%/)).toBeInTheDocument()
     fireEvent.keyDown(document, { key: "Escape" })
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
-  it("el resumen del detalle muestra las medidas, el costo y el margen (con permiso de editar)", () => {
-    render(<Con inicial={inicial} />)
+  it("el detalle dice el mínimo y el máximo del producto y si usa el general", () => {
+    render(<Con inicial={[producto("a", "Montura 1", 5, { critico: 3 })]} />)
     fireEvent.click(filaDe("Montura 1"))
     const ventana = screen.getByRole("dialog")
-    expect(within(ventana).getByText("52-18-140 mm")).toBeInTheDocument()
-    expect(within(ventana).getByText("Costo")).toBeInTheDocument()
-    expect(within(ventana).getByText(/\$6\.00 · 60%/)).toBeInTheDocument() // margen: 10 − 4
+    expect(within(ventana).getByText("Stock mínimo").closest("div")).toHaveTextContent("3 u.")
+    expect(within(ventana).getByText("Stock mínimo").closest("div")).not.toHaveTextContent("el general")
+    expect(within(ventana).getByText("Stock máximo").closest("div")).toHaveTextContent("30 u. (el general)")
   })
 
   it("quien solo puede ver abre el detalle pero no ve acciones ni costo", () => {
-    render(<Con inicial={inicial} usuario={soloVer} />)
+    render(<Con inicial={[producto("a", "Montura 1", 5, { costo: 4 })]} usuario={soloVer} />)
     fireEvent.click(filaDe("Montura 1"))
     const ventana = screen.getByRole("dialog")
     for (const nombre of ["Editar", "Ajustar stock", "Registrar ingreso", "Descontinuar"]) expect(within(ventana).queryByRole("button", { name: new RegExp(nombre) })).not.toBeInTheDocument()
     expect(within(ventana).queryByText("Costo")).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /Conteo físico/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /Agregar producto/ })).not.toBeInTheDocument()
-  })
-
-  it("la pestaña de ventas conserva el reporte del producto y la de movimientos nunca queda en blanco", () => {
-    render(<Con inicial={inicial} />)
-    fireEvent.click(filaDe("Montura 1"))
-    fireEvent.click(screen.getByRole("tab", { name: /Ventas/ }))
-    expect(screen.getByText("Todavía no se ha vendido este producto.")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("tab", { name: "Movimientos" }))
-    expect(screen.getByText("Todavía no hay movimientos de este producto.")).toBeInTheDocument()
   })
 })
 
-describe("Inventario: movimientos, descontinuar y conteo físico", () => {
-  const inicial = [producto("a", "Montura 1", 5, { proveedor: "Distribuidora X" }), producto("b", "Montura 2", 8)]
-  const existenciaEnTabla = (nombre) => within(screen.getByRole("row", { name: new RegExp(nombre) })).getByText(/ u\.$/).textContent
+describe("Inventario — descontinuados y reactivar", () => {
+  const inicial = [producto("a", "Montura 1", 5), producto("b", "Montura 2", 8), producto("c", "Estuche rígido", 4, { categoria: "Accesorios", activo: false })]
 
-  it("'Registrar ingreso' pide el motivo y suma a la existencia", async () => {
+  it("la pestaña «Descontinuados» lista solo esos, sin franja ni píldoras, y cada uno tiene «Reactivar»", () => {
+    render(<Con inicial={inicial} />)
+    fireEvent.click(screen.getByRole("tab", { name: /Descontinuados/ }))
+    expect(screen.queryByRole("list", { name: "Resumen del inventario" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("group", { name: "Filtrar el inventario" })).not.toBeInTheDocument()
+    expect(filas()).toHaveLength(1)
+    expect(filas()[0]).toHaveTextContent("Estuche rígido")
+    expect(within(filas()[0]).getByRole("button", { name: "Reactivar Estuche rígido" })).toBeInTheDocument()
+  })
+
+  it("reactivar confirma con su aviso, el producto vuelve a Activos y, si era el último, la lista vuelve sola a Activos", async () => {
+    render(<Con inicial={inicial} />)
+    fireEvent.click(screen.getByRole("tab", { name: /Descontinuados/ }))
+    fireEvent.click(screen.getByRole("button", { name: "Reactivar Estuche rígido" }))
+    expect(await screen.findByText(/"Estuche rígido" reactivado/)).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: /^Activos/ })).toHaveAttribute("aria-selected", "true")
+    expect(filas()).toHaveLength(3)
+    expect(screen.getByRole("tab", { name: /Descontinuados/ })).toHaveTextContent("0")
+  })
+
+  it("sin descontinuados dice qué pasa y qué hacer", () => {
+    render(<Con inicial={[producto("a", "Montura 1", 5)]} />)
+    fireEvent.click(screen.getByRole("tab", { name: /Descontinuados/ }))
+    expect(screen.getByText("No hay productos descontinuados")).toBeInTheDocument()
+  })
+
+  it("quien no puede editar ve «Descontinuado» pero no puede reactivar", () => {
+    render(<Con inicial={inicial} usuario={soloVer} />)
+    fireEvent.click(screen.getByRole("tab", { name: /Descontinuados/ }))
+    expect(screen.queryByRole("button", { name: /Reactivar/ })).not.toBeInTheDocument()
+    expect(filas()[0]).toHaveTextContent("Descontinuado")
+  })
+
+  it("descontinuar pide confirmación, conserva el producto y se puede reactivar; no hay forma de eliminar", async () => {
+    render(<Con inicial={inicial} />)
+    fireEvent.click(filaDe("Montura 1"))
+    fireEvent.click(screen.getByRole("button", { name: /Descontinuar/ }))
+    const ventana = screen.getByRole("dialog", { name: "Descontinuar producto" })
+    expect(within(ventana).getByText(/Los productos no se eliminan/)).toBeInTheDocument()
+    fireEvent.click(within(ventana).getByRole("button", { name: "Descontinuar" }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+    expect(filas()).toHaveLength(1)
+    expect(screen.getByRole("tab", { name: /Descontinuados/ })).toHaveTextContent("2")
+    fireEvent.click(screen.getByRole("tab", { name: /Descontinuados/ }))
+    expect(fila("Montura 1")).toHaveTextContent("5 u.")
+    fireEvent.click(filaDe("Montura 1"))
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /Reactivar/ }))
+    expect(await screen.findByText(/"Montura 1" reactivado/)).toBeInTheDocument()
+  })
+})
+
+describe("Inventario — la hoja de conteo", () => {
+  const inicial = [producto("a", "Montura 1", 5, { codigo: "M-1" }), producto("b", "Montura 2", 8), producto("c", "Vieja", 2, { activo: false })]
+
+  it("«Conteo físico» ya no existe: queda «Imprimir hoja de conteo», sin historial de conteos", () => {
+    render(<Con inicial={inicial} />)
+    expect(screen.queryByRole("button", { name: /Conteo físico/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Historial de conteos/)).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Imprimir hoja de conteo/ })).toBeInTheDocument()
+  })
+
+  it("imprime todos los productos activos con su código, su descripción, su existencia en el sistema y una columna en blanco, y lo confirma", () => {
+    render(<Con inicial={inicial} />)
+    fireEvent.click(screen.getByRole("button", { name: /Imprimir hoja de conteo/ }))
+    expect(imprimirHtml).toHaveBeenCalledTimes(1)
+    const html = imprimirHtml.mock.calls[0][0]
+    for (const texto of ["Código", "Descripción", "En el sistema", "Contado", "M-1", "Montura 1", "Montura 2", "Ajustar stock"]) expect(html).toContain(texto)
+    expect(html).not.toContain("Vieja") // los descontinuados no se cuentan
+    expect(html).toContain('<td class="n">5</td>')
+    expect(screen.getByText("Hoja de conteo lista para imprimir.")).toBeInTheDocument()
+  })
+})
+
+describe("Inventario — registrar ingreso y ajustar stock", () => {
+  const inicial = [producto("a", "Montura 1", 5, { proveedor: "Distribuidora X" }), producto("b", "Montura 2", 8), producto("c", "Líquido limpiador 60 ml", 38, { categoria: "Accesorios", maximo: 30 })]
+
+  it("«Registrar ingreso» pide solo las unidades (y el costo, si se quiere) y suma a la existencia", async () => {
     render(<Con inicial={inicial} />)
     fireEvent.click(filaDe("Montura 1"))
     fireEvent.click(screen.getByRole("button", { name: /Registrar ingreso/ }))
     const ventana = screen.getByRole("dialog", { name: "Registrar ingreso" })
-    expect(within(ventana).getByLabelText(/Motivo o referencia/)).toHaveValue("Compra a Distribuidora X")
-    fireEvent.change(within(ventana).getByLabelText("Unidades recibidas"), { target: { value: "7" } })
-    expect(within(ventana).getByText(/5/).closest("p")).toHaveTextContent("Existencia: 5 → 12")
-    fireEvent.change(within(ventana).getByLabelText(/Motivo o referencia/), { target: { value: "ab" } })
-    fireEvent.click(within(ventana).getByRole("button", { name: "Registrar ingreso" }))
-    expect(within(ventana).getByText(/Escribe el motivo/)).toBeInTheDocument()
-    fireEvent.change(within(ventana).getByLabelText(/Motivo o referencia/), { target: { value: "Factura 001-123" } })
+    expect(within(ventana).getByText("Productos que llegaron")).toBeInTheDocument()
+    expect(within(ventana).getByText("Montura 1").closest("p")).toHaveTextContent("hoy 5 u. · máximo 30")
+    expect(within(ventana).queryByLabelText(/Motivo/)).not.toBeInTheDocument()
+    fireEvent.change(within(ventana).getByLabelText("Unidades que ingresan"), { target: { value: "7" } })
+    fireEvent.change(within(ventana).getByLabelText("Costo por unidad (opcional)"), { target: { value: "2.5" } })
+    expect(within(ventana).queryByRole("status")).not.toBeInTheDocument() // 12 u. no pasan del máximo
     fireEvent.click(within(ventana).getByRole("button", { name: "Registrar ingreso" }))
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Registrar ingreso" })).not.toBeInTheDocument())
     expect(screen.getByRole("dialog", { name: "Producto Montura 1" })).toBeInTheDocument() // el detalle vuelve
-    expect(screen.getByText(/Ingreso por compra registrado: Montura 1 queda con 12 u\./)).toBeInTheDocument()
+    expect(screen.getByText(/Ingreso por compra registrado: Montura 1 queda con 12 u\. Costo actualizado\./)).toBeInTheDocument()
+  })
+
+  it("si el ingreso pasa del máximo avisa ANTES de registrar, sin bloquear: «Registrar igual»", async () => {
+    render(<Con inicial={inicial} />)
+    fireEvent.click(filaDe("Líquido limpiador 60 ml"))
+    fireEvent.click(screen.getByRole("button", { name: /Registrar ingreso/ }))
+    const ventana = screen.getByRole("dialog", { name: "Registrar ingreso" })
+    expect(within(ventana).getByRole("button", { name: "Registrar ingreso" })).toBeInTheDocument()
+    fireEvent.change(within(ventana).getByLabelText("Unidades que ingresan"), { target: { value: "20" } })
+    expect(within(ventana).getByRole("status")).toHaveTextContent("Quedarías con 58 u., casi el doble de tu máximo (30). Puedes registrarlo igual.")
+    expect(within(ventana).queryByRole("button", { name: "Registrar ingreso" })).not.toBeInTheDocument()
+    fireEvent.click(within(ventana).getByRole("button", { name: "Registrar igual" }))
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Registrar ingreso" })).not.toBeInTheDocument())
+    expect(screen.getByText(/queda con 58 u\./)).toBeInTheDocument()
+  })
+
+  it("un ingreso con cantidad inválida lo dice y no registra", () => {
+    render(<Con inicial={inicial} />)
+    fireEvent.click(filaDe("Montura 2"))
+    fireEvent.click(screen.getByRole("button", { name: /Registrar ingreso/ }))
+    const ventana = screen.getByRole("dialog", { name: "Registrar ingreso" })
+    fireEvent.change(within(ventana).getByLabelText("Unidades que ingresan"), { target: { value: "0" } })
+    fireEvent.click(within(ventana).getByRole("button", { name: "Registrar ingreso" }))
+    expect(within(ventana).getByText(/mayor que cero/)).toBeInTheDocument()
   })
 
   it("'Ajustar stock' por conteo manda la existencia final, y una merma no puede dejarla en negativo", () => {
@@ -280,145 +379,131 @@ describe("Inventario: movimientos, descontinuar y conteo físico", () => {
     fireEvent.click(within(ventana).getByRole("button", { name: "Guardar ajuste" }))
     expect(screen.getByText(/Merma o pérdida registrado: Montura 2 queda con 5 u\./)).toBeInTheDocument()
   })
-
-  it("el formulario de editar no deja cambiar la existencia a mano: manda a 'Registrar ingreso' o 'Ajustar stock'", () => {
-    render(<Con inicial={inicial} />)
-    fireEvent.click(filaDe("Montura 1"))
-    fireEvent.click(screen.getByRole("button", { name: /^Editar/ }))
-    const ventana = screen.getByRole("dialog", { name: "Editar producto" })
-    expect(within(ventana).queryByLabelText(/Existencia inicial/)).not.toBeInTheDocument()
-    expect(within(ventana).getByText(/Se cambia con «Registrar ingreso» o «Ajustar stock»/)).toBeInTheDocument()
-    expect(within(ventana).getByRole("button", { name: "Guardar cambios" })).toHaveAttribute("type", "submit")
-  })
-
-  it("descontinuar pide confirmación, conserva el producto y se puede reactivar; no hay forma de eliminar", async () => {
-    render(<Con inicial={inicial} />)
-    fireEvent.click(filaDe("Montura 1"))
-    fireEvent.click(screen.getByRole("button", { name: /Descontinuar/ }))
-    const ventana = screen.getByRole("dialog", { name: "Descontinuar producto" })
-    expect(within(ventana).getByText(/Los productos no se eliminan/)).toBeInTheDocument()
-    fireEvent.click(within(ventana).getByRole("button", { name: "Descontinuar" }))
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
-    expect(screen.getByText("Mostrando 1 de 1")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Descontinuados (1)" }))
-    expect(existenciaEnTabla("Montura 1")).toBe("5 u.")
-    fireEvent.click(filaDe("Montura 1"))
-    expect(within(screen.getByRole("dialog")).getByRole("button", { name: /Reactivar/ })).toBeInTheDocument()
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /Reactivar/ }))
-    expect(await screen.findByText(/"Montura 1" reactivado/)).toBeInTheDocument()
-  })
-
-  it("'Conteo físico' es a ciegas: mientras se cuenta no se ve lo que dice el sistema, y las diferencias salen al revisar", () => {
-    render(<Con inicial={inicial} />)
-    fireEvent.click(screen.getByRole("button", { name: /Conteo físico/ }))
-    const ventana = screen.getByRole("dialog", { name: "Conteo físico" })
-    expect(within(ventana).queryByRole("columnheader", { name: /Sistema|Diferencia/ })).not.toBeInTheDocument()
-    expect(within(ventana).getByRole("button", { name: "Revisar diferencias" })).toBeDisabled()
-    fireEvent.change(within(ventana).getByLabelText("Contado de Montura 1"), { target: { value: "3" } })
-    fireEvent.change(within(ventana).getByLabelText("Contado de Montura 2"), { target: { value: "8" } })
-    expect(within(ventana).getByText("2 contados")).toBeInTheDocument()
-    expect(within(ventana).queryByText(/con diferencia/)).not.toBeInTheDocument() // todavía no se dice cuántas hay
-    expect(within(ventana).queryByText("−2")).not.toBeInTheDocument()
-    fireEvent.click(within(ventana).getByRole("button", { name: "Revisar diferencias" }))
-    expect(within(ventana).getByText(/«Conteo físico»/)).toBeInTheDocument()
-    const filas = within(ventana).getAllByRole("row").slice(1)
-    expect(filas).toHaveLength(1) // solo la que difiere
-    expect(filas[0]).toHaveTextContent("Montura 1")
-    expect(filas[0]).toHaveTextContent("−2")
-    expect(filas[0]).toHaveTextContent("−$20.00") // 2 unidades × $10
-    expect(within(ventana).getByText(/Valor de la diferencia/)).toHaveTextContent("−$20.00")
-  })
-
-  it("al confirmar el conteo quedan los ajustes y se abre el acta, que se puede imprimir", async () => {
-    render(<Con inicial={inicial} />)
-    fireEvent.click(screen.getByRole("button", { name: /Conteo físico/ }))
-    const ventana = screen.getByRole("dialog", { name: "Conteo físico" })
-    fireEvent.change(within(ventana).getByLabelText("Contado de Montura 1"), { target: { value: "3" } })
-    fireEvent.change(within(ventana).getByLabelText("Contado de Montura 2"), { target: { value: "8" } })
-    fireEvent.click(within(ventana).getByRole("button", { name: "Revisar diferencias" }))
-    fireEvent.click(within(ventana).getByRole("button", { name: "Confirmar conteo" }))
-    const acta = await screen.findByRole("dialog", { name: "Conteo registrado" })
-    expect(within(acta).getByText("Productos contados")).toBeInTheDocument()
-    expect(within(acta).getByRole("row", { name: /Montura 1/ })).toHaveTextContent("−2")
-    expect(within(acta).getByRole("button", { name: /Imprimir o guardar PDF/ })).toBeInTheDocument()
-    expect(screen.getByText("Conteo físico registrado: 1 ajuste.")).toBeInTheDocument()
-    fireEvent.click(within(acta).getAllByRole("button", { name: "Cerrar" }).at(-1))
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
-    expect(existenciaEnTabla("Montura 1")).toBe("3 u.")
-    expect(existenciaEnTabla("Montura 2")).toBe("8 u.")
-  })
-
-  it("el conteo ofrece la hoja en blanco para imprimir y el historial de conteos", () => {
-    render(<Con inicial={inicial} />)
-    fireEvent.click(screen.getByRole("button", { name: /Conteo físico/ }))
-    const ventana = screen.getByRole("dialog", { name: "Conteo físico" })
-    expect(within(ventana).getByRole("button", { name: /Hoja en blanco/ })).toBeInTheDocument()
-    fireEvent.click(within(ventana).getByRole("button", { name: /Historial/ }))
-    expect(screen.getByRole("dialog", { name: "Historial de conteos" })).toBeInTheDocument()
-    expect(screen.getByText("Todavía no hay conteos registrados.")).toBeInTheDocument()
-  })
-
-  it("el conteo no deja revisar una cantidad que no tiene sentido", () => {
-    render(<Con inicial={inicial} />)
-    fireEvent.click(screen.getByRole("button", { name: /Conteo físico/ }))
-    const ventana = screen.getByRole("dialog", { name: "Conteo físico" })
-    fireEvent.change(within(ventana).getByLabelText("Contado de Montura 1"), { target: { value: "-4" } })
-    expect(within(ventana).getByRole("button", { name: "Revisar diferencias" })).toBeDisabled()
-  })
 })
 
-describe("Inventario: sus ventanas son la ventana estándar", () => {
-  it("'Agregar producto' abre la ventana estándar con Cancelar y Guardar producto, y se cierra con Escape", () => {
-    render(<Con inicial={[producto("a", "Montura 1", 5)]} />)
+describe("Inventario — agregar y editar producto", () => {
+  const abrirAgregar = (inicial = []) => {
+    render(<Con inicial={inicial} />)
     fireEvent.click(screen.getByRole("button", { name: /Agregar producto/ }))
-    const ventana = screen.getByRole("dialog", { name: "Agregar producto" })
+    return screen.getByRole("dialog", { name: "Agregar producto" })
+  }
+
+  it("la ventana es la estándar, con el subtítulo del diseño, Cancelar y Guardar producto, y se cierra con Escape", () => {
+    const ventana = abrirAgregar([producto("a", "Montura 1", 5)])
     expect(ventana.tagName).toBe("FORM")
+    expect(within(ventana).getByText("Monturas y accesorios. Las lunas se escriben en la venta.")).toBeInTheDocument()
     expect(within(ventana).getByRole("button", { name: "Cancelar" })).toBeInTheDocument()
     expect(within(ventana).getByRole("button", { name: "Guardar producto" })).toHaveAttribute("type", "submit")
     fireEvent.keyDown(document, { key: "Escape" })
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
-  it("los datos de la montura son opcionales y van plegados: se guardan sin llenarlos", () => {
-    render(<Con inicial={[]} />)
-    fireEvent.click(screen.getByRole("button", { name: /Agregar producto/ }))
-    const ventana = screen.getByRole("dialog", { name: "Agregar producto" })
-    expect(within(ventana).queryByLabelText("Marca")).not.toBeInTheDocument()
-    fireEvent.change(within(ventana).getByLabelText(/Descripción de la montura/), { target: { value: "Montura azul" } })
+  it("trae a la vista categoría, descripción, existencia inicial, precio, costo, stock mínimo y máximo (con «Usar el general») y la nota de Configuración", () => {
+    const ventana = abrirAgregar()
+    expect(within(ventana).getByText("Categoría")).toBeInTheDocument()
+    for (const nombre of ["Descripción", "Existencia inicial", "Precio", "Costo (opcional)", "Stock mínimo", "Stock máximo"]) expect(within(ventana).getByLabelText(nombre)).toBeInTheDocument()
+    expect(within(ventana).getByLabelText("Stock mínimo")).toHaveAttribute("placeholder", "Usar el general (10)")
+    expect(within(ventana).getByLabelText("Stock máximo")).toHaveAttribute("placeholder", "Usar el general (30)")
+    expect(within(ventana).getByText(/Los valores generales se cambian en Configuración → Inventario/)).toBeInTheDocument()
+    expect(within(ventana).queryByLabelText("Marca")).not.toBeInTheDocument() // los datos de la montura van plegados
+  })
+
+  it("se guarda sin llenar lo opcional, con aviso, y el producto aparece en la lista", () => {
+    const ventana = abrirAgregar()
+    fireEvent.change(within(ventana).getByLabelText("Descripción"), { target: { value: "Montura azul" } })
     fireEvent.change(within(ventana).getByLabelText("Existencia inicial"), { target: { value: "4" } })
-    fireEvent.change(within(ventana).getByLabelText("Precio ($)"), { target: { value: "30" } })
+    fireEvent.change(within(ventana).getByLabelText("Precio"), { target: { value: "30" } })
     fireEvent.click(within(ventana).getByRole("button", { name: "Guardar producto" }))
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     expect(screen.getByText("Producto añadido al inventario.")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Ver el detalle de Montura azul" })).toBeInTheDocument()
   })
 
-  it("el despliegue 'Datos de la montura' trae código, marca, modelo, color, medidas, proveedor y costo", () => {
-    render(<Con inicial={[]} />)
-    fireEvent.click(screen.getByRole("button", { name: /Agregar producto/ }))
-    const ventana = screen.getByRole("dialog", { name: "Agregar producto" })
-    fireEvent.click(within(ventana).getByRole("button", { name: /Datos de la montura/ }))
-    for (const nombre of ["Código", "Marca", "Modelo", "Color", "Calibre", "Puente", "Varilla", "Proveedor", "Costo ($)"]) expect(within(ventana).getByLabelText(nombre)).toBeInTheDocument()
+  it("un mínimo y un máximo propios se guardan y se ven en la lista; el máximo debe ser mayor que el mínimo", () => {
+    const ventana = abrirAgregar()
+    fireEvent.change(within(ventana).getByLabelText("Descripción"), { target: { value: "Montura 10" } })
+    fireEvent.change(within(ventana).getByLabelText("Existencia inicial"), { target: { value: "3" } })
+    fireEvent.change(within(ventana).getByLabelText("Precio"), { target: { value: "38" } })
+    fireEvent.change(within(ventana).getByLabelText("Stock mínimo"), { target: { value: "5" } })
+    fireEvent.change(within(ventana).getByLabelText("Stock máximo"), { target: { value: "4" } })
+    fireEvent.click(within(ventana).getByRole("button", { name: "Guardar producto" }))
+    expect(within(ventana).getByText("El máximo debe ser mayor que el mínimo.")).toBeInTheDocument()
+    fireEvent.change(within(ventana).getByLabelText("Stock máximo"), { target: { value: "20" } })
+    fireEvent.click(within(ventana).getByRole("button", { name: "Guardar producto" }))
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(fila("Montura 10")).toHaveTextContent("mín 5 · máx 20")
+    expect(fila("Montura 10")).toHaveTextContent("Stock bajo")
   })
 
-  it("las medidas solo se piden para una montura, no para un accesorio", () => {
-    render(<Con inicial={[]} />)
+  it("si el producto ya existe en Descontinuados avisa en el momento y ofrece reactivarlo (aunque se escriba distinto)", async () => {
+    const ventana = abrirAgregar([producto("c", "Estuche rígido", 4, { categoria: "Accesorios", activo: false })])
+    fireEvent.change(within(ventana).getByLabelText("Descripción"), { target: { value: "estuche RIGIDO " } })
+    const aviso = within(ventana).getByRole("status")
+    expect(aviso).toHaveTextContent("Ya existe «Estuche rígido» en Descontinuados (4 u.).")
+    fireEvent.click(within(aviso).getByRole("button", { name: "Reactivarlo" }))
+    expect(await screen.findByText(/"Estuche rígido" reactivado/)).toBeInTheDocument()
+    expect(screen.queryByRole("dialog", { name: "Agregar producto" })).not.toBeInTheDocument()
+    expect(fila("Estuche rígido")).toBeTruthy() // ahora está en Activos
+  })
+
+  it("si ya existe en Activos lo dice (sin ofrecer reactivarlo) y no deja crear un duplicado", () => {
+    const ventana = abrirAgregar([producto("a", "Montura 1", 5)])
+    fireEvent.change(within(ventana).getByLabelText("Descripción"), { target: { value: "Montura 1" } })
+    expect(within(ventana).getByRole("status")).toHaveTextContent("Ya existe «Montura 1» en Activos (5 u.). Para sumar unidades, registra un ingreso.")
+    expect(within(ventana).queryByRole("button", { name: "Reactivarlo" })).not.toBeInTheDocument()
+    fireEvent.change(within(ventana).getByLabelText("Existencia inicial"), { target: { value: "1" } })
+    fireEvent.change(within(ventana).getByLabelText("Precio"), { target: { value: "5" } })
+    fireEvent.click(within(ventana).getByRole("button", { name: "Guardar producto" }))
+    expect(screen.getByRole("dialog", { name: "Agregar producto" })).toBeInTheDocument()
+    expect(within(ventana).getByRole("status")).toHaveTextContent("Ya existe «Montura 1» en Activos")
+  })
+
+  it("quien solo puede crear no ve «Reactivarlo» (reactivar es de quien edita)", () => {
+    const crea = { id: "u4", rol: "asistente", nombre: "Cris", opticaId: "o1", permisosNivel: { inventario: ["ver", "crear"] } }
+    render(<Con inicial={[producto("c", "Estuche rígido", 4, { activo: false })]} usuario={crea} />)
     fireEvent.click(screen.getByRole("button", { name: /Agregar producto/ }))
-    const ventana = screen.getByRole("dialog", { name: "Agregar producto" })
+    fireEvent.change(screen.getByLabelText("Descripción"), { target: { value: "Estuche rígido" } })
+    expect(screen.getByRole("status")).toHaveTextContent("Ya existe «Estuche rígido» en Descontinuados")
+    expect(screen.queryByRole("button", { name: "Reactivarlo" })).not.toBeInTheDocument()
+  })
+
+  it("el despliegue «Datos de la montura y foto» trae código, marca, modelo, color, medidas y proveedor", () => {
+    const ventana = abrirAgregar()
     fireEvent.click(within(ventana).getByRole("button", { name: /Datos de la montura/ }))
-    expect(within(ventana).getByLabelText("Calibre")).toBeInTheDocument()
+    for (const nombre of ["Código", "Marca", "Modelo", "Color", "Calibre", "Puente", "Varilla", "Proveedor"]) expect(within(ventana).getByLabelText(nombre)).toBeInTheDocument()
   })
 
   it("un código repetido no se acepta", () => {
-    render(<Con inicial={[producto("a", "Montura 1", 5, { codigo: "RB-1" })]} />)
-    fireEvent.click(screen.getByRole("button", { name: /Agregar producto/ }))
-    const ventana = screen.getByRole("dialog", { name: "Agregar producto" })
+    const ventana = abrirAgregar([producto("a", "Montura 1", 5, { codigo: "RB-1" })])
     fireEvent.click(within(ventana).getByRole("button", { name: /Datos de la montura/ }))
-    fireEvent.change(within(ventana).getByLabelText(/Descripción de la montura/), { target: { value: "Otra montura" } })
+    fireEvent.change(within(ventana).getByLabelText("Descripción"), { target: { value: "Otra montura" } })
     fireEvent.change(within(ventana).getByLabelText("Existencia inicial"), { target: { value: "1" } })
-    fireEvent.change(within(ventana).getByLabelText("Precio ($)"), { target: { value: "5" } })
+    fireEvent.change(within(ventana).getByLabelText("Precio"), { target: { value: "5" } })
     fireEvent.change(within(ventana).getByLabelText("Código"), { target: { value: "rb-1" } })
     fireEvent.click(within(ventana).getByRole("button", { name: "Guardar producto" }))
-    expect(within(ventana).getByText(/El código ya lo tiene "Montura 1"/)).toBeInTheDocument()
+    expect(within(ventana).getByText(/El código ya lo tiene «Montura 1»/)).toBeInTheDocument()
+  })
+
+  it("el formulario de editar no deja cambiar la existencia a mano: manda a 'Registrar ingreso' o 'Ajustar stock'", () => {
+    render(<Con inicial={[producto("a", "Montura 1", 5)]} />)
+    fireEvent.click(filaDe("Montura 1"))
+    fireEvent.click(screen.getByRole("button", { name: /^Editar/ }))
+    const ventana = screen.getByRole("dialog", { name: "Editar producto" })
+    expect(within(ventana).queryByLabelText(/Existencia inicial/)).not.toBeInTheDocument()
+    expect(within(ventana).getByText(/La existencia se cambia con «Registrar ingreso» o «Ajustar stock»/)).toBeInTheDocument()
+    expect(within(ventana).getByRole("button", { name: "Guardar cambios" })).toHaveAttribute("type", "submit")
+  })
+
+  it("al editar se cambia el máximo del producto y la lista lo muestra; dejarlo vacío vuelve al general", () => {
+    render(<Con inicial={[producto("a", "Montura 1", 5, { maximo: 12 })]} />)
+    expect(fila("Montura 1")).toHaveTextContent("máx 12")
+    fireEvent.click(filaDe("Montura 1"))
+    fireEvent.click(screen.getByRole("button", { name: /^Editar/ }))
+    const ventana = screen.getByRole("dialog", { name: "Editar producto" })
+    expect(within(ventana).getByLabelText("Stock máximo")).toHaveValue(12)
+    fireEvent.change(within(ventana).getByLabelText("Stock máximo"), { target: { value: "" } })
+    fireEvent.click(within(ventana).getByRole("button", { name: "Guardar cambios" }))
+    expect(screen.getByText("Cambios guardados correctamente.")).toBeInTheDocument()
+    expect(fila("Montura 1")).toHaveTextContent("máx 30")
   })
 })

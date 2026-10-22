@@ -13,6 +13,7 @@ export const TIPOS_DESCARTABLES = {
   "pacientes:sin_consulta": { motivos: ["Registrado solo para el portal", "Duplicado", "No vendrá", "Otro"], dias: null },
   "ventas:por_vender": { motivos: ["No concretó", "Compró en otro lugar", "Otro"], dias: null },
   "inventario:stock_bajo": { motivos: ["No se repondrá", "Se repone en otra fecha", "Otro"], dias: 30 },
+  "inventario:sobrestock": { motivos: ["Es una compra por temporada", "Se vende por mayor", "Otro"], dias: 30 },
 }
 
 export const claveDescarte = (tipo, clave) => `${tipo}|${clave}`
