@@ -3,7 +3,8 @@
 import { useMemo } from "react"
 import { CalendarDays, CalendarCheck, CalendarX, CalendarClock, CalendarOff, Percent } from "lucide-react"
 import { Seccion, Caja, SinResultados, NumeroPulsable, TablaNumeros, REJILLA_TARJETAS } from "./bloques"
-import { BarrasMes, BarraRepartida, CuadriculaDiaHora } from "./Graficas"
+import { BarraRepartida, CuadriculaDiaHora } from "./Graficas"
+import GraficoTendencia from "../graficas/GraficoTendencia"
 import { crearDestinos } from "./destinos"
 import { col } from "./listas"
 import { responsableDeCita } from "../../utilidades/filtrosCitas"
@@ -58,7 +59,8 @@ export default function PestanaCitas({ r }) {
 
       <Seccion titulo="Cuándo fallan los pacientes">
         <Caja titulo="Citas no efectuadas por mes" exportar={r.bloque("Citas no efectuadas por mes", () => ({ columnas: [col("Mes", (m) => m.etiqueta), col("Citas", (m) => m.programadas.length, "entero"), col("No efectuadas", (m) => m.noAsistio.length, "entero"), col("Tasa de citas no efectuadas", (m) => m.tasa, "tasa")], filas: tendencia }), () => ({ columnas: cols.cita, filas: tendencia.flatMap((m) => m.programadas) }))} ayuda="Porcentaje de citas (sin las canceladas) que terminaron en No efectuada, mes a mes, en los últimos 12 meses con los filtros elegidos.">
-          <BarrasMes
+          <GraficoTendencia
+            periodo="mes" plural="citas no efectuadas" buenoSiSube={false} formato={(v) => `${Math.round(v * 10) / 10} %`} textoPendiente={(sube) => `puntos ${sube ? "más" : "menos"} por mes (tendencia)`} nombre="Citas no efectuadas por mes" color="#dc2626"
             datos={tendencia.map((m) => ({ clave: m.clave, etiqueta: m.etiqueta, valor: m.tasa ?? 0, texto: pct(m.tasa), color: "#dc2626", tip: m.programadas.length ? `${m.etiqueta}: ${m.noAsistio.length} no efectuadas de ${m.programadas.length} citas (${m.tasa}%)` : `${m.etiqueta}: sin citas`, m }))}
             onElegir={(b) => abrir({ titulo: `No efectuadas · ${b.etiqueta}: ${b.m.noAsistio.length} de ${b.m.programadas.length} citas`, valor: pct(b.m.tasa), icono: CalendarX, columnas: cols.cita, filas: b.m.noAsistio, abrirEn: dc("noAsistio", {}, b.m) })}
           />

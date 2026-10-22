@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { Stethoscope, UserPlus, CalendarX, ShoppingBag, DollarSign, Wallet } from "lucide-react"
 import { Seccion, Caja, REJILLA_TARJETAS } from "./bloques"
-import { BarrasMes } from "./Graficas"
+import GraficoTendencia from "../graficas/GraficoTendencia"
 import { crearDestinos } from "./destinos"
 import { col } from "./listas"
 import { dinero } from "../../utilidades/formatoMoneda"
@@ -84,12 +84,12 @@ export default function PestanaResumen({ r }) {
           )}
         >
           {serie === "consultas" || ocultarMontos ? (
-            <BarrasMes alto={110}
+            <GraficoTendencia periodo="mes" plural="consultas" nombre="Consultas por mes"
               datos={meses.map((m) => ({ clave: m.clave, etiqueta: m.etiqueta, valor: m.consultas.length, tip: `${m.etiqueta}: ${m.consultas.length} consulta${m.consultas.length === 1 ? "" : "s"}`, m }))}
               onElegir={(b) => abrir({ titulo: `Consultas · ${b.etiqueta}`, valor: b.valor, icono: Stethoscope, columnas: cols.consulta, filas: b.m.consultas, abrirEn: d.consultas() })}
             />
           ) : (
-            <BarrasMes alto={110}
+            <GraficoTendencia periodo="mes" plural="vendido" sujeto="lo vendido" nombre="Vendido por mes" formato={(v) => dinero(Math.round(v)).replace(/.00$/, "")} textoPendiente={(sube) => `${sube ? "más" : "menos"} vendidos por mes (tendencia)`}
               datos={meses.map((m) => ({ clave: m.clave, etiqueta: m.etiqueta, valor: m.vendido, texto: dinero(m.vendido), tip: `${m.etiqueta}: ${dinero(m.vendido)} vendidos en ${m.ventas.length} venta${m.ventas.length === 1 ? "" : "s"}`, m }))}
               onElegir={(b) => abrir({ titulo: `Vendido · ${b.etiqueta}`, valor: dinero(b.valor), icono: DollarSign, columnas: cols.factura, filas: b.m.ventas, abrirEn: d.ventas({}, b.m) })}
             />

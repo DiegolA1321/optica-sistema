@@ -9,7 +9,8 @@ import TarjetaReporte from "../reportes/TarjetaReporte"
 import VentanaDetalle from "../reportes/VentanaDetalle"
 import SelectorPeriodo from "../reportes/SelectorPeriodo"
 import { Seccion, Caja, SinResultados, REJILLA_TARJETAS_4 } from "../reportes/bloques"
-import { BarrasMes, BarraRepartida } from "../reportes/Graficas"
+import { BarraRepartida } from "../reportes/Graficas"
+import GraficoTendencia from "../graficas/GraficoTendencia"
 import { col } from "../reportes/listas"
 import SinDatosAun from "../SinDatosAun"
 import DetalleOptica from "./DetalleOptica"
@@ -183,7 +184,7 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
             {facturas.length === 0 ? (
               <SinResultados texto="Todavía no hay facturas de suscripción. Se generan desde el detalle de cada óptica." acciones={[{ etiqueta: "Ir a Ópticas", onClick: () => onAbrir("opticas", {}) }]} />
             ) : (
-              <BarrasMes datos={datosSerie} onElegir={(d) => abrir({ titulo: `${d.etiqueta}: facturado ${dinero(d.mes.facturado)} · cobrado ${dinero(d.mes.cobrado)}`, valor: dinero(d.mes.facturado), icono: DollarSign, columnas: colsFactura, filas: d.mes.facturadas, abrirEn: { modulo: "opticas", etiqueta: "Abrir Ópticas (lista completa)", params: {} } })} />
+              <GraficoTendencia periodo="mes" plural="cobrado" sujeto="lo cobrado" nombre="Cobrado por mes" formato={(v) => dinero(Math.round(v)).replace(/.00$/, "")} textoPendiente={(sube) => `${sube ? "más" : "menos"} cobrados por mes (tendencia)`} datos={datosSerie} onElegir={(d) => abrir({ titulo: `${d.etiqueta}: facturado ${dinero(d.mes.facturado)} · cobrado ${dinero(d.mes.cobrado)}`, valor: dinero(d.mes.facturado), icono: DollarSign, columnas: colsFactura, filas: d.mes.facturadas, abrirEn: { modulo: "opticas", etiqueta: "Abrir Ópticas (lista completa)", params: {} } })} />
             )}
           </Caja>
         </Seccion>
@@ -201,7 +202,7 @@ export default function ResumenNegocio({ datos, opticas, leads, consultas, carga
             () => ({ columnas: [col("Mes", (m) => m.etiqueta), col("Ópticas activas", (m) => m.activas.length, "entero")], filas: serieCli }),
             () => ({ columnas: colsOptica, filas: negocio }))}>
             {negocio.length === 0 ? <SinResultados texto="Todavía no hay ópticas que contar." acciones={onCrearOptica ? [{ etiqueta: "Crear una óptica", onClick: onCrearOptica }] : []} /> : (
-              <BarrasMes datos={datosSerieCli} onElegir={(d) => abrir({ titulo: `Ópticas activas al cierre de ${d.etiqueta}: ${d.mes.activas.length}`, valor: d.mes.activas.length, icono: Building2, columnas: colsOptica, filas: d.mes.activas, abrirEn: abrirOpticas("Todas") })} />
+              <GraficoTendencia periodo="mes" plural="ópticas activas" nombre="Ópticas activas por mes" datos={datosSerieCli} onElegir={(d) => abrir({ titulo: `Ópticas activas al cierre de ${d.etiqueta}: ${d.mes.activas.length}`, valor: d.mes.activas.length, icono: Building2, columnas: colsOptica, filas: d.mes.activas, abrirEn: abrirOpticas("Todas") })} />
             )}
           </Caja>
         </Seccion>

@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react"
 import { Stethoscope, AlertTriangle, ShieldCheck, Eye, UserPlus } from "lucide-react"
 import { Seccion, Caja, SinResultados, NumeroPulsable, REJILLA_TARJETAS_4 } from "./bloques"
-import { BarrasLista, BarraRepartida, BarrasApiladasMes } from "./Graficas"
+import { BarrasLista, BarraRepartida } from "./Graficas"
+import GraficoTendencia from "../graficas/GraficoTendencia"
 import { crearDestinos } from "./destinos"
 import { col } from "./listas"
 import { nombreMes } from "../../utilidades/formatoFecha"
@@ -67,9 +68,9 @@ export default function PestanaClinico({ r }) {
               />
               <div>
                 <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Por mes</p>
-                <BarrasApiladasMes
-                  datos={llegadaMes.map((m) => ({ clave: m.clave, etiqueta: `${nombreMes(Number(m.clave.slice(5, 7)) - 1, "corto")}${llegadaMes.length > 1 && m.clave.slice(5, 7) === "01" ? " " + m.clave.slice(0, 4) : ""}`, total: m.total, partes: COMO_LLEGO.map((c) => ({ id: c.id, etiqueta: c.etiqueta, valor: m[c.id], color: c.color, tip: `${nombreMes(Number(m.clave.slice(5, 7)) - 1)} de ${m.clave.slice(0, 4)} · ${c.etiqueta}: ${m[c.id]}`, lista: m.pacientes[c.id] })), mes: m }))}
-                  onElegir={(mes, parte) => abrirNuevos(`${parte.etiqueta} · ${nombreMes(Number(mes.clave.slice(5, 7)) - 1)} de ${mes.clave.slice(0, 4)}`, parte.lista)}
+                <GraficoTendencia periodo="mes" plural="pacientes nuevos" nombre="Pacientes nuevos por mes"
+                  datos={llegadaMes.map((m) => ({ clave: m.clave, etiqueta: `${nombreMes(Number(m.clave.slice(5, 7)) - 1, "corto")}${llegadaMes.length > 1 && m.clave.slice(5, 7) === "01" ? " " + m.clave.slice(0, 4) : ""}`, valor: m.total, tip: `${nombreMes(Number(m.clave.slice(5, 7)) - 1)} de ${m.clave.slice(0, 4)}: ${m.total} paciente${m.total === 1 ? "" : "s"} nuevo${m.total === 1 ? "" : "s"} (${COMO_LLEGO.map((c) => `${c.etiqueta} ${m[c.id]}`).join(", ")})`, mes: m }))}
+                  onElegir={(d) => abrirNuevos(`Pacientes nuevos · ${nombreMes(Number(d.mes.clave.slice(5, 7)) - 1)} de ${d.mes.clave.slice(0, 4)}`, COMO_LLEGO.flatMap((c) => d.mes.pacientes[c.id]))}
                 />
               </div>
             </div>
