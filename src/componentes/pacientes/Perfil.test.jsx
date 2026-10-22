@@ -10,7 +10,7 @@ const paciente = { id: "p1", nombre: "Diego Alarcón", cedula: "1314160654", tel
 const pestanas = [{ id: "resumen", etiqueta: "Resumen" }, { id: "citas", etiqueta: "Citas", cuenta: 3 }, { id: "diagnostico", etiqueta: "Diagnóstico", cuenta: 2 }, { id: "pagos", etiqueta: "Compras" }]
 
 describe("Cabecera del perfil", () => {
-  const montar = (extra = {}) => render(<CabeceraPerfil paciente={paciente} edad={37} pestanas={pestanas} pestana="resumen" onPestana={() => {}} acciones={[{ id: "a", etiqueta: "Historia clínica", onClick: () => {} }, { id: "b", etiqueta: "Datos", onClick: () => {} }]} atender={<button type="button">Atender</button>} {...extra} />)
+  const montar = (extra = {}) => render(<CabeceraPerfil paciente={paciente} edad="37 años" pestanas={pestanas} pestana="resumen" onPestana={() => {}} acciones={[{ id: "a", etiqueta: "Historia clínica", onClick: () => {} }, { id: "b", etiqueta: "Datos", onClick: () => {} }]} atender={<button type="button">Atender</button>} {...extra} />)
 
   it("el nombre y, en una línea debajo, documento, teléfono, correo y edad; sin «Activo» ni «Portal activo»", () => {
     montar()
@@ -145,5 +145,14 @@ describe("Gráficas de visitas", () => {
     expect(screen.getByRole("heading", { name: "Visitas por año" })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Por trimestre" }))
     expect(screen.getByRole("heading", { name: "Visitas por trimestre" })).toBeInTheDocument()
+  })
+})
+
+describe("Cabecera sin edad", () => {
+  it("sin edad no dice «0 años» ni deja un separador vacío", () => {
+    render(<CabeceraPerfil paciente={{ ...paciente, correo: "" }} edad="" pestanas={pestanas} pestana="resumen" onPestana={() => {}} />)
+    const t = screen.getByRole("banner").textContent
+    expect(t).not.toMatch(/años|0 año/)
+    expect(t).not.toMatch(/·\s*·/)
   })
 })

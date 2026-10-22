@@ -65,7 +65,7 @@ import ResumenPerfil from "../componentes/pacientes/ResumenPerfil"
 import { diaDeRegistro } from "../utilidades/periodoLista"
 import { numeroComprobante } from "../utilidades/comprobantes"
 import CabeceraPerfil from "../componentes/pacientes/CabeceraPerfil"
-import { edadEnAnios } from "../utilidades/edad"
+import { edadEnAnios, textoEdad } from "../utilidades/edad"
 import {  } from "../utilidades/comoLlego"
 import { filtrarSoloLetras, filtrarSoloNumeros, esNombreValido, esCedulaValida, esTelefonoValido, esEmailValido, generarClaveTemporal } from "../utilidades/validaciones"
 import { minutosDesdeMedianoche, esHoy, etiquetaFecha, horaA12 } from "../utilidades/disponibilidad"
@@ -315,7 +315,9 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
   // Edad calculada desde fecha_nacimiento — mismo cálculo que ya usa
   // ConsultaMedica.jsx para la receta impresa, ahora también visible en el
   // encabezado del expediente (pedido explícito de Diego).
-  const edadPaciente = useMemo(() => edadEnAnios(pacienteHistorial?.fecha_nacimiento || pacienteHistorial?.fechaNacimiento), [pacienteHistorial])
+  const nacimientoPaciente = pacienteHistorial?.fecha_nacimiento || pacienteHistorial?.fechaNacimiento
+  const edadPaciente = useMemo(() => edadEnAnios(nacimientoPaciente), [nacimientoPaciente])
+  const textoEdadPaciente = useMemo(() => textoEdad(nacimientoPaciente), [nacimientoPaciente])
   // Las pestañas del perfil: Resumen · Citas · Diagnóstico · Compras. El perfil abre en el Resumen. «pagos» es el id de siempre de «Compras» (los enlaces guardados lo usan; «compras» también vale).
   const [tabHistorial, setTabHistorial] = useState("resumen")
   const [verHistoriaClinica, setVerHistoriaClinica] = useState(false)
@@ -1636,7 +1638,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                   className="flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer"
                   style={{ background: GRAD }}
                 >
-                  <Stethoscope size={15} aria-hidden="true" /> Atender ahora
+                  <Stethoscope size={15} aria-hidden="true" /> Atender
                 </button>
               )}
             </div>
@@ -1659,7 +1661,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
               onClick={() => { setMenuAccionesId(null); abrirFichaClinica(paciente) }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
             >
-              <Stethoscope size={15} /> Atender ahora
+              <Stethoscope size={15} /> Atender
             </button>}
             {puedeVender && <button
               type="button"
@@ -1892,7 +1894,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                 }
                 if (deHoy) return <button type="button" onClick={() => pedirAtender(deHoy)} className={principal}>Atender</button>
                 if (!puedeAgendar) return null
-                return <button type="button" onClick={() => abrirAtenderAhora(pacienteHistorial)} className={principal}>Atender ahora</button>
+                return <button type="button" onClick={() => abrirAtenderAhora(pacienteHistorial)} className={principal}>Atender</button>
               })()
               // El acceso al portal: se dice en la línea de datos solo si lo tiene; con permiso, un clic abre sus opciones (restablecer la clave) y, sin cuenta, el mismo lugar la crea (regla 8).
               const accesoPortal = pacienteHistorial.tieneCuenta ? (
@@ -1944,7 +1946,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
 
               return (
                 <>
-                  <CabeceraPerfil paciente={pacienteHistorial} edad={edadPaciente} pestanas={pestanasPerfil} pestana={tabHistorial} onPestana={setTabHistorial} acciones={accionesPerfil} atender={atender} accesoPortal={accesoPortal} />
+                  <CabeceraPerfil paciente={pacienteHistorial} edad={textoEdadPaciente} pestanas={pestanasPerfil} pestana={tabHistorial} onPestana={setTabHistorial} acciones={accionesPerfil} atender={atender} accesoPortal={accesoPortal} />
 
 
                   {/* key={tabHistorial}: remonta el panel en cada cambio de
@@ -2116,7 +2118,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
           <div className="ml-auto flex items-center gap-2">
             <button type="button" onClick={() => setAgendarPara(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cancelar</button>
             <button type="submit" className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-110 cursor-pointer" style={{ background: GRAD }}>
-              {atenderInmediato ? "Atender ahora" : "Confirmar cita"} <ChevronRight size={16} />
+              {atenderInmediato ? "Atender" : "Confirmar cita"} <ChevronRight size={16} />
             </button>
           </div>
         </>}

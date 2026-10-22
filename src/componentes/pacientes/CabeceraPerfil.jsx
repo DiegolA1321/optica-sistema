@@ -10,14 +10,14 @@ import { etiquetaEstadoClinico } from "../../utilidades/listaPacientes"
 // Solo se muestra una etiqueta cuando hay algo fuera de lo normal (por ejemplo «Tratamiento finalizado»): «Activo» no se dice.
 const BOTON = "inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
 
-export default function CabeceraPerfil({ paciente, edad = null, pestanas = [], pestana, onPestana, acciones = [], atender = null, accesoPortal = null }) {
+export default function CabeceraPerfil({ paciente, edad = "", pestanas = [], pestana, onPestana, acciones = [], atender = null, accesoPortal = null }) {
   const estado = paciente.estadoClinico
   const fueraDeLoNormal = estado && estado !== "Activo"
   const datos = [
     paciente.cedula && `${etiquetaDocumento(paciente)} ${paciente.cedula}`,
     paciente.telefono,
     paciente.correo,
-    edad != null && `${edad} año${edad === 1 ? "" : "s"}`,
+    edad,
   ].filter(Boolean)
   return (
     <header aria-label="Perfil del paciente" className="rounded-2xl border border-slate-200/60 bg-white px-5 pb-4 pt-5 shadow-sm">

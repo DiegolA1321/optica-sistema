@@ -34,3 +34,15 @@ export function antiguedadEnPalabras(desde, hoy = ahoraEcuador()) {
   const resto = meses % 12
   return `${anios} año${anios === 1 ? "" : "s"}${resto >= 6 ? " y medio" : ""}`
 }
+
+// La edad para mostrarla: «37 años»; si aún no cumple un año, «7 meses» (o «menos de un mes»). Sin fecha de nacimiento válida (o una fecha futura), "" — nunca «0 años».
+export function textoEdad(nacimiento, hoy = ahoraEcuador()) {
+  const anios = edadEnAnios(nacimiento, hoy)
+  if (anios === null) return ""
+  if (anios >= 1) return `${anios} año${anios === 1 ? "" : "s"}`
+  const [a, m, d] = String(nacimiento instanceof Date ? "" : nacimiento).slice(0, 10).split("-").map(Number)
+  const n = nacimiento instanceof Date ? nacimiento : new Date(a, m - 1, d)
+  let meses = (hoy.getFullYear() - n.getFullYear()) * 12 + hoy.getMonth() - n.getMonth()
+  if (hoy.getDate() < n.getDate()) meses--
+  return meses < 1 ? "menos de un mes" : `${meses} mes${meses === 1 ? "" : "es"}`
+}
