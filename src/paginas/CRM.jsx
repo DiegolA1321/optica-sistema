@@ -17,9 +17,9 @@ import { CLASE_ACCION_SECUNDARIA } from "../componentes/ventas/estilos"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { puede } from "../utilidades/permisosUi"
 import { motivoDeCampana } from "../utilidades/crmDatos"
-import { armarMensaje, avisosDelCrm, contarPorMotivo, listaParaContactar, plantillaDe, MOTIVOS } from "../utilidades/crmContactos"
+import { avisosDelCrm, contarPorMotivo, listaParaContactar, MOTIVOS } from "../utilidades/crmContactos"
 import { useFidelidadCon } from "../componentes/FidelidadContexto"
-import { abrirWhatsApp } from "../utilidades/whatsapp"
+import { useEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { diaDeRegistro, enPeriodo } from "../utilidades/periodoLista"
 import { hoyISO } from "../utilidades/disponibilidad"
@@ -59,12 +59,13 @@ export default function CRM({
   const pacienteDe = useMemo(() => new Map(pacientes.map((p) => [p.id, p])), [pacientes])
 
   // ── Contactar: abre WhatsApp con el mensaje del motivo ya escrito (primero la ventana, dentro del clic) y anota el contacto ──
-  const contactar = async (fila, motivo) => {
-    const mensaje = armarMensaje(plantillaDe(motivo, plantillas), { paciente: fila.paciente, opticaNombre, consultas })
-    abrirWhatsApp(fila.telefono, mensaje)
-    const r = await crm.contactar({ paciente: fila.paciente, motivo, canal: "whatsapp", mensaje })
-    notificar(r.ok ? `Contacto con ${fila.paciente.nombre} registrado. Cuando responda, anota qué pasó.` : r.error)
-  }
+  // La ventana de Contactar es la misma de todo el sistema: el mensaje del motivo ya escrito, editable; al enviar abre WhatsApp y el CRM anota el contacto con su motivo.
+  const escribirPorWhatsApp = useEscribirPorWhatsApp()
+  const contactar = (fila, motivo) => escribirPorWhatsApp({
+    paciente: fila.paciente, telefono: fila.telefono, motivo,
+    registro: ({ paciente, motivo: m, mensaje }) => crm.contactar({ paciente, motivo: m, canal: "whatsapp", mensaje }),
+    alRegistrar: (r) => notificar(r.ok ? `Contacto con ${fila.paciente.nombre} registrado. Cuando responda, anota qué pasó.` : r.error),
+  })
   const contactoPendiente = (pacienteId, motivo) => contactos.find((c) => c.pacienteId === pacienteId && !c.resultado && !c.campanaId && c.motivo === motivo)
     || contactos.find((c) => c.pacienteId === pacienteId && !c.resultado && !c.campanaId) || null
   const abrirResultado = (fila, motivo) => setResultadoDe({ paciente: fila.paciente, motivo, contacto: contactoPendiente(fila.id, motivo) })

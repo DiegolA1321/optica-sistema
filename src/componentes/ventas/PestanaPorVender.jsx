@@ -44,8 +44,7 @@ export default function PestanaPorVender({ v, usuario, puedeVender, onVerPacient
   const escribir = (item) => {
     const tel = item.paciente?.telefono
     if (!tel) return
-    escribirPorWhatsApp({ paciente: item.paciente, motivo: "por_vender" })
-    registrarLog(usuario, "ventas", "Escribió por WhatsApp a un paciente por vender", item.paciente?.nombre || "")
+    escribirPorWhatsApp({ paciente: item.paciente, motivo: "por_vender", alEnviar: () => registrarLog(usuario, "ventas", "Escribió por WhatsApp a un paciente por vender", item.paciente?.nombre || "") })
   }
 
   return (

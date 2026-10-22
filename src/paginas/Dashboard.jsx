@@ -77,7 +77,8 @@ import VentanaAvisosInternos from "../componentes/soporte/VentanaAvisosInternos"
 import { listaParaContactar } from "../utilidades/crmContactos"
 import { useAvisosDescartados } from "../utilidades/avisosDescartados"
 import { useSeguimientoDeContacto, registrarContacto } from "../utilidades/contactarPaciente"
-import { ProveedorEscribirPorWhatsApp, crearEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
+import { ProveedorEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
+import { useContactar } from "../componentes/useContactar"
 import { ProveedorFidelidad, armarFidelidad } from "../componentes/FidelidadContexto"
 import { programaDe } from "../utilidades/programaFidelidad"
 
@@ -137,8 +138,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // «Escribir por WhatsApp» de una cita no efectuada o cancelada: la plantilla del CRM, el contacto en el Seguimiento del CRM y la nota en el seguimiento de la cita.
   const contactarPaciente = (cita) => {
     const paciente = pacientes.find((p) => p.id === cita.pacienteId) || { id: cita.pacienteId, nombre: cita.paciente, telefono: cita.telefono }
-    const r = escribirPorWhatsApp({ paciente, telefono: cita.telefono, motivo: "cita_no_efectuada", contexto: { cita } })
-    if (!r.sinTelefono) registrarContacto(cita.id, "whatsapp")
+    escribirPorWhatsApp({ paciente, telefono: cita.telefono, motivo: "cita_no_efectuada", contexto: { cita }, alEnviar: () => registrarContacto(cita.id, "whatsapp") })
   }
   const { avisos: avisosContacto, atender: atenderAvisoContacto } = useAvisosContacto(usuario?.opticaId, puede(usuario, "pacientes", "ver"))
   // Pagos por transferencia que los pacientes reportan desde su portal (migración 0131): Ventas los revisa y el Inicio los cuenta.
@@ -162,10 +162,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     alCambiarPermisos: (id, cambios) => setPacientes((prev) => prev.map((p) => (p.id === id ? { ...p, ...cambios } : p))),
   })
   // Todo aviso con «WhatsApp» escribe con la plantilla del CRM y deja su contacto en el Seguimiento (un solo camino: EscribirPorWhatsApp.jsx).
-  const escribirPorWhatsApp = useMemo(
-    () => crearEscribirPorWhatsApp({ plantillas: crm.plantillas, opticaNombre: usuario?.opticaNombre, consultas, contactarDeAviso: crm.contactarDeAviso, contactarManual: crm.contactarManual, avisar: (m) => mostrarAviso(m) }),
-    [crm.plantillas, crm.contactarDeAviso, crm.contactarManual, usuario?.opticaNombre, consultas],
-  )
+  // La ventana de Contactar es una sola para todo el sistema: aquí se guarda el pedido abierto y más abajo se dibuja.
+  const { escribir: escribirPorWhatsApp, ventana: ventanaContactar } = useContactar({ plantillas: crm.plantillas, opticaNombre: usuario?.opticaNombre, consultas, contactarDeAviso: crm.contactarDeAviso, contactarManual: crm.contactarManual, avisar: (m) => mostrarAviso(m) })
   // El programa de fidelización (puntos, nivel y descuento sugerido): una sola cuenta para el Resumen del paciente, el CRM y «Nueva venta».
   const fidelidad = useMemo(() => armarFidelidad({ programa: programaDe(parametrizacion), pacientes, consultas, facturas: facturasVenta, abonos }), [parametrizacion, pacientes, consultas, facturasVenta, abonos])
   const paraContactar = useMemo(() => (crm.cargando ? null : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, citas, contactos: crm.contactos })), [crm.cargando, crm.contactos, pacientes, consultas, ordenesLab, citas])
@@ -1228,6 +1226,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           }}
         />
       )}
+      {ventanaContactar}
     </div>
     </ProveedorFidelidad>
     </ProveedorEscribirPorWhatsApp>

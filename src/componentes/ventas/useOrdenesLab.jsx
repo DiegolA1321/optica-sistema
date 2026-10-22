@@ -62,14 +62,18 @@ export function useOrdenesLab({ ordenes, setOrdenes, pacientes = [], equipo = []
   const avisarPaciente = async (o) => {
     const p = pacienteDe(o)
     if (!p?.telefono) return
-    setTrabajando(o.id)
-    const { data, error } = supabase ? await supabase.rpc("registrar_aviso_paciente", { p_orden_id: o.id }) : { data: new Date().toISOString(), error: null }
-    setTrabajando(null)
-    if (error) { falla(error, "No se pudo registrar el aviso. Revisa tu conexión e intenta de nuevo."); return }
-    // La plantilla «Lentes listos» del CRM; el contacto queda en el Seguimiento del CRM (el aviso flotante lo dice).
-    escribirPorWhatsApp({ paciente: p, motivo: "lentes_listos", contexto: { orden: numeroOrden(o.numero) } })
-    reemplazar(o.id, { pacienteAvisadoEn: data, pacienteAvisadoPor: usuario?.id || null })
-    registrarLog(usuario, "ventas", "Avisó al paciente que sus lentes están listos", `${p.nombre} · ${numeroOrden(o.numero)}`)
+    // La plantilla «Lentes listos» del CRM en la ventana de Contactar; el aviso se registra al enviar (si se cierra la ventana no pasa nada) y el contacto queda en el Seguimiento del CRM.
+    escribirPorWhatsApp({
+      paciente: p, motivo: "lentes_listos", contexto: { orden: numeroOrden(o.numero) },
+      alEnviar: async () => {
+        setTrabajando(o.id)
+        const { data, error } = supabase ? await supabase.rpc("registrar_aviso_paciente", { p_orden_id: o.id }) : { data: new Date().toISOString(), error: null }
+        setTrabajando(null)
+        if (error) { falla(error, "No se pudo registrar el aviso. Revisa tu conexión e intenta de nuevo."); return }
+        reemplazar(o.id, { pacienteAvisadoEn: data, pacienteAvisadoPor: usuario?.id || null })
+        registrarLog(usuario, "ventas", "Avisó al paciente que sus lentes están listos", `${p.nombre} · ${numeroOrden(o.numero)}`)
+      },
+    })
   }
 
   const imprimir = (o) => imprimirHtml(armarHtmlOrdenDosCopias({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOptica, paciente: pacienteDe(o) || {}, orden: { ...o, facturaNumero: facturaDe(o)?.numero != null ? numeroComprobante(facturaDe(o).numero) : "" } }))

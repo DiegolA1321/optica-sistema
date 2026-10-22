@@ -12,6 +12,8 @@ vi.mock("../lib/supabaseClient", () => ({
 }))
 
 import CRM from "./CRM"
+import { ProveedorEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
+import { useContactar } from "../componentes/useContactar"
 import { useCrmDatos } from "../utilidades/crmDatos"
 import { hoyISO } from "../utilidades/disponibilidad"
 import { fechaEnDias } from "../utilidades/crmContactos"
@@ -35,7 +37,8 @@ const cambioPermisos = vi.fn()
 // Como en Dashboard: los datos del CRM se cargan arriba y se le pasan al módulo.
 function Montaje(props) {
   const crm = useCrmDatos({ usuario: props.usuario, alCambiarPermisos: props.onPacienteActualizado })
-  return <CRM {...props} crm={crm} />
+  const { escribir, ventana } = useContactar({ plantillas: crm.plantillas, opticaNombre: props.usuario?.opticaNombre, consultas: props.consultas, contactarDeAviso: crm.contactarDeAviso, contactarManual: crm.contactarManual, avisar: props.onAviso })
+  return <ProveedorEscribirPorWhatsApp value={escribir}><CRM {...props} crm={crm} />{ventana}</ProveedorEscribirPorWhatsApp>
 }
 const montar = (extra = {}) => render(<Montaje usuario={admin} pacientes={pacientes} consultas={[]} citas={[]} ordenesLab={[]} onAviso={aviso} onPacienteActualizado={cambioPermisos} {...extra} />)
 const tab = (nombre) => screen.getByRole("tab", { name: new RegExp(nombre) })
@@ -93,6 +96,11 @@ describe("CRM: Para contactar", () => {
     montar()
     await screen.findByText("Ana Vencida")
     fireEvent.click(within(fila("Ana Vencida")).getByRole("button", { name: /Contactar a Ana Vencida/ }))
+    // la ventana de Contactar trae el mensaje del motivo ya escrito y nada se abre ni se anota hasta enviarlo
+    const ventana = await screen.findByRole("dialog", { name: "Contactar" })
+    expect(within(ventana).getByLabelText(/Mensaje/).value).toContain("Hola Ana Vencida")
+    expect(window.open).not.toHaveBeenCalled()
+    fireEvent.click(within(ventana).getByRole("button", { name: "Enviar por WhatsApp" }))
     await waitFor(() => expect(base.rpc).toHaveBeenCalledWith("registrar_contacto_crm", expect.objectContaining({ p_paciente_id: "p1", p_motivo: "control_vencido", p_canal: "whatsapp" })))
     expect(window.open).toHaveBeenCalledTimes(1)
     const url = decodeURIComponent(window.open.mock.calls[0][0])
@@ -111,6 +119,7 @@ describe("CRM: Para contactar", () => {
     montar()
     await screen.findByText("Ana Vencida")
     fireEvent.click(within(fila("Ana Vencida")).getByRole("button", { name: /Contactar a Ana Vencida/ }))
+    fireEvent.click(within(await screen.findByRole("dialog", { name: "Contactar" })).getByRole("button", { name: "Enviar por WhatsApp" }))
     await waitFor(() => expect(aviso).toHaveBeenCalledWith("Este paciente no desea recibir mensajes."))
   })
 
