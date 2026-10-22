@@ -5,7 +5,7 @@ import { Printer, Stethoscope, GitCompare, ClipboardList } from "lucide-react"
 import { INK } from "@/lib/tema"
 import SelectorLista from "../SelectorLista"
 import { Cascaron, DetalleAtencion } from "../AtencionPaciente"
-import { GraduacionVigente } from "./Graduacion"
+import { GraduacionVigente, VentanaHistoriaOjo } from "./Graduacion"
 import { edadEnAnios } from "../../utilidades/edad"
 import { formatoFecha } from "../../utilidades/formatoFecha"
 import { recetasDe } from "../../utilidades/graduacion"
@@ -25,6 +25,7 @@ export default function DiagnosticoPerfil({ consultas = [], paciente, usuario, p
   const [id, setId] = useState(null)
   const [vista, setVista] = useState("tecnica") // "tecnica" | "paciente"
   const [comparando, setComparando] = useState(false)
+  const [historiaOjo, setHistoriaOjo] = useState(null) // "od" | "oi": toda la tarjeta del ojo abre su historia
   const lista = consultas // ya vienen de la más reciente a la más antigua
   const consulta = lista.find((c) => String(c.id) === String(id)) || lista[0]
   const recetas = useMemo(() => recetasDe(lista), [lista])
@@ -80,7 +81,7 @@ export default function DiagnosticoPerfil({ consultas = [], paciente, usuario, p
             <p className="mt-1 text-xl font-bold" style={{ color: INK }}>{textoDiagnostico(consulta) || "Sin diagnóstico registrado"}</p>
             {consulta.motivo && <p className="mt-1 text-sm text-slate-600">Viniste por: {consulta.motivo}</p>}
           </section>
-          {hayRefraccion && <GraduacionVigente receta={consulta} anterior={anterior} version="paciente" />}
+          {hayRefraccion && <GraduacionVigente receta={consulta} anterior={anterior} version="paciente" onOjo={setHistoriaOjo} />}
           {indicaciones.length > 0 && (
             <section aria-label="Lo que te indicó tu optómetra" className="rounded-2xl border border-slate-200/60 bg-white p-5">
               <h3 className="text-base font-bold" style={{ color: INK }}>Lo que te indicó tu optómetra</h3>
@@ -93,10 +94,11 @@ export default function DiagnosticoPerfil({ consultas = [], paciente, usuario, p
           <DetalleAtencion
             consulta={consulta}
             secciones={["diagnostico", "agudeza", "refraccion", "examen", "indicaciones"]}
-            refraccion={hayRefraccion ? <GraduacionVigente receta={consulta} anterior={anterior} version="personal" /> : null}
+            refraccion={hayRefraccion ? <GraduacionVigente receta={consulta} anterior={anterior} version="personal" onOjo={setHistoriaOjo} /> : null}
           />
         </div>
       )}
+      {historiaOjo && <VentanaHistoriaOjo recetas={recetas} lado={historiaOjo} version={simple ? "paciente" : "personal"} actualId={consulta.id} onElegir={(rid) => { setId(String(rid)); setHistoriaOjo(null) }} onCerrar={() => setHistoriaOjo(null)} />}
       {comparando && <VentanaCompararDiagnosticos consultas={lista} idInicial={String(consulta.id)} onCerrar={() => setComparando(false)} />}
     </div>
   )

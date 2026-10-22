@@ -750,7 +750,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
       setConsultas?.((prev) => prev.map((c) => (c.pacienteId === idEditando ? { ...c, paciente: cambios.nombre } : c)))
       registrarLog(usuario, "pacientes", "Editó el expediente de un paciente", cambios.nombre)
       const faltan = [!fechaNacimiento && "la fecha de nacimiento", !telefono && "el teléfono", !correo && "el correo"].filter(Boolean)
-      mostrarNotif(`Expediente de ${cambios.nombre} actualizado correctamente.${faltan.length ? ` Te sugerimos completar ${faltan.join(", ")}.` : ""}`)
+      mostrarNotif(`Expediente del paciente actualizado correctamente.${faltan.length ? ` Te sugerimos completar ${faltan.join(", ")}.` : ""}`)
     } else {
       // La alta en sí (insert + shape) vive en utilidades/pacientes.js,
       // compartida con Citas.jsx, para no tener dos copias que puedan

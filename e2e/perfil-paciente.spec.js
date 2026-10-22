@@ -111,7 +111,7 @@ test.describe('Perfil del paciente: atender desde la cabecera', () => {
     await abrirDesdeLaLista(page, nombre)
     const ingresar = page.getByRole('button', { name: 'Atender', exact: true }).first() // el de la cabecera (la pestaña Citas lleva el suyo)
     await expect(ingresar).toBeVisible()
-    await expect(page.getByText(/Cita de hoy/)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Atender ahora' })).toHaveCount(0) // con cita de hoy se atiende esa, no se crea otra
     // el botón está en la cabecera, encima de las pestañas
     const caja = await ingresar.boundingBox()
     const pestanas = await page.getByRole('tablist', { name: 'Secciones del paciente' }).boundingBox()
@@ -121,7 +121,7 @@ test.describe('Perfil del paciente: atender desde la cabecera', () => {
     await expect(page.getByText(nombre).first()).toBeVisible()
   })
 
-  test('un paciente sin cita pendiente no tiene «Ingresar» (queda «Agendar cita»)', async ({ page }) => {
+  test('un paciente sin cita de hoy no tiene «Atender» sino «Atender ahora» (y «Agendar cita» sigue en su lugar)', async ({ page }) => {
     test.setTimeout(120_000)
     const nombre = await crearPacienteConHistorial(1)
     await iniciarSesion(page, 'ADMIN', 'E2E')
@@ -129,6 +129,7 @@ test.describe('Perfil del paciente: atender desde la cabecera', () => {
     await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
     await abrirDesdeLaLista(page, nombre)
     await expect(page.getByRole('button', { name: 'Atender', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Atender ahora' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Agendar cita' }).first()).toBeVisible()
   })
 })

@@ -104,7 +104,7 @@ test('Pacientes: crear, editar, dar acceso al portal, restablecer la clave y eli
   })
 })
 
-test('Citas: «Dejar de atender» devuelve la cita a Pendiente y lo avisa', async ({ page }) => {
+test('Citas: «Dejar de atender» (mismo día) devuelve la cita a «En espera», explica lo que pasa y lo avisa', async ({ page }) => {
   const nombre = await crearCitaDeHoyParaPaula('E2E', { estado: 'En Atención' })
   try {
     await iniciarSesion(page, 'ADMIN', 'E2E')
@@ -112,8 +112,11 @@ test('Citas: «Dejar de atender» devuelve la cita a Pendiente y lo avisa', asyn
     await page.getByLabel('Buscar cita: paciente o código').fill(nombre)
     await page.getByTitle('Ver el detalle de la cita').first().click()
     await page.getByRole('dialog').getByRole('button', { name: 'Dejar de atender' }).click()
-    await page.getByRole('dialog').last().getByRole('button', { name: 'Sí, dejar de atender' }).click()
-    await expect(page.getByText(`Dejaste de atender a ${nombre}. La cita sigue agendada.`)).toBeVisible({ timeout: 15_000 })
+    const aviso = page.getByRole('dialog', { name: /Dejar de atender/ }).last()
+    await expect(aviso).toContainText('«En espera»')
+    await expect(aviso).toContainText('borrador de la ficha se conserva')
+    await aviso.getByRole('button', { name: 'Sí, dejar de atender' }).click()
+    await expect(page.getByText(`Dejaste de atender a ${nombre}. Su cita vuelve a «En espera» y el borrador de la ficha se conserva.`)).toBeVisible({ timeout: 15_000 })
   } finally {
     await cancelarCitasDePrueba([nombre])
   }

@@ -1,4 +1,4 @@
-// La pestaña «Graduación» del perfil del paciente del personal: la misma vista que «Mi receta» del portal, en su versión técnica. Demo, solo lectura.
+// La pestaña «Diagnóstico» del perfil del paciente del personal (antes «Graduación»): todo el diagnóstico de la consulta elegida, con los ojos de la refracción ilustrados. Demo, solo lectura.
 // Solo la ven los roles con permiso de Ficha clínica «ver»: Administrador, Optómetra, Recepción y Ventas lo tienen en sus roles predefinidos.
 // Y la receta del portal: «Descargar receta» baja el PDF directamente (sin el diálogo de impresión).
 import { test, expect } from '@playwright/test'
@@ -18,7 +18,7 @@ async function abrirPerfil(page, rol) {
   await expect(fila.getByRole('button', { name: /Ver perfil 360/ })).toBeVisible({ timeout: 30_000 })
   // La lista se vuelve a dibujar cuando llegan las consultas y un clic dado justo en ese momento se pierde: se espera a que la fila tenga sus datos y, si aun así el perfil no abre,
   // se vuelve a pulsar. No depende de cuánto tarde la carga: pasa en cuanto abre.
-  await expect(fila).toContainText('Graduación:', { timeout: 45_000 })
+  await expect(fila).toContainText('20 abr 2026', { timeout: 45_000 }) // su última visita
   await expect(async () => {
     await fila.getByRole('button', { name: /Ver perfil 360/ }).click()
     await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 8_000 })
@@ -26,55 +26,52 @@ async function abrirPerfil(page, rol) {
 }
 
 for (const rol of ['ADMIN', 'OPTOMETRA', 'RECEPCION', 'VENTAS']) {
-  test(`${rol}: el perfil trae la pestaña Graduación con la vista del portal en versión técnica`, async ({ page }) => {
+  test(`${rol}: el perfil trae la pestaña Diagnóstico con todo el diagnóstico de la consulta, en vista técnica y para el paciente`, async ({ page }) => {
     test.setTimeout(120_000)
     await abrirPerfil(page, rol)
-    // La graduación salió del Resumen
+    // El Resumen ya no lleva los conteos de citas ni la gráfica (están en la pestaña Citas) y la cabecera ya no lleva el panel de la graduación
     await page.getByRole('tab', { name: /Resumen/ }).click()
-    await expect(page.getByRole('region', { name: 'Citas del paciente' })).toBeVisible()
-    await expect(page.getByText('Tendencia de graduación medida')).toHaveCount(0)
-    // en la cabecera hay un panel con la graduación vigente (visible desde todas las pestañas); el bloque grande ya no está en el Resumen
-    const panel = page.getByRole('button', { name: /Graduación vigente del .*Abrir la pestaña Graduación/ })
-    await expect(panel).toBeVisible()
-    await expect(panel).toContainText('Graduación vigente')
-    await expect(panel).toContainText('20 abr 2026') // la fecha de la receta, en una línea
+    await expect(page.getByRole('region', { name: 'Citas del paciente' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Graduación vigente del/ })).toHaveCount(0)
     await expect(page.getByRole('region', { name: 'Ojo derecho' })).toHaveCount(0)
-    // La pestaña: el panel de la cabecera la abre
-    await panel.click()
-    await expect(page.getByRole('tab', { name: /Graduación/ })).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByRole('heading', { name: 'Graduación', exact: true })).toBeVisible({ timeout: 20_000 })
-    await expect(page.getByRole('button', { name: /Elegir otra receta/ })).toContainText('20 abr 2026 · vigente')
+    // La pestaña se llama «Diagnóstico»
+    await expect(page.getByRole('tab', { name: /Graduación/ })).toHaveCount(0)
+    await page.getByRole('tab', { name: /Diagnóstico/ }).click()
+    await expect(page.getByRole('tab', { name: /Diagnóstico/ })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('heading', { name: 'Diagnóstico', exact: true, level: 1 })).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText(/20 abr 2026 · vigente/).first()).toBeVisible()
+    // todo el diagnóstico de la consulta: diagnóstico, agudeza visual, los ojos de la refracción e indicaciones
+    await expect(page.getByText('Agudeza visual').first()).toBeVisible()
     const od = page.getByRole('region', { name: 'Ojo derecho' })
     await expect(od).toContainText('OD · Ojo derecho')
     for (const t of ['Esfera', 'Cilindro', 'Eje', 'Sin corrección', 'Con su corrección actual']) await expect(od).toContainText(t)
     await expect(page.getByLabel('Medidas de la receta')).toContainText('Distancia pupilar (DP)')
-    // sin «Cambio» ni «Tendencia»: los cubren «Comparar dos recetas» y la historia de cada ojo
-    await expect(page.getByRole('region', { name: 'Cambio desde la consulta anterior' })).toHaveCount(0)
-    await expect(page.getByText('Tendencia de graduación medida')).toHaveCount(0)
-    await expect(page.getByRole('region', { name: 'Indicaciones' })).toBeVisible()
+    await expect(page.getByText('Indicaciones y lente recomendado')).toBeVisible()
     // el ojo izquierdo a la izquierda y el derecho a la derecha, también en la vista técnica
     const x = async (n) => (await page.getByRole('region', { name: n }).boundingBox()).x
     expect(await x('Ojo izquierdo')).toBeLessThan(await x('Ojo derecho'))
-    // toda la tarjeta del ojo abre «Historia de este ojo» (también su centro, no solo el enlace)
+    // toda la tarjeta del ojo abre «Historia de este ojo»
     const caja = await od.boundingBox()
     await od.click({ position: { x: caja.width / 2, y: caja.height / 2 } })
     await expect(page.getByRole('dialog', { name: /Historia de este ojo/ })).toBeVisible()
     await page.keyboard.press('Escape')
-    // el selector cambia toda la vista
-    await page.getByRole('button', { name: /Elegir otra receta/ }).click()
-    await page.getByRole('option', { name: /21 de noviembre de 2025/ }).click()
-    await expect(page.getByRole('button', { name: /Elegir otra receta/ })).not.toContainText('vigente')
+    // el selector de consulta cambia toda la vista
+    await page.locator('#diagnostico-consulta').click()
+    await page.getByRole('option', { name: /21 nov 2025/ }).click()
     await expect(page.getByRole('region', { name: 'Ojo derecho' })).toContainText('−1.25')
-    // «Explicar al paciente»: palabras simples, con el ojo derecho a la derecha
-    await page.getByRole('button', { name: 'Explicar al paciente' }).click()
+    // el interruptor de dos opciones: Vista técnica | Vista para el paciente
+    await expect(page.getByRole('button', { name: 'Explicar al paciente' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Vista para el paciente' }).click()
     await expect(page.getByRole('region', { name: 'Ojo derecho' })).toContainText('Tienes miopía leve')
     expect(await x('Ojo derecho')).toBeGreaterThan(await x('Ojo izquierdo'))
-    await page.getByRole('button', { name: 'Volver a la vista técnica' }).click()
-    // Comparar dos recetas
-    await page.getByRole('button', { name: 'Comparar dos recetas' }).click()
-    await expect(page.getByRole('dialog', { name: 'Comparar dos recetas' })).toContainText(/Cambiaron|Las dos recetas/)
+    await page.getByRole('button', { name: 'Vista técnica' }).click()
+    await expect(page.getByRole('region', { name: 'Ojo derecho' })).toContainText('OD · Ojo derecho')
+    // Comparar diagnósticos e Imprimir diagnóstico (no «recetas»)
+    await page.getByRole('button', { name: 'Comparar diagnósticos' }).click()
+    await expect(page.getByRole('dialog', { name: 'Comparar diagnósticos' })).toContainText(/Refracción · OD/)
     await page.keyboard.press('Escape')
-    await expect(page.getByRole('button', { name: 'Imprimir receta' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Imprimir diagnóstico' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Comparar dos recetas|Imprimir receta/ })).toHaveCount(0)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })
 }

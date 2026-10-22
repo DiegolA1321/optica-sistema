@@ -273,7 +273,7 @@ export async function liberarHoyDePaula(entorno = 'E2E') {
 export async function elegirFecha(raiz, idCampo, iso) {
   const [anio, mes, dia] = iso.split('-').map(Number)
   await raiz.locator('#' + idCampo).click()
-  const calendario = raiz.getByRole('dialog', { name: 'Elegir fecha' })
+  const calendario = (raiz.page ? raiz.page() : raiz).getByRole('dialog', { name: 'Elegir fecha' }) // el calendario flotante se abre fuera de la ventana del formulario
   // El calendario debe verse completo dentro de la pantalla (ni recortado ni detrás de la ventana) antes de usarlo.
   await expect(calendario).toBeVisible()
   await calendario.scrollIntoViewIfNeeded()
