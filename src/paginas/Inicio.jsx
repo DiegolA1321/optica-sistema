@@ -290,6 +290,7 @@ export default function Inicio({
   // La ventana de cada total: todo lo registrado o lo nuevo de este mes. Cada opción abre el módulo con ese mismo número (regla 42).
   const nombreMes = nombreMesDe(ahoraEcuador().getMonth()).toLowerCase()
   const verTotal = (modulo, opcion) => () => (onVerTotal ? onVerTotal(modulo, opcion) : setVista?.(modulo))
+  // Cada rol ve solo los totales de lo que puede hacer: Pacientes con «Pacientes: ver», Citas con «Citas: ver», Ventas con «Ventas: ver» y Productos con «Inventario: ver».
   const totalesVentana = {
     pacientes: { id: "pacientes", titulo: "Pacientes", modulo: "Pacientes", icono: Users, opciones: [
       { id: "todos", etiqueta: "Todos los pacientes", detalle: "Todo lo registrado", valor: pacientes.length, onClick: verTotal("pacientes", "todos") },
@@ -316,10 +317,10 @@ export default function Inicio({
       variante="totales"
       compacta
       tarjetas={[
-        { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, color: "azul", onClick: () => setTotalAbierto("pacientes") },
-        { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, color: "violet", onClick: () => setTotalAbierto("citas") },
+        puedeV("pacientes", "ver") && { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, icono: Users, color: "azul", onClick: () => setTotalAbierto("pacientes") },
+        veCitas && { id: "citas", titulo: "Citas", valor: citasVigentes.length, desc: `+${citasEsteMes} este mes`, icono: Calendar, color: "violet", onClick: () => setTotalAbierto("citas") },
         veVentas && { id: "ventas", titulo: "Ventas", valor: dinero(ventasMes.totalVendido), desc: `+${dinero(ventasMes.total)} este mes`, icono: ShoppingBag, color: "green", onClick: () => setTotalAbierto("ventas") },
-        { id: "productos", titulo: "Productos", valor: productosActivos.length, desc: `+${productosEsteMes} este mes`, icono: Package, color: "amber", onClick: () => setTotalAbierto("productos") },
+        veInventario && { id: "productos", titulo: "Productos", valor: productosActivos.length, desc: `+${productosEsteMes} este mes`, icono: Package, color: "amber", onClick: () => setTotalAbierto("productos") },
       ].filter(Boolean)}
     />
   )

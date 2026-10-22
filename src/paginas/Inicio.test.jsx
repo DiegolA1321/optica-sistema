@@ -45,6 +45,19 @@ describe("Inicio del administrador", () => {
     expect(within(totales).queryByText("Pacientes sin atender")).not.toBeInTheDocument()
   })
 
+  it("Totales por rol: cada rol ve solo los totales de lo que puede hacer (sin Ventas ni Productos si no tiene esos módulos)", () => {
+    const totalesDe = (permisos) => {
+      const { unmount } = render(<Inicio {...base} {...rol("administrador", permisos)} />)
+      const nombres = within(screen.getByRole("region", { name: "Totales" })).getAllByRole("button", { name: /: / }).map((b) => b.getAttribute("aria-label").split(":")[0])
+      unmount()
+      return nombres
+    }
+    expect(totalesDe({ citas: ["ver"], pacientes: ["ver"] })).toEqual(["Pacientes", "Citas"])
+    expect(totalesDe({ citas: ["ver"] })).toEqual(["Citas"])
+    expect(totalesDe({ citas: ["ver"], ventas: ["ver"], inventario: ["ver"] })).toEqual(["Citas", "Ventas", "Productos"])
+    expect(totalesDe({ ventas: ["ver"] })).toEqual(["Ventas"])
+  })
+
   it("Totales: Ventas muestra el total vendido y debajo '+$ este mes', con la misma lógica que las demás", () => {
     const ahora = new Date().toISOString()
     render(<Inicio {...base} facturasVenta={[{ id: "f1", estado: "pagada", montoTotal: 100.5, creadoEn: ahora }, { id: "f2", estado: "pagada", montoTotal: 20, creadoEn: ahora }, { id: "f3", estado: "anulada", montoTotal: 999, creadoEn: ahora }]} />)
