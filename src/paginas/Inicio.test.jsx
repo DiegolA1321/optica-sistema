@@ -275,7 +275,7 @@ describe("Inicio del administrador", () => {
     const ventana = screen.getByRole("dialog", { name: /1 paciente registrado sin ninguna consulta/ })
     expect(ventana).toHaveTextContent("Paciente Dos")
     fireEvent.click(within(ventana).getByRole("button", { name: "Abrir en Pacientes · Sin consulta (1)" }))
-    expect(pedidos).toEqual([{ correccion: "Sin evaluación" }])
+    expect(pedidos).toEqual([{ rapido: "SinConsulta" }])
   })
 
   it("crear va en los atajos y las tarjetas de totales solo llevan a su lista", () => {

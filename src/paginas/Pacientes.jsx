@@ -109,8 +109,9 @@ import { Despliegue, PanelUltimaConsulta, PanelCorreccion, PanelControl, PanelPu
 import { escribirParam, leerParam } from "../utilidades/urlEstado"
 import SelectorBuscable from "../componentes/SelectorBuscable"
 import ElegirVentaOrdenModal from "../componentes/ElegirVentaOrdenModal"
-import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, listarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos, puntosFidelidad } from "../utilidades/fidelizacion"
+import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, listarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos, puntosFidelidad, ultimaVisita } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
+import { FILTROS_LISTA, FILTROS_POR_ENLACE, conjuntosLista, conteosLista, cumpleFiltroLista, proximaCitaPorPaciente, etiquetaEstadoClinico } from "../utilidades/listaPacientes"
 import { antecedentesRelevantes, textoAntecedentes } from "../utilidades/antecedentes"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso, mensajeDeError } from "../utilidades/permisos"
 import { supabase } from "../lib/supabaseClient"
@@ -937,11 +938,6 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     mostrarNotif(`Cita agendada para ${paciente.nombre}.`)
   }
 
-  // Pacientes con algún saldo pendiente (venta puntual sin completar, o
-  // factura multi-línea en "pendiente_pago") — para el badge "Pagos
-  // pendientes" y el filtro rápido del mismo nombre.
-  // Tendencia de graduación por paciente, calculada con la misma regla que la ficha clínica y el perfil
-  // (entre sus dos consultas más recientes), no con el valor guardado al momento de cada consulta.
   // Pacientes listos para venta (pase "listo", sin vender ni descartar): se marcan en la lista con un enlace a la cola de Ventas.
   // Consultaron y no compraron (N4): su último pase quedó en "No compró", con el motivo.
   const noCompraron = useMemo(() => pacientesQueNoCompraron(pases, facturasVenta), [pases, facturasVenta])
@@ -958,19 +954,11 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     supabase.rpc("compras_de_paciente", { p_paciente_id: id }).then(({ data }) => { if (vivo) setComprasBasicas({ id, lista: Array.isArray(data) ? data : [] }) })
     return () => { vivo = false }
   }, [pacienteHistorial?.id, puedeVerVentas])
-  const tendenciaPorPaciente = useMemo(() => {
-    const porPaciente = new Map()
-    consultas.forEach((c) => { if (c.pacienteId) porPaciente.set(c.pacienteId, [...(porPaciente.get(c.pacienteId) || []), c]) })
-    const mapa = new Map()
-    porPaciente.forEach((lista, id) => mapa.set(id, tendenciaEntreConsultas(lista.sort(ordenarPorFechaYCreacion))?.verdicto))
-    return mapa
-  }, [consultas])
-  const idsConDeuda = useMemo(() => {
-    const set = new Set()
-    ventas.forEach((v) => { if (v.estado === "pendiente") set.add(v.pacienteId) })
-    facturasVenta.forEach((f) => { if (f.estado === "pendiente_pago") set.add(f.pacienteId) })
-    return set
-  }, [ventas, facturasVenta])
+  // Los conjuntos de cada filtro (nuevos este mes, control vencido, con saldo, sin consulta, dados de alta): una sola definición para las tarjetas, las etiquetas y la lista.
+  const conjuntos = useMemo(() => conjuntosLista({ pacientes, consultas, facturas: facturasVenta, abonos, ventas }), [pacientes, consultas, facturasVenta, abonos, ventas])
+  const conteos = useMemo(() => conteosLista(pacientes, conjuntos), [pacientes, conjuntos])
+  const idsConDeuda = conjuntos.ConSaldo
+  const proximaCita = useMemo(() => proximaCitaPorPaciente(citas), [citas])
 
   const UMBRAL_VISITA_RECIENTE_DIAS = 30
 
@@ -999,16 +987,14 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
 
   const cumpleRapido = (p, clave) => {
     if (clave === "Recientes") { const d = diasDesdeUltimaVisita(p, consultas); return d !== null && d <= UMBRAL_VISITA_RECIENTE_DIAS }
-    if (clave === "PagosPendientes") return idsConDeuda.has(p.id)
     if (clave === "NoCompraron") return noCompraron.has(p.id)
     if (clave === "ControlSinAgendar") return sinAgendarPorPaciente.has(p.id)
-    if (clave === "ControlVencido") return esInactivo(p, consultas) // solo llega desde Reportes ("Control vencido")
-    return true
+    return cumpleFiltroLista(p, clave, conjuntos)
   }
   const pacientesFiltrados = useMemo(
     () => (filtroRapido === "Todos" ? pacientesSinRapido : pacientesSinRapido.filter((p) => cumpleRapido(p, filtroRapido))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pacientesSinRapido, filtroRapido, consultas, idsConDeuda, noCompraron, sinAgendarPorPaciente],
+    [pacientesSinRapido, filtroRapido, consultas, conjuntos, noCompraron, sinAgendarPorPaciente],
   )
 
   // Orden de la tabla — mismo patrón (orden/cambiarOrden/IconoOrden) que ya
@@ -1096,33 +1082,28 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     return () => window.removeEventListener("keydown", onKeyDown)
   }) // sin deps: siempre lee el estado (pacientesVisibles/filaActiva) más reciente
 
-  // Conteo por estado de corrección (para el resumen superior)
-  const conteoCorreccion = useMemo(() => {
-    const base = { "Bien corregido": 0, "Requiere ajuste": 0, "Sin evaluar": 0, "Sin evaluación": 0 }
-    pacientes.forEach((p) => {
-      const k = p.estadoCorreccion || "Sin evaluación"
-      if (base[k] !== undefined) base[k]++
-    })
-    return base
-  }, [pacientes])
-
-  // Tarjetas-resumen: Total primero, luego los estados de corrección accionables
-  const tarjetasCorreccion = [
-    { key: "Todos", icon: Users, valor: pacientes.length, label: "Total pacientes", filled: true, fg: "#fff", bg: GRAD, ring: "#2563EB" },
-    { key: "Bien corregido", icon: CORRECCION["Bien corregido"].icon, valor: conteoCorreccion["Bien corregido"], label: "Bien corregidos", fg: CORRECCION_COLOR["Bien corregido"].fg, bg: CORRECCION_COLOR["Bien corregido"].bg, ring: CORRECCION_COLOR["Bien corregido"].fg },
-    { key: "Requiere ajuste", icon: CORRECCION["Requiere ajuste"].icon, valor: conteoCorreccion["Requiere ajuste"], label: "Requieren ajuste", fg: CORRECCION_COLOR["Requiere ajuste"].fg, bg: CORRECCION_COLOR["Requiere ajuste"].bg, ring: CORRECCION_COLOR["Requiere ajuste"].fg },
-    { key: "Sin evaluar", icon: CORRECCION["Sin evaluar"].icon, valor: conteoCorreccion["Sin evaluar"], label: "Sin agudeza visual con corrección registrada", fg: CORRECCION_COLOR["Sin evaluar"].fg, bg: CORRECCION_COLOR["Sin evaluar"].bg, ring: CORRECCION_COLOR["Sin evaluar"].fg },
-    { key: "Sin evaluación", icon: CORRECCION["Sin evaluación"].icon, valor: conteoCorreccion["Sin evaluación"], label: "Sin consulta", fg: CORRECCION_COLOR["Sin evaluación"].fg, bg: CORRECCION_COLOR["Sin evaluación"].bg, ring: CORRECCION_COLOR["Sin evaluación"].fg },
+  // Las tarjetas de arriba: total, nuevos este mes, con control vencido y con saldo pendiente. Cada una filtra la lista y su número es el de filas que deja (regla 5).
+  // El control vencido sale de las fichas y el saldo, de Ventas: sin ese permiso la cuenta saldría con datos que la persona no recibe, y no se ofrece.
+  const tarjetasLista = [
+    { key: "Todos", icon: Users, valor: conteos.Todos, label: "Total de pacientes", ayuda: FILTROS_LISTA[0].ayuda },
+    { key: "NuevosMes", icon: UserPlus, valor: conteos.NuevosMes, label: "Nuevos este mes", ayuda: FILTROS_LISTA[1].ayuda },
+    ...(puedeVerFichas ? [{ key: "ControlVencido", icon: Clock, valor: conteos.ControlVencido, label: "Con control vencido", ayuda: FILTROS_LISTA[2].ayuda }] : []),
+    ...(puedeVerVentas ? [{ key: "ConSaldo", icon: CreditCard, valor: conteos.ConSaldo, label: "Con saldo pendiente", ayuda: FILTROS_LISTA[3].ayuda }] : []),
   ]
+  // Una tarjeta deja la lista exactamente con su número: quita la búsqueda y los demás filtros antes de aplicarse.
+  const aplicarTarjeta = (key) => {
+    setBusquedaInput(""); setBusqueda(""); setFiltroEstado("Todos"); setFiltroCorreccion("Todos"); setFiltroDesde(""); setFiltroHasta("")
+    setFiltroRapido(key === "Todos" || filtroRapido === key ? "Todos" : key)
+  }
 
   const corta = (iso) => formatoFecha(iso, "medioSinAnio")
   const seccionesFiltro = [
-    { id: "estado", titulo: "Estado", valor: filtroEstado, onChange: setFiltroEstado, opciones: [{ id: "Todos", etiqueta: "Todos" }, { id: "Activo", etiqueta: "Activo" }, { id: "De alta", etiqueta: "De alta" }] },
+    { id: "estado", titulo: "Estado", valor: filtroEstado, onChange: setFiltroEstado, opciones: [{ id: "Todos", etiqueta: "Todos" }, { id: "Activo", etiqueta: "Activo" }, { id: "De alta", etiqueta: "Tratamiento finalizado" }] },
     { id: "fecha", titulo: "Fecha de registro", tipo: "rango", rango: { desde: filtroDesde, hasta: filtroHasta, onDesde: setFiltroDesde, onHasta: setFiltroHasta } },
   ]
   const etiquetasFiltro = [
-    ...(filtroEstado !== "Todos" ? [{ id: "estado", texto: filtroEstado, quitar: () => setFiltroEstado("Todos") }] : []),
-    ...(filtroCorreccion !== "Todos" ? [{ id: "correccion", texto: tarjetasCorreccion.find((t) => t.key === filtroCorreccion)?.label || filtroCorreccion, quitar: () => setFiltroCorreccion("Todos") }] : []),
+    ...(filtroEstado !== "Todos" ? [{ id: "estado", texto: etiquetaEstadoClinico(filtroEstado), quitar: () => setFiltroEstado("Todos") }] : []),
+    ...(filtroCorreccion !== "Todos" ? [{ id: "correccion", texto: CORRECCION[filtroCorreccion]?.label || filtroCorreccion, quitar: () => setFiltroCorreccion("Todos") }] : []),
     ...(filtroDesde || filtroHasta ? [{ id: "fecha", texto: filtroDesde && filtroHasta ? `${corta(filtroDesde)} – ${corta(filtroHasta)}` : `Desde el ${corta(filtroDesde || filtroHasta)}`, quitar: () => { setFiltroDesde(""); setFiltroHasta("") } }] : []),
   ]
 
@@ -1136,18 +1117,11 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
     setFiltroRapido("Todos")
   }
 
-  // Etiquetas de seguimiento sobre la tabla (el filtro de corrección son las tarjetas de arriba). Cada una muestra cuántos pacientes
-  // trae, contados con el mismo criterio con que filtran la lista; "Todos" no lleva número porque es el total de la página.
-  // Cada número sigue a todos los filtros activos (tarjeta, búsqueda y "Filtrar"): es lo que aparece al tocar la etiqueta.
-  const cuentaRapida = Object.fromEntries(["Recientes", "PagosPendientes", "NoCompraron", "ControlSinAgendar"].map((k) => [k, pacientesSinRapido.filter((p) => cumpleRapido(p, k)).length]))
+  // Los filtros rápidos: solo los que sirven, cada uno con su explicación al pasar el cursor y el mismo número que su tarjeta. «Control vencido» y «Con saldo» no se ofrecen sin el permiso de
+  // lo que cuentan. Los que llegan desde un aviso del Inicio o de Reportes (control sin agendar, no compraron, recientes) solo se ven mientras están activos y se quitan con un gesto.
   const badgesRapidos = [
-    { key: "Todos", label: "Todos" },
-    { key: "Recientes", label: `Visitas recientes (${cuentaRapida.Recientes})` },
-    // Los saldos de los pacientes son de Ventas: quien no puede ver Ventas no tiene este filtro.
-    ...(puedeVerVentas ? [{ key: "PagosPendientes", label: `Pagos pendientes (${cuentaRapida.PagosPendientes})` }, { key: "NoCompraron", label: `Consultaron y no compraron (${cuentaRapida.NoCompraron})` }] : []),
-    { key: "ControlSinAgendar", label: `Control sin agendar (${cuentaRapida.ControlSinAgendar})` },
-    // Aparece solo mientras está activo (se llega desde Reportes): un filtro activo siempre se ve y se puede quitar.
-    ...(filtroRapido === "ControlVencido" ? [{ key: "ControlVencido", label: `Control vencido (${pacientesSinRapido.filter((p) => cumpleRapido(p, "ControlVencido")).length})` }] : []),
+    ...FILTROS_LISTA.filter((f) => (!f.consultas || puedeVerFichas) && (!f.ventas || puedeVerVentas)).map((f) => ({ key: f.id, label: f.id === "Todos" ? f.etiqueta : `${f.etiqueta} (${conteos[f.id] ?? 0})`, ayuda: f.ayuda })),
+    ...(FILTROS_POR_ENLACE[filtroRapido] ? [{ key: filtroRapido, label: `${FILTROS_POR_ENLACE[filtroRapido].etiqueta} (${pacientesSinRapido.filter((p) => cumpleRapido(p, filtroRapido)).length})`, ayuda: "Filtro abierto desde otra pantalla." }] : []),
   ]
   const badgeRapidoActivo = filtroRapido
   // "120 pacientes" sin filtros; "Mostrando 5 de 120 pacientes" cuando la búsqueda o algún filtro dejan menos (igual que Citas).
@@ -1206,42 +1180,27 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
 
       {/* Sin ningún paciente no hay nada que filtrar ni contar: solo el mensaje y "Crear el primero" (R25, R34). */}
       {!sinPacientes && (<>
-      {/* ─── RESUMEN POR ESTADO DE CORRECCIÓN (tarjetas que también filtran) ─── */}
+      {/* ─── TARJETAS: total, nuevos este mes, con control vencido y con saldo pendiente (cada una filtra la lista) ─── */}
       <div>
         <p className="mb-2 text-xs font-medium text-slate-500">Toca una tarjeta para filtrar la lista</p>
         <NotaAlcance alcancePropio={alcancePropio} className="mb-2" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {tarjetasCorreccion.filter((t) => puedeVerFichas || t.key === "Todos").map((t) => {
+        <div className={"grid grid-cols-2 gap-3 " + (tarjetasLista.length >= 4 ? "lg:grid-cols-4" : "sm:grid-cols-" + tarjetasLista.length)}>
+          {tarjetasLista.map((t) => {
             const Icono = t.icon
-            const activo = filtroCorreccion === t.key
-            const pct = pacientes.length ? Math.round((t.valor / pacientes.length) * 100) : 0
+            const activo = filtroRapido === t.key
             return (
               <button
                 key={t.key}
                 type="button"
-                title={AYUDA_CORRECCION[t.key]}
-                onClick={() => setFiltroCorreccion((prev) => (t.key === "Todos" ? "Todos" : prev === t.key ? "Todos" : t.key))}
-                className="group relative overflow-hidden rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 cursor-pointer"
-                style={{
-                  borderColor: activo ? t.ring : "rgba(14,43,51,0.08)",
-                  boxShadow: activo ? `0 0 0 3px ${t.ring}22` : "0 1px 2px rgba(14,43,51,0.04)",
-                }}
+                title={t.ayuda}
+                aria-pressed={activo}
+                onClick={() => aplicarTarjeta(t.key)}
+                className={"flex items-center gap-3 rounded-2xl border bg-white p-4 text-left transition-colors hover:border-slate-300 cursor-pointer " + (activo ? "border-blue-500 ring-2 ring-blue-100" : "border-slate-200/70")}
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl transition-transform group-hover:scale-105"
-                    style={{ background: t.bg, color: t.fg }}
-                  >
-                    <Icono size={20} />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-serif font-semibold leading-none" style={{ color: INK }}>{t.valor}</p>
-                    <p className="mt-1 text-xs font-medium text-slate-500">{t.label}</p>
-                  </div>
-                </div>
-                {/* Barra de proporción respecto al total */}
-                <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full transition-all" style={{ width: pct + "%", background: t.filled ? t.bg : t.fg }} />
+                <div className={"grid h-11 w-11 shrink-0 place-items-center rounded-xl " + (activo ? "bg-blue-50 text-blue-600" : "bg-slate-100 text-slate-600")}><Icono size={20} aria-hidden="true" /></div>
+                <div className="min-w-0">
+                  <p className="text-2xl font-serif font-semibold leading-none" style={{ color: INK }}>{t.valor}</p>
+                  <p className="mt-1 text-xs font-medium text-slate-500">{t.label}</p>
                 </div>
               </button>
             )
@@ -1272,6 +1231,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
               key={b.key}
               type="button"
               onClick={() => activarBadgeRapido(b.key)}
+              title={b.ayuda}
+              aria-pressed={activo}
               className={"rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer " + (activo ? "border-blue-600 bg-blue-600 text-white shadow-sm" : "border-slate-200/60 bg-white text-slate-600 hover:bg-slate-50")}
             >
               {b.label}
@@ -1294,8 +1255,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                   <span className="flex items-center gap-1">Paciente <IconoOrden campo="nombre" /></span>
                 </th>
                 <th className="px-5 py-3.5">Contacto</th>
-                <th className="px-5 py-3.5">Corrección</th>
-                <th className="px-5 py-3.5">Último examen</th>
+                <th className="px-5 py-3.5">Última visita</th>
+                <th className="px-5 py-3.5">Próxima cita</th>
                 <th className="px-5 py-3.5 text-center">Acciones</th>
               </tr>
             </thead>
@@ -1351,9 +1312,8 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                 </tr>
               ) : (
                 pacientesVisibles.map((paciente, indiceFila) => {
-                  const correccion = CORRECCION[paciente.estadoCorreccion] || CORRECCION["Sin evaluación"]
-                  const IconoCorreccion = correccion.icon
-                  const tendencia = TENDENCIA[tendenciaPorPaciente.get(paciente.id)]
+                  const visita = ultimaVisita(paciente, consultas)
+                  const siguiente = proximaCita.get(paciente.id)
                   const activa = indiceFila === filaActiva
                   // Badges contextuales de alto valor — lo que recepción
                   // necesita saber de un vistazo sin abrir el perfil: si
@@ -1380,7 +1340,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                             <p className="mt-0.5 font-mono text-xs text-slate-500">{paciente.cedula}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
                               <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + claseBadgeEstadoClinico(paciente.estadoClinico)}>
-                                {paciente.estadoClinico}
+                                {etiquetaEstadoClinico(paciente.estadoClinico)}
                               </span>
                               {/* Metadata de identidad (cuenta/origen) — se
                                   distingue de los 3 badges accionables de
@@ -1449,26 +1409,20 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         </div>
                       </td>
 
-                      <td className="px-5 py-4">
-                        <div className="space-y-1">
-                          <span title={AYUDA_CORRECCION[paciente.estadoCorreccion] || AYUDA_CORRECCION["Sin evaluación"]} className={"inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold " + correccion.clase}>
-                            <IconoCorreccion size={13} />
-                            {correccion.label}
-                          </span>
-                          {tendencia && (
-                            <p className="flex items-center gap-1 text-xs text-slate-500">
-                              <tendencia.icon size={11} style={{ color: tendencia.fg }} />
-                              Graduación: <span style={{ color: tendencia.fg }}>{tendencia.label.toLowerCase()}</span>
-                            </p>
-                          )}
+                      <td className="px-5 py-4 text-slate-600">
+                        <div className="flex items-center gap-1.5">
+                          <Clock size={13} className="text-slate-500" aria-hidden="true" />
+                          <span>{visita ? fechaLegible(fechaAISO(visita)) : <span className="text-slate-400">Sin consultas</span>}</span>
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 text-slate-500">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar size={13} className="text-slate-500" />
-                          <span>{fechaLegible(paciente.ultimaConsulta) || paciente.ultimaConsulta}</span>
-                        </div>
+                      <td className="px-5 py-4 text-slate-600">
+                        {siguiente ? (
+                          <div className="flex items-center gap-1.5">
+                            <Calendar size={13} className="text-slate-500" aria-hidden="true" />
+                            <span>{fechaLegible(siguiente.fecha)} · {siguiente.hora}</span>
+                          </div>
+                        ) : <span className="text-slate-400">Sin cita</span>}
                       </td>
 
                       <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>

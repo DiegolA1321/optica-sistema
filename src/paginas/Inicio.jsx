@@ -729,7 +729,7 @@ export default function Inicio({
       poner("pacientes", {
         id: "sin-consulta", tono: "info", cantidad: n, corto: "sin consulta",
         texto: uno(n, "paciente registrado sin ninguna consulta", "pacientes registrados sin ninguna consulta"),
-        enlace: { texto: `Abrir en Pacientes · Sin consulta (${dSinConsulta.total})`, onClick: enPacientes({ correccion: "Sin evaluación" }) },
+        enlace: { texto: `Abrir en Pacientes · Sin consulta (${dSinConsulta.total})`, onClick: enPacientes({ rapido: "SinConsulta" }) },
         casos: dSinConsulta.visibles.map((p) => ({
           id: p.id, nombre: p.nombre,
           detalle: `Registrado el ${fechaLegible(p.fechaRegistro) || "—"}`,
