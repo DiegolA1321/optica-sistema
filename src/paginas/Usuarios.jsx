@@ -84,7 +84,6 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   const [guardando, setGuardando] = useState(false)
   // Desactivar / reactivar
   const [aDesactivar, setADesactivar] = useState(null)
-  const [motivo, setMotivo] = useState("")
   const [procesando, setProcesando] = useState(false)
 
   const rolesAsignables = nivelesVigentes ? roles : roles.filter((r) => !r.es_predefinido)
@@ -195,14 +194,13 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
 
   const desactivar = async () => {
     setProcesando(true)
-    const { data, error: errorRpc } = await supabase.rpc("desactivar_usuario", { p_perfil_id: aDesactivar.id, p_motivo: motivo.trim() || null })
+    const { data, error: errorRpc } = await supabase.rpc("desactivar_usuario", { p_perfil_id: aDesactivar.id, p_motivo: null })
     setProcesando(false)
     if (errorRpc) { setError(mensajeDeError(errorRpc, "No se pudo desactivar al usuario.")); setADesactivar(null); return }
     registrarLog(usuario, "usuarios", "Desactivó a un usuario", aDesactivar.nombre)
     const n = data?.citas_futuras_asignadas || 0
     mostrarExito(`${aDesactivar.nombre} fue desactivado. Ya no puede entrar.${n > 0 ? ` Tiene ${n} cita${n === 1 ? "" : "s"} futura${n === 1 ? "" : "s"} asignada${n === 1 ? "" : "s"}: reasígnala${n === 1 ? "" : "s"} en Citas.` : ""}`)
     setADesactivar(null)
-    setMotivo("")
     cargar()
   }
   const reactivar = async (a) => {
@@ -357,7 +355,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
                       {a.activo === false ? (
                         <button type="button" onClick={() => reactivar(a)} disabled={!nivelesVigentes} className="rounded-lg p-1.5 text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40" title="Reactivar" aria-label={`Reactivar a ${a.nombre}`}><UserCheck size={15} /></button>
                       ) : (
-                        <button type="button" onClick={() => { setError(""); setMotivo(""); setADesactivar(a) }} disabled={!nivelesVigentes} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40" title={nivelesVigentes ? "Desactivar" : "Disponible cuando los permisos por nivel estén activos"} aria-label={`Desactivar a ${a.nombre}`}><UserX size={15} /></button>
+                        <button type="button" onClick={() => { setError(""); setADesactivar(a) }} disabled={!nivelesVigentes} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40" title={nivelesVigentes ? "Desactivar" : "Disponible cuando los permisos por nivel estén activos"} aria-label={`Desactivar a ${a.nombre}`}><UserX size={15} /></button>
                       )}
                     </div>
                   </div>
@@ -450,7 +448,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
       {aDesactivar && (
         <Cascaron
           titulo={`¿Desactivar a ${aDesactivar.nombre}?`}
-          subtitulo="Ya no podrá entrar; su historial se conserva."
+          subtitulo="Cambia el acceso, no el historial."
           Icono={UserX}
           ancho="max-w-md"
           onCerrar={() => { if (!procesando) setADesactivar(null) }}
@@ -458,18 +456,18 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
             <span />
             <div className="ml-auto flex items-center gap-2">
               <button type="button" onClick={() => setADesactivar(null)} disabled={procesando} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-60">Cancelar</button>
-              <button type="button" onClick={desactivar} disabled={procesando} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 cursor-pointer disabled:opacity-60">{procesando ? "Desactivando…" : "Desactivar"}</button>
+              <button type="button" onClick={desactivar} disabled={procesando} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-60">{procesando ? "Desactivando…" : "Desactivar"}</button>
             </div>
           </>}
         >
-          <div className="p-6">
-          <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600">
-            <li>Ya no podrá entrar ni ver datos de la óptica; si tiene la sesión abierta, se cierra en unos minutos.</li>
-            <li>Se conserva todo su historial: sus citas y atenciones siguen mostrando su nombre.</li>
-            <li>Deja de aparecer en "Asignado a". Puedes reactivarlo cuando quieras.</li>
-          </ul>
-          <label className="mt-4 block"><span className="mb-1 block text-xs font-semibold text-slate-600">Motivo (opcional)</span>
-            <input value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={120} placeholder="Ej. dejó de trabajar con nosotros" className={CAMPO} /></label>
+          <div className="space-y-3 p-6">
+            <p className="text-sm text-slate-700">{aDesactivar.nombre}{rolesDe(aDesactivar.id).length > 0 ? <span className="text-slate-500"> · {rolesDe(aDesactivar.id).map((r) => r.nombre).join(", ")}</span> : null}</p>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+              <li><strong>No podrá ingresar</strong> al sistema desde este momento.</li>
+              <li><strong>Su historial se conserva</strong>: las ventas, abonos y registros que hizo siguen a su nombre.</li>
+              <li>Puedes <strong>reactivar la cuenta</strong> cuando quieras, con sus mismos roles.</li>
+            </ul>
+            <p className="text-xs leading-relaxed text-slate-500">No existe «eliminar» un usuario: borraría quién hizo cada cosa en el sistema.</p>
           </div>
         </Cascaron>
       )}
