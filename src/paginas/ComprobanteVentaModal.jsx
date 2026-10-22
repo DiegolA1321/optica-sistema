@@ -774,7 +774,7 @@ export default function ComprobanteVentaModal({
                           </div>
                         ) : puedeDescontar && (
                           <button type="button" onClick={() => editarDescuento(i, { descuentoTipo: "porcentaje", descuentoValor: "", descuentoMotivo: "" })} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer">
-                            <BadgePercent size={13} aria-hidden="true" /> Aplicar descuento
+                            <BadgePercent size={13} aria-hidden="true" /> Descuento a esta línea
                           </button>
                         )}
                       </li>
@@ -806,7 +806,7 @@ export default function ComprobanteVentaModal({
                         <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">{beneficioFidelidad.nivel.nombre} · {beneficioFidelidad.descuento} % sugerido</span>
                         {lineas.some((l) => l.descuentoTipo)
                           ? <span className="text-sm text-slate-500">Ya hay descuentos en esta venta</span>
-                          : <button type="button" onClick={aplicarDescuentoFidelidad} className="text-sm font-bold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer">Aplicar descuento</button>}
+                          : <button type="button" onClick={aplicarDescuentoFidelidad} title={`Aplica el ${beneficioFidelidad.descuento} % de fidelización a todas las líneas`} className="text-sm font-bold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer">Aplicar descuento</button>}
                       </>
                     )}
                   </div>

@@ -70,7 +70,7 @@ export function lunaDeTexto(texto) {
   const t = String(texto ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
   return {
     tipoLente: /progres/.test(t) ? "progresivo" : /bifocal|doble foco/.test(t) ? "bifocal" : "monofocal",
-    antirreflejo: /anti\s*-?\s*reflej|\bar\b/.test(t),
+    antirreflejo: /anti\s*-?\s*rr?eflej|\bar\b/.test(t),
     filtroAzul: /filtro\s+azul|luz\s+azul|blue/.test(t),
     fotocromatico: /fotocrom|photo/.test(t),
   }

@@ -386,3 +386,56 @@ describe("cada motivo pide su permiso", () => {
     expect(rr.filas[0].motivos.map((m) => m.id)).toEqual(["cumpleanos"])
   })
 })
+
+describe("«Por vender» vive en Para contactar (motivo «Recibió su diagnóstico y no ha comprado»)", () => {
+  const pase = (id, pacienteId, extra = {}) => ({ id, pacienteId, estado: "listo", pasadaEn: `${dia(-3)}T15:00:00Z`, ...extra })
+  const alDia = { fechaRegistro: dia(-20) } // sin control vencido ni cumpleaños: el único motivo posible es por vender
+
+  it("un paciente con un pase abierto entra con ese motivo, los días que lleva y su proforma", () => {
+    const p = paciente("a", alDia)
+    const m = motivosDe(p, { hoy, pases: [pase("x", "a", { proformaEntregadaEn: `${dia(-2)}T10:00:00Z`, proformaTotal: 85 })] })
+    expect(m.map((x) => x.id)).toEqual(["por_vender"])
+    expect(m[0]).toMatchObject({ dias: 3, detalle: "Recibió su diagnóstico hace 3 días · con proforma" })
+    expect(m[0].pase.proformaTotal).toBe(85)
+  })
+  it("una solicitud del portal lo dice con sus palabras", () => {
+    const m = motivosDe(paciente("a", alDia), { hoy, pases: [pase("x", "a", { origen: "portal", pasadaEn: `${hoy}T10:00:00Z` })] })
+    expect(m[0].detalle).toBe("Pidió lentes desde su portal hoy")
+  })
+  it("sin pase abierto (vendido o descartado) o de otro paciente no entra", () => {
+    const p = paciente("a", alDia)
+    expect(motivosIds(p, { pases: [pase("x", "a", { estado: "vendido" }), pase("y", "a", { estado: "descartado" }), pase("z", "otro")] })).toEqual([])
+  })
+  it("si compró algo después de recibir su diagnóstico (aunque no quedara vinculado) ya no está por vender; una venta anulada o anterior no cuenta", () => {
+    const p = paciente("a", alDia)
+    const pases = [pase("x", "a")]
+    const compra = (extra) => ({ pacienteId: "a", estado: "pagada", creadoEn: `${dia(-1)}T10:00:00Z`, ...extra })
+    expect(motivosIds(p, { pases, facturas: [compra()] })).toEqual([])
+    expect(motivosIds(p, { pases, facturas: [compra({ estado: "anulada" })] })).toEqual(["por_vender"])
+    expect(motivosIds(p, { pases, facturas: [compra({ creadoEn: `${dia(-9)}T10:00:00Z` })] })).toEqual(["por_vender"])
+  })
+  it("un paciente dado de alta sigue con su compra pendiente", () => {
+    expect(motivosIds(paciente("a", { ...alDia, estadoClinico: "De alta" }), { pases: [pase("x", "a")] })).toEqual(["por_vender"])
+  })
+  it("es de «Recordatorios de salud»: sin ese permiso no se le ofrece", () => {
+    expect(permisoDeMotivo("por_vender")).toBe("recordatorios")
+    const sin = paciente("a", { ...alDia, aceptaRecordatorios: false })
+    const r = listaParaContactar({ pacientes: [sin, paciente("b", alDia)], pases: [pase("x", "a"), pase("y", "b")], hoy })
+    expect(r.filas.map((f) => f.id)).toEqual(["b"])
+    expect(r.sinPermiso).toBe(1)
+  })
+  it("la lista y el conteo lo cuentan una sola vez por paciente, y un contacto reciente lo hace descansar", () => {
+    const pacientes = [paciente("a", alDia), paciente("b", alDia)]
+    const pases = [pase("x", "a"), pase("y", "a"), pase("z", "b")]
+    const r = listaParaContactar({ pacientes, pases, hoy })
+    expect(contarPorMotivo(r.filas)).toMatchObject({ total: 2, por: { por_vender: 2 } })
+    expect(filtrarPorMotivo(r.filas, "por_vender")).toHaveLength(2)
+    const descansa = listaParaContactar({ pacientes, pases, contactos: [contacto("a", "por_vender", { resultado: "no_le_interesa", creadoEn: marca(-1) })], hoy })
+    expect(descansa.filas.map((f) => f.id)).toEqual(["b"])
+  })
+  it("tiene su etiqueta y su plantilla de mensaje, y no está entre los motivos de aviso de otro módulo", () => {
+    expect(ETIQUETA_MOTIVO.por_vender).toBe("Por vender")
+    expect(PLANTILLAS_BASE.por_vender).toMatch(/proforma/)
+    expect(MOTIVOS_DE_AVISO.por_vender).toBeUndefined()
+  })
+})

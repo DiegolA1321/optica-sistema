@@ -34,3 +34,19 @@ describe("comprobantes", () => {
     expect(lunaDe(ls).descripcion).toBe("L")
   })
 })
+
+import { lunaDeTexto } from "./comprobantes"
+describe("lunaDeTexto — lo que «Usar como guía» toma del lente recomendado", () => {
+  it("reconoce el tipo y los filtros escritos en palabras del optómetra", () => {
+    expect(lunaDeTexto("Progresivo con filtro azul y antirreflejo")).toEqual({ tipoLente: "progresivo", antirreflejo: true, filtroAzul: true, fotocromatico: false })
+    expect(lunaDeTexto("Bifocal fotocromático")).toEqual({ tipoLente: "bifocal", antirreflejo: false, filtroAzul: false, fotocromatico: true })
+    expect(lunaDeTexto("Monofocal anti-reflejo")).toMatchObject({ tipoLente: "monofocal", antirreflejo: true })
+    expect(lunaDeTexto("Lentes con luz azul")).toMatchObject({ filtroAzul: true })
+  })
+  it("sin tilde o en mayúsculas funciona igual, y lo que no reconoce queda monofocal y sin filtros", () => {
+    expect(lunaDeTexto("PROGRESIVO FOTOCROMATICO").tipoLente).toBe("progresivo")
+    expect(lunaDeTexto("PROGRESIVO FOTOCROMATICO").fotocromatico).toBe(true)
+    expect(lunaDeTexto("")).toEqual({ tipoLente: "monofocal", antirreflejo: false, filtroAzul: false, fotocromatico: false })
+    expect(lunaDeTexto(undefined).tipoLente).toBe("monofocal")
+  })
+})

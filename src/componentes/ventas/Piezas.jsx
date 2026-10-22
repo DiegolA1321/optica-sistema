@@ -161,7 +161,7 @@ export function Pildoras({ etiqueta, opciones, valor, onCambiar }) {
           <button key={o.id} type="button" aria-pressed={activo} onClick={() => onCambiar(o.id)}
             className={"inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors cursor-pointer " + (activo ? "border-transparent text-white" : "border-slate-200/70 bg-white text-slate-700 hover:bg-slate-50")}
             style={activo ? ACTIVO : undefined}>
-            {o.etiqueta}{o.cuenta != null && <span className={"tabular-nums " + (activo ? "text-white/90" : "text-slate-500")}>· {o.cuenta}</span>}
+            {o.etiqueta}{o.cuenta != null && " "}{o.cuenta != null && <span className={"tabular-nums " + (activo ? "text-white/90" : "text-slate-500")}>· {o.cuenta}</span>}
           </button>
         )
       })}
