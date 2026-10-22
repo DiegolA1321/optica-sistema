@@ -4,6 +4,8 @@ import { render, screen, fireEvent, within } from "@testing-library/react"
 // Sin base de datos: ninguna prueba toca una base real (aunque haya un .env.local).
 vi.mock("../lib/supabaseClient", () => ({ supabase: null }))
 import Pacientes from "./Pacientes"
+import { ProveedorEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
+import { useContactar } from "../componentes/useContactar"
 
 beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-22T15:00:00-05:00")) })
 afterAll(() => { vi.useRealTimers() })
@@ -31,12 +33,67 @@ describe("Perfil del paciente (las cuatro pestañas, con la cabecera única)", (
       expect(within(panel()).getByRole("region", { name: "Datos del paciente" })).toHaveTextContent("Por su cuenta")
       expect(within(panel()).getByRole("region", { name: "Fidelización" })).toBeInTheDocument()
       fireEvent.click(screen.getByRole("tab", { name: /Citas/ }))
-      expect(within(panel()).getByRole("region", { name: "Visitas por año" })).toBeInTheDocument()
+      expect(within(panel()).getByRole("region", { name: "Asistencia a sus citas" })).toHaveTextContent("1 de 2 citas atendidas (50 %)")
       expect(within(panel()).getByRole("region", { name: "Historial de citas" })).toHaveTextContent("Astigmatismo")
       fireEvent.click(screen.getByRole("tab", { name: /Diagnóstico/ }))
       expect(within(panel()).getByRole("region", { name: "Refracción final" })).toHaveTextContent("+0.25")
       fireEvent.click(screen.getByRole("tab", { name: /Compras/ }))
       expect(within(panel()).getByRole("region", { name: "Compras del paciente" })).toHaveTextContent("Saldo $145.00")
     })
+  })
+})
+
+// Como en el Dashboard: la ventana de Contactar es una sola y la ofrece el contexto.
+function ConContactar(props) {
+  const { escribir, ventana } = useContactar({ plantillas: {}, opticaNombre: "Óptica Demo", consultas: props.consultas, contactarDeAviso: async () => ({ ok: true }), avisar: () => {} })
+  return <ProveedorEscribirPorWhatsApp value={escribir}><Pacientes {...props} />{ventana}</ProveedorEscribirPorWhatsApp>
+}
+
+describe("Citas del perfil: asistencia, ciclo de control y Contactar", () => {
+  const faltas = [
+    { id: "c1", pacienteId: "p1", paciente: "Diego Alarcón", fecha: "2026-10-21", hora: "10:00 AM", estado: "No Asistió", motivo: "Examen de control" },
+    { id: "c3", pacienteId: "p1", paciente: "Diego Alarcón", fecha: "2026-09-01", hora: "10:00 AM", estado: "No Asistió", motivo: "Examen de control" },
+    { id: "c2", pacienteId: "p1", paciente: "Diego Alarcón", fecha: "2026-04-07", hora: "10:00 AM", estado: "Atendida", motivo: "Consulta general", atendidoPor: "u1" },
+  ]
+  const montar = () => render(<ConContactar usuario={admin} pacientes={[diego]} setPacientes={() => {}} consultas={[{ ...consulta, fecha: "2026-04-07" }]} setConsultas={() => {}} citas={faltas} setCitas={() => {}} facturasVenta={[]} setFacturasVenta={() => {}} equipo={[{ id: "u1", nombre: "Ana" }]} abonos={[]} accionInicial={{ accion: "historial", pacienteId: "p1" }} />)
+  it("faltó a sus dos últimas citas: «Contactar» abre la ventana con el mensaje de la plantilla y al enviar abre WhatsApp", async () => {
+    const abrir = vi.spyOn(window, "open").mockImplementation(() => null)
+    montar()
+    const abrirPerfil = screen.queryAllByRole("button", { name: /Ver perfil 360/ })[0]
+    if (abrirPerfil) fireEvent.click(abrirPerfil)
+    await screen.findByRole("banner", { name: "Perfil del paciente" })
+    fireEvent.click(screen.getByRole("tab", { name: /Citas/ }))
+    const tarjeta = screen.getByRole("region", { name: "Asistencia a sus citas" })
+    expect(tarjeta).toHaveTextContent("1 de 3 citas atendidas (33 %)")
+    expect(within(tarjeta).getByRole("alert")).toHaveTextContent("Faltó a sus 2 últimas citas.")
+    fireEvent.click(within(tarjeta).getByRole("button", { name: "Contactar" }))
+    const v = await screen.findByRole("dialog", { name: "Contactar" })
+    const texto = within(v).getByLabelText(/Mensaje/).value
+    expect(texto).toContain("Hola Diego Alarcón")
+    expect(texto).toMatch(/21 de octubre/)
+    expect(abrir).not.toHaveBeenCalled()
+    fireEvent.click(within(v).getByRole("button", { name: "Enviar por WhatsApp" }))
+    expect(abrir).toHaveBeenCalledTimes(1)
+    abrir.mockRestore()
+  })
+  it("pulsar la tarjeta filtra el historial por las citas resueltas y el filtro se quita", async () => {
+    montar()
+    const abrirPerfil = screen.queryAllByRole("button", { name: /Ver perfil 360/ })[0]
+    if (abrirPerfil) fireEvent.click(abrirPerfil)
+    await screen.findByRole("banner", { name: "Perfil del paciente" })
+    fireEvent.click(screen.getByRole("tab", { name: /Citas/ }))
+    fireEvent.click(screen.getByRole("button", { name: "2 no efectuadas" }))
+    const h = screen.getByRole("region", { name: "Historial de citas" })
+    expect(h).toHaveTextContent("Historial de citas · 2 de 3")
+    fireEvent.click(within(h).getByRole("button", { name: /Quitar el filtro No efectuadas/ }))
+    expect(screen.getByRole("region", { name: "Historial de citas" })).toHaveTextContent("Historial de citas · 3")
+  })
+  it("sin consultas ni control: «Sin control recomendado»", async () => {
+    render(<ConContactar usuario={admin} pacientes={[{ ...diego, estadoClinico: "De alta" }]} setPacientes={() => {}} consultas={[]} setConsultas={() => {}} citas={[{ id: "c9", pacienteId: "p1", paciente: "Diego Alarcón", fecha: "2026-10-01", hora: "10:00 AM", estado: "Cancelada", motivo: "Consulta general" }]} setCitas={() => {}} facturasVenta={[]} setFacturasVenta={() => {}} equipo={[]} abonos={[]} accionInicial={{ accion: "historial", pacienteId: "p1" }} />)
+    const abrirPerfil = screen.queryAllByRole("button", { name: /Ver perfil 360/ })[0]
+    if (abrirPerfil) fireEvent.click(abrirPerfil)
+    await screen.findByRole("banner", { name: "Perfil del paciente" })
+    fireEvent.click(screen.getByRole("tab", { name: /Citas/ }))
+    expect(screen.getByRole("region", { name: "Su ciclo de control" })).toHaveTextContent("Sin control recomendado")
   })
 })

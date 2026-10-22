@@ -46,10 +46,15 @@ export function useSeguimientoDeContacto(citas, habilitado) {
     }
     cargar()
     const t = setInterval(() => { if (!document.hidden) cargar() }, 60000)
-    return () => { vivo = false; clearInterval(t) }
+    window.addEventListener(EVENTO_CONTACTO_DE_CITA, cargar)
+    return () => { vivo = false; clearInterval(t); window.removeEventListener(EVENTO_CONTACTO_DE_CITA, cargar) }
   }, [clave, habilitado]) // eslint-disable-line react-hooks/exhaustive-deps
   return seguimiento
 }
 
-// «Escribir por WhatsApp» queda en el seguimiento de la cita (sin esperar la respuesta: lo que importa es abrir WhatsApp dentro del clic).
-export const registrarContacto = (citaId, medio = "whatsapp") => (supabase ? supabase.rpc("registrar_contacto_cita", { p_cita_id: citaId, p_medio: medio }) : Promise.resolve({}))
+// «Escribir por WhatsApp» queda en el seguimiento de la cita (sin esperar la respuesta: lo que importa es abrir WhatsApp dentro del clic). Al terminar avisa a quien muestre «Contactar al paciente»
+// (el Inicio, Citas y el Resumen del perfil) para que lo vuelva a leer y la cita pase a «contactada» sin esperar el minuto del reloj.
+export const EVENTO_CONTACTO_DE_CITA = "optica:contacto-de-cita"
+export const registrarContacto = (citaId, medio = "whatsapp") => (supabase
+  ? Promise.resolve(supabase.rpc("registrar_contacto_cita", { p_cita_id: citaId, p_medio: medio })).finally(() => { if (typeof window !== "undefined") window.dispatchEvent(new Event(EVENTO_CONTACTO_DE_CITA)) })
+  : Promise.resolve({}))

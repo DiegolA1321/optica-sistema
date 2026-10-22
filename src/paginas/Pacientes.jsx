@@ -8,6 +8,7 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { useState, useMemo, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import {
+  X,
   ArrowLeft,
   UserX,
   UserPlus,
@@ -48,7 +49,6 @@ import {
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import CamposCita from "../componentes/CamposCita"
 import { BarraBusquedaFiltros, SeccionRango } from "../componentes/FiltrosCitas"
-import { contarCitas } from "../utilidades/resumenCitas"
 import { useFidelidad } from "../componentes/FidelidadContexto"
 import { useEventosDeCita } from "../utilidades/eventosCita"
 import { seguimientoDeCita, cuandoDeEvento, detalleDeEvento, sufijoDeEvento, TITULO_EVENTO } from "../utilidades/seguimientoCita"
@@ -58,7 +58,8 @@ import SeleccionarCitaModal from "../componentes/SeleccionarCitaModal"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { cobrosPendientes, marcarCitaAtendidaDb } from "../utilidades/cobrosPendientes"
 import { lineasCobroConsulta, costoBaseMotivo } from "../utilidades/costosConsulta"
-import { VisitasPorPeriodo, LineaDeVisitas } from "../componentes/pacientes/VisitasPerfil"
+import { AsistenciaCitas, CicloControl } from "../componentes/pacientes/TarjetasCitas"
+import { faltasSeguidas, cicloDeControl, promedioEntreConsultas, ESTADOS_DE_FILTRO, NOMBRE_FILTRO } from "../utilidades/cicloCitas"
 import { recetaEnLinea } from "../utilidades/resultadoDeCita"
 import ComprasPerfil from "../componentes/pacientes/ComprasPerfil"
 import ResumenPerfil from "../componentes/pacientes/ResumenPerfil"
@@ -101,10 +102,11 @@ import { useVentas } from "../utilidades/useVentas"
 import { saldoVenta, ventasPendientesPaciente } from "../utilidades/ventas"
 import { registrarLog } from "../utilidades/logs"
 import { hoyISO, fechaAISO } from "../utilidades/disponibilidad"
-import { controlesSinAgendar, diaHabilMasCercano, asignadoDelControl } from "../utilidades/controles"
+import { controlesSinAgendar, diaHabilMasCercano, asignadoDelControl, citasParaReagendar } from "../utilidades/controles"
+import { registrarContacto, motivoDeLaCita } from "../utilidades/contactarPaciente"
+import { puedeContactarPor } from "../utilidades/crmContactos"
 import CampoFecha from "../componentes/CampoFecha"
 import { Cascaron, ModalAtencion, ModalHistoriaClinica, ModalDatosPaciente } from "../componentes/AtencionPaciente"
-import { Despliegue, PanelUltimaConsulta, PanelControl, PanelCitasEstado } from "../componentes/DetallesResumen"
 import { escribirParam, leerParam } from "../utilidades/urlEstado"
 import SelectorBuscable from "../componentes/SelectorBuscable"
 import ElegirVentaOrdenModal from "../componentes/ElegirVentaOrdenModal"
@@ -185,7 +187,7 @@ function MiniaturaAdjunto({ path }) {
   )
 }
 
-export default function Pacientes({ avisosDelModulo = null, alcancePropio = false, usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, onReagendarCita }) {
+export default function Pacientes({ seguimientoContacto = new Map(), avisosDelModulo = null, alcancePropio = false, usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, onReagendarCita }) {
   const opticaId = usuario?.opticaId
   const escribirPorWhatsApp = useEscribirPorWhatsApp()
   const { de: fidelidadDe, programa: programaFidelidad } = useFidelidad()
@@ -1874,6 +1876,16 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
               // para cualquier paciente (con o sin consultas) mientras no tenga una cita pendiente.
               const hayCitaPendiente = citasPaciente.some((c) => ESTADOS_PENDIENTES.includes(c.estado))
               const alertaControl = proximoControl && !hayCitaPendiente ? (inactivo ? "vencido" : controlPorAgendar ? "sinAgendar" : null) : null
+              // «Contactar»: la misma ventana de todo el sistema, con la plantilla de «cita no efectuada». Al enviar, la cita queda «contactada» en su seguimiento (y con ella la de «Contactar al paciente» del Inicio y de Citas).
+              const telefonoValido = !!pacienteHistorial.telefono && !/^sin /i.test(pacienteHistorial.telefono)
+              const sePuedeContactar = telefonoValido && puedeContactarPor(pacienteHistorial, "cita_no_efectuada")
+              const citasPorContactar = citasParaReagendar(citasPaciente)
+              const contactarPorCita = (citaBase) => escribirPorWhatsApp({
+                paciente: pacienteHistorial, telefono: pacienteHistorial.telefono, motivo: "cita_no_efectuada", contexto: { cita: citaBase },
+                alEnviar: () => { for (const id of new Set([citaBase.id, ...citasPorContactar.map((c) => c.id)])) registrarContacto(id, "whatsapp") },
+              })
+              const faltasPaciente = faltasSeguidas(citasPaciente)
+              const citaPorContactar = citasPorContactar.find((c) => !seguimientoContacto.get(c.id)?.contactadaEn && !seguimientoContacto.get(c.id)?.sinSeguimiento)
 
               // Atender, al final de la fila de pestañas: con atención abierta, «Seguir atendiendo» y «Dejar de atender»; con una cita de hoy, «Atender»; sin cita de hoy, «Atender ahora» (crea la cita presencial y abre la ficha).
               const atender = !puedeAtender ? null : (() => {
@@ -1938,6 +1950,7 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                   accion: puedeAgendar ? { etiqueta: "Agendar", onClick: () => abrirAgendar(pacienteHistorial, controlPorAgendar ? fechaAISO(proximoControl) : "", controlPorAgendar ? asignadoDelControl(controlPorAgendar.consulta, equipo) : "") } : null,
                 },
                 !alertaControl && proximoControl && !inactivo && consultasPaciente.length === 0 && { id: "recomendado", tono: "gris", texto: `Control recomendado · ${fechaLegible(proximoControl)}` },
+                citaPorContactar && { id: "contactar", tono: "rojo", texto: `Contactar al paciente · ${motivoDeLaCita(citaPorContactar, seguimientoContacto)} · cita del ${fechaReciente(citaPorContactar.fecha)}`, accion: sePuedeContactar ? { etiqueta: "Contactar", onClick: () => contactarPorCita(citaPorContactar) } : null },
                 ...cobrosDelPaciente.map(({ consulta, cita }) => {
                   const monto = costoBaseMotivo(parametrizacion, consulta.motivo)
                   return { id: "cobro-" + consulta.id, tono: "rojo", texto: `Cobro pendiente ${monto > 0 ? dinero(monto) + " · " : ""}Consulta del ${fechaReciente(consulta.fecha)}`, accion: puedeVender ? { etiqueta: "Cobrar", onClick: () => setCobrandoPendiente({ consulta, cita }) } : null }
@@ -1980,13 +1993,12 @@ export default function Pacientes({ avisosDelModulo = null, alcancePropio = fals
                         consultas={consultasPaciente}
                         equipo={equipo}
                         onAgendar={puedeAgendar ? () => abrirAgendar(pacienteHistorial) : undefined}
+                        onAgendarControl={puedeAgendar && proximoControl ? () => abrirAgendar(pacienteHistorial, inactivo ? hoyISO() : fechaAISO(proximoControl), controlPorAgendar ? asignadoDelControl(controlPorAgendar.consulta, equipo) : "") : undefined}
+                        onContactarFaltas={faltasPaciente.length > 0 && sePuedeContactar ? () => contactarPorCita(faltasPaciente[0]) : undefined}
                         paciente={pacienteHistorial}
                         usuario={usuario}
                         parametrizacion={parametrizacion}
                         proximoControl={proximoControl}
-                        diasControl={diasControl}
-                        inactivo={inactivo}
-                        diasDesdeUltima={diasDesdeUltimaVisita(pacienteHistorial, consultas)}
                       />
                       </div>
                     ) : tabHistorial === "pagos" ? (
@@ -2288,7 +2300,7 @@ function adjuntosConsulta(consulta) {
   )
 }
 
-function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, paciente, usuario, parametrizacion, proximoControl, diasControl, inactivo, diasDesdeUltima }) {
+function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, onAgendarControl, onContactarFaltas, paciente, usuario, parametrizacion, proximoControl }) {
   // El diagnóstico de una cita atendida se abre en una ventana encima del perfil, sin mover el resto de la lista.
   const [citaAbierta, setCitaAbierta] = useState(null)
   // Buscador del historial (solo cuando es largo): rango de fechas y texto libre (motivo o diagnóstico), para ubicar una cita de hace meses.
@@ -2297,40 +2309,30 @@ function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, pac
   const [texto, setTexto] = useState("")
   // «Último año» o «Todas»: el atajo del encabezado del historial.
   const [periodo, setPeriodo] = useState("todas")
-  // Los cuadros de la franja abren su detalle en una ventana (uno a la vez).
-  const [abierto, setAbierto] = useState(null)
-  const alternar = (clave) => setAbierto((a) => (a === clave ? null : clave))
+  // «Asistencia a sus citas» y su leyenda filtran el historial por estado (pulsar el mismo lo quita).
+  const [estadoFiltro, setEstadoFiltro] = useState(null)
+  const alternarEstado = (id) => setEstadoFiltro((e) => (e === id ? null : id))
   const consultaDe = (cita) => cita._consulta || consultas.find((k) => k.citaId === cita.id)
   const porFechaHora = (a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
   // Una atención sin cita (paciente que llegó sin agendar) también aparece aquí: así este historial es el único lugar donde se ve todo lo que pasó.
   const sinCita = consultas.filter((k) => !citas.some((c) => c.id === k.citaId)).map((k) => ({ id: "consulta-" + k.id, fecha: k.fecha, hora: "Sin cita", motivo: k.motivo, estado: "Atendida", _consulta: k }))
   // El historial trae TODAS las citas (pendientes incluidas), de la más reciente a la más antigua: ninguna queda escondida.
   const historialCompleto = [...citas, ...sinCita].sort((a, b) => porFechaHora(b, a))
-  const conteo = contarCitas(citas)
-  const porFecha = (lista) => lista.slice().sort((a, b) => porFechaHora(b, a))
-  const citasDe = {
-    pendientes: porFecha(citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado))),
-    atendidas: porFecha(citas.filter((c) => c.estado === "Atendida")),
-    noAsistio: porFecha(citas.filter((c) => c.estado === "No Asistió")),
-    canceladas: porFecha(citas.filter((c) => c.estado === "Cancelada")),
-  }
-  const conteos = [
-    { clave: "pendientes", etiqueta: "Pendientes", valor: conteo.pendientes, punto: "bg-amber-600" },
-    { clave: "atendidas", etiqueta: "Atendidas", valor: conteo.atendidas, punto: "bg-emerald-600" },
-    { clave: "noAsistio", etiqueta: "No efectuadas", valor: conteo.noAsistio, punto: "bg-red-600" },
-    { clave: "canceladas", etiqueta: "Canceladas", valor: conteo.canceladas, punto: "bg-slate-400" },
-  ]
-  const titulosCita = { pendientes: "Citas pendientes", atendidas: "Citas atendidas", noAsistio: "Citas no efectuadas", canceladas: "Citas canceladas" }
-  // El control recomendado es lo que dice la ficha; la «próxima cita» es la ya agendada: dos datos distintos, dos nombres.
+  // Las dos tarjetas de arriba: la asistencia (con la alerta de dos faltas seguidas) y el ciclo de control (de la última consulta al control recomendado).
+  const faltas = faltasSeguidas(citas)
   const ultima = consultas[0]
-  const citaPendiente = citasDe.pendientes.slice().reverse()[0]
-  const citaDeUltima = ultima ? citas.find((c) => c.id === ultima.citaId) : null
-  const citaDeLaUltima = ultima ? citaDeUltima || sinCita.find((c) => c._consulta === ultima) : null
+  const citaPendiente = citas.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).sort((x, y) => (x.fecha < y.fecha ? -1 : 1))[0]
+  const citaDeLaUltima = ultima ? citas.find((c) => c.id === ultima.citaId) || sinCita.find((c) => c._consulta === ultima) : null
+  const controlISO = proximoControl ? fechaAISO(proximoControl) : ""
+  const inicioCiclo = ultima ? { etiqueta: "Última consulta", fecha: ultima.fecha } : { etiqueta: "Registro", fecha: paciente.fechaRegistro || "" }
+  const ciclo = cicloDeControl({ inicio: inicioCiclo.fecha, control: controlISO, hoy: hoyISO() })
+  const abrirDeCiclo = citaPendiente ? () => setCitaAbierta(citaPendiente) : citaDeLaUltima ? () => setCitaAbierta(citaDeLaUltima) : undefined
 
   const quitarTildes = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
   const buscado = quitarTildes(texto.trim())
   const limiteAnio = (() => { const f = ahoraEcuador(); f.setFullYear(f.getFullYear() - 1); return fechaAISO(f) })()
   const historial = historialCompleto.filter((c) => {
+    if (estadoFiltro && (c._consulta || !ESTADOS_DE_FILTRO[estadoFiltro].includes(c.estado))) return false // las atenciones sin cita no son citas: no entran en lo que cuenta la tarjeta
     if (periodo === "anio" && c.fecha < limiteAnio) return false
     if (desde && c.fecha < desde) return false
     if (hasta && c.fecha > hasta) return false
@@ -2338,7 +2340,7 @@ function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, pac
     const k = consultaDe(c)
     return quitarTildes([c.motivo, c.estado, k && textoDiagnostico(k), k?.lenteRecomendado].filter(Boolean).join(" ")).includes(buscado)
   })
-  const hayFiltro = !!(periodo === "anio" || desde || hasta || texto.trim())
+  const hayFiltro = !!(estadoFiltro || periodo === "anio" || desde || hasta || texto.trim())
   const largo = historialCompleto.length > 8
   const BOTON_PERIODO = "rounded-xl border px-4 py-2 text-sm font-semibold transition-colors cursor-pointer "
   // El historial, como una tabla: Fecha | Motivo y profesional | Diagnóstico | Receta | Estado | flecha. Toda la fila abre el detalle de la cita. En pantalla angosta las columnas se apilan, cada dato con su rótulo.
@@ -2359,7 +2361,6 @@ function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, pac
       </li>
     )
   }
-  const franja = "min-w-0 px-5 py-3.5 text-left transition-colors hover:bg-slate-50 cursor-pointer"
   return (
     <div className="space-y-4">
       {historialCompleto.length === 0 ? (
@@ -2368,55 +2369,10 @@ function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, pac
           {onAgendar && <button type="button" onClick={onAgendar} className="rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 cursor-pointer">Agendar cita</button>}
         </section>
       ) : (
-        <>
-          {/* La franja: los cuatro conteos, el control recomendado y la última consulta; cada uno del tamaño de su contenido, separados por líneas finas. Cada cuadro abre su detalle. */}
-          <section aria-label="Citas del paciente" className="grid grid-cols-2 divide-slate-200/70 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm sm:grid-cols-3 lg:grid-cols-[repeat(4,minmax(0,0.8fr))_repeat(2,minmax(0,1.25fr))] lg:divide-x">
-            {conteos.map((t) => (
-              <button key={t.clave} type="button" onClick={() => alternar(t.clave)} aria-haspopup="dialog" data-resumen className={franja}>
-                <p className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-500"><span aria-hidden="true" className={"h-2 w-2 rounded-full " + t.punto} />{t.etiqueta}</p>
-                <p className="mt-0.5 font-serif text-[28px] font-bold leading-tight" style={{ color: INK }}>{t.valor}</p>
-              </button>
-            ))}
-            <button type="button" onClick={() => alternar("control")} aria-haspopup="dialog" data-resumen className={franja}>
-              <p className="text-[13px] font-semibold text-slate-500">{citaPendiente ? "Próximo control" : "Control recomendado"}</p>
-              {citaPendiente || proximoControl ? (
-                <>
-                  <p className={"mt-0.5 font-serif text-[24px] font-bold leading-tight " + (!citaPendiente && inactivo ? "text-red-700" : "")} style={!citaPendiente && inactivo ? undefined : { color: INK }}>{fechaLegible(citaPendiente ? citaPendiente.fecha : proximoControl)}</p>
-                  <p className={"text-sm " + (!citaPendiente && inactivo ? "text-red-600" : "text-slate-500")}>{citaPendiente ? "cita agendada" : inactivo ? `vencido hace ${diasControl} día${diasControl === 1 ? "" : "s"}` : "sin cita agendada"}</p>
-                </>
-              ) : <p className="mt-1 text-sm text-slate-500">Sin datos para calcularlo</p>}
-            </button>
-            <button type="button" onClick={() => alternar("ultima")} aria-haspopup="dialog" data-resumen className={franja}>
-              <p className="text-[13px] font-semibold text-slate-500">Última consulta</p>
-              {ultima ? (
-                <>
-                  <p className="mt-0.5 font-serif text-[24px] font-bold leading-tight" style={{ color: INK }}>{fechaLegible(ultima.fecha)}</p>
-                  {diasDesdeUltima !== null && <p className="text-sm text-slate-500">{diasDesdeUltima === 0 ? "hoy" : `hace ${diasDesdeUltima} día${diasDesdeUltima === 1 ? "" : "s"}`}</p>}
-                </>
-              ) : <p className="mt-1 text-sm text-slate-500">Todavía sin consultas</p>}
-            </button>
-          </section>
-          {titulosCita[abierto] && (
-            <Despliegue titulo={titulosCita[abierto]} onCerrar={() => setAbierto(null)}>
-              <PanelCitasEstado estado={abierto} citas={citasDe[abierto]} equipo={equipo} consultaDe={consultaDe} onVerAtencion={setCitaAbierta} />
-            </Despliegue>
-          )}
-          {abierto === "control" && (
-            <Despliegue titulo="Control del paciente" onCerrar={() => setAbierto(null)}>
-              <PanelControl proximoControl={proximoControl} diasControl={diasControl} inactivo={inactivo} ultima={ultima} citaPendiente={citaPendiente} onAgendar={onAgendar} />
-            </Despliegue>
-          )}
-          {abierto === "ultima" && (
-            <Despliegue titulo="Última consulta" onCerrar={() => setAbierto(null)}>
-              <PanelUltimaConsulta consulta={ultima} cita={citaDeUltima} equipo={equipo} adjuntos={ultima && adjuntosConsulta(ultima)} onAbrirVentana={() => citaDeLaUltima && setCitaAbierta(citaDeLaUltima)} />
-            </Despliegue>
-          )}
-
-          <div className="grid items-stretch gap-4 lg:grid-cols-2">
-            <VisitasPorPeriodo citas={citas} />
-            <LineaDeVisitas citas={citas} onElegir={setCitaAbierta} />
-          </div>
-        </>
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <AsistenciaCitas citas={citas} filtro={estadoFiltro} onFiltro={alternarEstado} faltas={faltas} onContactar={onContactarFaltas} />
+          <CicloControl ciclo={ciclo} inicio={inicioCiclo} controlISO={controlISO} citaPendiente={citaPendiente} promedioMeses={promedioEntreConsultas(consultas)} onAbrir={abrirDeCiclo} onAgendar={onAgendarControl} />
+        </div>
       )}
 
       {historialCompleto.length > 0 && (
@@ -2429,6 +2385,12 @@ function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, pac
               ))}
             </div>
           </div>
+          {estadoFiltro && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-5 py-2.5 text-sm text-slate-600">
+              Mostrando
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{NOMBRE_FILTRO[estadoFiltro]}<button type="button" onClick={() => setEstadoFiltro(null)} aria-label={`Quitar el filtro ${NOMBRE_FILTRO[estadoFiltro]}`} className="rounded-full p-0.5 hover:bg-slate-200 cursor-pointer"><X size={12} aria-hidden="true" /></button></span>
+            </div>
+          )}
           {/* Con muchas citas, el buscador: por motivo o diagnóstico y por rango de fechas. */}
           {largo && (
             <div role="search" aria-label="Buscar en el historial de citas" className="flex flex-wrap items-start gap-x-2 gap-y-2 border-t border-slate-100 px-5 py-3">
@@ -2446,7 +2408,7 @@ function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, pac
           {historial.length === 0 ? (
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-5">
               <p className="text-sm text-slate-500">Ninguna cita coincide con ese filtro.</p>
-              <button type="button" onClick={() => { setPeriodo("todas"); setDesde(""); setHasta(""); setTexto("") }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">Ver todas</button>
+              <button type="button" onClick={() => { setPeriodo("todas"); setEstadoFiltro(null); setDesde(""); setHasta(""); setTexto("") }} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">Ver todas</button>
             </div>
           ) : (
             <>

@@ -554,6 +554,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       case "pacientes":
         return (
           <Pacientes
+            seguimientoContacto={seguimientoContacto}
             alcancePropio={alcanceDeVista("citas") === "propio" || alcanceDeVista("consultas") === "propio"}
             avisosDelModulo={extra.overlaySolo ? null : renderSeccion("inicio", { soloAvisosDe: "pacientes" })}
             usuario={usuario}

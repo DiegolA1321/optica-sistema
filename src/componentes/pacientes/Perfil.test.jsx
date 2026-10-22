@@ -4,7 +4,7 @@ import { render, screen, fireEvent, within } from "@testing-library/react"
 import CabeceraPerfil from "./CabeceraPerfil"
 import ResumenPerfil from "./ResumenPerfil"
 import ComprasPerfil from "./ComprasPerfil"
-import { VisitasPorPeriodo, LineaDeVisitas } from "./VisitasPerfil"
+import { AsistenciaCitas, CicloControl } from "./TarjetasCitas"
 
 const paciente = { id: "p1", nombre: "Diego Alarcón", cedula: "1314160654", telefono: "0980525195", correo: "diego@gmail.com", estadoClinico: "Activo", fechaRegistro: "2025-04-10", fecha_nacimiento: "1989-10-07" }
 const pestanas = [{ id: "resumen", etiqueta: "Resumen" }, { id: "citas", etiqueta: "Citas", cuenta: 3 }, { id: "diagnostico", etiqueta: "Diagnóstico", cuenta: 2 }, { id: "pagos", etiqueta: "Compras" }]
@@ -131,20 +131,71 @@ describe("Compras del perfil", () => {
   })
 })
 
-describe("Gráficas de visitas", () => {
-  const citas = [{ id: "1", fecha: "2023-03-01", estado: "Atendida" }, { id: "2", fecha: "2024-05-01", estado: "Atendida" }, { id: "3", fecha: "2026-10-21", estado: "No Asistió" }]
-  it("la línea de tiempo pone un punto por cita, con su estado, y los años de los extremos", () => {
-    render(<LineaDeVisitas citas={citas} onElegir={() => {}} />)
-    expect(screen.getAllByRole("button")).toHaveLength(3)
-    expect(screen.getByText("2023")).toBeInTheDocument()
-    expect(screen.getByText("2026")).toBeInTheDocument()
-    expect(screen.getByText(/verde atendida, rojo no efectuada/)).toBeInTheDocument()
+const cita = (id, fecha, estado) => ({ id, fecha, estado, hora: "10:00 AM", motivo: "Examen de control" })
+describe("Asistencia a sus citas", () => {
+  const citas = [cita(1, "2026-10-07", "Atendida"), cita(2, "2026-10-21", "No Asistió"), cita(3, "2026-04-20", "No Asistió")]
+  it("dice «N de M citas atendidas (X %)», la leyenda con los pendientes y la alerta de dos faltas con «Contactar»", () => {
+    const onContactar = vi.fn()
+    render(<AsistenciaCitas citas={citas} faltas={[citas[1], citas[2]]} onFiltro={() => {}} onContactar={onContactar} />)
+    const t = screen.getByRole("region", { name: "Asistencia a sus citas" })
+    expect(t).toHaveTextContent("1 de 3 citas atendidas (33 %)")
+    for (const x of ["1 atendida", "2 no efectuadas", "0 canceladas", "0 pendientes"]) expect(t).toHaveTextContent(x)
+    expect(screen.getByRole("alert")).toHaveTextContent("Faltó a sus 2 últimas citas.")
+    fireEvent.click(screen.getByRole("button", { name: "Contactar" }))
+    expect(onContactar).toHaveBeenCalledTimes(1)
   })
-  it("«Visitas por año» cambia a «Por trimestre»", () => {
-    render(<VisitasPorPeriodo citas={citas} />)
-    expect(screen.getByRole("heading", { name: "Visitas por año" })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Por trimestre" }))
-    expect(screen.getByRole("heading", { name: "Visitas por trimestre" })).toBeInTheDocument()
+  it("pulsar la tarjeta filtra por las citas resueltas, y la leyenda, por su estado; «Contactar» no activa la tarjeta", () => {
+    const onFiltro = vi.fn()
+    render(<AsistenciaCitas citas={citas} faltas={[citas[1], citas[2]]} onFiltro={onFiltro} onContactar={() => {}} />)
+    fireEvent.click(screen.getByRole("button", { name: /Ver esas citas en el historial/ }))
+    expect(onFiltro).toHaveBeenLastCalledWith("resueltas")
+    fireEvent.click(screen.getByRole("button", { name: "2 no efectuadas" }))
+    expect(onFiltro).toHaveBeenLastCalledWith("noEfectuadas")
+    onFiltro.mockClear()
+    fireEvent.click(screen.getByRole("button", { name: "Contactar" }))
+    expect(onFiltro).not.toHaveBeenCalled()
+  })
+  it("sin faltas seguidas no hay alerta y sin permiso para contactar no hay botón", () => {
+    const { rerender } = render(<AsistenciaCitas citas={[cita(1, "2026-10-07", "Atendida")]} onFiltro={() => {}} />)
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    rerender(<AsistenciaCitas citas={citas} faltas={[citas[1], citas[2]]} onFiltro={() => {}} />)
+    expect(screen.getByRole("alert")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Contactar" })).not.toBeInTheDocument()
+  })
+})
+
+describe("Su ciclo de control", () => {
+  const ciclo = { diasParaControl: 165, avance: 8, vencido: false }
+  const inicio = { etiqueta: "Última consulta", fecha: "2026-10-07" }
+  it("los días para el control, la barra con las dos fechas, el promedio y «Agendar control»", () => {
+    const onAgendar = vi.fn()
+    render(<CicloControl ciclo={ciclo} inicio={inicio} controlISO="2027-04-05" promedioMeses={6} onAgendar={onAgendar} onAbrir={() => {}} />)
+    const t = screen.getByRole("region", { name: "Su ciclo de control" })
+    expect(t).toHaveTextContent("165 días para su próximo control")
+    expect(t).toHaveTextContent("Última consulta · 7 oct 2026")
+    expect(t).toHaveTextContent("Control · 5 abr 2027")
+    expect(t).toHaveTextContent("Viene en promedio cada 6 meses · aún sin cita agendada")
+    expect(within(t).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "8")
+    fireEvent.click(within(t).getByRole("button", { name: "Agendar control" }))
+    expect(onAgendar).toHaveBeenCalledTimes(1)
+  })
+  it("con una sola consulta no dice el promedio y con cita agendada no ofrece agendar", () => {
+    render(<CicloControl ciclo={ciclo} inicio={inicio} controlISO="2027-04-05" promedioMeses={null} citaPendiente={{ fecha: "2027-04-01" }} onAgendar={() => {}} onAbrir={() => {}} />)
+    const t = screen.getByRole("region", { name: "Su ciclo de control" })
+    expect(t).not.toHaveTextContent("Viene en promedio")
+    expect(t).toHaveTextContent("ya tiene cita agendada el 1 abr 2027")
+    expect(within(t).queryByRole("button", { name: "Agendar control" })).not.toBeInTheDocument()
+  })
+  it("sin control recomendado lo dice y muestra solo su última consulta", () => {
+    render(<CicloControl ciclo={null} inicio={inicio} controlISO="" onAbrir={() => {}} />)
+    const t = screen.getByRole("region", { name: "Su ciclo de control" })
+    expect(t).toHaveTextContent("Sin control recomendado")
+    expect(t).toHaveTextContent("Última consulta · 7 oct 2026")
+    expect(within(t).queryByRole("progressbar")).not.toBeInTheDocument()
+  })
+  it("vencido: dice los días de retraso", () => {
+    render(<CicloControl ciclo={{ diasParaControl: -30, avance: 100, vencido: true }} inicio={inicio} controlISO="2026-09-01" onAgendar={() => {}} onAbrir={() => {}} />)
+    expect(screen.getByRole("region", { name: "Su ciclo de control" })).toHaveTextContent("30 días de retraso en su control")
   })
 })
 
