@@ -3,29 +3,18 @@
 // registro profesional), el cambio de graduación dicho igual en la ficha, el perfil y el portal, y el botón «Imprimir receta» en la fila de los demás botones.
 // Todo lo que crea (consulta, imagen, cita del control) y lo que cambia (edad, política de medidas, contacto y logo de la óptica) se deshace al terminar, aunque falle.
 import { test, expect } from '@playwright/test'
-import fs from 'node:fs'
 import pg from 'pg'
-import { iniciarSesion, credencial, escribirSecreto, irAPasoFicha, SLUG_PRUEBAS } from './ayudas.js'
+import { iniciarSesion, credencial, escribirSecreto, irAPasoFicha, abrirBloqueExamen, SLUG_PRUEBAS } from './ayudas.js'
 
 test.use({ viewport: { width: 1093, height: 800 }, actionTimeout: 15_000 })
 test.describe.configure({ mode: 'serial' })
 
 const NOMBRE = 'E Dos E Portal Auditoria'
-const CARPETA = 'docs/ficha-coherencia'
 const LOGO = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="12" fill="#1D5FD6"/><circle cx="32" cy="32" r="14" fill="none" stroke="#fff" stroke-width="5"/></svg>')
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64')
 
 const bd = async (fn) => { const c = new pg.Client(); await c.connect(); try { return await fn(c) } finally { await c.end() } }
 const q = (t, p) => bd(async (c) => (await c.query(t, p)).rows)
-const foto = async (page, nombre) => {
-  fs.mkdirSync(CARPETA, { recursive: true })
-  await page.setViewportSize({ width: 1093, height: 2200 })
-  await page.waitForTimeout(700)
-  await page.screenshot({ path: `${CARPETA}/${nombre}-1093.png` })
-  await page.setViewportSize({ width: 1093, height: 800 })
-  await page.waitForTimeout(200)
-}
-
 let ids = {}
 let clienteAdmin = null
 let original = {}
@@ -100,7 +89,7 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
   await page.getByText(NOMBRE).first().click()
   await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 45_000 })
   await page.getByRole('button', { name: 'Atender' }).first().click()
-  await expect(page.getByText('Paso 1 de 5')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('Paso 1 de 3')).toBeVisible({ timeout: 20_000 })
 
   // ── Paso 1 ──
   await expect(page.getByRole('complementary', { name: 'Contexto del paciente' })).toContainText('Penicilina')
@@ -115,11 +104,12 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
   await expect(page.getByRole('button', { name: 'Lentes de contacto' })).toHaveAttribute('aria-pressed', 'true')
   await page.getByLabel('Desde cuándo').fill('3 años')
 
-  // ── Paso 2 ──
-  await irAPasoFicha(page, 2, 'Agudeza visual')
+  // ── Paso 2 · Examen ──
+  await abrirBloqueExamen(page, 'Agudeza visual')
   await page.locator('#avOdSc').selectOption('20/50'); await page.getByLabel('Ojo derecho, sin corrección: letras falladas').fill('1')
   await page.locator('#avOiSc').selectOption('20/40')
   await page.locator('#avOdCc').selectOption('20/25'); await page.locator('#avOiCc').selectOption('20/25')
+  await abrirBloqueExamen(page, 'Lentes actuales y distancia pupilar')
   await page.locator('#dpOd').fill('31'); await page.locator('#dpOi').fill('31')
   await expect(page.locator('#dp')).toHaveValue('62') // el total se calcula solo
   await page.locator('#dp').fill('64')
@@ -127,10 +117,9 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
   await page.locator('#dp').fill('62')
   // los campos vacíos muestran «—», nunca un ejemplo que parezca un dato
   expect(await page.locator('#dpCerca').getAttribute('placeholder')).toBe('—')
-  await foto(page, 'paso-2-agudeza-visual')
 
-  // ── Paso 3 ──
-  await irAPasoFicha(page, 3, 'Refracción')
+  // ── Bloque Refracción ──
+  await abrirBloqueExamen(page, 'Refracción')
   for (const id of ['kOdK1', 'kOdK2', 'prismaOdCant']) expect(await page.locator('#' + id).getAttribute('placeholder'), `#${id} vacío muestra «—»`).toBe('—')
   for (const [id, v] of [['odEsfera', '-1.75'], ['odCilindro', '-0.75'], ['odEje', '10'], ['oiEsfera', '-1.00'], ['oiCilindro', '-0.50'], ['oiEje', '180']]) await page.locator('#' + id).fill(v)
   // El cambio de graduación, dicho igual en toda la pantalla: la esfera pasó de −1.25 a −1.75 = 0.50 más de miopía
@@ -149,12 +138,12 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
   expect(await dentro('#prismaOdBase'), 'la base del prisma cabe en su tarjeta').toBe(true)
   await page.locator('#avOdRx').selectOption('20/20'); await page.getByLabel('Ojo derecho: letras falladas').fill('2')
   await page.locator('#avOiRx').selectOption('20/25'); await page.locator('#avAmbRx').selectOption('20/20'); await page.locator('#cercaRx').selectOption('J1')
-  await foto(page, 'paso-3-refraccion')
 
-  // ── Paso 4 ──
-  await irAPasoFicha(page, 4, 'Salud ocular')
-  await page.getByRole('group', { name: 'Ojo izquierdo' }).first().getByRole('button', { name: 'Sin hallazgos' }).first().click()
-  await page.getByRole('group', { name: 'Ojo derecho' }).first().getByRole('button', { name: 'Igual en el otro ojo' }).first().click()
+  // ── Bloque Salud ocular ──
+  await abrirBloqueExamen(page, 'Salud ocular')
+  const salud = page.getByRole('region', { name: 'Salud ocular' })
+  await salud.getByRole('group', { name: 'Ojo izquierdo' }).first().getByRole('button', { name: 'Sin hallazgos' }).first().click()
+  await salud.getByRole('group', { name: 'Ojo derecho' }).first().getByRole('button', { name: 'Igual en el otro ojo' }).first().click()
   await page.locator('#fondoOi').fill('Papila de bordes definidos.'); await page.locator('#fondoOd').fill('Papila de bordes definidos.')
   await page.locator('#pioOd').fill('14'); await page.locator('#pioOi').fill('15')
   // la presión intraocular: ojo izquierdo a la izquierda; hora con el formato del sistema
@@ -169,10 +158,9 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
   expect(metodo.sobra, `«${metodo.texto}» se lee completo`).toBe(false)
   await page.locator('#colorPrueba').selectOption('Ishihara'); await page.locator('#colorResultado').fill('14 de 14')
   await page.getByRole('button', { name: 'Normal' }).click()
-  await foto(page, 'paso-4-salud-ocular')
 
-  // ── Paso 5 ──
-  await irAPasoFicha(page, 5, 'Diagnóstico y receta')
+  // ── Paso 3 · Diagnóstico y receta ──
+  await irAPasoFicha(page, 3, 'Diagnóstico y receta')
   const sugerencia = page.getByRole('status', { name: 'Diagnóstico sugerido' })
   await expect(sugerencia).toContainText('Miopía y astigmatismo')
   await expect(sugerencia).toContainText('Tiene adición')
@@ -192,22 +180,24 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
   await page.getByRole('radio', { name: /Agendar ahora/ }).check()
   await page.getByRole('button', { name: /^Elegir (esa fecha|ese día)$/ }).click()
   await page.locator('button:enabled').filter({ hasText: /^\d{2}:\d{2} (AM|PM)$/ }).first().click()
-  const vista = page.locator('[data-receta-resumen]')
+  const vista = page.locator('[data-vista-previa-documento]')
   await expect(vista).toContainText('−1.75'); await expect(vista).toContainText('+1.50'); await expect(vista).toContainText('+1.75'); await expect(vista).toContainText('OD 31 · OI 31')
-  await foto(page, 'paso-5-diagnostico-y-receta')
-  // La receta impresa (la hoja que se imprime): encabezado con logo, dirección y teléfono de la óptica, registro profesional y los mismos valores
-  await page.getByRole('button', { name: /Ver la hoja completa/ }).click()
-  const hoja = page.locator('[data-hoja-receta]')
+  // El documento (la hoja que se imprime): encabezado con logo, dirección y teléfono de la óptica, registro profesional y los mismos valores
+  await page.getByRole('button', { name: /Ver en grande/ }).click()
+  const hoja = page.getByRole('dialog').locator('[data-hoja-receta]')
   await expect(hoja).toContainText('Av. de las Pruebas 123, Guayaquil')
   await expect(hoja).toContainText('042345678')
   await expect(hoja).toContainText('Reg. Prof. REG-OPT-0912')
   await expect(hoja.locator('img').first()).toBeVisible() // el logo
   for (const nombre of ['Sin corrección', 'Con su corrección actual', 'Con la receta nueva']) await expect(hoja).toContainText(nombre)
   for (const t of ['−1.75', '−0.75', '10°', '−1.00', '−0.50', '180°', '+1.50', '+1.75', '20/20 −2', 'OD 2Δ base nasal']) await expect(hoja, `«${t}» en la receta impresa`).toContainText(t)
-  await foto(page, 'receta-impresa')
   await page.getByRole('dialog').last().getByRole('button', { name: 'Cerrar' }).last().click()
   await page.getByRole('button', { name: /Terminar atención/ }).click()
   await page.getByRole('dialog').last().getByRole('button', { name: 'Terminar atención' }).click()
+  // Al terminar se abre el documento: el mismo, ya definitivo
+  const terminado = page.getByRole('dialog', { name: /Atención terminada/ })
+  await expect(terminado.locator('[data-hoja-receta]')).toContainText('Reg. Prof. REG-OPT-0912', { timeout: 30_000 })
+  await terminado.getByRole('button', { name: 'Cerrar' }).last().click()
   await expect(page.getByRole('status').filter({ hasText: 'Atención terminada' })).toContainText('la cita quedó atendida', { timeout: 30_000 })
 
   // ── Lo guardado: imagen en Storage y cita del control creada ──
@@ -225,8 +215,8 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
 
   // ── La receta impresa (la hoja): encabezado completo y los mismos valores ──
   await page.getByRole('button', { name: /Volver a/ }).first().click()
-  await expect(page.getByRole('tab', { name: /Graduación/ })).toBeVisible({ timeout: 30_000 })
-  await page.getByRole('tab', { name: /Graduación/ }).click()
+  await expect(page.getByRole('tab', { name: /Diagnóstico/ })).toBeVisible({ timeout: 30_000 })
+  await page.getByRole('tab', { name: /Diagnóstico/ }).click()
 
   // ── El perfil (vista técnica) ──
   const perfil = page.getByRole('tabpanel').first()
@@ -236,15 +226,14 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
   for (const nombre of ['Sin corrección', 'Con su corrección actual', 'Con la receta nueva']) await expect(perfil).toContainText(nombre)
   await expect(perfil).not.toContainText('AV con lentes'); await expect(perfil).not.toContainText('AV sin lentes')
   await expect(perfil).toContainText('+1.50'); await expect(perfil).toContainText('+1.75')
-  // «Imprimir receta» va en la misma fila que los demás botones
+  // «Imprimir diagnóstico» va en la misma fila que los demás botones del encabezado
   const fila = async (nombre) => (await perfil.getByRole('button', { name: nombre }).first().boundingBox()).y
-  const yComparar = await fila(/Comparar dos recetas/), yExplicar = await fila(/Explicar al paciente/), yImprimir = await fila(/Imprimir receta/)
-  expect(Math.abs(yImprimir - yComparar), 'Imprimir receta en la misma fila que Comparar').toBeLessThan(8)
-  expect(Math.abs(yImprimir - yExplicar), 'Imprimir receta en la misma fila que Explicar').toBeLessThan(8)
-  await foto(page, 'perfil-graduacion')
-  await perfil.getByRole('button', { name: /Explicar al paciente/ }).click()
-  await expect(perfil).toContainText('Tienes miopía') // las frases del paciente solo con «Explicar al paciente»
-  await perfil.getByRole('button', { name: /Volver a la vista técnica/ }).click()
+  const yComparar = await fila(/Comparar diagnósticos/), yVista = await fila(/Vista para el paciente/), yImprimir = await fila(/Imprimir diagnóstico/)
+  expect(Math.abs(yImprimir - yComparar), 'Imprimir diagnóstico en la misma fila que Comparar').toBeLessThan(8)
+  expect(Math.abs(yImprimir - yVista), 'Imprimir diagnóstico en la misma fila que el interruptor de vista').toBeLessThan(8)
+  await perfil.getByRole('button', { name: 'Vista para el paciente' }).click()
+  await expect(perfil).toContainText('Tienes miopía') // las frases del paciente solo en la vista para el paciente
+  await perfil.getByRole('button', { name: 'Vista técnica' }).click()
 
   // La hoja: «Imprimir receta» abre la misma hoja que el portal descarga (se comprueba su contenido en pantalla con un clic de prueba en el portal más abajo)
   // El portal, con la sesión real del paciente
@@ -263,5 +252,4 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
   for (const t of ['−1.75', '−0.75', '10°', '−1.00', '−0.50', '180°', '+1.50', '+1.75']) await expect(mi, `«${t}» en el portal`).toContainText(t)
   await expect(mi).toContainText('Con la receta nueva')
   await expect(mi).toContainText('20/20')
-  await foto(portal, 'portal-mi-receta')
 })
