@@ -215,6 +215,19 @@ describe("Inicio del administrador", () => {
     expect(stock).toEqual(["bajo", "bajo"])
   })
 
+  it("cuando toca el conteo, Inventario lo avisa con «Imprimir hoja»; sin que toque, no hay aviso", () => {
+    const hojas = []
+    const { unmount } = render(<Inicio {...base} conteoPendiente={{ toca: false, dias: 10, cada: 30, nunca: false }} onImprimirConteo={() => hojas.push("hoja")} />)
+    expect(screen.queryByRole("button", { name: /Toca contar el inventario/ })).toBeNull()
+    unmount()
+    render(<Inicio {...base} conteoPendiente={{ toca: true, dias: 31, cada: 30, nunca: false }} onImprimirConteo={() => hojas.push("hoja")} />)
+    fireEvent.click(tarj("Inventario", /Toca contar el inventario|conteo por hacer/))
+    const ventana = screen.getByRole("dialog")
+    expect(ventana).toHaveTextContent("Hace 31 días del último conteo")
+    fireEvent.click(within(ventana).getByRole("button", { name: "Imprimir hoja" }))
+    expect(hojas).toEqual(["hoja"])
+  })
+
   it("Inventario avisa también el sobrestock (más unidades que su máximo, el general o el propio) y abre la lista con ese filtro; el máximo no esconde el stock bajo", () => {
     const sobre = []
     const inventario = [

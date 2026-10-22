@@ -366,6 +366,29 @@ describe("Inventario — la hoja de conteo", () => {
     expect(fecha).toHaveLength(10) // 2026-10-22
   })
 
+  it("al generar la hoja se reinicia el recordatorio del conteo (con la fecha de hoy); si no se pudo reiniciar, lo dice", async () => {
+    const alGenerarConteo = vi.fn(async () => ({ error: null }))
+    const { unmount } = render(<Con inicial={inicial} alGenerarConteo={alGenerarConteo} />)
+    fireEvent.click(screen.getByRole("button", { name: /Imprimir hoja de conteo/ }))
+    fireEvent.click(within(screen.getByRole("dialog", { name: /Imprimir hoja de conteo/ })).getByRole("button", { name: "Generar" }))
+    expect(await screen.findByText("Hoja de conteo descargada (PDF).")).toBeInTheDocument()
+    expect(alGenerarConteo).toHaveBeenCalledTimes(1)
+    expect(alGenerarConteo.mock.calls[0][0]).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    unmount()
+    const falla = vi.fn(async () => ({ error: { message: "x" } }))
+    render(<Con inicial={inicial} alGenerarConteo={falla} />)
+    fireEvent.click(screen.getByRole("button", { name: /Imprimir hoja de conteo/ }))
+    fireEvent.click(within(screen.getByRole("dialog", { name: /Imprimir hoja de conteo/ })).getByRole("button", { name: "Generar" }))
+    expect(await screen.findByText(/no se pudo reiniciar el recordatorio del conteo/)).toBeInTheDocument()
+  })
+
+  it("«Imprimir hoja» del aviso del conteo abre la confirmación al entrar a Inventario", () => {
+    const consumido = vi.fn()
+    render(<Con inicial={inicial} imprimirConteoAlEntrar onImprimirConteoConsumido={consumido} />)
+    expect(screen.getByRole("dialog", { name: /Imprimir hoja de conteo/ })).toBeInTheDocument()
+    expect(consumido).toHaveBeenCalled()
+  })
+
   it("es una sola hoja para todo el inventario: el botón está también con la pestaña «Descontinuados»", () => {
     render(<Con inicial={inicial} />)
     fireEvent.click(screen.getByRole("tab", { name: /Descontinuados/ }))

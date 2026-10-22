@@ -435,6 +435,7 @@ function App() {
     return () => window.removeEventListener(EVENTO_ORDEN, alGuardar)
   }, []);
   const [parametrizacion, setParametrizacionState] = useState(PARAMETRIZACION_SEED);
+  const [opticaCreadaEn, setOpticaCreadaEn] = useState(null); // desde cuándo cuenta el recordatorio del conteo si nunca se hizo uno
   const [motivosConsulta, setMotivosConsultaState] = useState(MOTIVOS_SEED);
   const [diagnosticosRapidos, setDiagnosticosRapidosState] = useState(DIAGNOSTICOS_SEED);
   const [categoriasInventario, setCategoriasInventarioState] = useState(CATEGORIAS_INVENTARIO_SEED);
@@ -522,13 +523,14 @@ function App() {
     const esStaff = (usuario?.rol === 'admin' || usuario?.rol === 'asistente') && !!usuario?.opticaId
 
     if (esStaff) {
-      supabase.from('opticas').select('settings, motivos_consulta, diagnosticos_rapidos, categorias_inventario, activa').eq('id', usuario.opticaId).maybeSingle().then(({ data }) => {
+      supabase.from('opticas').select('settings, motivos_consulta, diagnosticos_rapidos, categorias_inventario, activa, created_at').eq('id', usuario.opticaId).maybeSingle().then(({ data }) => {
         if (!data) return
         setParametrizacionState(data.settings || PARAMETRIZACION_SEED)
         setMotivosConsultaState(data.motivos_consulta || MOTIVOS_SEED)
         setDiagnosticosRapidosState(data.diagnosticos_rapidos || DIAGNOSTICOS_SEED)
         setCategoriasInventarioState(data.categorias_inventario || CATEGORIAS_INVENTARIO_SEED)
         setOpticaActiva(data.activa !== false)
+        setOpticaCreadaEn(data.created_at || null)
       })
       hidratarOpticaId(usuario.opticaId, true)
       return
@@ -773,6 +775,16 @@ function App() {
       })
     }
     return Promise.resolve({ error: null })
+  }
+
+  // Al generar la hoja de conteo el recordatorio vuelve a contar desde hoy. Lo escribe una función de la base (la puede llamar quien maneja el inventario, no solo quien edita la Configuración).
+  const registrarConteoHecho = async (fecha) => {
+    if (supabase && usuario?.opticaId) {
+      const { error } = await supabase.rpc('registrar_conteo_inventario', { p_fecha: fecha })
+      if (error) return { error }
+    }
+    setParametrizacionState((prev) => ({ ...prev, ultimoConteo: fecha }))
+    return { error: null }
   }
 
   const setMotivosConsulta = (updater) => {
@@ -1295,6 +1307,8 @@ function App() {
           abonosAnulados={abonosAnulados}
           parametrizacion={parametrizacion}
           setParametrizacion={setParametrizacion}
+          opticaCreadaEn={opticaCreadaEn}
+          registrarConteoHecho={registrarConteoHecho}
           motivosConsulta={motivosConsulta}
           setMotivosConsulta={setMotivosConsulta}
           diagnosticosRapidos={diagnosticosRapidos}

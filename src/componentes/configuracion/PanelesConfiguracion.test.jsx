@@ -40,6 +40,28 @@ describe("Configuración → Ventas", () => {
     expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled()
   })
 
+  it("el recordatorio del conteo es cada 30 días por defecto, se cambia, se apaga y se guarda con lo demás", async () => {
+    render(<Con Panel={PanelInventarioConfig} />)
+    expect(screen.getByLabelText("Recordar el conteo cada")).toHaveValue(30)
+    expect(screen.getByRole("switch", { name: "Recordar el conteo" })).toHaveAttribute("aria-checked", "true")
+    fireEvent.change(screen.getByLabelText("Recordar el conteo cada"), { target: { value: "15" } })
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }))
+    await waitFor(() => expect(registro.exitos.length).toBe(1))
+    expect(registro.set.mock.calls[0][0]({}).recordatorioConteo).toEqual({ activo: true, dias: 15 })
+  })
+
+  it("apagado, el recordatorio no pide días y se guarda desactivado; los días fuera de rango no dejan guardar", async () => {
+    render(<Con Panel={PanelInventarioConfig} />)
+    fireEvent.change(screen.getByLabelText("Recordar el conteo cada"), { target: { value: "0" } })
+    expect(screen.getByRole("alert")).toHaveTextContent(/entre 1 y 365/)
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled()
+    fireEvent.click(screen.getByRole("switch", { name: "Recordar el conteo" }))
+    expect(screen.queryByRole("alert")).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }))
+    await waitFor(() => expect(registro.exitos.length).toBe(1))
+    expect(registro.set.mock.calls[0][0]({}).recordatorioConteo.activo).toBe(false)
+  })
+
   it("si no se pudo guardar lo dice con palabras del usuario", async () => {
     render(<Con Panel={PanelVentasConfig} falla />)
     fireEvent.change(screen.getByLabelText(/^Días por defecto/), { target: { value: "9" } })
@@ -63,8 +85,8 @@ describe("Configuración → Inventario", () => {
     fireEvent.change(screen.getByLabelText(/^Stock mínimo/), { target: { value: "8" } })
     fireEvent.change(screen.getByLabelText(/^Stock máximo/), { target: { value: "60" } })
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }))
-    await waitFor(() => expect(registro.exitos).toEqual(["Stock mínimo y máximo guardados correctamente."]))
-    expect(registro.set.mock.calls[0][0]({ otra: 1 })).toEqual({ otra: 1, stockMinimo: 8, stockMaximo: 60 })
+    await waitFor(() => expect(registro.exitos).toEqual(["Configuración del inventario guardada correctamente."]))
+    expect(registro.set.mock.calls[0][0]({ otra: 1 })).toEqual({ otra: 1, stockMinimo: 8, stockMaximo: 60, recordatorioConteo: { activo: true, dias: 30 } })
     expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled()
   })
 
@@ -84,7 +106,7 @@ describe("Configuración → Inventario", () => {
     render(<Con Panel={PanelInventarioConfig} falla />)
     fireEvent.change(screen.getByLabelText(/^Stock máximo/), { target: { value: "50" } })
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }))
-    await waitFor(() => expect(registro.errores).toEqual(["No se pudo guardar el stock mínimo y máximo. Revisa tu conexión e intenta de nuevo."]))
+    await waitFor(() => expect(registro.errores).toEqual(["No se pudo guardar la configuración del inventario. Revisa tu conexión e intenta de nuevo."]))
     expect(screen.getByLabelText(/^Stock máximo/)).toHaveValue(50)
   })
 })

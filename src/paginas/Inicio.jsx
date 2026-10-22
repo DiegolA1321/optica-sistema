@@ -56,6 +56,7 @@ import { puedeNivel } from "../utilidades/roles"
 import { saldoFactura } from "../utilidades/abonos"
 import { saldosPorPaciente, resumenSaldos, textoSaldos, textoSaldosSinNumero } from "../utilidades/saldosVentas"
 import { ordenesAtrasadas, ordenesListasSinAvisar, numeroOrden } from "../utilidades/ordenesLaboratorio"
+import { textoConteo } from "../utilidades/recordatorioConteo"
 import { etiquetaEntrega } from "../utilidades/ventasModulo"
 import { INK, GRAD_MARCA } from "@/lib/tema"
 
@@ -100,6 +101,8 @@ export default function Inicio({
   onVerSaldos,
   onVerStockBajo,
   onVerSobrestock,
+  conteoPendiente = null,
+  onImprimirConteo,
   vista = null,
   avisosContacto = [],
   onAtenderAvisoContacto,
@@ -848,6 +851,16 @@ export default function Inicio({
           accion: { etiqueta: "Ver", navega: true, onClick: () => (onVerSobrestock ? onVerSobrestock() : setVista?.("inventario")) },
         })),
         ...dSobre.extra,
+      })
+    }
+    // El conteo físico toca (Configuración → Inventario: «Recordar el conteo cada N días»): dura hasta que se genera la hoja de conteo, que reinicia la cuenta.
+    if (incStock && conteoPendiente?.toca) {
+      const detalle = textoConteo(conteoPendiente)
+      poner("inventario", {
+        id: "conteo", cantidad: 1, corto: "conteo por hacer",
+        texto: "Toca contar el inventario",
+        enlace: { texto: "Abrir en Inventario · Imprimir hoja de conteo", onClick: () => (onImprimirConteo ? onImprimirConteo() : setVista?.("inventario")) },
+        casos: [{ id: "conteo", nombre: "Conteo del inventario", detalle, accion: { etiqueta: "Imprimir hoja", navega: true, onClick: () => (onImprimirConteo ? onImprimirConteo() : setVista?.("inventario")) } }],
       })
     }
     return filas

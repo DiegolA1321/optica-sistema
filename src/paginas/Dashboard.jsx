@@ -55,6 +55,8 @@ const Usuarios = lazyConReintento(() => import("./Usuarios"), "Usuarios")
 const Configuracion = lazyConReintento(() => import("./Configuracion"), "Configuracion")
 const Mensajes = lazyConReintento(() => import("./Mensajes"), "Mensajes")
 import { umbralStock, umbralMaximo } from "../utilidades/inventario"
+import { conteoPendiente } from "../utilidades/recordatorioConteo"
+import { hoyISO } from "../utilidades/disponibilidad"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
 import { supabase } from "../lib/supabaseClient"
@@ -128,7 +130,7 @@ const nombreDeSeccion = (id) => OPCIONES.find((o) => o.id === id)?.nombre || ""
 const MODULO_DE_SECCION = { inicio: "inicio", citas: "citas", consultas: "pacientes", pacientes: "pacientes", ventas: "ventas", inventario: "inventario", crm: "crm", horario: "horario", reportes: "reportes", usuarios: "usuarios", configuracion: "configuracion" }
 const moduloDeSoporte = (id) => MODULO_DE_SECCION[id] || "otro"
 
-export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, reemplazarExcepcionLocal, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], abonosAnulados = [], parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
+export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, reemplazarExcepcionLocal, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], abonosAnulados = [], parametrizacion, setParametrizacion, opticaCreadaEn = null, registrarConteoHecho, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
   // Cuando un paciente cambia su teléfono o su correo desde su portal (migración 0130).
@@ -287,6 +289,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const [productoIdParaReabastecer, setProductoIdParaReabastecer] = useState(null)
   const [verStockBajoAlEntrar, setVerStockBajoAlEntrar] = useState(false)
   const [verSobrestockAlEntrar, setVerSobrestockAlEntrar] = useState(false)
+  const [imprimirConteoAlEntrar, setImprimirConteoAlEntrar] = useState(false)
   const [verNuevosAlEntrar, setVerNuevosAlEntrar] = useState(false)
   const [fichaClinicaPacienteInicial, setFichaClinicaPacienteInicial] = useState(null)
   const [fichaClinicaMotivoInicial, setFichaClinicaMotivoInicial] = useState(null)
@@ -682,6 +685,9 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             verStockBajoAlEntrar={verStockBajoAlEntrar}
             verSobrestockAlEntrar={verSobrestockAlEntrar}
             onVerSobrestockConsumido={() => setVerSobrestockAlEntrar(false)}
+            imprimirConteoAlEntrar={imprimirConteoAlEntrar}
+            onImprimirConteoConsumido={() => setImprimirConteoAlEntrar(false)}
+            alGenerarConteo={registrarConteoHecho}
             onVerStockBajoConsumido={() => setVerStockBajoAlEntrar(false)}
             verNuevosAlEntrar={verNuevosAlEntrar}
             onVerNuevosConsumido={() => setVerNuevosAlEntrar(false)}
@@ -811,6 +817,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onVerSaldos={(dato = "porcobrar") => { setAccionVentasInicio({ tab: "ventas", dato, periodo: "todo" }); navegar("ventas") }}
             onVerStockBajo={() => { setVerStockBajoAlEntrar(true); navegar("inventario") }}
             onVerSobrestock={() => { setVerSobrestockAlEntrar(true); navegar("inventario") }}
+            conteoPendiente={conteoPendiente({ parametrizacion, creadaEn: opticaCreadaEn, hoy: hoyISO() })}
+            onImprimirConteo={() => { setImprimirConteoAlEntrar(true); navegar("inventario") }}
             onVerPerfilPaciente={(pacienteId, tab) => { setAccionPacienteInicio({ pacienteId, accion: "historial", ...(tab ? { tab } : {}) }); navegar("pacientes") }}
             onAgendarRapido={() => { setControlParaAgendar(null); setAtajoInicio("citas") }}
             onAgendarControl={(paciente, fecha, asignadoA) => { setControlParaAgendar({ pacienteId: paciente.id, fecha, asignadoA }); setAtajoInicio("citas") }}

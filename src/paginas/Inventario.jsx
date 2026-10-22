@@ -72,6 +72,9 @@ export default function Inventario({
   onVerNuevosConsumido,
   onVerStockBajoConsumido,
   onVerSobrestockConsumido,
+  imprimirConteoAlEntrar = false,
+  onImprimirConteoConsumido,
+  alGenerarConteo,
   onVerPerfil,
 }) {
   const opticaId = usuario?.opticaId
@@ -82,8 +85,8 @@ export default function Inventario({
   const [busqueda, setBusqueda] = useState("")
   const [guardadoExitoso, setGuardadoExitoso] = useState("")
   // Toda acción confirma con el aviso flotante del sistema; sin él (pruebas) se muestra en la página.
-  const avisar = (mensaje) => {
-    if (onAviso) { onAviso(mensaje); return }
+  const avisar = (mensaje, tipo) => {
+    if (onAviso) { onAviso(mensaje, tipo); return }
     setGuardadoExitoso(mensaje)
     setTimeout(() => setGuardadoExitoso(""), 3000)
   }
@@ -153,6 +156,14 @@ export default function Inventario({
     onVerSobrestockConsumido?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verSobrestockAlEntrar])
+
+  // Desde «Imprimir hoja» del aviso del conteo (Inicio o Requiere tu atención del Inventario): abre la confirmación de la hoja de conteo.
+  useEffect(() => {
+    if (!imprimirConteoAlEntrar) return
+    setConfirmandoConteo(true)
+    onImprimirConteoConsumido?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imprimirConteoAlEntrar])
 
   // Desde "Nuevos este mes" de la tarjeta Productos del Inicio: la lista ya acotada a las altas de este mes.
   useEffect(() => {
@@ -250,7 +261,12 @@ export default function Inventario({
       fecha: formatoFecha(hoy, "largo"),
     }, fechaAISO(hoy))
     setImprimiendo(false)
-    if (ok) { registrarLog(usuario, "inventario", "Descargó la hoja de conteo", `${productos.filter((p) => p.activo !== false).length} productos activos`); avisar("Hoja de conteo descargada (PDF).") }
+    if (ok) {
+      registrarLog(usuario, "inventario", "Descargó la hoja de conteo", `${productos.filter((p) => p.activo !== false).length} productos activos`)
+      // Generar la hoja reinicia el recordatorio del conteo; si no se pudo registrar, la hoja ya se descargó y se avisa.
+      const { error: errorConteo } = (await alGenerarConteo?.(fechaAISO(hoy))) || {}
+      avisar(errorConteo ? "Hoja de conteo descargada (PDF), pero no se pudo reiniciar el recordatorio del conteo." : "Hoja de conteo descargada (PDF).", errorConteo ? "error" : undefined)
+    }
     else avisar("No se pudo preparar la hoja de conteo. Vuelve a intentarlo.")
   }
 
