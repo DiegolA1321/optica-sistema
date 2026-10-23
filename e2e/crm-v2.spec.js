@@ -48,7 +48,7 @@ async function abrirCrm(page, pestana = 'Para contactar') {
   await expect(page.getByRole('heading', { level: 1, name: 'CRM y fidelización' })).toBeVisible()
   await page.getByRole('tab', { name: new RegExp(pestana) }).click()
 }
-const filaDe = (page, nombre) => page.getByRole('listitem').filter({ hasText: nombre })
+const filaDe = (page, nombre) => page.getByRole('listitem').filter({ hasText: nombre }).filter({ has: page.getByRole('button', { name: /^Contactar a / }) }) // (el panel de arriba también lista nombres)
 
 test.beforeEach(async ({ page }) => {
   // window.open se anota en vez de abrir WhatsApp: se comprueba a dónde iría.
@@ -63,6 +63,10 @@ test('1 · Contactar abre WhatsApp con el mensaje escrito, queda en el Historial
   await expect(filaDe(page, A)).toContainText('Control vencido')
 
   await filaDe(page, A).getByRole('button', { name: `Contactar a ${A}` }).click()
+  // La ventana de «Contactar» trae el mensaje de la plantilla; «Enviar por WhatsApp» lo abre y deja el contacto registrado.
+  const contactar = page.getByRole('dialog', { name: 'Contactar', exact: true })
+  await expect(contactar.getByLabel(/^Mensaje/)).toHaveValue(new RegExp(`^Hola ${A}`))
+  await contactar.getByRole('button', { name: 'Enviar por WhatsApp' }).click()
   await expect(page.getByText(`Contacto con ${A} registrado`)).toBeVisible()
   const abiertos = await page.evaluate(() => window.__abiertos)
   expect(abiertos).toHaveLength(1)
@@ -102,6 +106,7 @@ test('3 · Si el paciente agenda una cita después del contacto, el contacto que
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await abrirCrm(page)
   await filaDe(page, B).getByRole('button', { name: `Contactar a ${B}` }).click()
+  await page.getByRole('dialog', { name: 'Contactar', exact: true }).getByRole('button', { name: 'Enviar por WhatsApp' }).click()
   await expect(filaDe(page, B)).toContainText('Hoy · WhatsApp')
   // El paciente agenda (la cita se crea ahora, después del contacto).
   await enLaBase((c) => c.query(
