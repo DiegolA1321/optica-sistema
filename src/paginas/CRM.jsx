@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useMemo, useState } from "react"
-import { HeartHandshake, Megaphone } from "lucide-react"
+import { HeartHandshake, Megaphone, MessageSquareText } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import { BotonRequierenAtencion } from "../componentes/RequiereAtencionPorArea"
@@ -11,30 +11,32 @@ import PestanaParaContactar from "../componentes/crm/PestanaParaContactar"
 import PestanaSeguimiento from "../componentes/crm/PestanaSeguimiento"
 import PestanaCampanas from "../componentes/crm/PestanaCampanas"
 import PestanaFidelizacion from "../componentes/crm/PestanaFidelizacion"
-import PestanaPlantillas, { MOTIVOS_PLANTILLA } from "../componentes/crm/PestanaPlantillas"
-import VentanaCumpleanos from "../componentes/crm/VentanaCumpleanos"
-import { FranjaDatos, Pestanas } from "../componentes/ventas/Piezas"
+import VentanaPlantillas from "../componentes/crm/VentanaPlantillas"
+import PanelCrm from "../componentes/crm/PanelCrm"
+import { Pestanas } from "../componentes/ventas/Piezas"
 import VentanaResultado from "../componentes/crm/VentanaResultado"
 import { VentanaCampana, VentanaNuevaCampana } from "../componentes/crm/VentanasCampana"
 import { CLASE_ACCION_SECUNDARIA, plural } from "../componentes/ventas/estilos"
+import { Cascaron } from "../componentes/AtencionPaciente"
+import { BOTON_CERRAR } from "../componentes/ventas/estilos"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { puede } from "../utilidades/permisosUi"
 import { motivoDeCampana } from "../utilidades/crmDatos"
 import { avisosDelCrm, contarPorMotivo, listaParaContactar, MOTIVOS, MOTIVOS_DE_AVISO } from "../utilidades/crmContactos"
-import { enDias, proximosCumpleanos, resumenCrm } from "../utilidades/crmResumen"
+import { resumenCrm } from "../utilidades/crmResumen"
 import { useFidelidadCon } from "../componentes/FidelidadContexto"
 import { useEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import { fechaLegible } from "../utilidades/formatoFecha"
 import { diaDeRegistro } from "../utilidades/periodoLista"
-import { formatoFecha } from "../utilidades/formatoFecha"
 import { hoyISO } from "../utilidades/disponibilidad"
 import NotaAlcance from "../componentes/NotaAlcance"
 
-const TABS = ["contactar", "seguimiento", "campanas", "fidelizacion", "plantillas"]
+const TABS = ["contactar", "seguimiento", "campanas", "fidelizacion"]
 const uno = (n, singular, plural) => (n === 1 ? singular : plural)
 
-// CRM y fidelización: responde "¿a quién tengo que contactar hoy, por qué y qué pasó cuando lo contacté?". Cinco pestañas: Para contactar (la lista de trabajo),
-// Seguimiento (el historial), Campañas (un mensaje para un grupo), Fidelización (los rankings) y Plantillas (el texto de cada mensaje). Arriba, cinco datos rápidos que abren su lista. El análisis va en Reportes.
+// CRM y fidelización: responde "¿a quién tengo que contactar hoy, por qué y qué pasó cuando lo contacté?". Cuatro pestañas: Para contactar (la lista de trabajo),
+// Seguimiento (el historial), Campañas (un mensaje para un grupo) y Fidelización (cumpleanos y rankings). Las plantillas (el texto de cada mensaje) se abren con el botón «Plantillas».
+// Arriba, un panel con cuatro listas cortas (cumpleaños próximos, los más fieles, los que más refieren y lo de este mes). El análisis va en Reportes.
 export default function CRM({
   usuario, crm, alcancePropio = false, pacientes = [], consultas = [], citas = [], ordenesLab = [], pases = [], facturasVenta = [], parametrizacion, setParametrizacion, cargaInicial = false,
   onVerPerfil, onRegistrarPaciente, onAviso, accionInicial, onAccionInicialConsumida,
@@ -44,8 +46,8 @@ export default function CRM({
   const [tab, setTab] = useParamUrl("tab", "contactar", TABS)
   const [filtro, setFiltro] = useState("todos")
   const [resultadoDe, setResultadoDe] = useState(null) // { paciente, motivo, contacto }
-  const [ventana, setVentana] = useState(null) // "nueva" | "cumpleanos" | { campanaId }
-  const [vistaFidelizacion, setVistaFidelizacion] = useState("puntaje") // el ranking con el que abre «Fidelización» (las tarjetas de arriba eligen cuál)
+  const [ventana, setVentana] = useState(null) // "nueva" | "plantillas" | "referidores" | { campanaId }
+  const [vistaFidelizacion, setVistaFidelizacion] = useState("puntaje") // el ranking con el que abre «Fidelización» (las listas de arriba eligen cuál)
   const notificar = useCallback((msg) => onAviso?.(msg), [onAviso])
   const { contactos, campanas, plantillas } = crm
   const opticaNombre = usuario?.opticaNombre || "tu óptica"
@@ -72,6 +74,12 @@ export default function CRM({
     // Los motivos de un aviso de otro módulo («Por vender») anotan su contacto con el permiso de ese módulo, igual que desde el Inicio; los propios del CRM, con el del CRM.
     registro: MOTIVOS_DE_AVISO[motivo] || motivo === "por_vender" ? undefined : ({ paciente, motivo: m, mensaje }) => crm.contactar({ paciente, motivo: m, canal: "whatsapp", mensaje }),
     alRegistrar: (r) => notificar(r.ok ? `Contacto con ${fila.paciente.nombre} registrado. Cuando responda, anota qué pasó.` : r.error),
+  })
+  // «Saludar» (Fidelización › Cumpleaños): la ventana de Contactar con la plantilla de cumpleaños; al enviar, el contacto queda registrado.
+  const saludar = (paciente) => escribirPorWhatsApp({
+    paciente, telefono: paciente.telefono || paciente.contacto || paciente.celular, motivo: "cumpleanos",
+    registro: ({ paciente: p, motivo: m, mensaje }) => crm.contactar({ paciente: p, motivo: m, canal: "whatsapp", mensaje }),
+    alRegistrar: (r) => notificar(r.ok ? `Saludo a ${paciente.nombre} registrado.` : r.error),
   })
   const contactoPendiente = (pacienteId, motivo) => contactos.find((c) => c.pacienteId === pacienteId && !c.resultado && !c.campanaId && c.motivo === motivo)
     || contactos.find((c) => c.pacienteId === pacienteId && !c.resultado && !c.campanaId) || null
@@ -140,23 +148,14 @@ export default function CRM({
   const setCumpleAuto = (v) => setParametrizacion?.((prev) => ({ ...prev, cumpleAuto: v }))
 
   const { de: fidelidadDe } = useFidelidadCon({ pacientes, consultas })
-  const resumen = useMemo(() => resumenCrm({ pacientes, contactos, citas, filas, puntosDe: fidelidadDe, hoy }), [pacientes, contactos, citas, filas, fidelidadDe, hoy])
-  const contactosDelMes = resumen.contactados.n
-  // Los cinco datos de arriba: cada uno abre su lista (la pestaña o la ventana con el mismo número).
+  const resumen = useMemo(() => resumenCrm({ pacientes, contactos, citas, puntosDe: fidelidadDe, hoy }), [pacientes, contactos, citas, fidelidadDe, hoy])
+  // Las listas de arriba: cada una abre su pestaña (con el mismo número).
   const verFidelizacion = (vista) => () => { setVistaFidelizacion(vista); setTab("fidelizacion") }
-  const datosRapidos = [
-    { id: "cumple", etiqueta: "Próximo cumpleaños", valor: resumen.cumple ? resumen.cumple.paciente.nombre : "—", sub: resumen.cumple ? `${formatoFecha(resumen.cumple.fecha, "medioSinAnio")} · ${enDias(resumen.cumple.dias)}` : "sin fechas de nacimiento", onClick: () => setVentana("cumpleanos"), ayuda: "Pulsa para ver los próximos cumpleaños" },
-    { id: "fiel", etiqueta: "Cliente más fiel", valor: resumen.fiel ? resumen.fiel.paciente.nombre : "—", sub: resumen.fiel ? `${resumen.fiel.nivel ? resumen.fiel.nivel + " · " : ""}${resumen.fiel.puntos} pts` : "nadie suma puntos todavía", onClick: verFidelizacion("puntaje"), ayuda: "Pulsa para ver el ranking de puntos" },
-    { id: "referidor", etiqueta: "Más referidos", valor: resumen.referidor ? resumen.referidor.paciente.nombre : "—", sub: resumen.referidor ? plural(resumen.referidor.n, "paciente referido", "pacientes referidos") : "nadie ha referido todavía", onClick: verFidelizacion("referidores"), ayuda: "Pulsa para ver quién refiere más" },
-    { id: "controles", etiqueta: "Controles vencidos", punto: resumen.controles > 0 ? "ambar" : undefined, valor: String(resumen.controles), sub: "para contactar", onClick: () => irA("contactar", "control_vencido"), ayuda: "Pulsa para ver a quién contactar por su control" },
-    { id: "contactados", etiqueta: "Contactados este mes", valor: String(resumen.contactados.n), sub: resumen.contactados.n === 0 ? "ninguno todavía" : `${resumen.contactados.volvieron} ${resumen.contactados.volvieron === 1 ? "volvió" : "volvieron"}`, onClick: () => setTab("seguimiento"), ayuda: "Pulsa para ver el seguimiento de este mes" },
-  ]
   const pestanas = [
     { id: "contactar", titulo: "Para contactar", cuenta: filas.length },
     { id: "seguimiento", titulo: "Seguimiento" },
-    { id: "campanas", titulo: "Campañas" },
+    { id: "campanas", titulo: "Campañas", cuenta: campanas.length },
     { id: "fidelizacion", titulo: "Fidelización" },
-    { id: "plantillas", titulo: "Plantillas", cuenta: MOTIVOS_PLANTILLA.length },
   ]
 
   const cargando = cargaInicial || crm.cargando
@@ -167,7 +166,10 @@ export default function CRM({
           <div className="grid h-12 w-12 place-items-center rounded-2xl text-white" style={{ background: GRAD_MARCA, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}><HeartHandshake size={24} aria-hidden="true" /></div>
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>CRM y fidelización</h1>
         </div>
-        <AccionesDeCabecera avisos={cargando ? null : <BotonRequierenAtencion bloque={bloque} />}>
+        <AccionesDeCabecera avisos={cargando ? null : bloque.filas.length > 0 ? <BotonRequierenAtencion bloque={bloque} /> : null}>
+          <button type="button" onClick={() => setVentana("plantillas")} className={CLASE_ACCION_SECUNDARIA.replace("px-3.5", "px-4").replace("py-2", "py-3") + " gap-2"}>
+            <MessageSquareText size={18} aria-hidden="true" /> Plantillas
+          </button>
           {puedeContactar && (
             <button type="button" onClick={() => { setTab("campanas"); setVentana("nueva") }} className="flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer" style={{ background: GRAD_MARCA, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
               <Megaphone size={18} aria-hidden="true" /> Nueva campaña
@@ -189,7 +191,7 @@ export default function CRM({
               <button type="button" onClick={crm.recargar} className={CLASE_ACCION_SECUNDARIA}>Reintentar</button>
             </div>
           )}
-          <FranjaDatos etiqueta="Datos rápidos del CRM" datos={datosRapidos} />
+          <PanelCrm resumen={resumen} onVerCumpleanos={verFidelizacion("puntaje")} onVerFieles={verFidelizacion("puntaje")} onVerReferidores={() => setVentana("referidores")} onVerSeguimiento={() => setTab("seguimiento")} />
           <Pestanas etiqueta="Secciones del CRM" pestanas={pestanas} activa={tab} onCambiar={setTab} idBase="crm" />
 
           <div id="crm-panel" role="tabpanel" aria-labelledby={`crm-tab-${tab}`}>
@@ -213,24 +215,37 @@ export default function CRM({
                 />
               </div>
             )}
-            {tab === "fidelizacion" && <PestanaFidelizacion key={vistaFidelizacion} vistaInicial={vistaFidelizacion} pacientes={pacientes} consultas={consultas} onVerPerfil={onVerPerfil} />}
-            {tab === "plantillas" && (
-              <PestanaPlantillas plantillas={plantillas} opticaNombre={opticaNombre} opticaTelefono={parametrizacion?.opticaTelefono} puedeEditar={puedeEditar}
-                cumpleAuto={cumpleAuto} onCumpleAuto={setCumpleAuto} onGuardar={crm.guardarPlantilla} onAviso={notificar} />
-            )}
+            {tab === "fidelizacion" && <PestanaFidelizacion key={vistaFidelizacion} vistaInicial={vistaFidelizacion} pacientes={pacientes} consultas={consultas} contactos={contactos} puedeContactar={puedeContactar} onSaludar={saludar} onVerPerfil={onVerPerfil} />}
           </div>
         </>
       )}
 
       {resultadoDe && <VentanaResultado paciente={resultadoDe.paciente} motivo={resultadoDe.motivo} contacto={resultadoDe.contacto} onGuardar={guardarResultado} onCerrar={() => setResultadoDe(null)} />}
-      {ventana === "nueva" && <VentanaNuevaCampana pacientes={pacientes} consultas={consultas} plantillas={plantillas} opticaNombre={opticaNombre} opticaTelefono={parametrizacion?.opticaTelefono} onCrear={crearCampana} onCerrar={() => setVentana(null)} />}
+      {ventana === "nueva" && <VentanaNuevaCampana pacientes={pacientes} consultas={consultas} citas={citas} plantillas={plantillas} opticaNombre={opticaNombre} opticaTelefono={parametrizacion?.opticaTelefono} onCrear={crearCampana} onCerrar={() => setVentana(null)} />}
       {campanaAbierta && (
         <VentanaCampana
           campana={campanaAbierta} pacientes={pacientes} consultas={consultas} contactos={contactos} opticaNombre={opticaNombre} opticaTelefono={parametrizacion?.opticaTelefono} usuario={usuario} puedeEnviar={puedeContactar}
           onEnviar={enviarDeCampana(campanaAbierta)} onVerPerfil={onVerPerfil ? (id) => { setVentana(null); onVerPerfil(id) } : null} onAviso={notificar} onCerrar={() => setVentana(null)}
         />
       )}
-      {ventana === "cumpleanos" && <VentanaCumpleanos cumpleanos={proximosCumpleanos(pacientes, hoy, 10)} onVerPerfil={onVerPerfil ? (id) => { setVentana(null); onVerPerfil(id) } : null} onCerrar={() => setVentana(null)} />}
+      {ventana === "plantillas" && (
+        <VentanaPlantillas plantillas={plantillas} opticaNombre={opticaNombre} opticaTelefono={parametrizacion?.opticaTelefono} puedeEditar={puedeEditar}
+          cumpleAuto={cumpleAuto} onCumpleAuto={setCumpleAuto} onGuardar={crm.guardarPlantilla} onAviso={notificar} onCerrar={() => setVentana(null)} />
+      )}
+      {ventana === "referidores" && (
+        <Cascaron titulo="Quienes más refieren" subtitulo="Con empates, comparten el mismo puesto" Icono={HeartHandshake} ancho="max-w-md" onCerrar={() => setVentana(null)}
+          pie={<><span /><button type="button" onClick={() => setVentana(null)} className={BOTON_CERRAR}>Cerrar</button></>}>
+          <ul aria-label="Quienes más refieren" className="divide-y divide-slate-100 px-5">
+            {resumen.referidores.todos.map((x) => (
+              <li key={x.paciente.id} className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5">
+                <span className="text-sm font-bold tabular-nums text-slate-500">{x.lugar}</span>
+                <span className="break-words text-sm font-semibold text-slate-800">{x.paciente.nombre}</span>
+                <span className="text-sm tabular-nums text-slate-600">{plural(x.valor, "referido", "referidos")}</span>
+              </li>
+            ))}
+          </ul>
+        </Cascaron>
+      )}
     </div>
   )
 }

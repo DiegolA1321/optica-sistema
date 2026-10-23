@@ -12,7 +12,7 @@ export const mapContacto = (r) => ({
   resultado: r.resultado || null, volverEl: r.volver_el || null, resultadoEn: r.resultado_en || null, resultadoPorNombre: r.resultado_por_nombre || "",
   creadoPor: r.creado_por || null, creadoPorNombre: r.creado_por_nombre || "", creadoEn: r.creado_en,
 })
-export const mapCampana = (r) => ({ id: r.id, nombre: r.nombre, grupo: r.grupo, mensaje: r.mensaje, creadaPorNombre: r.creada_por_nombre || "", creadaEn: r.creada_en })
+export const mapCampana = (r) => ({ id: r.id, nombre: r.nombre, grupo: r.grupo, mensaje: r.mensaje, creadaPorNombre: r.creada_por_nombre || "", creadaEn: r.creada_en, excluidos: r.excluidos || [] })
 export const plantillasDeFilas = (filas) => Object.fromEntries((Array.isArray(filas) ? filas : []).map((f) => [f.motivo, f.texto]))
 
 // El motivo de un contacto de campaña sale del grupo (igual que en el servidor).
@@ -124,14 +124,14 @@ export function useCrmDatos({ usuario, alCambiarPermisos, habilitado = true }) {
     return { ok: true }
   }, [conBase, usuario?.nombre, alCambiarPermisos])
 
-  const crearCampana = useCallback(async ({ nombre, grupo, mensaje }) => {
+  const crearCampana = useCallback(async ({ nombre, grupo, mensaje, excluidos = [] }) => {
     let id = idLocal()
     if (conBase) {
-      const { data, error: e } = await supabase.rpc("crear_campana_crm", { p_nombre: nombre, p_grupo: grupo, p_mensaje: mensaje })
+      const { data, error: e } = await supabase.rpc("crear_campana_crm", { p_nombre: nombre, p_grupo: grupo, p_mensaje: mensaje, ...(excluidos.length > 0 ? { p_excluidos: excluidos } : {}) })
       if (e || !data) return { ok: false, error: textoDeError(e) }
       id = data
     }
-    const nueva = { id, nombre: nombre.trim(), grupo, mensaje: mensaje.trim(), creadaPorNombre: usuario?.nombre || "", creadaEn: new Date().toISOString() }
+    const nueva = { id, nombre: nombre.trim(), grupo, mensaje: mensaje.trim(), creadaPorNombre: usuario?.nombre || "", creadaEn: new Date().toISOString(), excluidos }
     setDatos((d) => ({ ...d, campanas: [nueva, ...d.campanas] }))
     return { ok: true, id, campana: nueva }
   }, [conBase, usuario?.nombre])

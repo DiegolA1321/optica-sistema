@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Check, Copy, Download, Megaphone, MessageCircle, Zap } from "lucide-react"
+import { Check, Copy, Download, Megaphone, MessageCircle, X, Zap } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import { Cascaron, PieFormulario } from "../AtencionPaciente"
 import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, plural } from "../ventas/estilos"
@@ -9,7 +9,7 @@ import { Insignia } from "../ventas/Lista"
 import { NombrePaciente } from "./piezas"
 import EditorMensaje from "./EditorMensaje"
 import {
-  CORREO_AUTOMATICO_ACTIVO, GRUPOS_CAMPANA, MAX_PLANTILLA, ORDEN_GRUPOS, armarMensaje, destinatariosCampana, modeloListaCampana, plantillaDe,
+  CORREO_AUTOMATICO_ACTIVO, GRUPOS_CAMPANA, MAX_PLANTILLA, ORDEN_GRUPOS, armarMensaje, destinatariosCampana, detalleDeDestinatario, modeloListaCampana, plantillaDe,
 } from "../../utilidades/crmContactos"
 import { fechaHoraLegible, formatoFecha } from "../../utilidades/formatoFecha"
 import { hoyISO } from "../../utilidades/disponibilidad"
@@ -17,8 +17,8 @@ import { abrirWhatsApp } from "../../utilidades/whatsapp"
 
 const CAMPO = "w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
 
-// ─── Nueva campaña: grupo, nombre y mensaje ───
-export function VentanaNuevaCampana({ pacientes, consultas, plantillas, opticaNombre, opticaTelefono, onCrear, onCerrar }) {
+// ─── Nueva campaña: a la izquierda el grupo, el nombre y el mensaje; a la derecha a quiénes se enviará (con un dato útil de cada uno), quién se quita y quién no se incluye ───
+export function VentanaNuevaCampana({ pacientes, consultas, citas = [], plantillas, opticaNombre, opticaTelefono, onCrear, onCerrar }) {
   const hoy = hoyISO()
   const grupos = useMemo(() => Object.fromEntries(ORDEN_GRUPOS.map((g) => [g, destinatariosCampana(g, { pacientes, consultas, hoy })])), [pacientes, consultas, hoy])
   const primero = ORDEN_GRUPOS.find((g) => grupos[g].pacientes.length > 0) || ORDEN_GRUPOS[0]
@@ -26,16 +26,23 @@ export function VentanaNuevaCampana({ pacientes, consultas, plantillas, opticaNo
   const [nombre, setNombre] = useState(`${GRUPOS_CAMPANA[primero].etiqueta} · ${formatoFecha(hoy, "medio")}`)
   const [mensaje, setMensaje] = useState(plantillaDe(GRUPOS_CAMPANA[primero].motivo, plantillas))
   const [editado, setEditado] = useState({ nombre: false, mensaje: false })
+  const [quitados, setQuitados] = useState([]) // ids de quienes se quitaron del grupo elegido
+  const [verNoIncluidos, setVerNoIncluidos] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
-  const total = grupos[grupo].pacientes.length
+  const { pacientes: delGrupo, excluidos: noIncluidos } = grupos[grupo]
+  const destinatarios = delGrupo.filter((p) => !quitados.includes(p.id))
+  const quitadosDelGrupo = delGrupo.filter((p) => quitados.includes(p.id))
+  const total = destinatarios.length
 
   const elegir = (g) => {
     setGrupo(g)
+    setQuitados([])
+    setVerNoIncluidos(false)
     if (!editado.nombre) setNombre(`${GRUPOS_CAMPANA[g].etiqueta} · ${formatoFecha(hoy, "medio")}`)
     if (!editado.mensaje) setMensaje(plantillaDe(GRUPOS_CAMPANA[g].motivo, plantillas))
   }
-  const ejemplo = grupos[grupo].pacientes[0]
+  const ejemplo = destinatarios[0]
   const vista = armarMensaje(mensaje, { paciente: ejemplo || { nombre: "Nombre del paciente" }, opticaNombre, opticaTelefono, consultas })
   const falta = total === 0 || nombre.trim().length < 3 || mensaje.trim().length < 10 || mensaje.length > MAX_PLANTILLA
 
@@ -44,50 +51,96 @@ export function VentanaNuevaCampana({ pacientes, consultas, plantillas, opticaNo
     if (falta || guardando) return
     setGuardando(true)
     setError("")
-    const r = await onCrear({ nombre, grupo, mensaje })
+    const r = await onCrear({ nombre, grupo, mensaje, excluidos: quitados })
     if (r && r.ok === false) { setError(r.error || "No se pudo crear la campaña."); setGuardando(false) }
   }
 
   return (
-    <Cascaron titulo="Nueva campaña" subtitulo="Prepara un mensaje para un grupo y envíalo uno por uno" Icono={Megaphone} onCerrar={onCerrar} ancho="max-w-2xl" formulario={{ onSubmit: enviar }}
+    <Cascaron titulo="Nueva campaña" subtitulo="Prepara un mensaje para un grupo y envíalo uno por uno" Icono={Megaphone} onCerrar={onCerrar} ancho="max-w-5xl" formulario={{ onSubmit: enviar }}
       pie={<PieFormulario onCancelar={onCerrar} etiquetaGuardar="Crear campaña" guardando={guardando} deshabilitado={falta} nota="No se envía nada solo: tú envías cada mensaje por WhatsApp." />}>
-      <div className="space-y-5 px-5 py-4">
-        <fieldset>
-          <legend className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">¿A quién?</legend>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {ORDEN_GRUPOS.map((g) => {
-              const def = GRUPOS_CAMPANA[g]
-              const { pacientes: ps, sinPermiso } = grupos[g]
-              return (
-                <label key={g} className={"flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 transition-colors " + (grupo === g ? "border-blue-500 bg-blue-50/60" : "border-slate-200/60 hover:bg-slate-50")}>
-                  <input type="radio" name="grupo" value={g} checked={grupo === g} onChange={() => elegir(g)} className="mt-1 h-4 w-4 shrink-0 accent-blue-600" />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-bold" style={{ color: INK }}>{def.etiqueta} <span className="font-semibold text-slate-500">({ps.length})</span></span>
-                    <span className="block text-xs text-slate-500">{def.ayuda}</span>
-                    {sinPermiso > 0 && <span className="mt-0.5 block text-xs font-semibold text-amber-700">{plural(sinPermiso, "paciente no se incluye", "pacientes no se incluyen")}: {def.consentimiento === "promocion" ? "no aceptó promociones y saludos" : "no aceptó recordatorios de salud"}.</span>}
-                  </span>
-                </label>
-              )
-            })}
-          </div>
-        </fieldset>
+      <div className="grid grid-cols-1 gap-5 px-5 py-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,1fr)]">
+        <div className="min-w-0 space-y-5">
+          <fieldset>
+            <legend className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">¿A quién?</legend>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {ORDEN_GRUPOS.map((g) => {
+                const def = GRUPOS_CAMPANA[g]
+                return (
+                  <label key={g} className={"flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 transition-colors " + (grupo === g ? "border-blue-500 bg-blue-50/60" : "border-slate-200/60 hover:bg-slate-50")}>
+                    <input type="radio" name="grupo" value={g} checked={grupo === g} onChange={() => elegir(g)} className="mt-1 h-4 w-4 shrink-0 accent-blue-600" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold" style={{ color: INK }}>{def.etiqueta} <span className="font-semibold text-slate-500">({grupos[g].pacientes.length})</span></span>
+                      <span className="block text-xs text-slate-500">{def.ayuda}</span>
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+          </fieldset>
 
-        <div>
-          <label htmlFor="campana-nombre" className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nombre de la campaña</label>
-          <input id="campana-nombre" value={nombre} maxLength={80} onChange={(e) => { setNombre(e.target.value); setEditado((x) => ({ ...x, nombre: true })) }} className={CAMPO} />
+          <div>
+            <label htmlFor="campana-nombre" className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Nombre de la campaña</label>
+            <input id="campana-nombre" value={nombre} maxLength={80} onChange={(e) => { setNombre(e.target.value); setEditado((x) => ({ ...x, nombre: true })) }} className={CAMPO} />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="campana-mensaje" className="block text-xs font-bold uppercase tracking-wide text-slate-500">Mensaje</label>
+            <EditorMensaje id="campana-mensaje" ayudaId="campana-mensaje-ayuda" filas={4} valor={mensaje} onCambio={(t) => { setMensaje(t); setEditado((x) => ({ ...x, mensaje: true })) }} />
+            <div className="rounded-xl bg-slate-50 px-3.5 py-3">
+              <p className="mb-1 text-xs font-semibold text-slate-500">Así lo recibirá {ejemplo ? ejemplo.nombre : "cada paciente"}</p>
+              <p className="whitespace-pre-wrap text-sm text-slate-700">{vista}</p>
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="campana-mensaje" className="block text-xs font-bold uppercase tracking-wide text-slate-500">Mensaje</label>
-          <EditorMensaje id="campana-mensaje" ayudaId="campana-mensaje-ayuda" filas={4} valor={mensaje} onCambio={(t) => { setMensaje(t); setEditado((x) => ({ ...x, mensaje: true })) }} />
-          <div className="rounded-xl bg-slate-50 px-3.5 py-3">
-            <p className="mb-1 text-xs font-semibold text-slate-500">Así lo recibirá {ejemplo ? ejemplo.nombre : "cada paciente"}</p>
-            <p className="whitespace-pre-wrap text-sm text-slate-700">{vista}</p>
+        <aside aria-label="A quiénes se enviará" className="min-w-0 space-y-3 lg:border-l lg:border-slate-100 lg:pl-5">
+          <div>
+            <h3 className="text-base font-bold" style={{ color: INK }}>Se enviará a {plural(total, "paciente", "pacientes")}</h3>
+            <p className="text-xs text-slate-500">Quita a quien no quieras que reciba este mensaje.</p>
           </div>
-        </div>
-
-        {total === 0 && <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">Este grupo está vacío: elige otro para crear la campaña.</p>}
-        {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p>}
+          {total === 0 ? (
+            <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">{delGrupo.length === 0 ? "Este grupo está vacío: elige otro para crear la campaña." : "Quitaste a todos: vuelve a incluir a alguien para crear la campaña."}</p>
+          ) : (
+            <ul role="list" aria-label="Destinatarios" className="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200/60">
+              {destinatarios.map((p) => (
+                <li key={p.id} className="flex items-center gap-2 px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-semibold leading-snug text-slate-800">{p.nombre}</p>
+                    <p className="text-xs text-slate-500">{detalleDeDestinatario(grupo, p, { consultas, citas, hoy })}</p>
+                  </div>
+                  <button type="button" onClick={() => setQuitados((q) => [...q, p.id])} aria-label={`Quitar a ${p.nombre} de la campaña`} className="shrink-0 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"><X size={14} aria-hidden="true" /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {quitadosDelGrupo.length > 0 && (
+            <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Quitados ({quitadosDelGrupo.length})</p>
+              <ul className="space-y-1">
+                {quitadosDelGrupo.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-2 text-sm text-slate-700">
+                    <span className="min-w-0 break-words">{p.nombre}</span>
+                    <button type="button" onClick={() => setQuitados((q) => q.filter((id) => id !== p.id))} aria-label={`Volver a incluir a ${p.nombre}`} className="shrink-0 text-xs font-semibold text-blue-700 hover:text-blue-800 cursor-pointer">Volver a incluir</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {noIncluidos.length > 0 && (
+            <div className="rounded-xl bg-amber-50 px-3 py-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-amber-800">No se incluyen {plural(noIncluidos.length, "paciente", "pacientes")}: {noIncluidos[0].motivo}.</p>
+                <button type="button" onClick={() => setVerNoIncluidos((v) => !v)} aria-expanded={verNoIncluidos} className="shrink-0 text-xs font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950 cursor-pointer">{verNoIncluidos ? "Ocultar" : "Ver quiénes"}</button>
+              </div>
+              {verNoIncluidos && (
+                <ul aria-label="Pacientes que no se incluyen" className="mt-2 max-h-40 space-y-0.5 overflow-y-auto text-sm text-amber-900">
+                  {noIncluidos.map((x) => <li key={x.paciente.id} className="break-words">{x.paciente.nombre}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+          {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p>}
+        </aside>
       </div>
     </Cascaron>
   )
@@ -99,7 +152,10 @@ export function VentanaCampana({ campana, pacientes, consultas, contactos, optic
   const [copiado, setCopiado] = useState(false)
   const [enviando, setEnviando] = useState(null)
   const grupo = GRUPOS_CAMPANA[campana.grupo]
-  const { pacientes: destinatarios, sinPermiso } = useMemo(() => destinatariosCampana(campana.grupo, { pacientes, consultas, hoy }), [campana.grupo, pacientes, consultas, hoy])
+  const { pacientes: delGrupo, sinPermiso } = useMemo(() => destinatariosCampana(campana.grupo, { pacientes, consultas, hoy }), [campana.grupo, pacientes, consultas, hoy])
+  const quitados = campana.excluidos || []
+  const destinatarios = useMemo(() => delGrupo.filter((p) => !quitados.includes(p.id)), [delGrupo, quitados])
+  const quitadosDelGrupo = delGrupo.length - destinatarios.length
   const enviados = useMemo(() => {
     const m = new Map()
     for (const c of contactos) if (c.campanaId === campana.id && !m.has(c.pacienteId)) m.set(c.pacienteId, c)
@@ -141,6 +197,11 @@ export function VentanaCampana({ campana, pacientes, consultas, contactos, optic
         <button type="button" onClick={onCerrar} className={BOTON_CERRAR}>Cerrar</button>
       </>}>
       <div className="space-y-4 px-5 py-4">
+        {filas.length > 0 && (
+          <div role="progressbar" aria-label="Avance de la campaña" aria-valuemin={0} aria-valuemax={filas.length} aria-valuenow={enviados.size} aria-valuetext={`${enviados.size} de ${filas.length} enviados`}>
+            <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full transition-[width]" style={{ width: `${Math.min(100, Math.round((enviados.size / filas.length) * 100))}%`, background: GRAD_MARCA }} /></div>
+          </div>
+        )}
         <div className="rounded-xl bg-slate-50 px-3.5 py-3">
           <div className="mb-1 flex items-center justify-between gap-2">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Mensaje</p>
@@ -176,6 +237,7 @@ export function VentanaCampana({ campana, pacientes, consultas, contactos, optic
         )}
         <p className="text-xs text-slate-500">
           {plural(pendientes, "paciente pendiente", "pacientes pendientes")}. Cada envío queda en Seguimiento.
+          {quitadosDelGrupo > 0 && ` Al crearla se quitaron ${plural(quitadosDelGrupo, "paciente", "pacientes")}.`}
           {sinPermiso > 0 && ` No se incluyen ${plural(sinPermiso, "paciente", "pacientes")} del grupo que ${grupo?.consentimiento === "promocion" ? "no aceptaron promociones y saludos" : "no aceptaron recordatorios de salud"}.`}
         </p>
       </div>

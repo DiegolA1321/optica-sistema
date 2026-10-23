@@ -1,21 +1,21 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Gift, Search, Star, Users } from "lucide-react"
+import { Cake, Gift, MessageCircle, Search, Star, Users } from "lucide-react"
 import { GRAD_MARCA } from "@/lib/tema"
 import { ContenedorLista, EncabezadoLista, Vacio } from "../ventas/Lista"
-import { CLASE_ACCION_SECUNDARIA, plural } from "../ventas/estilos"
+import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, plural } from "../ventas/estilos"
+import { Insignia } from "../ventas/Lista"
 import { ConteoCitas } from "../FiltrosCitas"
 import { NombrePaciente } from "./piezas"
 import { CLASE_PILDORA } from "./estilosCrm"
-import { rankingFrecuentes, rankingReferidores } from "../../utilidades/crmContactos"
+import { puedeContactarPor, rankingFrecuentes, rankingReferidores } from "../../utilidades/crmContactos"
+import { conPuestos, cumpleanosDelMes, rankingPorPuntos, saludadoEnElAnio } from "../../utilidades/crmResumen"
 import { useFidelidadCon } from "../FidelidadContexto"
 
-// El ranking de puntos con las reglas del programa de la óptica (Configuración › Fidelización): consultas, referidos y lo pagado.
-const rankingPuntajePrograma = (pacientes, de) => pacientes.map((p) => ({ paciente: p, valor: de(p).puntos.total })).filter((x) => x.valor > 0).sort((a, b) => b.valor - a.valor || a.paciente.nombre.localeCompare(b.paciente.nombre))
-import { fechaLegible } from "../../utilidades/formatoFecha"
+import { diaSemanaCorto, fechaLegible, formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
 import { MINIMO_CLIENTE_FRECUENTE, ultimaVisita } from "../../utilidades/fidelizacion"
-import { fechaAISO } from "../../utilidades/disponibilidad"
+import { fechaAISO, hoyISO, isoAFechaLocal } from "../../utilidades/disponibilidad"
 
 const POR_PAGINA = 30
 const COLUMNAS = "lg:grid-cols-[3rem_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]"
@@ -31,15 +31,78 @@ const VISTAS = {
 }
 const ORDEN = ["puntaje", "frecuentes", "referidores"]
 
-// Pestaña "Fidelización": los rankings completos (con todos los nombres) y el puntaje. Es para conocer a los mejores pacientes, no una lista de tareas:
-// por eso aquí no hay botones de contacto.
-export default function PestanaFidelizacion({ pacientes, consultas, onVerPerfil, vistaInicial = "puntaje" }) {
+// «Vie 24 oct»: el día de la semana y la fecha.
+const diaYFecha = (iso) => `${diaSemanaCorto(isoAFechaLocal(iso).getDay())} ${formatoFecha(iso, "medioSinAnio")}`
+
+// Los cumpleaños del mes, por grupos, con la edad que cumple y «Saludar»: abre la ventana de Contactar con la plantilla de cumpleaños (el contacto queda registrado).
+// Quien no aceptó saludos lo dice y no deja enviar; a quien ya se le saludó este año se le marca.
+function Cumpleanos({ pacientes, contactos, puedeContactar, onSaludar, onVerPerfil }) {
+  const hoy = hoyISO()
+  const [mes, setMes] = useState(0) // 0 = este mes, 1 = el próximo
+  const lista = useMemo(() => cumpleanosDelMes(pacientes, hoy, mes), [pacientes, hoy, mes])
+  const base = isoAFechaLocal(hoy)
+  const nombreDelMes = nombreMes(new Date(base.getFullYear(), base.getMonth() + mes, 1).getMonth(), "largo").toLowerCase()
+  const grupos = (mes === 0 ? ["semana", "adelante", "pasaron"] : ["mes"]).map((g) => ({ id: g, filas: lista.filter((x) => x.grupo === g) })).filter((g) => g.filas.length > 0)
+  const titulo = (g) => (g === "semana" ? "Esta semana" : g === "adelante" ? `Más adelante en ${nombreDelMes}` : g === "pasaron" ? "Ya pasaron este mes" : `Cumpleaños de ${nombreDelMes}`)
+
+  return (
+    <section aria-label="Cumpleaños" className="rounded-2xl border border-slate-200/70 bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+        <h2 className="flex items-center gap-2 text-base font-bold text-slate-800"><Cake size={16} aria-hidden="true" /> Cumpleaños <span className="text-sm font-semibold text-slate-500">({lista.length})</span></h2>
+        <div role="group" aria-label="Mes de los cumpleaños" className="flex items-center gap-1.5">
+          {[[0, "Este mes"], [1, "Próximo mes"]].map(([v, texto]) => (
+            <button key={v} type="button" onClick={() => setMes(v)} aria-pressed={mes === v} className={CLASE_PILDORA(mes === v)} style={mes === v ? { background: GRAD_MARCA } : undefined}>{texto}</button>
+          ))}
+        </div>
+      </div>
+      {lista.length === 0 ? (
+        <p className="px-4 py-6 text-sm text-slate-500">Nadie cumple años {mes === 0 ? "este mes" : "el próximo mes"}, o todavía no hay fechas de nacimiento registradas.</p>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {grupos.map((g) => (
+            <div key={g.id}>
+              <p className="bg-slate-50/70 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">{titulo(g.id)} <span className="font-semibold">({g.filas.length})</span></p>
+              <ul role="list" aria-label={titulo(g.id)} className="divide-y divide-slate-100">
+                {g.filas.map((x) => {
+                  const p = x.paciente
+                  const tel = p.telefono || p.contacto || p.celular || ""
+                  const saludado = saludadoEnElAnio(p, x.fecha, contactos)
+                  const acepta = puedeContactarPor(p, "cumpleanos")
+                  return (
+                    <li key={p.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2.5 sm:grid-cols-[minmax(0,1.5fr)_8rem_6rem_minmax(8rem,auto)]">
+                      <div className="min-w-0">
+                        <NombrePaciente paciente={p} onVerPerfil={onVerPerfil} className="block max-w-full" />
+                        <p className="text-xs text-slate-500">{tel || "Sin teléfono"}</p>
+                      </div>
+                      <span className="text-sm tabular-nums text-slate-700">{diaYFecha(x.fecha)}</span>
+                      <span className="text-sm text-slate-500">{x.edad === null ? "" : x.pasado ? `Cumplió ${x.edad}` : `Cumple ${x.edad}`}</span>
+                      <div className="col-span-2 flex justify-end sm:col-span-1">
+                        {saludado ? <Insignia tono="verde">Saludado</Insignia>
+                          : !acepta ? <span className="text-xs font-semibold text-amber-700">No acepta saludos</span>
+                          : !puedeContactar ? <span className="text-xs text-slate-500">Sin permiso para contactar</span>
+                          : <button type="button" onClick={() => onSaludar(p)} disabled={!tel} title={tel ? "Abre WhatsApp con el saludo de cumpleaños" : "Sin número registrado"} aria-label={`Saludar a ${p.nombre}`} className={CLASE_ACCION_PRINCIPAL.replace("px-3.5", "px-3")} style={{ background: GRAD_MARCA }}><MessageCircle size={14} aria-hidden="true" /> Saludar</button>}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// Pestaña "Fidelización": los cumpleaños del mes (con «Saludar») y los rankings completos (con todos los nombres) y el puntaje. Los rankings son para conocer a los mejores pacientes,
+// no una lista de tareas: por eso ahí no hay botones de contacto. Con empates, comparten el mismo puesto.
+export default function PestanaFidelizacion({ pacientes, consultas, contactos = [], puedeContactar = false, onSaludar, onVerPerfil, vistaInicial = "puntaje" }) {
   const { de } = useFidelidadCon({ pacientes, consultas })
   const [vista, setVista] = useState(VISTAS[vistaInicial] ? vistaInicial : "puntaje")
   const [texto, setTexto] = useState("")
   const [visibles, setVisibles] = useState(POR_PAGINA)
   const rankings = useMemo(() => ({
-    puntaje: rankingPuntajePrograma(pacientes, de), frecuentes: rankingFrecuentes(pacientes, consultas), referidores: rankingReferidores(pacientes),
+    puntaje: conPuestos(rankingPorPuntos(pacientes, de)), frecuentes: conPuestos(rankingFrecuentes(pacientes, consultas)), referidores: conPuestos(rankingReferidores(pacientes)),
   }), [pacientes, consultas, de])
   const def = VISTAS[vista]
   const ultimaDe = (p) => { const f = ultimaVisita(p, consultas); return f ? fechaLegible(fechaAISO(f)) : "—" }
@@ -47,13 +110,15 @@ export default function PestanaFidelizacion({ pacientes, consultas, onVerPerfil,
   const lista = useMemo(() => {
     const q = sinTildes(texto.trim())
     // El lugar es el del ranking completo, no el de la búsqueda: buscar a alguien no lo manda al primer puesto.
-    return rankings[vista].map((x, i) => ({ ...x, lugar: i + 1 })).filter((x) => !q || sinTildes(x.paciente.nombre).includes(q))
+    return rankings[vista].filter((x) => !q || sinTildes(x.paciente.nombre).includes(q))
   }, [rankings, vista, texto])
   const n = lista.length
   const cambiarVista = (id) => { setVista(id); setVisibles(POR_PAGINA) }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <Cumpleanos pacientes={pacientes} contactos={contactos} puedeContactar={puedeContactar} onSaludar={onSaludar} onVerPerfil={onVerPerfil} />
+      <h2 className="px-1 pt-1 text-base font-bold text-slate-800">Ranking de fidelidad</h2>
       <div role="group" aria-label="Ranking" className="flex flex-wrap items-center gap-2">
         {ORDEN.map((id) => (
           <button key={id} type="button" onClick={() => cambiarVista(id)} aria-pressed={vista === id} className={CLASE_PILDORA(vista === id)} style={vista === id ? { background: GRAD_MARCA } : undefined}>
@@ -64,7 +129,7 @@ export default function PestanaFidelizacion({ pacientes, consultas, onVerPerfil,
       <div className="flex min-h-9 flex-wrap items-center justify-between gap-3 px-1">
         <div className="flex min-w-0 items-center gap-3">
           <ConteoCitas texto={`${plural(n, "paciente", "pacientes")}${buscando ? " con esa búsqueda" : ""}`} />
-          <span className="hidden text-xs text-slate-500 sm:inline">{def.ayuda}</span>
+          <span className="hidden text-xs text-slate-500 sm:inline">{def.ayuda}. Con empates, comparten el mismo puesto.</span>
         </div>
         {rankings[vista].length > 5 && (
           <div className="relative w-full max-w-xs">

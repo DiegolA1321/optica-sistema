@@ -1,7 +1,7 @@
 // CRM v2: a quién hay que contactar hoy, por qué y qué pasó la última vez. Lógica pura (sin pantalla ni base de datos).
 // Los motivos usan las funciones únicas del sistema: el control vencido es el mismo que cuentan el Inicio, Pacientes y Reportes (esInactivo),
 // los cumpleaños tienen la misma ventana que el Inicio (diasCumpleEnVentana) y los días y "hoy" salen de hoyISO (hora de Ecuador).
-import { diasDesdeUltimaVisita, diasCumpleEnVentana, diasVencido, esInactivo, contarConsultas, contarReferidos, esClienteFrecuente, puntajeFidelidad, fechaProximoControl } from "./fidelizacion"
+import { ultimaVisita, diasDesdeUltimaVisita, diasCumpleEnVentana, diasVencido, esInactivo, contarConsultas, contarReferidos, esClienteFrecuente, puntajeFidelidad, fechaProximoControl } from "./fidelizacion"
 import { fechaAISO, hoyISO, isoAFechaLocal } from "./disponibilidad"
 import { diaDeRegistro } from "./periodoLista"
 import { formatoFecha } from "./formatoFecha"
@@ -314,7 +314,7 @@ export const ORDEN_GRUPOS = ["control_vencido", "sin_visitar", "cumpleanos_mes",
 // Los pacientes de un grupo. sinPermiso: los que cumplen el grupo pero no aceptaron ese tipo de mensaje (no se les escribe).
 export function destinatariosCampana(grupo, { pacientes = [], consultas = [], hoy = hoyISO() } = {}) {
   const def = GRUPOS_CAMPANA[grupo]
-  if (!def) return { pacientes: [], sinPermiso: 0 }
+  if (!def) return { pacientes: [], sinPermiso: 0, excluidos: [] }
   const mes = Number(hoy.slice(5, 7))
   const cumple = (p) => {
     if (p.estadoClinico === "De alta" && def.id !== "cumpleanos_mes" && def.id !== "promociones") return false
@@ -329,7 +329,30 @@ export function destinatariosCampana(grupo, { pacientes = [], consultas = [], ho
     ? (p) => Number(String(nacimientoDe(p)).split(/[-/T]/)[2]) || 0
     : def.id === "promociones" ? () => 0 : (p) => -(diasDesdeUltimaVisita(p, consultas) ?? 0)
   permitidos.sort((a, b) => orden(a) - orden(b) || a.nombre.localeCompare(b.nombre))
-  return { pacientes: permitidos, sinPermiso: del.length - permitidos.length }
+  // excluidos: los que cumplen el grupo pero no aceptaron ese tipo de mensaje (con el motivo, para mostrarlo en «Ver quiénes»).
+  const motivoNo = def.consentimiento === "promocion" ? "no aceptó promociones y saludos" : "no aceptó recordatorios de salud"
+  const excluidos = del.filter((p) => !permitidos.includes(p)).sort((a, b) => a.nombre.localeCompare(b.nombre)).map((paciente) => ({ paciente, motivo: motivoNo }))
+  return { pacientes: permitidos, sinPermiso: excluidos.length, excluidos }
+}
+
+// El dato útil de cada destinatario al preparar una campaña («vencido hace 12 días · tiene cita el 30 oct», «última visita: 3 mar 2025», «cumple el 24 oct»).
+export function detalleDeDestinatario(grupo, paciente, { consultas = [], citas = [], hoy = hoyISO() } = {}) {
+  if (grupo === "control_vencido") {
+    const dias = diasVencido(paciente, consultas)
+    const cita = citas.filter((c) => c.pacienteId === paciente.id && ["Pendiente", "En Espera"].includes(c.estado) && c.fecha >= hoy).sort((a, b) => (a.fecha < b.fecha ? -1 : 1))[0]
+    const base = dias === null ? "Control vencido" : dias === 0 ? "Su control vence hoy" : `Vencido hace ${dias} ${dias === 1 ? "día" : "días"}`
+    return cita ? `${base} · tiene cita el ${formatoFecha(cita.fecha, "medioSinAnio")}` : base
+  }
+  if (grupo === "sin_visitar") {
+    const f = ultimaVisita(paciente, consultas)
+    return f ? `Última visita: ${formatoFecha(fechaAISO(f), "medio")}` : "Sin visitas registradas"
+  }
+  if (grupo === "cumpleanos_mes") {
+    const [, m, d] = String(nacimientoDe(paciente)).split(/[-/T]/).map(Number)
+    return m && d ? `Cumple el ${formatoFecha(`${hoy.slice(0, 4)}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`, "medioSinAnio")}` : "Sin fecha de nacimiento"
+  }
+  const f = ultimaVisita(paciente, consultas)
+  return f ? `Última visita: ${formatoFecha(fechaAISO(f), "medio")}` : "Aún sin visitas"
 }
 
 // ─── Seguimiento: el historial de contactos y sus números ───

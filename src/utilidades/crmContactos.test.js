@@ -236,7 +236,7 @@ describe("campañas: los grupos", () => {
     if (hoy.slice(5, 7) !== "01") expect(mes).not.toContain("d")
   })
   it("un grupo que no existe no trae a nadie", () => {
-    expect(destinatariosCampana("otro", { pacientes: [paciente("a")], hoy })).toEqual({ pacientes: [], sinPermiso: 0 })
+    expect(destinatariosCampana("otro", { pacientes: [paciente("a")], hoy })).toEqual({ pacientes: [], sinPermiso: 0, excluidos: [] })
   })
 })
 

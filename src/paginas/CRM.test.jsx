@@ -57,10 +57,11 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks() })
 
 describe("CRM: Para contactar", () => {
-  it("la cabecera es la de los demás módulos y las cuatro pestañas llevan su número", async () => {
+  it("la cabecera es la de los demás módulos y hay cuatro pestañas (Plantillas ya es un botón)", async () => {
     montar()
     expect(await screen.findByRole("heading", { level: 1, name: "CRM y fidelización" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Nueva campaña/ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /^Plantillas$/ })).toBeInTheDocument()
     expect(tab("Para contactar")).toHaveTextContent("3") // Ana (vencido), Beto (cumple) y Carla (próximo); Eva no acepta mensajes
     for (const t of ["Seguimiento", "Campañas", "Fidelización"]) expect(tab(t)).toBeInTheDocument()
   })
@@ -75,15 +76,15 @@ describe("CRM: Para contactar", () => {
     expect(filtros.getByRole("button", { name: /Cumpleaños \(1\)/ })).toBeInTheDocument()
     expect(filtros.getByRole("button", { name: /Sin visitar \+12 meses \(0\)/ })).toBeInTheDocument()
     fireEvent.click(filtros.getByRole("button", { name: /Control próximo/ }))
-    expect(screen.getByText("Carla Próxima")).toBeInTheDocument()
-    expect(screen.queryByText("Ana Vencida")).not.toBeInTheDocument()
+    expect(within(panel()).getByText("Carla Próxima")).toBeInTheDocument()
+    expect(within(panel()).queryByText("Ana Vencida")).not.toBeInTheDocument()
     expect(screen.getByText("1 paciente · control que vence pronto")).toBeInTheDocument()
   })
 
   it("quien no aceptó recordatorios no aparece y se dice; ya no hay botón para incluir a los que no se contactan", async () => {
     montar()
     await enPanel("Ana Vencida")
-    expect(screen.queryByText("Eva Sin Mensajes")).not.toBeInTheDocument()
+    expect(within(panel()).queryByText("Eva Sin Mensajes")).not.toBeInTheDocument()
     expect(screen.getByText(/1 paciente tiene un motivo que no se muestra porque no aceptó ese tipo de mensaje/)).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /Incluir a quienes/ })).not.toBeInTheDocument()
   })
@@ -137,14 +138,14 @@ describe("CRM: Para contactar", () => {
     fireEvent.click(within(ventana).getByRole("button", { name: "3 días" }))
     fireEvent.click(within(ventana).getByRole("button", { name: "Guardar resultado" }))
     await waitFor(() => expect(base.rpc).toHaveBeenCalledWith("registrar_contacto_crm", expect.objectContaining({ p_paciente_id: "p1", p_resultado: "volver_a_contactar", p_volver_el: dia(3) })))
-    await waitFor(() => expect(screen.queryByText("Ana Vencida")).not.toBeInTheDocument())
+    await waitFor(() => expect(within(panel()).queryByText("Ana Vencida")).not.toBeInTheDocument())
     expect(aviso).toHaveBeenCalledWith(expect.stringMatching(/Ana Vencida reaparecerá en la lista el/))
   })
 
   it("un contacto que pidió volver hoy reaparece solo, primero en la lista", async () => {
     base.filas.crm_contactos = [{ id: "c1", paciente_id: "p3", motivo: "control_proximo", canal: "whatsapp", mensaje: "Hola", resultado: "volver_a_contactar", volver_el: dia(0), creado_en: marca(-3), creado_por_nombre: "Ana Admin", resultado_en: marca(-3) }]
     montar()
-    await screen.findByText("Carla Próxima")
+    await enPanel("Carla Próxima")
     const filas = screen.getAllByRole("listitem").filter((li) => li.textContent.includes("Contactar"))
     expect(filas[0]).toHaveTextContent("Carla Próxima")
     expect(within(filas[0]).getByText("Volver a contactar")).toBeInTheDocument()
@@ -155,7 +156,7 @@ describe("CRM: Para contactar", () => {
     montar({ citas: [{ id: "k1", pacienteId: "p1", estado: "Pendiente", fecha: dia(4), creadoEn: marca(0) }] })
     await screen.findByText("Dani Al Día", {}, { timeout: 200 }).catch(() => {})
     await waitFor(() => expect(tab("Para contactar")).toHaveTextContent("2"))
-    expect(screen.queryByText("Ana Vencida")).not.toBeInTheDocument()
+    expect(within(panel()).queryByText("Ana Vencida")).not.toBeInTheDocument()
   })
 
   it("'No desea recibir mensajes' lo saca de la lista y avisa para que se desactiven sus permisos", async () => {
@@ -166,7 +167,7 @@ describe("CRM: Para contactar", () => {
     fireEvent.click(within(ventana).getByLabelText(/No desea recibir mensajes/))
     fireEvent.click(within(ventana).getByRole("button", { name: "Guardar resultado" }))
     await waitFor(() => expect(cambioPermisos).toHaveBeenCalledWith("p1", { aceptaRecordatorios: false, aceptaPromociones: false }))
-    await waitFor(() => expect(screen.queryByText("Ana Vencida")).not.toBeInTheDocument())
+    await waitFor(() => expect(within(panel()).queryByText("Ana Vencida")).not.toBeInTheDocument())
   })
 
   it("el paciente sin teléfono no se puede contactar por WhatsApp", async () => {
@@ -240,8 +241,8 @@ describe("CRM: Seguimiento", () => {
     await screen.findByText("3 contactos en el mes")
     fireEvent.click(screen.getByRole("button", { name: /Agendaron:/ }))
     expect(await screen.findByText("1 contacto en el mes")).toBeInTheDocument()
-    expect(screen.getByText("Ana Vencida")).toBeInTheDocument()
-    expect(screen.queryByText("Carla Próxima")).not.toBeInTheDocument()
+    expect(within(panel()).getByText("Ana Vencida")).toBeInTheDocument()
+    expect(within(panel()).queryByText("Carla Próxima")).not.toBeInTheDocument()
   })
   it("un contacto se abre en la ventana estándar con su mensaje y quién lo hizo", async () => {
     base.filas.crm_contactos = contactos
@@ -268,7 +269,10 @@ describe("CRM: Campañas", () => {
     const v = await screen.findByRole("dialog", { name: "Nueva campaña" })
     expect(within(v).getByLabelText(/Control vencido \(1\)/)).toBeChecked()
     expect(within(v).getByLabelText(/Quienes aceptan promociones y saludos \(1\)/)).toBeInTheDocument()
-    expect(within(v).getByText(/1 paciente no se incluye: no aceptó recordatorios de salud/)).toBeInTheDocument() // Eva
+    expect(within(v).getByText(/No se incluyen 1 paciente: no aceptó recordatorios de salud/)).toBeInTheDocument() // Eva
+    expect(within(within(v).getByRole("list", { name: "Destinatarios" })).getByText("Ana Vencida")).toBeInTheDocument()
+    fireEvent.click(within(v).getByRole("button", { name: "Ver quiénes" }))
+    expect(within(within(v).getByRole("list", { name: "Pacientes que no se incluyen" })).getByText("Eva Sin Mensajes")).toBeInTheDocument()
     expect(within(v).getByLabelText("Mensaje").value).toContain("{nombre}")
     fireEvent.click(within(v).getByRole("button", { name: "Crear campaña" }))
     await waitFor(() => expect(base.rpc).toHaveBeenCalledWith("crear_campana_crm", expect.objectContaining({ p_grupo: "control_vencido" })))
@@ -278,6 +282,22 @@ describe("CRM: Campañas", () => {
     expect(base.rpc).toHaveBeenCalledWith("registrar_contacto_crm", expect.objectContaining({ p_paciente_id: "p1", p_campana_id: "id-1" }))
     expect(decodeURIComponent(window.open.mock.calls[0][0])).toContain("Hola Ana Vencida")
     expect(within(lista).getByText(/0 pacientes pendientes/)).toBeInTheDocument()
+  })
+  it("se puede quitar a alguien de la campaña: no se le envía y la campaña lo guarda", async () => {
+    montar({ pacientes: [paciente("p1", "Ana Acepta", { aceptaPromociones: true }), paciente("p2", "Beto Acepta", { aceptaPromociones: true })] })
+    fireEvent.click(await screen.findByRole("button", { name: /Nueva campaña/ }))
+    const v = await screen.findByRole("dialog", { name: "Nueva campaña" })
+    fireEvent.click(within(v).getByLabelText(/Quienes aceptan promociones y saludos \(2\)/))
+    expect(within(v).getByText("Se enviará a 2 pacientes")).toBeInTheDocument()
+    fireEvent.click(within(v).getByRole("button", { name: "Quitar a Beto Acepta de la campaña" }))
+    expect(within(v).getByText("Se enviará a 1 paciente")).toBeInTheDocument()
+    expect(within(v).getByRole("button", { name: "Volver a incluir a Beto Acepta" })).toBeInTheDocument()
+    fireEvent.click(within(v).getByRole("button", { name: "Crear campaña" }))
+    await waitFor(() => expect(base.rpc).toHaveBeenCalledWith("crear_campana_crm", expect.objectContaining({ p_grupo: "promociones", p_excluidos: ["p2"] })))
+    const lista = await screen.findByRole("dialog", { name: /Quienes aceptan promociones/ })
+    expect(within(lista).getByText("Ana Acepta")).toBeInTheDocument()
+    expect(within(lista).queryByText("Beto Acepta")).toBeNull()
+    expect(lista).toHaveTextContent("0 de 1 enviados")
   })
   it("la campaña de promociones solo trae a quien las aceptó", async () => {
     montar({ pacientes: [paciente("p1", "Ana Acepta", { aceptaPromociones: true }), paciente("p2", "Beto No")] })
@@ -296,45 +316,45 @@ describe("CRM: Campañas", () => {
 })
 
 describe("CRM: Plantillas", () => {
-  const abrir = async () => { montar(); fireEvent.click(await screen.findByRole("tab", { name: /Plantillas/ })); return screen.findByRole("navigation", { name: "Motivos" }) }
+  const abrir = async (extra) => { montar(extra); fireEvent.click(await screen.findByRole("button", { name: /^Plantillas$/ })); const v = await screen.findByRole("dialog", { name: "Plantillas de mensajes" }); return { v, nav: within(v).getByRole("navigation", { name: "Motivos" }) } }
   const motivos = (nav) => within(nav).getAllByRole("button").map((b) => b.textContent.replace("Sin guardar", ""))
 
-  it("es una pestaña con todos los motivos (los nuevos de las rondas incluidos), su vista previa y sin la ventana de antes", async () => {
-    const nav = await abrir()
-    expect(tab("Plantillas")).toHaveTextContent("12")
-    expect(motivos(nav).slice(0, 7)).toEqual(["Control vencido", "Cita no efectuada", "Pedido listo (retira)", "Pedido listo (envío)", "Cumpleaños", "Recibió su diagnóstico y no compró", "Medidas pedidas"])
+  it("es un botón junto a «Nueva campaña» (ya no una pestaña) que abre todos los motivos con su vista previa", async () => {
+    const { v, nav } = await abrir()
+    expect(screen.queryByRole("tab", { name: /Plantillas/ })).toBeNull()
+    expect(motivos(nav).slice(0, 7)).toEqual(["Control vencido", "Control que vence pronto", "Cita no efectuada", "Cita reagendada", "Pedido listo (retira)", "Pedido listo (envío)", "Cumpleaños"])
+    expect(motivos(nav)).toHaveLength(12)
     expect(motivos(nav)).toContain("Promoción")
-    expect(screen.getByRole("region", { name: "Vista previa" })).toHaveTextContent("Con un paciente de ejemplo")
-    fireEvent.click(await screen.findByRole("tab", { name: /Campañas/ }))
-    expect(screen.queryByRole("button", { name: /Plantillas/ })).toBeNull() // un solo camino: ya no hay botón ni ventana en Campañas
+    expect(within(v).getByRole("region", { name: "Vista previa" })).toHaveTextContent("Con un paciente de ejemplo")
+    expect(within(v).getByText(/Cada motivo tiene su mensaje/)).toBeInTheDocument()
   })
 
   it("cada motivo se ve con sus datos automáticos y su vista previa con «Ana»", async () => {
-    const nav = await abrir()
+    const { v, nav } = await abrir()
     fireEvent.click(within(nav).getByRole("button", { name: "Cita no efectuada" }))
-    const editor = screen.getByRole("region", { name: "Plantilla: Cita no efectuada" })
+    const editor = within(v).getByRole("region", { name: "Plantilla: Cita no efectuada" })
     expect(within(editor).getByRole("textbox").value).toContain("no pudiste venir a tu cita del {fecha_cita}")
-    for (const v of ["{nombre}", "{fecha_cita}", "{optica}", "{telefono_optica}"]) expect(within(editor).getByRole("button", { name: new RegExp(`Insertar ${v.replace(/[{}]/g, "\\$&")}`) })).toBeInTheDocument()
+    for (const d of ["{nombre}", "{fecha_cita}", "{optica}", "{telefono_optica}"]) expect(within(editor).getByRole("button", { name: new RegExp(`Insertar ${d.replace(/[{}]/g, "\\$&")}`) })).toBeInTheDocument()
     expect(within(editor).queryByRole("button", { name: /Insertar {medidas}/ })).toBeNull()
-    const vista = screen.getByRole("region", { name: "Vista previa" })
+    const vista = within(v).getByRole("region", { name: "Vista previa" })
     expect(vista).toHaveTextContent("Hola Ana, notamos que no pudiste venir a tu cita del martes 20 de octubre")
     expect(vista).toHaveTextContent("llámanos al 042 345 678. — Óptica")
   })
 
   it("el saludo automático vive en el motivo Cumpleaños, apagado mientras no haya correo", async () => {
-    const nav = await abrir()
-    expect(screen.queryByRole("switch")).toBeNull()
+    const { v, nav } = await abrir()
+    expect(within(v).queryByRole("switch")).toBeNull()
     fireEvent.click(within(nav).getByRole("button", { name: "Cumpleaños" }))
-    const sw = screen.getByRole("switch", { name: /saludo de cumpleaños/i })
+    const sw = within(v).getByRole("switch", { name: /saludo de cumpleaños/i })
     expect(sw).toBeDisabled()
     expect(sw).toHaveAttribute("aria-checked", "false")
-    expect(screen.getByText("Requiere el correo configurado.")).toBeInTheDocument()
+    expect(within(v).getByText("Requiere el correo configurado.")).toBeInTheDocument()
   })
 
   it("un dato automático se inserta donde está el cursor", async () => {
-    const nav = await abrir()
+    const { v, nav } = await abrir()
     fireEvent.click(within(nav).getByRole("button", { name: "Cumpleaños" }))
-    const editor = screen.getByRole("region", { name: "Plantilla: Cumpleaños" })
+    const editor = within(v).getByRole("region", { name: "Plantilla: Cumpleaños" })
     const campo = within(editor).getByRole("textbox")
     fireEvent.change(campo, { target: { value: "Feliz cumple, !" } })
     campo.setSelectionRange(14, 14)
@@ -343,67 +363,80 @@ describe("CRM: Plantillas", () => {
   })
 
   it("se edita y se guarda por motivo; «Volver al original» devuelve el texto de fábrica y lo guardado vuelve a seguirlo", async () => {
-    const nav = await abrir()
+    const { v, nav } = await abrir()
     fireEvent.click(within(nav).getByRole("button", { name: "Cumpleaños" }))
-    const editor = screen.getByRole("region", { name: "Plantilla: Cumpleaños" })
-    expect(within(editor).getByRole("button", { name: "Guardar" })).toBeDisabled()
-    expect(within(editor).getByRole("button", { name: /Volver al original/ })).toBeDisabled()
+    const editor = within(v).getByRole("region", { name: "Plantilla: Cumpleaños" })
+    expect(within(v).getByRole("button", { name: "Guardar" })).toBeDisabled()
+    expect(within(v).getByRole("button", { name: /Volver al original/ })).toBeDisabled()
     fireEvent.change(within(editor).getByRole("textbox"), { target: { value: "¡Feliz cumple, {nombre}! De {optica}." } })
     expect(within(nav).getByRole("button", { name: /Cumpleaños/ })).toHaveTextContent("Sin guardar")
-    fireEvent.click(within(editor).getByRole("button", { name: "Guardar" }))
+    fireEvent.click(within(v).getByRole("button", { name: "Guardar" }))
     await waitFor(() => expect(base.rpc).toHaveBeenCalledWith("guardar_plantilla_crm", { p_motivo: "cumpleanos", p_texto: "¡Feliz cumple, {nombre}! De {optica}." }))
     await waitFor(() => expect(aviso).toHaveBeenCalledWith("Plantilla «Cumpleaños» guardada."))
-    fireEvent.click(within(editor).getByRole("button", { name: /Volver al original/ }))
+    fireEvent.click(within(v).getByRole("button", { name: /Volver al original/ }))
     expect(within(editor).getByRole("textbox").value).toMatch(/^¡Feliz cumpleaños, \{nombre\}!/)
-    fireEvent.click(within(editor).getByRole("button", { name: "Guardar" }))
+    fireEvent.click(within(v).getByRole("button", { name: "Guardar" }))
     await waitFor(() => expect(base.rpc).toHaveBeenCalledWith("guardar_plantilla_crm", { p_motivo: "cumpleanos", p_texto: "" }))
   })
 
   it("lo escrito y sin guardar se conserva al cambiar de motivo, y el motivo dice que está sin guardar", async () => {
-    const nav = await abrir()
+    const { v, nav } = await abrir()
     fireEvent.click(within(nav).getByRole("button", { name: "Medidas pedidas" }))
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Estas son tus medidas:\n{medidas}" } })
+    fireEvent.change(within(v).getByRole("textbox"), { target: { value: "Estas son tus medidas:\n{medidas}" } })
     fireEvent.click(within(nav).getByRole("button", { name: "Control vencido" }))
-    expect(screen.getByRole("textbox").value).toContain("control visual")
+    expect(within(v).getByRole("textbox").value).toContain("control visual")
     fireEvent.click(within(nav).getByRole("button", { name: /Medidas pedidas/ }))
-    expect(screen.getByRole("textbox").value).toBe("Estas son tus medidas:\n{medidas}")
+    expect(within(v).getByRole("textbox").value).toBe("Estas son tus medidas:\n{medidas}")
   })
 
-  it("un mensaje muy corto no se puede guardar, y quien no edita el CRM solo lo lee", async () => {
-    const nav = await abrir()
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Hola" } })
-    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled()
+  it("un mensaje muy corto no se puede guardar, y quien no edita el CRM solo lo lee; se cierra con «Cerrar»", async () => {
+    const { v } = await abrir()
+    fireEvent.change(within(v).getByRole("textbox"), { target: { value: "Hola" } })
+    expect(within(v).getByRole("button", { name: "Guardar" })).toBeDisabled()
+    fireEvent.click(within(v).getAllByRole("button", { name: "Cerrar" }).at(-1))
+    expect(screen.queryByRole("dialog", { name: "Plantillas de mensajes" })).toBeNull()
     cleanup()
-    montar({ usuario: soloVer })
-    fireEvent.click(await screen.findByRole("tab", { name: /Plantillas/ }))
-    expect(await screen.findByText(/Solo quien tiene permiso de editar el CRM puede cambiar las plantillas/)).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Guardar" })).toBeNull()
-    expect(nav).toBeTruthy()
+    const { v: leer } = await abrir({ usuario: soloVer })
+    expect(within(leer).getByText(/Solo quien tiene permiso de editar el CRM puede cambiar las plantillas/)).toBeInTheDocument()
+    expect(within(leer).queryByRole("button", { name: "Guardar" })).toBeNull()
   })
 })
 
-describe("CRM: datos rápidos de arriba", () => {
-  it("son cinco, cada uno con su dato, y abren la misma lista que cuenta", async () => {
+describe("CRM: el panel de arriba", () => {
+  it("cuatro listas (cumpleaños próximos, más fieles, más refieren, este mes); ya no están «Controles vencidos» ni «Todo en orden»", async () => {
     montar({ consultas: [1, 2, 3].map((k) => ({ id: `k${k}`, pacienteId: "p4", fecha: dia(-k) })) })
-    const franja = await screen.findByRole("list", { name: "Datos rápidos del CRM" })
-    const datos = within(franja).getAllByRole("button")
-    expect(datos).toHaveLength(5)
-    for (const t of ["Próximo cumpleaños", "Cliente más fiel", "Más referidos", "Controles vencidos", "Contactados este mes"]) expect(within(franja).getByText(t)).toBeInTheDocument()
-    expect(within(franja).getByText("Cliente más fiel").closest("button")).toHaveTextContent("Dani Al Día")
-    fireEvent.click(within(franja).getByText("Controles vencidos").closest("button"))
-    expect(screen.getByRole("group", { name: "Filtrar por motivo" })).toBeInTheDocument() // Para contactar, filtrado por control vencido
-    fireEvent.click(within(franja).getByText("Contactados este mes").closest("button"))
+    const panelArriba = await screen.findByRole("region", { name: "Resumen del CRM" })
+    for (const t of ["Cumpleaños próximos", "Más fieles", "Más refieren", "Este mes"]) expect(within(panelArriba).getByRole("heading", { name: t })).toBeInTheDocument()
+    expect(within(within(panelArriba).getByRole("region", { name: "Más fieles" })).getByText("Dani Al Día")).toBeInTheDocument()
+    expect(within(panelArriba).getByText("Beto Cumpleañero")).toBeInTheDocument()
+    expect(within(panelArriba).queryByText(/Controles vencidos/)).toBeNull()
+    expect(screen.queryByRole("button", { name: /Todo en orden/ })).toBeNull()
+  })
+
+  it("«Este mes» cuenta contactados, quienes volvieron a agendar y campañas enviadas; cada lista lleva a su pestaña", async () => {
+    base.filas.crm_contactos = [
+      { id: "c1", paciente_id: "p1", motivo: "control_vencido", canal: "whatsapp", mensaje: "Hola", resultado: "agendo", creado_en: marca(0), creado_por_nombre: "Ana Admin", campana_id: "k1" },
+      { id: "c2", paciente_id: "p3", motivo: "control_proximo", canal: "whatsapp", mensaje: "Hola", resultado: null, creado_en: marca(0), creado_por_nombre: "Ana Admin", campana_id: "k1" },
+    ]
+    montar()
+    const panelArriba = await screen.findByRole("region", { name: "Resumen del CRM" })
+    const mes = within(panelArriba).getByRole("region", { name: "Este mes" })
+    expect(mes).toHaveTextContent("2 contactados")
+    expect(mes).toHaveTextContent("1 volvió a agendar")
+    expect(mes).toHaveTextContent("1 campaña enviada")
+    fireEvent.click(within(mes).getByRole("button", { name: /Ver el seguimiento/ }))
     expect(tab("Seguimiento")).toHaveAttribute("aria-selected", "true")
-    fireEvent.click(within(franja).getByText("Cliente más fiel").closest("button"))
+    fireEvent.click(within(within(panelArriba).getByRole("region", { name: "Cumpleaños próximos" })).getByRole("button", { name: /Ver/ }))
     expect(tab("Fidelización")).toHaveAttribute("aria-selected", "true")
   })
 
-  it("el próximo cumpleaños abre la lista de los que vienen", async () => {
-    montar()
-    const franja = await screen.findByRole("list", { name: "Datos rápidos del CRM" })
-    fireEvent.click(within(franja).getByText("Próximo cumpleaños").closest("button"))
-    const v = await screen.findByRole("dialog", { name: "Próximos cumpleaños" })
-    expect(within(v).getAllByRole("listitem").length).toBeGreaterThan(0)
+  it("los más refieren se abren completos en una ventana, con empates en el mismo puesto", async () => {
+    montar({ pacientes: [...pacientes, paciente("r1", "Ref Uno", {}), paciente("r2", "Ref Dos", {}), paciente("n1", "Nuevo A", { referidoPorId: "r1" }), paciente("n2", "Nuevo B", { referidoPorId: "r2" })] })
+    const panelArriba = await screen.findByRole("region", { name: "Resumen del CRM" })
+    fireEvent.click(within(within(panelArriba).getByRole("region", { name: "Más refieren" })).getByRole("button", { name: /Ver todos/ }))
+    const v = await screen.findByRole("dialog", { name: "Quienes más refieren" })
+    const filas = within(v).getAllByRole("listitem")
+    expect(filas.map((f) => f.textContent)).toEqual(["1Ref Dos1 referido", "1Ref Uno1 referido"])
   })
 })
 
@@ -417,11 +450,51 @@ describe("CRM: Fidelización", () => {
     expect(screen.getByText("Paciente 11")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: /Más frecuentes \(12\)/ }))
     expect(screen.getByText("12 pacientes")).toBeInTheDocument()
+    expect(screen.getAllByText(/Con empates, comparten el mismo puesto/).length).toBeGreaterThan(0)
   })
-  it("no hay botones de contacto: no es una lista de tareas", async () => {
+  it("los rankings no tienen botones de contacto: no son una lista de tareas", async () => {
     montar({ consultas: [1, 2, 3].map((k) => ({ id: `k${k}`, pacienteId: "p4", fecha: dia(-k) })) })
     fireEvent.click(await screen.findByRole("tab", { name: /Fidelización/ }))
     await enPanel("Dani Al Día")
-    expect(screen.queryByRole("button", { name: /Contactar|WhatsApp/ })).not.toBeInTheDocument()
+    const ranking = within(panel()).getByRole("list", { name: "Puntaje de fidelidad" })
+    expect(within(ranking).queryByRole("button", { name: /Contactar|WhatsApp|Saludar/ })).toBeNull()
+  })
+
+  it("Cumpleaños: esta semana, con la fecha, la edad que cumple y «Saludar» (abre la ventana de Contactar)", async () => {
+    montar()
+    fireEvent.click(await screen.findByRole("tab", { name: /Fidelización/ }))
+    const seccion = await within(panel()).findByRole("region", { name: "Cumpleaños" })
+    expect(within(seccion).getByRole("group", { name: "Mes de los cumpleaños" })).toBeInTheDocument()
+    const hoyFila = within(seccion).getByText("Beto Cumpleañero").closest("li")
+    expect(hoyFila).toHaveTextContent(/Cumple \d+/)
+    expect(within(seccion).getByRole("list", { name: "Esta semana" })).toContainElement(hoyFila)
+    fireEvent.click(within(hoyFila).getByRole("button", { name: "Saludar a Beto Cumpleañero" }))
+    expect(await screen.findByRole("dialog")).toBeInTheDocument()
+  })
+
+  it("Cumpleaños: quien no aceptó saludos lo dice y no deja enviar; a quien ya se le saludó este año se le marca", async () => {
+    base.filas.crm_contactos = [{ id: "c9", paciente_id: "p2", motivo: "cumpleanos", canal: "whatsapp", mensaje: "Feliz cumple", resultado: null, creado_en: marca(0), creado_por_nombre: "Ana Admin" }]
+    montar()
+    fireEvent.click(await screen.findByRole("tab", { name: /Fidelización/ }))
+    const seccion = await within(panel()).findByRole("region", { name: "Cumpleaños" })
+    expect(within(within(seccion).getByText("Beto Cumpleañero").closest("li")).getByText("Saludado")).toBeInTheDocument()
+    cleanup()
+    base.filas.crm_contactos = []
+    montar({ pacientes: pacientes.map((p) => (p.id === "p2" ? { ...p, aceptaPromociones: false } : p)) })
+    fireEvent.click(await screen.findByRole("tab", { name: /Fidelización/ }))
+    const sinPermiso = await within(panel()).findByRole("region", { name: "Cumpleaños" })
+    const f = within(sinPermiso).getByText("Beto Cumpleañero").closest("li")
+    expect(within(f).getByText("No acepta saludos")).toBeInTheDocument()
+    expect(within(f).queryByRole("button", { name: /Saludar/ })).toBeNull()
+  })
+
+  it("Cumpleaños: el selector pasa de «Este mes» a «Próximo mes»", async () => {
+    montar({ pacientes: [...pacientes, paciente("s1", "Siguiente Mes", { fechaNacimiento: `1992-${String(((Number(hoy.slice(5, 7)) % 12) + 1)).padStart(2, "0")}-15` })] })
+    fireEvent.click(await screen.findByRole("tab", { name: /Fidelización/ }))
+    const seccion = await within(panel()).findByRole("region", { name: "Cumpleaños" })
+    expect(within(seccion).queryByText("Siguiente Mes")).toBeNull()
+    fireEvent.click(within(seccion).getByRole("button", { name: "Próximo mes" }))
+    expect(within(seccion).getByText("Siguiente Mes")).toBeInTheDocument()
+    expect(within(seccion).queryByText("Beto Cumpleañero")).toBeNull()
   })
 })

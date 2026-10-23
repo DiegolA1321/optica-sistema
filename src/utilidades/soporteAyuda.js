@@ -59,7 +59,7 @@ export const AYUDA_POR_MODULO = [
       { p: "¿Qué hago después de contactar?", r: "Pulsa «Registrar resultado»: Agendó cita, No respondió, Volver a contactar, No le interesa o No desea recibir mensajes. Según lo que pasó, el paciente descansa unos días de la lista, y todo queda anotado en «Seguimiento»." },
       { p: "¿Por qué un paciente no aparece o no puedo escribirle?", r: "Solo se escribe a quien aceptó ese tipo de mensaje: los recordatorios de salud para el control y el seguimiento, y «Promociones y saludos» para cumpleaños y campañas." },
       { p: "¿Cómo hago una campaña?", r: "En «Campañas», pulsa «Nueva campaña», elige el grupo, revisa el mensaje y créala. El sistema no envía nada solo: tú envías cada mensaje por WhatsApp y cada envío queda en Seguimiento." },
-      { p: "¿Cómo cambio el texto de los mensajes?", r: "En «CRM y fidelización» abre la pestaña «Plantillas»: elige el motivo, edita el mensaje y usa los datos automáticos ({nombre}, {optica}, {fecha_cita}…): se insertan donde tienes el cursor. La vista previa muestra cómo queda con un paciente de ejemplo." },
+      { p: "¿Cómo cambio el texto de los mensajes?", r: "En «CRM y fidelización» pulsa el botón «Plantillas» (junto a «Nueva campaña»): elige el motivo, edita el mensaje y usa los datos automáticos ({nombre}, {optica}, {fecha_cita}…): se insertan donde tienes el cursor. La vista previa muestra cómo queda con un paciente de ejemplo." },
     ],
   },
   {
