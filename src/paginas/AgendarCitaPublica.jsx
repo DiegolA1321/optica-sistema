@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react"
-import { ArrowLeft, ChevronRight } from "lucide-react"
-import SelectorFechaHora from "../componentes/SelectorFechaHora"
-import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
+import { ArrowLeft } from "lucide-react"
 import LogoOptica from "../componentes/LogoOptica"
+import BotonWhatsAppFlotante from "../componentes/publica/BotonWhatsAppFlotante"
+import PasoElegir from "../componentes/agendar/PasoElegir"
+import { linkWhatsApp } from "../utilidades/whatsapp"
+import { formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import PasosAgendar from "../componentes/agendar/PasosAgendar"
 import ResumenCita from "../componentes/agendar/ResumenCita"
-import BloqueProfesional from "../componentes/agendar/BloqueProfesional"
 import PasoDatos from "../componentes/agendar/PasoDatos"
 import { datosCompletos } from "../utilidades/validacionDatosAgendar"
 import PasoListo from "../componentes/agendar/PasoListo"
@@ -15,7 +16,7 @@ import { INK, PORCELAIN } from "@/lib/tema"
 import { esHoraOcupadaError, esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
 import { colorMarca, degradadoMarca } from "../utilidades/marcaOptica"
 import { slotsDisponibles } from "../utilidades/disponibilidad"
-import { fechaDiaCorto, fechaDiaLargo, leerBorrador, guardarBorrador, borrarBorrador } from "../utilidades/agendarWeb"
+import { leerBorrador, guardarBorrador, borrarBorrador } from "../utilidades/agendarWeb"
 import useHorasOcupadasEnVivo from "../utilidades/useHorasOcupadasEnVivo"
 
 // Motivos que trae el sistema si la óptica aún no cargó los suyos (los mismos de la agenda interna).
@@ -27,7 +28,6 @@ const AYUDA_MOTIVO = {
   "Adaptación de Lentes": "Lentes nuevos o progresivos",
   "Garantía / Ajuste": "Reparación o ajuste",
 }
-const AYUDA_HORAS = "Solo se muestran las horas en que el optómetra atiende y no tiene otra cita. Las ocupadas aparecen tachadas."
 const textoHoraPerdida = (hora) => `La hora ${hora} acaba de ocuparse. Elige otra; ya actualizamos los horarios.`
 
 const DATOS_VACIOS = {
@@ -80,13 +80,12 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
   const [enviando, setEnviando] = useState(false)
   const [errorReserva, setErrorReserva] = useState("")
   const [avisoHora, setAvisoHora] = useState("")
-  const [confirmando, setConfirmando] = useState(false)
   const [asignado, setAsignado] = useState("")
   const cambiar = (parcial) => setFormData((prev) => ({ ...prev, ...parcial }))
 
-  // Un paso 2 recordado sin datos completos no tiene sentido: se vuelve al paso 1.
+  // Un paso 2 («Tus datos») recordado sin fecha y hora elegidas no tiene sentido: se vuelve al paso 1.
   useEffect(() => {
-    if (paso === 2 && !datosCompletos(formData, esPasaporte)) setPaso(1)
+    if (paso === 2 && (!formData.fecha || !formData.hora)) setPaso(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -105,7 +104,7 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
   // Hallazgo E7: `citas` (prop compartido de App.jsx) solo se llena cuando un admin inició sesión en este mismo navegador — un visitante nuevo
   // veía todos los horarios como libres. horas_ocupadas_publicas() expone solo fecha/hora/profesional (sin datos del paciente) para que la
   // disponibilidad que ve el público sea la real. Se vuelve a pedir sola cada ~20 s y al volver el foco a la pestaña mientras se eligen las horas.
-  const { horas: horasOcupadas, refrescar, cargando } = useHorasOcupadasEnVivo(opticaId, { activo: paso === 2 })
+  const { horas: horasOcupadas, refrescar, cargando } = useHorasOcupadasEnVivo(opticaId, { activo: paso === 1 || paso === 2 })
 
   // Quiénes atienden (profesionales_agendamiento: nombre y foto siempre; el registro solo si la persona activó «Mostrarme en la página pública»). Si la función no existe aún o falla, no hay nombres:
   // la cantidad sale de la agenda del personal (agenda_profesionales) y no se muestra «Te atiende» sin nombre.
@@ -137,11 +136,12 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
     [formData.fecha, disponibilidad, horasOcupadas, profesionalId],
   )
   useEffect(() => {
-    if (paso !== 2 || cargando || !formData.fecha || !formData.hora) return
+    if (paso === 3 || cargando || !formData.fecha || !formData.hora) return
     const s = slotsDelDia.find((x) => x.hora === formData.hora)
     if (s && !s.libre) {
       setAvisoHora(textoHoraPerdida(formData.hora))
       setFormData((prev) => ({ ...prev, hora: "" }))
+      setPaso(1)
     }
   }, [paso, cargando, slotsDelDia, formData.fecha, formData.hora])
 
@@ -157,20 +157,21 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
     setConMolestia((v) => !v)
   }
 
+  // Paso 1 → 2: la hora elegida NO se reserva todavía; se reserva al confirmar en el paso 2.
   const continuar = () => {
-    setIntento(true)
-    if (!datosCompletos(formData, esPasaporte)) return
-    if (formData.correo && !esEmailValido(formData.correo, false)) return
+    if (!formData.fecha || !formData.hora) return
+    setAvisoHora("")
     setPaso(2)
   }
 
   const nombreCompleto = [formData.nombres, formData.apellidos].filter(Boolean).join(" ").trim()
   const nombreProfesional = unico?.nombre || profesionalElegido?.nombre || asignado || ""
 
+  // Al confirmar, la hora ya se ocupó: se avisa y se vuelve al paso 1 con los horarios al día, sin perder lo escrito.
   const perderHora = async () => {
     const hora = formData.hora
-    setConfirmando(false)
     setErrorReserva("")
+    setPaso(1)
     setFormData((prev) => ({ ...prev, hora: "" }))
     setAvisoHora(textoHoraPerdida(hora))
     await refrescar()
@@ -179,12 +180,8 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
   const confirmarReserva = async () => {
     if (enviando) return
     setErrorReserva("")
-    if (!datosCompletos(formData, esPasaporte)) {
-      setConfirmando(false)
-      setIntento(true)
-      setPaso(1)
-      return
-    }
+    setIntento(true)
+    if (!datosCompletos(formData, esPasaporte)) return
     if (formData.correo && !esEmailValido(formData.correo, false)) {
       setErrorReserva("Ese correo no es válido — corrígelo o déjalo vacío.")
       return
@@ -250,7 +247,6 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
       setCitas?.([...citas, nuevaCita])
       setFormData((prev) => ({ ...prev, codigoCita: codigoReal }))
       borrarBorrador(opticaId)
-      setConfirmando(false)
       setPaso(3)
       // Con «cualquier optómetra», saber quién quedó asignado (si la base lo dice) para mostrarlo en el resumen.
       if (!profesionalId && profesionales.length > 1) {
@@ -269,15 +265,15 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
 
   const salir = () => { borrarBorrador(opticaId); onVolver?.() }
 
-  const profesionalResumen = nombreProfesional || (profesionales.length > 1 && !asignado ? "Cualquier optómetra" : `Equipo de ${nombreOptica}`)
-  const filasResumen = [
+  const profesionalResumen = nombreProfesional || (profesionales.length > 1 && !asignado ? "Cualquier optómetra" : profesionales.length === 1 ? "" : `Equipo de ${nombreOptica}`)
+  const cuando = formData.fecha ? `${formatoFecha(formData.fecha, "diaNumero")} ${formatoFecha(formData.fecha, "mes")}${formData.hora ? " · " + horaSinCero(formData.hora) : ""}` : ""
+  const itemsResumen = [
     { etiqueta: "Motivo", valor: formData.motivo },
-    { etiqueta: "Paciente", valor: nombreCompleto },
     { etiqueta: "Profesional", valor: profesionalResumen },
-    { etiqueta: "Fecha", valor: fechaDiaCorto(formData.fecha) },
-    { etiqueta: "Hora", valor: formData.hora },
+    { etiqueta: "Fecha y hora", valor: cuando },
+    { etiqueta: "Paciente", valor: nombreCompleto },
   ]
-  const resumenCorto = [formData.motivo, formData.fecha ? fechaDiaCorto(formData.fecha) : "", formData.hora].filter(Boolean).join(" · ")
+  const telefonoOptica = (opticaPublica?.settings?.opticaTelefono || "").trim()
 
   return (
     <div className="relative flex min-h-screen w-full flex-col font-sans text-slate-800 antialiased selection:bg-cyan-200 selection:text-slate-900" style={{ backgroundColor: PORCELAIN }}>
@@ -289,9 +285,9 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
         @media (prefers-reduced-motion: reduce) { .ac-step,.ac-pop { animation: none !important; } }
       `}</style>
 
-      {/* ─── CABECERA: volver a la izquierda, logo y nombre al centro ─── */}
+      {/* ─── CABECERA: volver a la izquierda, logo y nombre al centro, «¿Dudas? WhatsApp» a la derecha ─── */}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 py-2.5 backdrop-blur-md sm:px-8">
-        <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <div className="mx-auto grid max-w-[1200px] grid-cols-[1fr_auto_1fr] items-center gap-2">
           <button type="button" onClick={salir} className="inline-flex min-h-11 cursor-pointer items-center gap-2 justify-self-start text-sm font-semibold transition-colors hover:underline sm:text-base" style={{ color }}>
             <ArrowLeft size={18} aria-hidden="true" /> <span>Volver al inicio</span>
           </button>
@@ -299,89 +295,50 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
             <LogoOptica url={opticaPublica?.logo_url} nombre={nombreOptica} color={color} tamano={40} />
             <span className="max-w-[9rem] truncate font-serif text-lg font-bold tracking-tight sm:max-w-xs sm:text-xl" style={{ color: INK }}>{nombreOptica}</span>
           </div>
-          <span aria-hidden="true" />
+          {telefonoOptica ? (
+            <a href={linkWhatsApp(telefonoOptica, `Hola, tengo una duda sobre cómo agendar una cita en ${nombreOptica}.`)} target="_blank" rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center justify-self-end text-sm text-slate-600 sm:text-base">
+              <span className="hidden sm:inline">¿Dudas?&nbsp;</span><span className="font-semibold" style={{ color }}>WhatsApp</span>
+            </a>
+          ) : <span aria-hidden="true" />}
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-5 px-4 py-6 sm:px-8 lg:grid-cols-12 lg:gap-10 lg:py-10">
-        <section className="min-w-0 lg:col-span-8">
-          <h1 className="mb-5 font-serif text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: INK }}>Solicita tu cita en línea</h1>
-          <div className="mb-5"><PasosAgendar paso={paso} color={color} /></div>
+      <main className="mx-auto w-full max-w-[1040px] flex-1 px-4 py-6 sm:px-8 lg:py-10">
+        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+          <h1 className="font-serif text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: INK }}>Solicita tu cita en línea</h1>
+          <div className="lg:w-[28rem] lg:shrink-0"><PasosAgendar paso={paso} color={color} /></div>
+        </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-8" style={{ boxShadow: "0 30px 60px -36px rgba(14,43,51,0.25)" }}>
-            {paso === 1 && (
-              <PasoDatos datos={formData} cambiar={cambiar} esPasaporte={esPasaporte} onPasaporte={setEsPasaporte} intento={intento} motivos={motivos}
-                conMolestia={conMolestia} onMolestia={alternarMolestia} alternarSintoma={alternarSintoma} onContinuar={continuar} marca={marca} />
-            )}
+        <div className="mb-5"><ResumenCita items={itemsResumen} /></div>
 
-            {paso === 2 && (
-              <div className="ac-step space-y-5">
-                <BloqueProfesional profesionales={profesionales} valor={profesionalId} color={color}
-                  onCambiar={(id) => { setProfesionalId(id); setAvisoHora(""); cambiar({ hora: "" }) }} />
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-8" style={{ boxShadow: "0 30px 60px -36px rgba(14,43,51,0.25)" }}>
+          {paso === 1 && (
+            <PasoElegir
+              motivos={motivos} motivo={formData.motivo} onMotivo={(m) => cambiar({ motivo: m, motivoElegido: true })} duracionMinutos={disponibilidad?.duracionCita || 40}
+              profesionales={profesionales} profesionalId={profesionalId} onProfesional={(id) => { setProfesionalId(id); setAvisoHora(""); cambiar({ hora: "" }) }}
+              aviso={avisoHora} disponibilidad={disponibilidad} horasOcupadas={horasOcupadas} cargando={cargando}
+              fecha={formData.fecha} hora={formData.hora}
+              onFecha={(iso) => { setAvisoHora(""); setFormData((prev) => ({ ...prev, fecha: iso, hora: "" })) }}
+              onHora={(h) => { setAvisoHora(""); cambiar({ hora: h }) }}
+              color={color} fondo={marca.fondo} telefono={telefonoOptica} nombreOptica={nombreOptica} onContinuar={continuar} />
+          )}
 
-                {avisoHora && <p role="alert" className="rounded-xl bg-amber-50 px-4 py-3 text-base text-amber-900">{avisoHora}</p>}
+          {paso === 2 && (
+            <PasoDatos datos={formData} cambiar={cambiar} esPasaporte={esPasaporte} onPasaporte={setEsPasaporte} intento={intento}
+              conMolestia={conMolestia} onMolestia={alternarMolestia} alternarSintoma={alternarSintoma}
+              onConfirmar={confirmarReserva} onCambiarHora={() => { setErrorReserva(""); setPaso(1) }} enviando={enviando} errorReserva={errorReserva} marca={marca} />
+          )}
 
-                {cargando ? (
-                  <div className="grid animate-pulse grid-cols-1 gap-6 md:grid-cols-2" aria-busy="true" aria-label="Cargando horarios">
-                    <div className="h-64 rounded-xl bg-slate-100" />
-                    <div className="h-64 rounded-xl bg-slate-100" />
-                  </div>
-                ) : (
-                  <SelectorFechaHora
-                    publico agrupar porProfesional
-                    color={color}
-                    ayuda={AYUDA_HORAS}
-                    disponibilidad={disponibilidad}
-                    citas={horasOcupadas}
-                    profesionalId={profesionalId || null}
-                    fecha={formData.fecha}
-                    hora={formData.hora}
-                    onCambiarFecha={(iso) => { setAvisoHora(""); setFormData((prev) => ({ ...prev, fecha: iso, hora: "" })) }}
-                    onCambiarHora={(h) => { setAvisoHora(""); cambiar({ hora: h }) }}
-                  />
-                )}
-
-                <div className="flex items-center justify-between gap-3 pt-2">
-                  <button type="button" onClick={() => setPaso(1)} className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 px-1 text-base font-semibold transition-colors hover:underline" style={{ color }}>
-                    <ArrowLeft size={18} aria-hidden="true" /> Atrás
-                  </button>
-                  <button type="button" onClick={() => { setErrorReserva(""); setConfirmando(true) }} disabled={!formData.fecha || !formData.hora}
-                    className="inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl px-6 text-base font-bold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                    style={{ background: marca.fondo, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
-                    Confirmar reserva <ChevronRight size={18} aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {paso === 3 && (
-              <PasoListo fecha={formData.fecha} hora={formData.hora} motivo={formData.motivo} profesional={nombreProfesional} codigo={formData.codigoCita}
-                direccion={opticaPublica?.settings?.opticaDireccion} telefono={opticaPublica?.settings?.opticaTelefono}
-                nombreOptica={nombreOptica} duracionMinutos={disponibilidad?.duracionCita || 40} />
-            )}
-          </div>
-        </section>
-
-        {/* Resumen: tarjeta blanca a la derecha (en celular, arriba y plegada). Sigue completa en el paso Listo. */}
-        <aside className="order-first lg:order-none lg:col-span-4">
-          <ResumenCita filas={filasResumen} color={color} corto={resumenCorto} />
-        </aside>
+          {paso === 3 && (
+            <PasoListo fecha={formData.fecha} hora={formData.hora} motivo={formData.motivo} profesional={nombreProfesional} codigo={formData.codigoCita}
+              direccion={opticaPublica?.settings?.opticaDireccion} telefono={opticaPublica?.settings?.opticaTelefono}
+              nombreOptica={nombreOptica} duracionMinutos={disponibilidad?.duracionCita || 40} />
+          )}
+        </div>
       </main>
 
-      {/* ─── CONFIRMACIÓN DE RESERVA ─── */}
-      {confirmando && (
-        <ConfirmarCitaModal
-          paciente={nombreCompleto}
-          motivo={formData.motivo}
-          fecha={fechaDiaLargo(formData.fecha)}
-          hora={formData.hora}
-          profesional={nombreProfesional}
-          onCancelar={() => setConfirmando(false)}
-          onConfirmar={confirmarReserva}
-          guardando={enviando}
-          error={errorReserva}
-        />
-      )}
+      <BotonWhatsAppFlotante telefono={telefonoOptica} mensaje={`Hola, tengo una duda sobre agendar una cita en ${nombreOptica}.`} />
     </div>
   )
 }

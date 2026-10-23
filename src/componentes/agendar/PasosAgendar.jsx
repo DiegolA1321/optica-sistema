@@ -1,7 +1,7 @@
 import { Check } from "lucide-react"
 import { INK } from "@/lib/tema"
 
-const PASOS = ["Tus datos", "Fecha y hora", "Listo"]
+const PASOS = ["Motivo, fecha y hora", "Tus datos", "Listo"]
 
 // Los tres pasos del agendamiento: círculo numerado (✓ al completarse) unido por una línea del color de la óptica.
 // En celular solo se lee el nombre del paso actual para que quepan los tres círculos.

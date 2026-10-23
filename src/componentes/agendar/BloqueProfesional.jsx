@@ -25,8 +25,7 @@ export default function BloqueProfesional({ profesionales, valor, onCambiar, col
       <div className="flex items-center gap-4 rounded-2xl bg-slate-50 px-4 py-3.5" style={{ backgroundColor: color + "12" }}>
         <Avatar nombre={p.nombre} foto={p.foto} color={color} />
         <div className="min-w-0">
-          <p className="truncate text-base font-bold" style={{ color: INK }}>Te atiende {p.nombre}</p>
-          <p className="truncate text-sm text-slate-600">Optómetra{p.registro ? ` · Reg. ${p.registro}` : ""}</p>
+          <p className="text-base" style={{ color: INK }}><b>Te atiende {p.nombre}</b> <span className="text-slate-600">· optómetra{p.registro ? ` · Reg. ${p.registro}` : ""}</span></p>
         </div>
       </div>
     )
