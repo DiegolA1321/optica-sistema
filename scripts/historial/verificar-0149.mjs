@@ -41,7 +41,7 @@ try {
   ok((await q(admin, "select count(*)::int n from citas_base where optica_id = $1 and fecha = $2 and hora = $3 and estado <> 'Cancelada'", [optica, dia, hora]))[0].n === 1, "en la base queda UNA sola cita a esa hora")
 
   // 2. Cinco a la vez, otra hora.
-  const hora2 = "10:20 AM"
+  const hora2 = "11:00 AM"
   const reservar2 = async (cedula) => {
     const c = await nuevo()
     try { await c.query("set role anon"); return { r: (await c.query("select * from crear_cita_publica($1, 'Paciente Simultaneo', $2::date, $3, $4, '1990-03-12', '0991234567', 'Consulta General', 'Consulta General', null, null, 'web', null)", [optica, dia, hora2, cedula])).rows[0] } }
@@ -55,16 +55,16 @@ try {
   const pac = (await q(admin, "select id, nombre, cedula from pacientes_base where optica_id = $1 limit 1", [optica]))[0]
   const directo = async () => {
     const c = await nuevo()
-    try { await c.query("insert into citas_base (optica_id, paciente_id, paciente, cedula, fecha, hora, motivo, estado, origen) values ($1, $2, $3, $4, $5, '11:00 AM', 'x', 'Pendiente', 'presencial')", [optica, pac.id, pac.nombre, pac.cedula, dia]); return { r: true } }
+    try { await c.query("insert into citas_base (optica_id, paciente_id, paciente, cedula, fecha, hora, motivo, estado, origen) values ($1, $2, $3, $4, $5, '12:00 PM', 'x', 'Pendiente', 'presencial')", [optica, pac.id, pac.nombre, pac.cedula, dia]); return { r: true } }
     catch (e) { return { e: e.message, code: e.code } } finally { await c.end() }
   }
   res = await Promise.all([directo(), directo()])
   ok(res.filter((x) => x.r).length === 1 && res.filter((x) => x.e).every((x) => x.code === "23505"), "dos altas simultáneas del personal a la misma hora → una sola (la otra: 23505)")
 } finally {
   // Limpieza: las citas de la hora de prueba y los pacientes que crearon.
-  await admin.query("delete from citas_base where optica_id = $1 and fecha = $2 and (paciente = 'Paciente Simultaneo' or (hora = '11:00 AM' and motivo = 'x'))", [optica, dia])
+  await admin.query("delete from citas_base where optica_id = $1 and fecha = $2 and (paciente = 'Paciente Simultaneo' or (hora = '12:00 PM' and motivo = 'x'))", [optica, dia])
   await admin.query("delete from pacientes_base where optica_id = $1 and nombre = 'Paciente Simultaneo'", [optica])
-  const resto = (await q(admin, "select count(*)::int n from citas_base where optica_id = $1 and fecha = $2 and hora in ($3, '10:20 AM', '11:00 AM')", [optica, dia, hora]))[0].n
+  const resto = (await q(admin, "select count(*)::int n from citas_base where optica_id = $1 and fecha = $2 and hora in ($3, '11:00 AM', '12:00 PM')", [optica, dia, hora]))[0].n
   console.log(`Limpieza: quedan ${resto} citas de prueba.`)
   await admin.end()
 }
