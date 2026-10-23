@@ -27,12 +27,12 @@ export function useOrdenesLab({ ordenes, setOrdenes, pacientes = [], equipo = []
   const [otraDe, setOtraDe] = useState(null)
   const [entregaConSaldo, setEntregaConSaldo] = useState(null)
   const [detalleId, setDetalleId] = useState(null)
-  const [datosOptica, setDatosOptica] = useState(datosOpticaProforma({}))
+  const [datosOptica, setDatosOptica] = useState(datosOpticaProforma({}, usuario?.opticaLogoUrl))
 
   useEffect(() => {
     if (!supabase || !usuario?.opticaId) return
     let vivo = true
-    supabase.from("opticas").select("settings").eq("id", usuario.opticaId).maybeSingle().then(({ data }) => { if (vivo && data) setDatosOptica(datosOpticaProforma(data.settings)) })
+    supabase.from("opticas").select("settings").eq("id", usuario.opticaId).maybeSingle().then(({ data }) => { if (vivo && data) setDatosOptica(datosOpticaProforma(data.settings, usuario?.opticaLogoUrl)) })
     return () => { vivo = false }
   }, [usuario?.opticaId])
 

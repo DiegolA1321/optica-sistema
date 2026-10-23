@@ -87,7 +87,7 @@ export default function OrdenLaboratorioModal({
     if (!supabase || !usuario?.opticaId) return
     let vivo = true
     supabase.from("opticas").select("settings").eq("id", usuario.opticaId).maybeSingle().then(({ data }) => {
-      if (vivo && data) setOpticaDatos(datosOpticaProforma(data.settings))
+      if (vivo && data) setOpticaDatos(datosOpticaProforma(data.settings, usuario?.opticaLogoUrl))
     })
     return () => { vivo = false }
   }, [usuario?.opticaId])

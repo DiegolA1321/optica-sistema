@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { hoyISO, diaTieneCupo } from "../utilidades/disponibilidad"
 import { sumarDiasISO, diaHabilMasCercano } from "../utilidades/controles"
-import { MENSAJE_HORA_INVALIDA, esErrorHoraInvalida } from "../utilidades/erroresCitas"
+import { MENSAJE_HORA_INVALIDA, MENSAJE_HORA_OCUPADA, esErrorHoraInvalida, esHoraOcupadaError } from "../utilidades/erroresCitas"
 import CampoFecha from "../componentes/CampoFecha"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import { moverCitaAHoy, necesitaMoverseAHoy } from "../utilidades/moverCitaAHoy"
@@ -469,7 +469,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
           .select()
           .single()
         if (errorInsert) {
-          errorControl = errorInsert.code === "23505" ? "ese horario ya lo tomó otra persona" : esErrorHoraInvalida(errorInsert) ? MENSAJE_HORA_INVALIDA.toLowerCase().replace(/\.$/, "") : esErrorSinPermiso(errorInsert) ? "no tienes permiso para agendar citas" : "revisa tu conexión"
+          errorControl = esHoraOcupadaError(errorInsert) ? MENSAJE_HORA_OCUPADA : esErrorHoraInvalida(errorInsert) ? MENSAJE_HORA_INVALIDA.toLowerCase().replace(/\.$/, "") : esErrorSinPermiso(errorInsert) ? "no tienes permiso para agendar citas" : "revisa tu conexión"
         } else {
           citaControl.id = citaGuardada.id
           citaControl.creadoEn = citaGuardada.created_at
@@ -477,7 +477,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       } else {
         citaControl.id = Date.now()
       }
-      if (errorControl) onAviso?.(`La ficha se guardó, pero no se pudo agendar el control (${errorControl}). Agéndalo desde el perfil del paciente.`)
+      if (errorControl) onAviso?.(errorControl === MENSAJE_HORA_OCUPADA ? `La ficha se guardó, pero no se pudo agendar el control. ${MENSAJE_HORA_OCUPADA} Agéndalo desde el perfil del paciente.` : `La ficha se guardó, pero no se pudo agendar el control (${errorControl}). Agéndalo desde el perfil del paciente.`)
       else {
         setCitas?.((prev) => [...prev, citaControl])
         registrarLog(usuario, "citas", "Agendó el control desde la ficha clínica", `${citaControl.paciente} · ${fechaLegible(citaControl.fecha)}`)

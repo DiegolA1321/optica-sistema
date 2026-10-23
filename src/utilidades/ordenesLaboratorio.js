@@ -1,5 +1,6 @@
 import { ahoraEcuador } from "./horaEcuador"
 import { dioptriaTexto } from "./refraccion"
+import { logoHtml } from "./proforma"
 // Órdenes de laboratorio (R36-R37, migración 0087): lógica pura. Cuando una venta
 // incluye lentes se genera una orden por par; pasa por enviada → lista →
 // entregada (o cancelada si se anula la venta). "Atrasada" no es un estado
@@ -146,7 +147,7 @@ export const observacionesParaLaboratorio = (orden) => (/^s*lente recomendado:/i
 export function armarHtmlOrdenLaboratorio({ opticaNombre = "Óptica", opticaDatos = {}, paciente = {}, orden }) {
   const trat = tratamientos(orden)
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden ${numeroOrden(orden.numero)} — Laboratorio</title><style>${ESTILO}</style></head><body>
-<div class="fila"><div><h1>${escapar(opticaNombre)}</h1>${contactoOptica(opticaDatos) ? `<p class="contacto">${contactoOptica(opticaDatos)}</p>` : ""}<p><b>Orden de laboratorio</b> · copia para el laboratorio</p></div><div class="num">${numeroOrden(orden.numero)}</div></div>
+<div class="fila"><div>${logoHtml(opticaDatos.logoUrl, opticaNombre)}<h1>${escapar(opticaNombre)}</h1>${contactoOptica(opticaDatos) ? `<p class="contacto">${contactoOptica(opticaDatos)}</p>` : ""}<p><b>Orden de laboratorio</b> · copia para el laboratorio</p></div><div class="num">${numeroOrden(orden.numero)}</div></div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}</p>
 <p><b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))} &nbsp; <b>Listo hacia el:</b> ${escapar(fechaLegible(orden.fechaPrometida))}${orden.facturaNumero ? ` &nbsp; <b>Comprobante de venta:</b> ${escapar(orden.facturaNumero)}` : ""}</p>
 <h2>Receta</h2>
@@ -166,7 +167,7 @@ export function armarHtmlOrdenPaciente({ opticaNombre = "Óptica", opticaDatos =
   const trat = tratamientos(orden)
   const ojo = (n, r = {}) => (r.esfera || r.cilindro || r.eje ? `${n}: ${v(dioptriaTexto(r.esfera))} | ${v(dioptriaTexto(r.cilindro))} | ${v(r.eje)}°${r.adicion ? ` | ADD ${escapar(dioptriaTexto(r.adicion))}` : ""}` : "")
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden ${numeroOrden(orden.numero)} — Paciente</title><style>${ESTILO}</style></head><body>
-<div class="fila"><div><h1>${escapar(opticaNombre)}</h1>${contactoOptica(opticaDatos) ? `<p class="contacto">${contactoOptica(opticaDatos)}</p>` : ""}<p><b>Comprobante de orden de lentes</b> · copia para el paciente</p></div><div class="num">${numeroOrden(orden.numero)}</div></div>
+<div class="fila"><div>${logoHtml(opticaDatos.logoUrl, opticaNombre)}<h1>${escapar(opticaNombre)}</h1>${contactoOptica(opticaDatos) ? `<p class="contacto">${contactoOptica(opticaDatos)}</p>` : ""}<p><b>Comprobante de orden de lentes</b> · copia para el paciente</p></div><div class="num">${numeroOrden(orden.numero)}</div></div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}</p>
 <p><b>Fecha de la orden:</b> ${escapar(fechaLegible(orden.creadaEn))}${orden.facturaNumero ? ` · <b>Comprobante de venta:</b> ${escapar(orden.facturaNumero)}` : ""}</p>
 <p><b>Entrega estimada:</b> ${escapar(fechaLegible(orden.fechaPrometida))}</p>

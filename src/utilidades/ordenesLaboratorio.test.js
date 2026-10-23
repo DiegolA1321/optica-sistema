@@ -134,3 +134,20 @@ describe("estado de los lentes de una compra", () => {
     expect(estadoLentesDeCompra("f1", [o("cancelada"), o("entregada")]).id).toBe("entregados")
   })
 })
+
+describe("logo de la óptica en las órdenes impresas", () => {
+  const ordenBase = { numero: 3, creadaEn: "2026-10-20T10:00:00Z", fechaPrometida: "2026-10-30", tipoLente: "monofocal", recetaOd: {}, recetaOi: {} }
+  const url = "https://x.supabase.co/storage/v1/object/public/logos/o1/logo.png"
+  it("las dos copias llevan el logo entero (object-fit: contain) arriba del nombre", () => {
+    for (const armar of [armarHtmlOrdenLaboratorio, armarHtmlOrdenPaciente]) {
+      const h = armar({ opticaNombre: "Visión", opticaDatos: { logoUrl: url }, paciente: { nombre: "Ana" }, orden: ordenBase })
+      expect(h).toContain(`src="${url}"`)
+      expect(h).toContain("object-fit:contain")
+      expect(h.indexOf("<img")).toBeLessThan(h.indexOf("<h1>"))
+    }
+  })
+  it("sin logo no sale ninguna imagen", () => {
+    expect(armarHtmlOrdenLaboratorio({ opticaNombre: "Visión", paciente: { nombre: "Ana" }, orden: ordenBase })).not.toContain("<img")
+    expect(armarHtmlOrdenPaciente({ opticaNombre: "Visión", paciente: { nombre: "Ana" }, orden: ordenBase })).not.toContain("<img")
+  })
+})
