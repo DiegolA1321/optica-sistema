@@ -1,6 +1,7 @@
 "use client"
 
 import { dinero } from "../utilidades/formatoMoneda"
+import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { useState, useEffect, useMemo, useRef } from "react"
@@ -500,7 +501,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
     setGuardandoFicha(false)
     setMostrarConfirmarGuardar(false)
     setNotificacion(true)
-    setTimeout(() => setNotificacion(false), 3500)
+    setTimeout(() => setNotificacion(false), DURACION_AVISO_MS)
     setFichaGuardada(true)
     setHayCambiosSinGuardar(false)
     borrarBorradorFicha(ctxBorrador)
@@ -690,15 +691,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
         </div>
       )}
 
-      {notificacion && (
-        <div role="status" className="no-print flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900 shadow-sm">
-          <CheckCircle className="shrink-0 text-emerald-600" size={20} />
-          <div>
-            <p className="text-sm font-semibold">Ficha clínica guardada con éxito.</p>
-            <p className="text-xs text-emerald-700">La evolución del paciente se ha actualizado en el sistema.</p>
-          </div>
-        </div>
-      )}
+      {notificacion && <AvisoFlotante texto="Ficha clínica guardada con éxito." tipo="exito" />}
 
       <div className="w-full">
         {/* ─── BARRA DE LA VISITA ─── paciente, cita de origen y fecha de la consulta (editable). Opaca, fija al hacer scroll. */}

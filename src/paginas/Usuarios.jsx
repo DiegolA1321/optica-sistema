@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
+import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 import { useParamUrl } from "../utilidades/urlEstado"
 import {
   Users, UserPlus, KeyRound, Plus, Pencil, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Copy, Mail, Info, IdCard,
@@ -40,7 +41,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   const [esPrincipal, setEsPrincipal] = useState(true)
   const [misRolesAbierto, setMisRolesAbierto] = useState(false)
   const [mensajeExito, setMensajeExito] = useState(null)
-  const mostrarExito = (msg) => { setMensajeExito(msg); setTimeout(() => setMensajeExito(null), 3500) }
+  const mostrarExito = (msg) => { setMensajeExito(msg); setTimeout(() => setMensajeExito(null), DURACION_AVISO_MS) }
 
   const cargar = useCallback(async () => {
     if (!supabase || !usuario?.opticaId) { setCargando(false); return }
@@ -279,9 +280,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
       )}
       {mostrarActividad && <VentanaActividad opticaId={usuario?.opticaId} onCerrar={() => setMostrarActividad(false)} />}
 
-      {mensajeExito && (
-        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900"><CheckCircle2 className="text-emerald-500" size={20} /><p className="text-sm font-semibold">{mensajeExito}</p></div>
-      )}
+      {mensajeExito && <AvisoFlotante texto={mensajeExito} tipo="exito" />}
       {error && !modal && (
         <p role="alert" className="flex items-center gap-2 rounded-xl border border-red-200/60 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"><AlertTriangle size={16} aria-hidden="true" /> {error}</p>
       )}

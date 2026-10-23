@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import AvisoFlotante, { DURACION_AVISO_MS } from "./AvisoFlotante"
 import { KeyRound, Eye, EyeOff, Loader2, CheckCircle2, AlertTriangle, LogOut } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
 import { INK } from "@/lib/tema"
@@ -44,7 +45,7 @@ export default function GuardiaClaveTemporal({ alSalir, children }) {
     setClave("")
     setRepetir("")
     setAviso(true)
-    setTimeout(() => setAviso(false), 3500)
+    setTimeout(() => setAviso(false), DURACION_AVISO_MS)
     setEstado("lista")
   }
 
@@ -55,11 +56,7 @@ export default function GuardiaClaveTemporal({ alSalir, children }) {
     return (
       <>
         {children}
-        {aviso && (
-          <div role="status" className="fixed bottom-6 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-2 rounded-xl border border-emerald-200/60 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 shadow-lg">
-            <CheckCircle2 size={16} aria-hidden="true" /> Contraseña guardada. Ya puedes usar el sistema.
-          </div>
-        )}
+        {aviso && <AvisoFlotante texto="Contraseña guardada. Ya puedes usar el sistema." tipo="exito" />}
       </>
     )
   }

@@ -1,6 +1,7 @@
 "use client"
 
 import { ahoraEcuador } from "../utilidades/horaEcuador"
+import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef, Suspense } from "react"
@@ -252,7 +253,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   const mostrarAviso = (mensaje) => {
     setAviso(mensaje)
     clearTimeout(timeoutAviso.current)
-    timeoutAviso.current = setTimeout(() => setAviso(null), mensaje?.accion ? 8000 : 4000)
+    timeoutAviso.current = setTimeout(() => setAviso(null), mensaje?.accion ? 8000 : DURACION_AVISO_MS)
   }
   // "Abrir en …" de Reportes: el módulo con el mismo período y los mismos filtros (así el número que se leyó es el que se ve).
   const abrirDesdeReportes = (modulo, params = {}) => {
@@ -1163,20 +1164,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
               ...(atajoInicio === "pacientes" ? { accionInicial: ACCION_CREAR_PACIENTE, onAccionInicialConsumida: () => {} } : { abrirModalAlEntrar: true, onModalAlEntrarConsumido: () => {} }),
             })}
           </Suspense>
-          {aviso && (
-            <div role="status" className="fixed bottom-6 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-3 rounded-xl border border-slate-200/60 bg-white px-4 py-3 text-sm font-semibold shadow-xl" style={{ color: INK, animation: "rise-in 240ms ease-out both" }}>
-              {aviso.texto ?? aviso}
-              {aviso.accion && (
-                <button
-                  type="button"
-                  onClick={() => { const accion = aviso.accion.onClick; setAviso(null); clearTimeout(timeoutAviso.current); accion() }}
-                  className="rounded-md px-2 py-0.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer"
-                >
-                  {aviso.accion.etiqueta}
-                </button>
-              )}
-            </div>
-          )}
+          {aviso && <AvisoFlotante texto={aviso.texto ?? aviso} tipo={aviso.tipo} accion={aviso.accion ? { etiqueta: aviso.accion.etiqueta, onClick: () => { const accion = aviso.accion.onClick; setAviso(null); clearTimeout(timeoutAviso.current); accion() } } : null} />}
         </div>
         </div>
       </main>

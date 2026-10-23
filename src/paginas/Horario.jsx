@@ -40,6 +40,7 @@ import { miembrosActivos } from "../utilidades/equipo"
 import { esAdministrador } from "../utilidades/comunicacionInterna"
 import { Cascaron } from "../componentes/AtencionPaciente"
 import { INK } from "@/lib/tema"
+import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 import { fechaLegible as fechaFormato, formatoFecha } from "../utilidades/formatoFecha"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -111,7 +112,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ci
     setAvisoTexto(texto)
     setGuardadoVisible(true)
     clearTimeout(timeoutGuardadoRef.current)
-    timeoutGuardadoRef.current = setTimeout(() => setGuardadoVisible(false), 2600)
+    timeoutGuardadoRef.current = setTimeout(() => setGuardadoVisible(false), DURACION_AVISO_MS)
   }
   useEffect(() => () => clearTimeout(timeoutGuardadoRef.current), [])
 
@@ -123,7 +124,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ci
   const mostrarError = (mensaje) => {
     setErrorAccion(mensaje)
     clearTimeout(timeoutErrorRef.current)
-    timeoutErrorRef.current = setTimeout(() => setErrorAccion(""), 4000)
+    timeoutErrorRef.current = setTimeout(() => setErrorAccion(""), DURACION_AVISO_MS + 1000)
   }
   useEffect(() => () => clearTimeout(timeoutErrorRef.current), [])
 
@@ -359,18 +360,8 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ci
       )}
 
       {/* ─── CONFIRMACIÓN DE GUARDADO (aparece brevemente tras cada cambio) ─── */}
-      {guardadoVisible && (
-        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-3.5 text-emerald-900">
-          <CheckCircle2 className="shrink-0 text-emerald-600" size={18} />
-          <p className="text-sm font-semibold">{avisoTexto || "Cambios guardados."}</p>
-        </div>
-      )}
-      {errorAccion && (
-        <div role="alert" className="flex items-center gap-3 rounded-xl border border-red-200/60 bg-red-50 p-3.5 text-red-800">
-          <AlertTriangle className="shrink-0 text-red-600" size={18} />
-          <p className="text-sm font-semibold">{errorAccion}</p>
-        </div>
-      )}
+      {guardadoVisible && <AvisoFlotante texto={avisoTexto || "Cambios guardados."} tipo="exito" />}
+      {errorAccion && <AvisoFlotante texto={errorAccion} tipo="error" />}
       {datos.error && <p role="alert" className="rounded-xl border border-red-200/60 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{datos.error}</p>}
 
       <div id="horario-panel" role="tabpanel" aria-labelledby={`horario-tab-${vista}`}>

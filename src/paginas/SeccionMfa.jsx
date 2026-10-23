@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react"
 import { ShieldCheck, ShieldAlert, AlertCircle, CheckCircle2, Loader2 } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { INK } from "@/lib/tema"
+import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 
@@ -36,6 +37,7 @@ export default function SeccionMfa() {
   }
 
   useEffect(() => { cargarFactores() }, [])
+  useEffect(() => { if (!exito) return undefined; const r = setTimeout(() => setExito(""), DURACION_AVISO_MS); return () => clearTimeout(r) }, [exito])
 
   const activo = factores && factores.length > 0
 
@@ -119,11 +121,7 @@ export default function SeccionMfa() {
           <AlertCircle size={14} className="shrink-0" /> {error}
         </div>
       )}
-      {exito && !inscribiendo && (
-        <div role="status" className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
-          <CheckCircle2 size={14} className="shrink-0" /> {exito}
-        </div>
-      )}
+      {exito && !inscribiendo && <AvisoFlotante texto={exito} tipo="exito" />}
 
       {inscribiendo ? (
         <form onSubmit={confirmarInscripcion} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">

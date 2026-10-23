@@ -1,6 +1,7 @@
 "use client"
 
 import { dinero } from "../utilidades/formatoMoneda"
+import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 import { esDeEsteMes } from "../utilidades/inicio"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { Package, Plus, Archive, AlertTriangle, Printer, Undo2 } from "lucide-react"
@@ -88,7 +89,7 @@ export default function Inventario({
   const avisar = (mensaje, tipo) => {
     if (onAviso) { onAviso(mensaje, tipo); return }
     setGuardadoExitoso(mensaje)
-    setTimeout(() => setGuardadoExitoso(""), 3000)
+    setTimeout(() => setGuardadoExitoso(""), DURACION_AVISO_MS)
   }
 
   // La pestaña (activos o descontinuados) y el filtro de la lista: «todos», una categoría («cat:Monturas»), «bajo», «sobre», «sinvender» o «nuevos» (las altas de este mes: el «+N este mes» del Inicio).
@@ -389,11 +390,7 @@ export default function Inventario({
         </AccionesDeCabecera>
       </div>
 
-      {guardadoExitoso && (
-        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
-          <p className="text-sm font-semibold">{guardadoExitoso}</p>
-        </div>
-      )}
+      {guardadoExitoso && <AvisoFlotante texto={guardadoExitoso} tipo="exito" />}
 
       <Pestanas etiqueta="Secciones del inventario" idBase="inventario" activa={pestana} onCambiar={cambiarPestana}
         pestanas={[{ id: "activos", titulo: "Activos", cuenta: activos.length }, { id: "descontinuados", titulo: "Descontinuados", cuenta: descontinuados.length }]} />

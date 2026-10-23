@@ -1,6 +1,7 @@
 "use client"
 
 import { ahoraEcuador } from "../utilidades/horaEcuador"
+import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 
 import { fechaLegible, formatoFecha, tituloSemana } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
@@ -267,7 +268,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
   const mostrarExito = (mensaje) => {
     if (overlaySolo) { onAviso?.(mensaje); return }
     setMensajeExito(mensaje)
-    setTimeout(() => setMensajeExito(null), 3000)
+    setTimeout(() => setMensajeExito(null), DURACION_AVISO_MS)
   }
   const [error, setError] = useState("")
   const [bannerError, setBannerError] = useState("")
@@ -1414,12 +1415,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
       </div>
 
       {/* ─── ÉXITO ─── */}
-      {mensajeExito && (
-        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
-          <CheckCircle2 className="text-emerald-500" size={20} />
-          <p className="text-sm font-semibold">{mensajeExito}</p>
-        </div>
-      )}
+      {mensajeExito && <AvisoFlotante texto={mensajeExito} tipo="exito" />}
 
       {/* ─── ERROR (cancelar / cambiar estado / reagendar) ─── */}
       {bannerError && (

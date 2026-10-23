@@ -1,6 +1,7 @@
 "e client"
 
 import { etiquetaEstadoCita } from "../utilidades/estadosCita"
+import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 import { etiquetaMiembro } from "../utilidades/equipo"
 import { dinero } from "../utilidades/formatoMoneda"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
@@ -528,12 +529,12 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
   const mostrarNotif = (texto) => {
     if (overlaySolo) { onAviso?.(texto); return }
     setNotificacion(texto)
-    setTimeout(() => setNotificacion(""), 3500)
+    setTimeout(() => setNotificacion(""), DURACION_AVISO_MS)
   }
 
   const mostrarError = (texto) => {
     setBannerError(texto)
-    setTimeout(() => setBannerError(""), 4500)
+    setTimeout(() => setBannerError(""), DURACION_AVISO_MS + 1000)
   }
 
   // ── Cuenta de acceso del paciente ──
@@ -1145,19 +1146,9 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
 
   return (
     <div className="w-full space-y-5 text-left" style={overlaySolo ? undefined : { animation: "rise-in 320ms ease-out both" }}>
-      {notificacion && (
-        <div role="status" className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-3.5 text-emerald-900"}>
-          <CheckCircle className="shrink-0 text-emerald-500" size={18} />
-          <p className="text-sm font-semibold">{notificacion}</p>
-        </div>
-      )}
+      {notificacion && <AvisoFlotante texto={notificacion} tipo="exito" />}
 
-      {bannerError && (
-        <div role="alert" className={(overlaySolo ? "fixed right-6 top-6 z-[60] w-80 shadow-2xl " : "") + "flex items-center gap-3 rounded-xl border border-red-200/60 bg-red-50 p-3.5 text-red-900"}>
-          <AlertCircle className="shrink-0 text-red-500" size={18} />
-          <p className="text-sm font-semibold">{bannerError}</p>
-        </div>
-      )}
+      {bannerError && <AvisoFlotante texto={bannerError} tipo="error" />}
 
       {!overlaySolo && abriendoPerfil && (
         <div role="status" aria-label="Abriendo el perfil del paciente" className="space-y-4">

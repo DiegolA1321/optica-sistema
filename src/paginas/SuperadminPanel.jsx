@@ -1,6 +1,7 @@
 "use client"
 
 import { dinero } from "../utilidades/formatoMoneda"
+import AvisoFlotante from "../componentes/AvisoFlotante"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { fechaLegible, fechaHoraLegible, tituloSemana, formatoFecha } from "../utilidades/formatoFecha"
@@ -426,6 +427,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
     setClaveNueva("")
     setConfirmarClaveNueva("")
     setClaveActualizada(true)
+    setTimeout(() => setClaveActualizada(false), 3000)
   }
 
   // El menú "más acciones" de cada fila se renderiza en un portal a
@@ -2102,25 +2104,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
       {menuAbierto && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMenuAbierto(false)} />}
 
       {/* ─── TOAST FLOTANTE ─── */}
-      {toastGlobal && (
-        <div
-          role={toastGlobal.tipo === "error" ? "alert" : "status"}
-          className="fixed right-5 top-5 z-[100] flex items-center gap-2.5 rounded-2xl border bg-white px-4 py-3 shadow-[0_8px_30px_rgba(15,23,42,0.16)]"
-          style={{
-            borderColor: toastGlobal.tipo === "error" ? "#FECDD3" : "#A7F3D0",
-            animation: toastGlobal.saliendo
-              ? "rise-out 180ms cubic-bezier(0.4,0,1,1) both"
-              : "rise-in 220ms cubic-bezier(0.16,1,0.3,1) both",
-          }}
-        >
-          {toastGlobal.tipo === "error" ? (
-            <AlertCircle size={18} className="shrink-0 text-rose-500" />
-          ) : (
-            <CheckCircle2 size={18} className="shrink-0 text-emerald-500" />
-          )}
-          <p className="text-sm font-semibold" style={{ color: INK }}>{toastGlobal.texto}</p>
-        </div>
-      )}
+      {toastGlobal && <AvisoFlotante texto={toastGlobal.texto} tipo={toastGlobal.tipo === "error" ? "error" : "exito"} saliendo={toastGlobal.saliendo} />}
 
       {/* ─── SIDEBAR ─── */}
       <aside
@@ -3332,11 +3316,7 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
                   <AlertCircle size={14} /> {errorClaveNueva}
                 </div>
               )}
-              {claveActualizada && (
-                <div role="status" className="flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-2.5 text-xs font-medium text-emerald-700">
-                  <CheckCircle2 size={14} /> Contraseña actualizada.
-                </div>
-              )}
+              {claveActualizada && <AvisoFlotante texto="Contraseña actualizada." tipo="exito" />}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { Settings, Receipt, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2, Gift } from "lucide-react"
 import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
@@ -350,7 +351,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
   // Supabase sí ocurrió (o falló). Mismo patrón que Citas.jsx/Usuarios.jsx.
   const [mensajeExito, setMensajeExito] = useState(null)
   const [mensajeError, setMensajeError] = useState(null)
-  const mostrarExito = (msg) => { setMensajeError(null); setMensajeExito(msg); setTimeout(() => setMensajeExito(null), 3000) }
+  const mostrarExito = (msg) => { setMensajeError(null); setMensajeExito(msg); setTimeout(() => setMensajeExito(null), DURACION_AVISO_MS) }
   const mostrarError = (msg) => { setMensajeExito(null); setMensajeError(msg); setTimeout(() => setMensajeError(null), 4000) }
 
   const confirmarPendiente = async () => {
@@ -388,18 +389,8 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
       </div>
 
       {/* ─── ÉXITO / ERROR ─── */}
-      {mensajeExito && (
-        <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 text-emerald-900">
-          <CheckCircle2 className="text-emerald-500" size={20} />
-          <p className="text-sm font-semibold">{mensajeExito}</p>
-        </div>
-      )}
-      {mensajeError && (
-        <div role="alert" className="flex items-center gap-3 rounded-xl border border-red-200/60 bg-red-50 p-4 text-red-900">
-          <AlertTriangle className="text-red-500" size={20} />
-          <p className="text-sm font-semibold">{mensajeError}</p>
-        </div>
-      )}
+      {mensajeExito && <AvisoFlotante texto={mensajeExito} tipo="exito" />}
+      {mensajeError && <AvisoFlotante texto={mensajeError} tipo="error" />}
 
       {/* ─── NOTA DE ALCANCE ─── */}
       <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
