@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { Menu, X, LogIn, MapPin } from "lucide-react"
+import { Menu, X, LogIn, MapPin, Phone, Check, Star, Eye, Glasses, RefreshCcw, Sparkles, Stethoscope } from "lucide-react"
+import BotonWhatsAppFlotante from "./BotonWhatsAppFlotante"
 import LogoOptica from "../LogoOptica"
 import OjoOptico from "./OjoOptico"
 import EstilosPublica from "./EstilosPublica"
@@ -20,10 +21,20 @@ const ENLACES_MENU = [
   { id: "contacto", texto: "Contacto" },
 ]
 
+// Primero la disponibilidad (como el agendamiento): motivo, fecha y hora; después los datos; al final el código.
 const PASOS = [
-  { n: 1, titulo: "Tus datos y el motivo", texto: "Nombre, cédula y teléfono." },
-  { n: 2, titulo: "Fecha y hora", texto: "Solo ves las horas realmente libres." },
-  { n: 3, titulo: "Listo", texto: "Recibes tu código y la óptica ya te ve en su agenda." },
+  { n: 1, titulo: "Motivo, fecha y hora", texto: "Solo ves las horas realmente libres." },
+  { n: 2, titulo: "Tus datos", texto: "Nombre, cédula y teléfono." },
+  { n: 3, titulo: "Listo", texto: "Recibes tu código; la óptica ya te ve en su agenda." },
+]
+
+// Ícono de cada servicio, en el orden de la lista (se repite si hay más): cada uno con su color.
+const ICONOS_SERVICIO = [
+  { Icono: Eye, fondo: "#2563EB" },
+  { Icono: Glasses, fondo: "#7C3AED" },
+  { Icono: RefreshCcw, fondo: "#15803D" },
+  { Icono: Stethoscope, fondo: "#C2410C" },
+  { Icono: Sparkles, fondo: "#BE185D" },
 ]
 
 const sinCero = (texto) => texto.replace(/\b0(\d:\d\d)/g, "$1")
@@ -91,6 +102,16 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
       Agenda tu cita en línea
     </button>
   )
+  const botonCortoAgendar = (
+    <button
+      type="button"
+      onClick={() => alAgendar()}
+      className="inline-flex min-h-12 items-center justify-center rounded-xl px-6 py-3 text-base font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 cursor-pointer"
+      style={{ background: degradado, boxShadow: `0 16px 32px -14px ${color}99`, "--tw-ring-color": color }}
+    >
+      Agenda tu cita
+    </button>
+  )
 
   const claseEnlaceMenu = "rounded-lg px-1 py-2 text-[0.95rem] font-medium text-slate-700 transition-colors hover:text-slate-950"
 
@@ -100,7 +121,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
       {/* ─── Barra superior ─── */}
       <header className="sticky top-0 z-40 w-full border-b border-slate-200/70 bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 flex items-center justify-between gap-3 py-3">
           <div className="flex min-w-0 items-center gap-8">
             <a href="#inicio" className="flex min-w-0 items-center gap-3 rounded-lg">
               <LogoOptica url={logoUrl} nombre={pp.nombre} color={color} tamano={40} ancho="ancho" />
@@ -115,7 +136,13 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
               ))}
             </nav>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+            {telefonoIntl && (
+              <a href={"tel:+" + telefonoIntl} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-sm font-semibold text-slate-700 transition-colors hover:text-slate-950" aria-label={"Llamar al " + telefono} data-telefono-barra>
+                <Phone size={16} aria-hidden="true" className="sm:hidden" />
+                <span className="hidden sm:inline">{telefono}</span>
+              </a>
+            )}
             <button
               type="button"
               onClick={abrirLogin}
@@ -138,7 +165,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
           </div>
         </div>
         {menuAbierto && (
-          <nav id="menu-movil" aria-label="Menú de secciones" className="border-t border-slate-200 bg-white px-4 py-2 sm:px-6 lg:hidden">
+          <nav id="menu-movil" aria-label="Menú de secciones" className="border-t border-slate-200 bg-white px-5 py-2 sm:px-8 lg:hidden">
             <ul>
               {ENLACES_MENU.map((e) => (
                 <li key={e.id}>
@@ -153,7 +180,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
       <main>
         {/* ─── Inicio ─── */}
         <section id="inicio" className="relative scroll-mt-20 overflow-hidden" style={{ background: "linear-gradient(135deg,#FFFFFF 0%,#F1F6FF 55%,#E6EFFE 100%)" }}>
-          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:gap-6 lg:px-8 lg:py-16">
+          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 grid grid-cols-1 items-center gap-10 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8 lg:py-20">
             <div className="flex min-w-0 flex-col items-start gap-6">
               {estado && (
                 <span className="lg-rise lg-d1 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-slate-600">
@@ -161,7 +188,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
                   {pastilla}
                 </span>
               )}
-              <h1 className="font-serif text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl" style={{ color: NAVY }}>
+              <h1 className="font-serif text-6xl font-bold leading-[1.02] tracking-tight md:text-7xl lg:text-[5.25rem]" style={{ color: NAVY }}>
                 {pp.eslogan === ESLOGAN_POR_DEFECTO ? (
                   <>
                     Ve el mundo{" "}
@@ -172,7 +199,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
                   pp.eslogan
                 )}
               </h1>
-              <p className="lg-rise lg-d2 max-w-md text-lg leading-relaxed text-slate-600">{pp.textoInicio}</p>
+              <p className="lg-rise lg-d2 max-w-lg text-lg leading-relaxed text-slate-600 md:text-xl">{pp.textoInicio}</p>
               <div className="lg-rise lg-d3 flex flex-col items-start gap-3">
                 {botonPrincipal}
                 <p className="text-sm text-slate-500">Sin crear cuenta · Confirmación inmediata · Datos protegidos</p>
@@ -180,7 +207,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
             </div>
 
             {/* Contenedor del ojo: las tarjetas viven en los márgenes libres de este cuadrado, fuera del círculo. */}
-            <div className="lg-rise lg-d2 relative mx-auto aspect-square w-full max-w-[22rem] lg:max-w-[30rem]" data-zona-ojo>
+            <div className="lg-rise lg-d2 relative mx-auto aspect-square w-full max-w-[22rem] lg:max-w-[34rem]" data-zona-ojo>
               <div className="absolute aspect-square overflow-hidden rounded-full" style={{ left: "19%", top: "23%", width: "54%" }}>
                 {pp.imagenPrincipal ? (
                   <img src={pp.imagenPrincipal} alt={`${pp.nombre}`} className="h-full w-full object-cover" />
@@ -197,12 +224,12 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
         {/* ─── Quiénes somos ─── */}
         <section id="quienes-somos" aria-labelledby="t-quienes" className="scroll-mt-20 bg-white">
-          <div className={"mx-auto grid w-full max-w-6xl grid-cols-1 gap-10 px-4 py-14 sm:px-6 lg:px-8 " + (optometras.length > 0 ? "lg:grid-cols-[1.35fr_1fr] lg:items-center" : "")}>
+          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 grid grid-cols-1 gap-10 py-14 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-14 lg:py-16">
             <div className="min-w-0">
               <Eyebrow color={color}>Quiénes somos</Eyebrow>
               <Titulo id="t-quienes">{q.anoFundacion ? `Cuidamos tu vista desde ${q.anoFundacion}` : "Cuidamos tu vista"}</Titulo>
-              <p className="mt-4 max-w-xl leading-relaxed text-slate-600">{q.historia}</p>
-              <p className="mt-2 max-w-xl leading-relaxed text-slate-600"><strong style={{ color: NAVY }}>Misión:</strong> {q.mision}</p>
+              <p className="mt-4 max-w-2xl leading-relaxed text-slate-600">{q.historia}</p>
+              <p className="mt-2 max-w-2xl leading-relaxed text-slate-600"><strong style={{ color: NAVY }}>Misión:</strong> {q.mision}</p>
               {numeros.length > 0 && (
                 <dl className="mt-6 flex flex-wrap gap-x-10 gap-y-4">
                   {numeros.map((n) => (
@@ -214,6 +241,22 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
                 </dl>
               )}
             </div>
+            {optometras.length === 0 && (
+              <div className="min-w-0 rounded-2xl p-6 lg:p-7" style={{ backgroundColor: FONDO_SUAVE }} data-por-que-elegirnos>
+                <h3 className="font-semibold" style={{ color: NAVY }}>Por qué elegirnos</h3>
+                <ul className="mt-4 flex flex-col gap-4">
+                  {pp.razones.map((r) => (
+                    <li key={r.id} className="flex items-start gap-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50" style={{ color }} aria-hidden="true"><Check size={18} strokeWidth={2.5} /></span>
+                      <div className="min-w-0">
+                        <p className="font-semibold leading-tight" style={{ color: NAVY }}>{r.titulo}</p>
+                        <p className="text-sm text-slate-500">{r.texto}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {optometras.length > 0 && (
               <ul className="flex min-w-0 flex-col gap-3">
                 {optometras.map((o) => (
@@ -236,13 +279,16 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
         {/* ─── Servicios ─── */}
         <section id="servicios" aria-labelledby="t-servicios" className="scroll-mt-20" style={{ backgroundColor: FONDO_SUAVE }}>
-          <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 py-14 lg:py-16">
             <Eyebrow color={color}>Nuestros servicios</Eyebrow>
             <Titulo id="t-servicios">Todo lo que tu visión necesita</Titulo>
             <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-              {pp.servicios.map((s) => (
-                <li key={s.id} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5">
-                  <h3 className="font-semibold" style={{ color: NAVY }}>{s.titulo}</h3>
+              {pp.servicios.map((s, i) => {
+                const { Icono, fondo } = ICONOS_SERVICIO[i % ICONOS_SERVICIO.length]
+                return (
+                <li key={s.id} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6">
+                  <span className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ backgroundColor: fondo }} aria-hidden="true" data-icono-servicio><Icono size={20} /></span>
+                  <h3 className="mt-4 font-semibold" style={{ color: NAVY }}>{s.titulo}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-slate-500">{s.texto}</p>
                   <button
                     type="button"
@@ -253,17 +299,18 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
                     Agendar este servicio →
                   </button>
                 </li>
-              ))}
+                )
+              })}
             </ul>
           </div>
         </section>
 
         {/* ─── Cómo agendar ─── */}
         <section id="como-agendar" aria-labelledby="t-como" className="scroll-mt-20 bg-white">
-          <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 py-14 lg:py-16">
             <Eyebrow color={color}>Cómo agendar</Eyebrow>
             <Titulo id="t-como">Tu cita en tres pasos, sin crear cuenta</Titulo>
-            <ol className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+            <ol className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-center lg:gap-8">
               {PASOS.map((p) => (
                 <li key={p.n} className="flex items-start gap-3">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-base font-bold text-white" style={{ backgroundColor: NAVY }} aria-hidden="true">{p.n}</span>
@@ -273,17 +320,38 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
                   </div>
                 </li>
               ))}
+              <li className="md:col-span-3 lg:col-span-1 lg:justify-self-end">{botonCortoAgendar}</li>
             </ol>
-            <div className="mt-8">{botonPrincipal}</div>
           </div>
         </section>
 
+        {/* ─── Lo que dicen nuestros pacientes (opcional: la escribe la óptica; sin opiniones no se dibuja) ─── */}
+        {pp.opiniones.length > 0 && (
+          <section id="opiniones" aria-labelledby="t-opiniones" className="scroll-mt-20 bg-white">
+            <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 pb-6 pt-2 lg:pb-8">
+              <Eyebrow color={color}>Lo que dicen nuestros pacientes</Eyebrow>
+              <Titulo id="t-opiniones">Pacientes que ya ven mejor</Titulo>
+              <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                {pp.opiniones.map((o) => (
+                  <li key={o.id} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5" data-opinion>
+                    <span className="flex gap-0.5 text-amber-500" role="img" aria-label="5 de 5 estrellas">
+                      {[0, 1, 2, 3, 4].map((k) => <Star key={k} size={16} fill="currentColor" aria-hidden="true" />)}
+                    </span>
+                    <blockquote className="mt-3 leading-relaxed text-slate-700">«{o.texto}»</blockquote>
+                    {o.nombre && <p className="mt-3 text-sm font-semibold" style={{ color: NAVY }}>{o.nombre}</p>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
+
         {/* ─── Preguntas frecuentes ─── */}
         <section id="preguntas" aria-labelledby="t-preguntas" className="scroll-mt-20" style={{ backgroundColor: FONDO_SUAVE }}>
-          <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 py-14 lg:py-16">
             <Eyebrow color={color}>Preguntas frecuentes</Eyebrow>
             <Titulo id="t-preguntas">Antes de tu visita</Titulo>
-            <div className="mt-6 flex flex-col gap-3">
+            <div className="mt-6 grid grid-cols-1 items-start gap-3 md:grid-cols-2">
               {pp.preguntas.map((f, i) => (
                 <details key={f.id} open={i === 0} className="group rounded-xl border border-slate-200 bg-white">
                   <summary className="flex min-h-11 cursor-pointer items-center px-4 py-2 font-medium" style={{ color: NAVY }}>{f.p}</summary>
@@ -296,7 +364,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
         {/* ─── Contacto ─── */}
         <section id="contacto" aria-labelledby="t-contacto" className="scroll-mt-20 bg-white">
-          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-8 px-4 py-14 sm:px-6 md:grid-cols-2 lg:px-8">
+          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 grid grid-cols-1 gap-8 py-14 md:grid-cols-2 lg:gap-14 lg:py-16">
             <div className="min-w-0">
               <Eyebrow color={color}>Contacto</Eyebrow>
               <Titulo id="t-contacto">Visítanos o escríbenos</Titulo>
@@ -341,7 +409,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
       {/* ─── Pie ─── */}
       <footer className="mt-auto text-white" style={{ backgroundColor: NAVY }}>
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-4 py-5 text-sm text-white/80 sm:px-6 md:flex-row lg:px-8">
+        <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 flex flex-col items-center justify-between gap-2 py-5 text-sm text-white/80 md:flex-row">
           <p className="flex items-center gap-2">
             <LogoOptica url={logoUrl} nombre={pp.nombre} color={color} tamano={24} />
             © {anio} {pp.nombre}
@@ -353,6 +421,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
           </p>
         </div>
       </footer>
+      <BotonWhatsAppFlotante telefono={telefono} mensaje={`Hola, quisiera información para agendar una cita en ${pp.nombre}.`} />
     </div>
   )
 }

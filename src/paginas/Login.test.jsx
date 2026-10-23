@@ -57,6 +57,83 @@ describe("Página pública: barra y menú", () => {
   })
 })
 
+describe("Página pública: ajustes de la segunda revisión", () => {
+  it("el teléfono se ve arriba junto a «Iniciar sesión»", () => {
+    pintar()
+    const cabecera = screen.getByRole("banner")
+    expect(within(cabecera).getByRole("link", { name: /Llamar al 0987654321/ })).toHaveAttribute("href", "tel:+593987654321")
+    expect(within(cabecera).getByText("0987654321")).toBeInTheDocument()
+  })
+
+  it("sin teléfono configurado no hay enlace de llamada arriba ni botón flotante", () => {
+    pintar({ opticaPublica: optica({ settings: { opticaDireccion: "Av. X" } }) })
+    expect(document.querySelector("[data-telefono-barra]")).toBeNull()
+    expect(document.querySelector("[data-whatsapp-flotante]")).toBeNull()
+  })
+
+  it("«Por qué elegirnos» muestra las tres razones (editables) cuando ningún optómetra activó «Mostrarme»", () => {
+    pintar()
+    const caja = document.querySelector("[data-por-que-elegirnos]")
+    expect(within(caja).getAllByRole("listitem")).toHaveLength(3)
+    expect(within(caja).getByText("Equipos de precisión")).toBeInTheDocument()
+  })
+
+  it("las razones salen de la configuración de la óptica", () => {
+    pintar({ opticaPublica: optica({ marca: { razones: [{ id: "a", titulo: "Entrega rápida", texto: "Lentes en 48 horas" }] } }) })
+    const caja = document.querySelector("[data-por-que-elegirnos]")
+    expect(within(caja).getAllByRole("listitem")).toHaveLength(1)
+    expect(within(caja).getByText("Entrega rápida")).toBeInTheDocument()
+  })
+
+  it("si un optómetra activó «Mostrarme» sale su tarjeta y no «Por qué elegirnos»", async () => {
+    base.rpc = vi.fn((nombre) => Promise.resolve(nombre === "pagina_publica_datos"
+      ? { data: { optometras: [{ id: "p1", nombre: "Paula Andrade", registro: "1234", foto: null }], optometrasTotal: 1, pacientesAtendidos: 40 }, error: null }
+      : { data: null, error: null }))
+    pintar()
+    expect(await screen.findByText("Paula Andrade")).toBeInTheDocument()
+    expect(document.querySelector("[data-por-que-elegirnos]")).toBeNull()
+  })
+
+  it("cada servicio lleva su ícono de color", () => {
+    pintar()
+    expect(document.querySelectorAll("#servicios [data-icono-servicio]").length).toBe(3)
+  })
+
+  it("«Cómo agendar» va en una sola fila con el botón al final y sigue el orden del agendamiento", () => {
+    pintar()
+    const seccion = document.querySelector("#como-agendar")
+    const items = within(seccion).getAllByRole("listitem")
+    expect(items).toHaveLength(4)
+    expect(within(items[0]).getByText("Motivo, fecha y hora")).toBeInTheDocument()
+    expect(within(items[1]).getByText("Tus datos")).toBeInTheDocument()
+    expect(within(items[3]).getByRole("button", { name: "Agenda tu cita" })).toBeInTheDocument()
+  })
+
+  it("«Lo que dicen nuestros pacientes» solo aparece si la óptica escribió opiniones", () => {
+    const { unmount } = pintar()
+    expect(document.querySelector("#opiniones")).toBeNull()
+    unmount()
+    pintar({ opticaPublica: optica({ marca: { opiniones: [{ id: "o1", texto: "Muy buena atención", nombre: "María G." }] } }) })
+    const seccion = document.querySelector("#opiniones")
+    expect(within(seccion).getByText(/Muy buena atención/)).toBeInTheDocument()
+    expect(within(seccion).getByText("María G.")).toBeInTheDocument()
+  })
+
+  it("las preguntas frecuentes van en dos columnas", () => {
+    pintar()
+    expect(document.querySelector("#preguntas .md\\:grid-cols-2")).not.toBeNull()
+  })
+
+  it("el botón flotante de WhatsApp abre el chat con el mensaje ya escrito", () => {
+    pintar()
+    const boton = document.querySelector("[data-whatsapp-flotante]")
+    expect(boton).not.toBeNull()
+    const href = boton.getAttribute("href")
+    expect(href).toContain("phone=593987654321")
+    expect(decodeURIComponent(href)).toContain("Óptica Demo")
+  })
+})
+
 describe("Página pública: inicio", () => {
   it("tiene una sola acción principal en el inicio y la píldora sale del horario", () => {
     pintar()
@@ -150,7 +227,7 @@ describe("Página pública: secciones editables", () => {
     expect(screen.getByText("años atendiendo")).toBeInTheDocument()
     expect(screen.queryByText("pacientes")).toBeNull()
     expect(screen.queryByText(/optómetra/i)).toBeNull()
-    expect(document.querySelector("#quienes-somos ul")).toBeNull()
+    expect(document.querySelector("#quienes-somos [data-por-que-elegirnos]")).not.toBeNull() // nadie activó «Mostrarme»: «Por qué elegirnos»
     unmount()
 
     base.rpc = vi.fn((nombre) => Promise.resolve(nombre === "pagina_publica_datos"
@@ -171,7 +248,7 @@ describe("Página pública: secciones editables", () => {
       : { data: null, error: null }))
     const { unmount } = pintar({ opticaPublica: optica({ marca }) })
     expect(await screen.findByText("optómetras")).toBeInTheDocument()
-    expect(document.querySelector("#quienes-somos ul")).toBeNull()
+    expect(document.querySelector("#quienes-somos [data-por-que-elegirnos]")).not.toBeNull() // nadie activó «Mostrarme»: «Por qué elegirnos»
     unmount()
     base.rpc = vi.fn((nombre) => Promise.resolve(nombre === "pagina_publica_datos"
       ? { data: { optometras: [{ id: "p1", nombre: "Paula Andrade", registro: null, foto: null }], pacientesAtendidos: 0 }, error: null }
