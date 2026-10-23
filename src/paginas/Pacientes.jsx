@@ -87,7 +87,7 @@ import {  } from "../utilidades/resultadoDeCita"
 import {  } from "../utilidades/graduacion"
 import {  } from "../utilidades/tendenciaGraduacion"
 import { pacientesQueNoCompraron, textoDiagnostico } from "../utilidades/pasesVenta"
-import { fechaLegible, fechaReciente, formatoFecha } from "../utilidades/formatoFecha"
+import { fechaLegible, fechaReciente, formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import { atencionesAbiertasAntiguas, textoAtencionAbierta, diasAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import {  } from "../utilidades/correccion"
@@ -818,7 +818,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
     if (citasSinTerminar.length > 0) {
       setSeleccionCitaPara({
         paciente,
-        citas: citasSinTerminar.map((c) => ({ id: c.id, estado: c.estado, motivo: c.motivo, fechaEtiqueta: etiquetaFecha(c.fecha), horaEtiqueta: c.hora })),
+        citas: citasSinTerminar.map((c) => ({ id: c.id, estado: c.estado, motivo: c.motivo, fechaEtiqueta: etiquetaFecha(c.fecha), horaEtiqueta: horaSinCero(c.hora) })),
       })
       return
     }
@@ -850,7 +850,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
     setCitas?.((prev) => [...prev, { ...nuevaCita, atendidoPor: usuario?.id || null }])
     registrarLog(usuario, "citas", "Atendió a un paciente de inmediato", `${nuevaCita.paciente} · ${fechaLegible(nuevaCita.fecha)}`)
     setPacienteHistorial(null)
-    onAviso?.(`Cita presencial creada para ${paciente.nombre} (${nuevaCita.hora}). Ya está en Citas.`)
+    onAviso?.(`Cita presencial creada para ${paciente.nombre} (${horaSinCero(nuevaCita.hora)}). Ya está en Citas.`)
     irAFichaConfirmandoSiHaceFalta(paciente, nuevaCita.id, nuevaCita.motivo)
   }
 
@@ -1408,7 +1408,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
                         {siguiente ? (
                           <div className="flex items-center gap-1.5">
                             <Calendar size={13} className="text-slate-500" aria-hidden="true" />
-                            <span>{fechaLegible(siguiente.fecha)} · {siguiente.hora}</span>
+                            <span>{fechaLegible(siguiente.fecha)} · {horaSinCero(siguiente.hora)}</span>
                           </div>
                         ) : <span className="text-slate-400">Sin cita</span>}
                       </td>
@@ -1903,7 +1903,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
               const solicitudEliminacion = solicitudesEliminacion.find((s) => s.pacienteId === pacienteHistorial.id) || null
               const medidasPedidas = pacienteHistorial.medidasSolicitadasEn ? medidasDelPaciente({ consultas: consultasPaciente, ordenes: ordenesPaciente }) : null
               const avisosPerfil = [
-                citaEnAtencion && { id: "atencion", tono: "azul", texto: `Cita en atención · ${fechaReciente(citaEnAtencion.fecha) || "sin fecha"} · ${citaEnAtencion.hora}${diasAtencionAbierta(citaEnAtencion) !== null ? " · " + textoAtencionAbierta(diasAtencionAbierta(citaEnAtencion)) : ""}` },
+                citaEnAtencion && { id: "atencion", tono: "azul", texto: `Cita en atención · ${fechaReciente(citaEnAtencion.fecha) || "sin fecha"} · ${horaSinCero(citaEnAtencion.hora)}${diasAtencionAbierta(citaEnAtencion) !== null ? " · " + textoAtencionAbierta(diasAtencionAbierta(citaEnAtencion)) : ""}` },
                 paseListo && { id: "pase", tono: "verde", texto: `Recibió su diagnóstico y no ha comprado · desde ${fechaLegible(paseListo.pasadaEn)}`, accion: puedeVender ? { etiqueta: "Vender la receta", onClick: () => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null }) } : null },
                 antecedentesAlerta.length > 0 && { id: "antecedentes", tono: "ambar", texto: `Antecedentes importantes: ${textoAntecedentes(antecedentesAlerta)}`, accion: { etiqueta: "Ver", onClick: () => setVerHistoriaClinica(true) } },
                 alertaControl && {
@@ -2404,10 +2404,10 @@ function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, onA
       )}
       {verAsistencia && <VentanaAsistencia paciente={paciente} citas={citas} equipo={equipo} onContactar={onContactarAsistencia} onCerrar={() => setVerAsistencia(false)} />}
       {citaAbierta && !consultaDe(citaAbierta) && (
-        <Cascaron titulo={"Cita del " + (fechaLegible(citaAbierta.fecha) || "")} subtitulo={[citaAbierta.hora, citaAbierta.motivo || "Consulta general"].filter(Boolean).join(" · ")} Icono={Calendar} ancho="max-w-md" derecha={<BadgeEstadoCita estado={citaAbierta.estado} />} onCerrar={() => setCitaAbierta(null)}
+        <Cascaron titulo={"Cita del " + (fechaLegible(citaAbierta.fecha) || "")} subtitulo={[horaSinCero(citaAbierta.hora), citaAbierta.motivo || "Consulta general"].filter(Boolean).join(" · ")} Icono={Calendar} ancho="max-w-md" derecha={<BadgeEstadoCita estado={citaAbierta.estado} />} onCerrar={() => setCitaAbierta(null)}
           pie={<><span /><button type="button" onClick={() => setCitaAbierta(null)} className="rounded-lg border border-slate-200/60 px-3.5 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Cerrar</button></>}>
           <dl className="divide-y divide-slate-100 px-5 py-2 text-sm">
-            <div className="flex justify-between gap-4 py-2.5"><dt className="text-slate-500">Fecha y hora</dt><dd className="font-semibold text-slate-800">{fechaLegible(citaAbierta.fecha)} · {citaAbierta.hora}</dd></div>
+            <div className="flex justify-between gap-4 py-2.5"><dt className="text-slate-500">Fecha y hora</dt><dd className="font-semibold text-slate-800">{fechaLegible(citaAbierta.fecha)} · {horaSinCero(citaAbierta.hora)}</dd></div>
             <div className="flex justify-between gap-4 py-2.5"><dt className="text-slate-500">Motivo</dt><dd className="font-semibold text-slate-800">{citaAbierta.motivo || "Consulta general"}</dd></div>
             <div className="flex justify-between gap-4 py-2.5"><dt className="text-slate-500">Estado</dt><dd className="font-semibold text-slate-800">{etiquetaEstadoCita(citaAbierta.estado)}</dd></div>
             {(citaAbierta.atendidoPor || citaAbierta.asignadoA) && <div className="flex justify-between gap-4 py-2.5"><dt className="text-slate-500">Profesional</dt><dd className="font-semibold text-slate-800">{etiquetaMiembro(equipo, citaAbierta.atendidoPor || citaAbierta.asignadoA)}</dd></div>}

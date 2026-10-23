@@ -114,14 +114,18 @@ export function hora(valor) {
   return `${dos(h % 12 === 0 ? 12 : h % 12)}:${dos(m)} ${h < 12 ? "AM" : "PM"}`
 }
 
-// La misma hora sin el cero de adelante ("2:30 PM"): la que se lee en los horarios de trabajo (Horario, Mi horario).
-export const horaSinCero = (valor) => hora(valor).replace(/^0/, "")
+// La hora COMO SE LEE en pantalla: sin el cero de adelante ("2:30 PM", "9:00 AM"). hora() ("02:30 PM") es el valor guardado y el de los horarios que se ofrecen
+// (así se comparan y se guardan las citas): lo que se MUESTRA siempre pasa por aquí. Un texto que no es una hora se devuelve tal cual.
+export const horaSinCero = (valor) => {
+  const h = hora(valor)
+  return h ? h.replace(/^0/, "") : valor === null || valor === undefined ? "" : String(valor)
+}
 
 // Fecha y hora juntas: "7 oct, 08:19 AM" (o "7 oct 2026, 08:19 AM" con anio: true), para registros.
 export function fechaHoraLegible(valor, { anio = false } = {}) {
   const f = valor instanceof Date ? valor : new Date(valor)
   if (Number.isNaN(f.getTime())) return ""
-  return `${formatoFecha(f, anio ? "medio" : "medioSinAnio")}, ${hora(f)}`
+  return `${formatoFecha(f, anio ? "medio" : "medioSinAnio")}, ${horaSinCero(f)}`
 }
 
 // Atajos de uso común (mismos formatos, nombres que ya usa el resto del código).

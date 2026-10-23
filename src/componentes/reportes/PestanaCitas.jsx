@@ -9,7 +9,7 @@ import { crearDestinos } from "./destinos"
 import { col } from "./listas"
 import { responsableDeCita } from "../../utilidades/filtrosCitas"
 import { nombreDeMiembro } from "../../utilidades/equipo"
-import { hora } from "../../utilidades/formatoFecha"
+import { horaSinCero } from "../../utilidades/formatoFecha"
 import { cuadriculaInasistencias, tendenciaInasistencia, resumenCitasPor, efectividadControles, ORIGENES, VISITAS } from "../../utilidades/reportesDatos"
 import { coincideSeguimiento } from "../../utilidades/filtrosCitas"
 import { porcentaje } from "../../utilidades/reportesPeriodo"
@@ -66,11 +66,11 @@ export default function PestanaCitas({ r }) {
           />
         </Caja>
         <Caja titulo="Citas no efectuadas por día y hora" exportar={r.bloque("Citas no efectuadas por día y hora",
-          () => ({ columnas: [col("Día", (x) => x.dia), col("Hora", (x) => x.hora), col("Citas", (x) => x.citas, "entero"), col("No efectuadas", (x) => x.noAsistio, "entero"), col("Tasa de citas no efectuadas", (x) => x.tasa, "tasa")], filas: cuadricula.dias.flatMap((d) => cuadricula.horas.map((h) => { const c = cuadricula.celdas.get(`${d.id}-${h}`); return c ? { dia: d.etiqueta, hora: hora(`${h}:00`), citas: c.citas.length, noAsistio: c.noAsistio.length, tasa: porcentaje(c.noAsistio.length, c.citas.length) } : null }).filter(Boolean)) }),
+          () => ({ columnas: [col("Día", (x) => x.dia), col("Hora", (x) => x.hora), col("Citas", (x) => x.citas, "entero"), col("No efectuadas", (x) => x.noAsistio, "entero"), col("Tasa de citas no efectuadas", (x) => x.tasa, "tasa")], filas: cuadricula.dias.flatMap((d) => cuadricula.horas.map((h) => { const c = cuadricula.celdas.get(`${d.id}-${h}`); return c ? { dia: d.etiqueta, hora: horaSinCero(`${h}:00`), citas: c.citas.length, noAsistio: c.noAsistio.length, tasa: porcentaje(c.noAsistio.length, c.citas.length) } : null }).filter(Boolean)) }),
           () => ({ columnas: cols.cita, filas: act.programadas }))} ayuda="Cuántas citas no se efectuaron en cada día de la semana y hora, en el período. Cuanto más rojo, más citas no efectuadas: ahí conviene reforzar los recordatorios.">
           {cuadricula.dias.length === 0
             ? <SinResultados texto="No hay citas en este período para armar la cuadrícula. Prueba con un período más largo." acciones={[{ etiqueta: "Ver este año", onClick: () => r.setPeriodo("anio") }]} />
-            : <CuadriculaDiaHora cuadricula={cuadricula} onElegir={({ dia, hora: h, celda, tip }) => abrir({ titulo: `No efectuadas · ${dia.etiqueta} ${hora(`${h}:00`)}: ${celda.noAsistio.length} de ${celda.citas.length} citas`, valor: celda.noAsistio.length, icono: CalendarX, columnas: cols.cita, filas: celda.noAsistio, abrirEn: dc("noAsistio"), filtros: `${tip} · ${r.filtrosTexto}` })} />}
+            : <CuadriculaDiaHora cuadricula={cuadricula} onElegir={({ dia, hora: h, celda, tip }) => abrir({ titulo: `No efectuadas · ${dia.etiqueta} ${horaSinCero(`${h}:00`)}: ${celda.noAsistio.length} de ${celda.citas.length} citas`, valor: celda.noAsistio.length, icono: CalendarX, columnas: cols.cita, filas: celda.noAsistio, abrirEn: dc("noAsistio"), filtros: `${tip} · ${r.filtrosTexto}` })} />}
         </Caja>
       </Seccion>
 

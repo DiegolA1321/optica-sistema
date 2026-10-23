@@ -5,7 +5,7 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react"
 import { fechaAISO, hoyISO, diaTieneCupo, slotsDisponibles, minutosDesdeMedianoche } from "../utilidades/disponibilidad"
-import { formatoFecha } from "../utilidades/formatoFecha"
+import { formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import { degradadoMarca } from "../utilidades/marcaOptica"
 import { fechaDiaLargo } from "../utilidades/agendarWeb"
 import { INK } from "@/lib/tema"
@@ -83,7 +83,7 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
         }
         style={sel ? { background: grad, boxShadow: sombraSel } : !s.libre && !agrupar ? { backgroundColor: "#f1f0ec" } : undefined}
       >
-        {s.hora}
+        {horaSinCero(s.hora)}
       </button>
     )
   }

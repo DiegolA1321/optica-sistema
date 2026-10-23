@@ -115,7 +115,7 @@ describe("resumenHorarioSemanal", () => {
     }
     const resumen = resumenHorarioSemanal(horarioSemanal)
     expect(resumen).toEqual([
-      { etiqueta: "Lunes a Viernes", horario: "09:00 AM - 01:00 PM y 02:00 PM - 06:00 PM" },
+      { etiqueta: "Lunes a Viernes", horario: "9:00 AM – 1:00 PM y 2:00 PM – 6:00 PM" },
     ])
   })
   it("vacío si no hay horario", () => {

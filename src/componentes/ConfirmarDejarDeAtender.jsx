@@ -4,7 +4,7 @@ import { useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import { Cascaron } from "./AtencionPaciente"
 import { dejarDeAtenderCita, cambiosAlDejarDeAtender, destinoAlDejarDeAtender } from "../utilidades/atencionAbierta"
-import { fechaLegible } from "../utilidades/formatoFecha"
+import { fechaLegible, horaSinCero } from "../utilidades/formatoFecha"
 import { esErrorSinPermiso, MENSAJE_SIN_PERMISO } from "../utilidades/permisos"
 
 // «Dejar de atender» una atención abierta (la usan el perfil del paciente, Citas, el Inicio y la ficha). La ventana dice lo que va a pasar, porque depende del día:
@@ -45,7 +45,7 @@ export default function ConfirmarDejarDeAtender({ cita, setCitas, onCancelar, on
   return (
     <Cascaron
       titulo="¿Dejar de atender?"
-      subtitulo={`${cita.paciente} · cita del ${fechaLegible(cita.fecha) || "—"}${cita.hora ? `, ${cita.hora}` : ""}`}
+      subtitulo={`${cita.paciente} · cita del ${fechaLegible(cita.fecha) || "—"}${cita.hora ? `, ${horaSinCero(cita.hora)}` : ""}`}
       Icono={AlertTriangle}
       ancho="max-w-md"
       onCerrar={() => { if (!trabajando) onCancelar() }}

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Users, Loader2 } from "lucide-react"
 import { Cascaron } from "./AtencionPaciente"
 import { supabase } from "../lib/supabaseClient"
-import { formatoFecha } from "../utilidades/formatoFecha"
+import { formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import { ausenteEnHorario } from "../utilidades/reasignacion"
 import { MENSAJE_SIN_PERMISO, esErrorSinPermiso } from "../utilidades/permisos"
 
@@ -87,7 +87,7 @@ export default function ReasignarCitasModal({ grupo, personas = [], disponibilid
             <li key={c.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-slate-800">{c.paciente}</p>
-                <p className="truncate text-xs text-slate-500">{c.hora}{c.motivo ? ` · ${c.motivo}` : ""}</p>
+                <p className="truncate text-xs text-slate-500">{horaSinCero(c.hora)}{c.motivo ? ` · ${c.motivo}` : ""}</p>
               </div>
               <select
                 aria-label={`Pasar la cita de ${c.paciente} a`}

@@ -296,7 +296,7 @@ describe("mensajes", () => {
   it("los avisos arman su mensaje con lo propio de cada uno", () => {
     const paciente = { nombre: "Rosa Bravo Cedeño" }
     const cita = armarMensaje(plantillaDe("cita_no_efectuada"), { paciente, opticaNombre: "Óptica Sol", cita: { fecha: "2026-10-20", hora: "04:00 PM" } })
-    expect(cita).toBe("Hola Rosa Bravo Cedeño, notamos que no pudiste venir a tu cita del martes, 20 de octubre a las 04:00 PM. ¿Te ayudamos a agendar una nueva? Escríbenos. — Óptica Sol") // sin teléfono configurado se quita «llámanos al …»
+    expect(cita).toBe("Hola Rosa Bravo Cedeño, notamos que no pudiste venir a tu cita del martes, 20 de octubre a las 4:00 PM. ¿Te ayudamos a agendar una nueva? Escríbenos. — Óptica Sol") // sin teléfono configurado se quita «llámanos al …»
     expect(armarMensaje(plantillaDe("cita_no_efectuada"), { paciente, opticaNombre: "Óptica Sol", opticaTelefono: "042 345 678", cita: { fecha: "2026-10-20", hora: "04:00 PM" } })).toContain("Escríbenos o llámanos al 042 345 678. — Óptica Sol")
     expect(armarMensaje(plantillaDe("lentes_listos"), { paciente, opticaNombre: "Visión", orden: "OL-0007" })).toContain("(orden OL-0007)")
     const medidas = armarMensaje(plantillaDe("medidas_montaje"), { paciente, opticaNombre: "Solna", medidas: { dp: "62", altura: "18 mm" } })
@@ -321,7 +321,7 @@ describe("mensajes", () => {
     expect(ETIQUETA_MOTIVO.lentes_listos_envio).toBe("Pedido listo (envío)")
   })
   it("con ejemplo, las variables de un aviso llevan un dato de muestra", () => {
-    expect(armarMensaje("{fecha_cita} · {orden} · {medidas}", { ejemplo: true })).toContain("martes 20 de octubre a las 04:00 PM · 000012 · • Distancia pupilar")
+    expect(armarMensaje("{fecha_cita} · {orden} · {medidas}", { ejemplo: true })).toContain("martes 20 de octubre a las 4:00 PM · 000012 · • Distancia pupilar")
   })
   it("el control vencido es un recordatorio de salud, no una promoción", () => {
     expect(PLANTILLAS_BASE.control_vencido).not.toMatch(/promoci|oferta|descuento/i)

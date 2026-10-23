@@ -1,8 +1,8 @@
 // Piezas puras de las pantallas del portal (tercera ronda de diseño): la gráfica de la graduación, el saldo, el control en palabras, el historial por año, los avisos del
 // paciente y el archivo de calendario. Siempre con las mismas funciones y cuentas del sistema del personal (regla 2 y 18).
 import { ahoraEcuador } from "./horaEcuador"
-import { fechaAISO, minutosDesdeMedianoche, estadoAtencionHoy, horarioEfectivo, horaA12 } from "./disponibilidad"
-import { formatoFecha } from "./formatoFecha"
+import { fechaAISO, minutosDesdeMedianoche, estadoAtencionHoy, horarioEfectivo } from "./disponibilidad"
+import { formatoFecha, horaSinCero } from "./formatoFecha"
 import { puntosMedidos } from "./tendenciaGraduacion"
 import { dioptriaTexto } from "./refraccion"
 
@@ -41,8 +41,8 @@ export function avisosDelPaciente({ ordenes = [], proximaCita = null, control = 
   for (const o of ordenes) if (o.estado === "lista") avisos.push({ id: "lista-" + o.id, tipo: "lentes", texto: "Tus lentes están listos para retirar", va: "compras" })
   if (proximaCita) {
     const dias = Math.round((new Date(proximaCita.fecha + "T00:00:00Z") - new Date(fechaAISO(hoy) + "T00:00:00Z")) / 86400000)
-    if (dias === 0) avisos.push({ id: "cita-" + proximaCita.id, tipo: "cita", texto: `Hoy tienes cita a las ${proximaCita.hora}`, va: "citas" })
-    else if (dias === 1) avisos.push({ id: "cita-" + proximaCita.id, tipo: "cita", texto: `Mañana tienes cita a las ${proximaCita.hora}`, va: "citas" })
+    if (dias === 0) avisos.push({ id: "cita-" + proximaCita.id, tipo: "cita", texto: `Hoy tienes cita a las ${horaSinCero(proximaCita.hora)}`, va: "citas" })
+    else if (dias === 1) avisos.push({ id: "cita-" + proximaCita.id, tipo: "cita", texto: `Mañana tienes cita a las ${horaSinCero(proximaCita.hora)}`, va: "citas" })
   }
   if (control && !proximaCita) {
     if (control.vencido) avisos.push({ id: "control", tipo: "control", texto: "Tu control ya venció: agéndalo cuanto antes", va: "resumen" })
@@ -93,7 +93,7 @@ export function estadoDeLaOpticaHoy(disponibilidad, ahora = ahoraEcuador()) {
     const sesiones = [h?.manana, h?.tarde].filter((s) => s?.activo && s.inicio).sort((a, b) => a.inicio.localeCompare(b.inicio))
     if (sesiones.length) {
       const cuando = d === 1 ? "mañana" : `el ${formatoFecha(f, "largo").split(",")[0].toLowerCase()}`
-      return { abierto: false, texto: `Cerrado hoy · abre ${cuando} a las ${horaA12(sesiones[0].inicio)}` }
+      return { abierto: false, texto: `Cerrado hoy · abre ${cuando} a las ${horaSinCero(sesiones[0].inicio)}` }
     }
   }
   return { abierto: false, texto: "Cerrado hoy" }

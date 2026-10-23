@@ -55,7 +55,7 @@ describe("«Atender»: la misma guardia en todas las pantallas", () => {
     const { alAtender, alReagendar } = montar(cita, [cita, c("2", "04:50 PM")])
     expect(alAtender).not.toHaveBeenCalled()
     const ventana = screen.getByRole("dialog", { name: "Hay una cita justo después" })
-    expect(ventana).toHaveTextContent("La siguiente cita (04:50 PM, Paciente 2) ya está agendada.")
+    expect(ventana).toHaveTextContent("La siguiente cita (4:50 PM, Paciente 2) ya está agendada.")
     fireEvent.click(within(ventana).getByRole("button", { name: "Reagendar" }))
     expect(alReagendar).toHaveBeenCalledWith(cita)
     expect(alAtender).not.toHaveBeenCalled()

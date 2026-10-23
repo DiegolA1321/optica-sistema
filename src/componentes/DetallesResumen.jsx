@@ -5,7 +5,7 @@ import { dinero } from "../utilidades/formatoMoneda"
 import { ChevronRight, Gift, Cake, Star, Receipt, Calendar, CalendarPlus, Users, Printer, Stethoscope, CheckCircle2, Eye } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { agudezaConLentes } from "../utilidades/agudeza"
-import { fechaLegible, fechaHoraLegible, formatoFecha } from "../utilidades/formatoFecha"
+import { fechaLegible, fechaHoraLegible, formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import { profesionalDeCita } from "../utilidades/profesionalCita"
 import { etiquetaOrigenCita } from "../utilidades/filtrosCitas"
 import { DetalleAtencion, SinInformacion, Cascaron } from "./AtencionPaciente"
@@ -45,7 +45,7 @@ export function PanelUltimaConsulta({ consulta, cita, equipo, adjuntos, onAbrirV
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3 text-xs text-slate-500">
-        <p>Consulta del <span className="font-semibold text-slate-700">{fechaLegible(consulta.fecha)}</span>{cita?.hora && cita.hora !== "Sin cita" ? " · " + cita.hora : ""}{quien ? " · atendió " + quien : ""}</p>
+        <p>Consulta del <span className="font-semibold text-slate-700">{fechaLegible(consulta.fecha)}</span>{cita?.hora && cita.hora !== "Sin cita" ? " · " + horaSinCero(cita.hora) : ""}{quien ? " · atendió " + quien : ""}</p>
         <Boton onClick={onAbrirVentana} Icono={Printer}>Abrir en ventana e imprimir receta</Boton>
       </div>
       <div className="p-3"><DetalleAtencion consulta={consulta} adjuntos={adjuntos} compacto /></div>
@@ -106,7 +106,7 @@ export function PanelControl({ proximoControl, diasControl, inactivo, ultima, ci
           {ultima && proximoControl && <span className="block text-xs font-normal text-slate-500">Lo indicó el optómetra en la ficha del {fechaLegible(ultima.fecha)}{ultima.proximoControlDias ? ` (a los ${ultima.proximoControlDias} días)` : ""}.</span>}
         </Fila>
         <Fila etiqueta="Cita agendada">
-          {citaPendiente ? <>{fechaLegible(citaPendiente.fecha)} · {citaPendiente.hora}<span className="block text-xs font-normal text-slate-500">{citaPendiente.motivo || "Consulta general"} · {etiquetaEstadoCita(citaPendiente.estado)}</span></> : <span className="font-normal text-slate-500">No tiene una cita agendada.</span>}
+          {citaPendiente ? <>{fechaLegible(citaPendiente.fecha)} · {horaSinCero(citaPendiente.hora)}<span className="block text-xs font-normal text-slate-500">{citaPendiente.motivo || "Consulta general"} · {etiquetaEstadoCita(citaPendiente.estado)}</span></> : <span className="font-normal text-slate-500">No tiene una cita agendada.</span>}
         </Fila>
       </dl>
       <p className="mx-4 mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
@@ -250,7 +250,7 @@ export function PanelCitasEstado({ estado, citas, equipo, consultaDe, onVerAtenc
         return (
           <li key={c.id} className="py-3 text-sm">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <p className="min-w-0 flex-1"><span className="font-bold" style={{ color: INK }}>{fechaLegible(c.fecha)} · {c.hora}</span><span className="block truncate text-slate-600">{c.motivo || "Consulta general"}</span></p>
+              <p className="min-w-0 flex-1"><span className="font-bold" style={{ color: INK }}>{fechaLegible(c.fecha)} · {horaSinCero(c.hora)}</span><span className="block truncate text-slate-600">{c.motivo || "Consulta general"}</span></p>
               {estado === "atendidas" && consulta && onVerAtencion && <button type="button" onClick={() => onVerAtencion(c)} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 cursor-pointer">Ver atención <ChevronRight size={14} aria-hidden="true" /></button>}
             </div>
             <p className="mt-1 text-xs text-slate-500">

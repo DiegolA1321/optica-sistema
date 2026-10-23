@@ -35,7 +35,7 @@ import {
   Lock,
 } from "lucide-react"
 import { INK, PORCELAIN, GOLD } from "@/lib/tema"
-import { formatoFecha } from "../utilidades/formatoFecha"
+import { formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import { hoyISO } from "../utilidades/disponibilidad"
 
 const NAV_LINKS = [
@@ -469,7 +469,7 @@ export default function PaginaVenta() {
                     className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 py-2.5 pl-3 pr-3.5"
                     style={{ borderLeft: `3px solid ${c.color}` }}
                   >
-                    <span className="text-xs font-bold tabular-nums text-slate-500">{c.hora}</span>
+                    <span className="text-xs font-bold tabular-nums text-slate-500">{horaSinCero(c.hora)}</span>
                     <span className="flex-1 truncate text-sm font-semibold" style={{ color: INK }}>{c.paciente}</span>
                     <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{ backgroundColor: c.color }}>
                       {c.motivo}

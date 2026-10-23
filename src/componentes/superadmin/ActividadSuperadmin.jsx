@@ -11,7 +11,7 @@ import { SinResultados } from "../reportes/bloques"
 import { CabeceraSeccion, EtiquetasFiltros, EtiquetaPrueba, InterruptorPrueba, NOMBRE_PRUEBA_PLURAL } from "./piezas"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
 import { etiquetaFecha, fechaAISO } from "../../utilidades/disponibilidad"
-import { fechaHoraLegible, formatoFecha, hora, tituloSemana } from "../../utilidades/formatoFecha"
+import { fechaHoraLegible, formatoFecha, tituloSemana, horaSinCero } from "../../utilidades/formatoFecha"
 import { rangoDePeriodo, diaDe } from "../../utilidades/reportesPeriodo"
 import { modeloDeLista, descargarModelo } from "../../utilidades/reportesExcel"
 import {
@@ -270,7 +270,7 @@ export default function ActividadSuperadmin({ opticas, superadmins, incluirPrueb
                           <span className="min-w-0 flex-1"><Frase a={a} /></span>
                           <span className="flex shrink-0 items-center gap-2">
                             {a.optica_id && pruebas.has(a.optica_id) && <EtiquetaPrueba />}
-                            <span className="text-xs tabular-nums text-slate-500" title={formatoFecha(a.created_at, "medio")}>{hora(a.created_at)}</span>
+                            <span className="text-xs tabular-nums text-slate-500" title={formatoFecha(a.created_at, "medio")}>{horaSinCero(a.created_at)}</span>
                           </span>
                         </button>
                       </li>

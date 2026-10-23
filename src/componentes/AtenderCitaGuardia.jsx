@@ -4,7 +4,7 @@ import { useState, useCallback } from "react"
 import { Stethoscope, CalendarClock } from "lucide-react"
 import { Cascaron } from "./AtencionPaciente"
 import { hoyISO } from "../utilidades/disponibilidad"
-import { formatoFecha } from "../utilidades/formatoFecha"
+import { formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import { requiereConfirmarOtroDia } from "../utilidades/filtrosCitas"
 import { siguienteCitaQueChoca } from "../utilidades/agendaCitas"
 
@@ -66,7 +66,7 @@ export function useAtenderCita({ citas = [], duracionDefault = 40, alAtender, al
         </>}
       >
         <div className="space-y-1 p-6 text-sm text-slate-600">
-          <p className="font-semibold text-slate-800">La siguiente cita ({siguiente.hora}, {siguiente.paciente}) ya está agendada.</p>
+          <p className="font-semibold text-slate-800">La siguiente cita ({horaSinCero(siguiente.hora)}, {siguiente.paciente}) ya está agendada.</p>
           <p>Atender ahora a quien llegó tarde puede retrasarla.</p>
         </div>
       </Cascaron>

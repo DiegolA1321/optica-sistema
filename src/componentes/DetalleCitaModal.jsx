@@ -1,7 +1,7 @@
 "use client"
 
 import { etiquetaEstadoCita } from "../utilidades/estadosCita"
-import { formatoFecha } from "../utilidades/formatoFecha"
+import { formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import { useState } from "react"
 import { X, User, Stethoscope, CalendarPlus, Receipt, AlertTriangle, ExternalLink, CalendarClock, LogOut, UserX, DoorOpen, Undo2, Loader2, UserRoundPlus, Repeat } from "lucide-react"
 import { INK } from "@/lib/tema"
@@ -209,7 +209,7 @@ export default function DetalleCitaModal({ cita, paciente = null, vistaPropia = 
             {cita.fecha ? formatoFecha(cita.fecha, "largo") : "Sin fecha"}
             {["Hoy", "Mañana", "Ayer"].includes(etiquetaFecha(cita.fecha)) && <span className="mt-0.5 block text-xs font-normal text-slate-500">{etiquetaFecha(cita.fecha)}</span>}
           </Dato>
-          <Dato etiqueta="Hora">{cita.hora}</Dato>
+          <Dato etiqueta="Hora">{horaSinCero(cita.hora)}</Dato>
           <Dato etiqueta="Motivo">
             {cita.motivo || <Vacio>Sin motivo</Vacio>}
             {cita.motivoPublico && <span className="mt-0.5 block text-xs font-normal text-slate-500">Indicado en línea: {cita.motivoPublico}</span>}

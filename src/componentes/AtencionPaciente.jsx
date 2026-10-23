@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import { X, Stethoscope, Printer, ClipboardList, Eye, ShieldAlert, Sparkles, IdCard, Pencil } from "lucide-react"
 import { INK, GOLD } from "@/lib/tema"
 import { etiquetaEstadoCita } from "../utilidades/estadosCita"
-import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
+import { fechaLegible, formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import { edadEnAnios } from "../utilidades/edad"
 import { textoDiagnostico } from "../utilidades/pasesVenta"
 import { useModalAccesible } from "../utilidades/useModalAccesible"
@@ -319,7 +319,7 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false, seccione
                 {bio.camara && <p><span className="font-semibold text-slate-700">Cámara anterior/cristalino:</span> {bio.camara}</p>}
               </>}
             {ex.oftalmoscopia && <p><span className="font-semibold text-slate-700">{salud ? "Fondo de ojo" : "Oftalmoscopia"}:</span> {salud ? porOjo(salud.fondo) || ex.oftalmoscopia : ex.oftalmoscopia}</p>}
-            {(ex.pioOd || ex.pioOi) && <p><span className="font-semibold text-slate-700">Presión intraocular:</span> OD {ex.pioOd || "—"} · OI {ex.pioOi || "—"} mmHg{salud?.pio?.metodo ? ` · ${salud.pio.metodo}` : ""}{salud?.pio?.hora ? ` · a las ${salud.pio.hora}` : ""}</p>}
+            {(ex.pioOd || ex.pioOi) && <p><span className="font-semibold text-slate-700">Presión intraocular:</span> OD {ex.pioOd || "—"} · OI {ex.pioOi || "—"} mmHg{salud?.pio?.metodo ? ` · ${salud.pio.metodo}` : ""}{salud?.pio?.hora ? ` · a las ${horaSinCero(salud.pio.hora)}` : ""}</p>}
             {ex.testColor && ex.testColor !== "Normal" && <p><span className="font-semibold text-slate-700">Test de color:</span> {ex.testColor}</p>}
           </div>
           {adjuntos}

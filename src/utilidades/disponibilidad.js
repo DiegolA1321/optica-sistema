@@ -1,5 +1,5 @@
 import { ahoraEcuador } from "./horaEcuador"
-import { formatoFecha, hora } from "./formatoFecha"
+import { formatoFecha, hora, horaSinCero } from "./formatoFecha"
 import { horaOfrecida, profesionalesDe, disponibleEnMinuto } from "./agendaPersonal"
 // ─── Utilidades de disponibilidad y horario del optómetra ───
 // Toda la lógica de "qué días/horas puede reservar un paciente" vive aquí,
@@ -20,12 +20,12 @@ export const ETIQUETAS_DIA = {
 
 const ORDEN_SEMANA_LABORAL = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
 
-// "9:00 AM - 6:00 PM" para un día con una sola sesión, "9:00 AM - 1:00 PM y
-// 2:00 PM - 6:00 PM" si tiene mañana y tarde. null si el día está cerrado.
+// "9:00 AM – 6:00 PM" para un día con una sola sesión, "9:00 AM – 1:00 PM y
+// 2:00 PM – 6:00 PM" si tiene mañana y tarde (horas como se leen: sin cero de adelante). null si el día está cerrado.
 function resumenSesionesDia(horario) {
   const sesiones = [horario?.manana, horario?.tarde]
     .filter((s) => s?.activo && s.inicio && s.fin)
-    .map((s) => `${horaA12(s.inicio)} - ${horaA12(s.fin)}`)
+    .map((s) => `${horaSinCero(s.inicio)} – ${horaSinCero(s.fin)}`)
   return sesiones.length ? sesiones.join(" y ") : null
 }
 
@@ -114,10 +114,10 @@ export function estadoAtencionHoy(disponibilidad, ahora = ahoraEcuador()) {
 
   const ahoraHHMM = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
   const sesionActiva = sesiones.find((s) => ahoraHHMM >= s.inicio && ahoraHHMM < s.fin)
-  if (sesionActiva) return { abierto: true, texto: `Abierto hoy hasta las ${horaA12(sesionActiva.fin)}` }
+  if (sesionActiva) return { abierto: true, texto: `Abierto hoy hasta las ${horaSinCero(sesionActiva.fin)}` }
 
   const proximaSesion = sesiones.find((s) => ahoraHHMM < s.inicio)
-  if (proximaSesion) return { abierto: false, texto: `Cerrado ahora — abre a las ${horaA12(proximaSesion.inicio)}` }
+  if (proximaSesion) return { abierto: false, texto: `Cerrado ahora — abre a las ${horaSinCero(proximaSesion.inicio)}` }
 
   return { abierto: false, texto: "Cerrado por hoy" }
 }

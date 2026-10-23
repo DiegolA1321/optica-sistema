@@ -2,7 +2,7 @@
 
 import { CalendarClock, X, Check, Star, ChevronRight, MessageCircle } from "lucide-react"
 import { etiquetaEstadoCita } from "../../utilidades/estadosCita"
-import { formatoFecha } from "../../utilidades/formatoFecha"
+import { formatoFecha, horaSinCero } from "../../utilidades/formatoFecha"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
 import { pasosDeLosLentes, textoOrdenPaciente, NOTA_ESTADO_CITA } from "../../utilidades/portalPaciente"
 import { BOTON_SECUNDARIO, BOTON_PELIGRO, BOTON_PRINCIPAL, ESTILO_PRINCIPAL } from "./estilos"
@@ -108,7 +108,7 @@ export function FilaCita({ cita, onAbrir, ...citaProps }) {
     <li className="pt-abrible relative flex flex-col gap-3 py-4 transition-colors hover:bg-pt-fondo/60 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="min-w-0 space-y-1">
         <button type="button" onClick={() => onAbrir?.(cita)} aria-label={`Ver el detalle de tu cita del ${formatoFecha(cita.fecha, "medio")}`} className="pt-abrir absolute inset-0 cursor-pointer" />
-        <p className="text-lg font-bold leading-snug text-pt-marino">{formatoFecha(cita.fecha, "corto")} · {cita.hora}</p>
+        <p className="text-lg font-bold leading-snug text-pt-marino">{formatoFecha(cita.fecha, "corto")} · {horaSinCero(cita.hora)}</p>
         <p className="text-base text-pt-texto">{cita.motivo || "Consulta"}</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <EstadoCita estado={cita.estado} enCalendario={Boolean(citaProps.calendarioAgregada?.(cita.id))} />

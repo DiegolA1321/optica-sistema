@@ -70,15 +70,15 @@ describe("la óptica, hoy", () => {
   const horarioSemanal = { lunes: dia(abre), martes: dia(abre), miercoles: dia(abre), jueves: dia(abre), viernes: dia(abre), sabado: { manana: { activo: false } }, domingo: { manana: { activo: false } } }
   it("sin horario cargado no dice nada", () => { expect(estadoDeLaOpticaHoy(null)).toBeNull() })
   it("cerrado el sábado: dice cuándo vuelve a abrir (el lunes)", () => {
-    expect(estadoDeLaOpticaHoy({ horarioSemanal }, sab(11))).toEqual({ abierto: false, texto: "Cerrado hoy · abre el lunes a las 09:00 AM" })
+    expect(estadoDeLaOpticaHoy({ horarioSemanal }, sab(11))).toEqual({ abierto: false, texto: "Cerrado hoy · abre el lunes a las 9:00 AM" })
   })
   it("abierto: hasta qué hora", () => {
     const lunes = new Date(2026, 9, 19, 11)
-    expect(estadoDeLaOpticaHoy({ horarioSemanal }, lunes)).toEqual({ abierto: true, texto: "Abierto hoy hasta las 06:00 PM" })
+    expect(estadoDeLaOpticaHoy({ horarioSemanal }, lunes)).toEqual({ abierto: true, texto: "Abierto hoy hasta las 6:00 PM" })
   })
   it("antes de abrir, dice a qué hora abre hoy; el domingo cerrado también apunta al lunes", () => {
-    expect(estadoDeLaOpticaHoy({ horarioSemanal }, new Date(2026, 9, 19, 7)).texto).toBe("Cerrado ahora · abre hoy a las 09:00 AM")
-    expect(estadoDeLaOpticaHoy({ horarioSemanal }, new Date(2026, 9, 18, 10)).texto).toBe("Cerrado hoy · abre mañana a las 09:00 AM")
+    expect(estadoDeLaOpticaHoy({ horarioSemanal }, new Date(2026, 9, 19, 7)).texto).toBe("Cerrado ahora · abre hoy a las 9:00 AM")
+    expect(estadoDeLaOpticaHoy({ horarioSemanal }, new Date(2026, 9, 18, 10)).texto).toBe("Cerrado hoy · abre mañana a las 9:00 AM")
   })
 })
 

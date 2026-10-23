@@ -1,6 +1,6 @@
 import { Check } from "lucide-react"
 import { INK } from "@/lib/tema"
-import { hora as horaTexto } from "../../utilidades/formatoFecha"
+import { horaSinCero as horaTexto } from "../../utilidades/formatoFecha"
 import { linkWhatsApp } from "../../utilidades/whatsapp"
 import { cuandoTexto, descargarIcs, enlaceComoLlegar } from "../../utilidades/agendarWeb"
 

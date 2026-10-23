@@ -1,7 +1,7 @@
 // Reporte del período en PDF: la pestaña que se está viendo, con el período y los filtros en el encabezado. Se imprime solo el
 // reporte (no la barra lateral ni los botones) y el navegador lo guarda como PDF desde "Imprimir".
 import { imprimirDocumento, estilosImpresion } from "./imprimir"
-import { formatoFecha, hora } from "./formatoFecha"
+import { formatoFecha, horaSinCero } from "./formatoFecha"
 import { ahoraEcuador } from "./horaEcuador"
 
 const CLASE = "printing-reporte"
@@ -16,7 +16,7 @@ export function encabezadoPdf({ opticaNombre, pestana, rango, filtros, usuarioNo
     titulo: `Reporte de ${pestana}`,
     periodo: `Período: ${formatoFecha(rango.inicio, "medio")} a ${formatoFecha(rango.fin, "medio")}`,
     filtros: `Filtros: ${filtros || "ninguno"}`,
-    generado: `Generado: ${formatoFecha(ahora, "medio")}, ${hora(ahora)} · por ${usuarioNombre || "Usuario"}`,
+    generado: `Generado: ${formatoFecha(ahora, "medio")}, ${horaSinCero(ahora)} · por ${usuarioNombre || "Usuario"}`,
   }
 }
 

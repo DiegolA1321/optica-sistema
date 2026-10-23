@@ -12,7 +12,7 @@ import { useFacturaElectronica } from "./useFacturaElectronica"
 import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA } from "./estilos"
 import { VentanaRevision } from "./PagosPorVerificar"
 import { dinero } from "../../utilidades/formatoMoneda"
-import { fechaLegible, fechaHoraLegible, hora } from "../../utilidades/formatoFecha"
+import { fechaLegible, fechaHoraLegible, horaSinCero } from "../../utilidades/formatoFecha"
 import { numeroComprobante } from "../../utilidades/comprobantes"
 import { abonosDeFactura, totalAbonado } from "../../utilidades/abonos"
 import { estadoDeComprobante } from "../../utilidades/saldosVentas"
@@ -90,7 +90,7 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <Columna titulo="La venta">
-            <Dato etiqueta="Fecha">{fechaLegible(diaDeRegistro(f.creadoEn)) || "—"}{String(f.creadoEn || "").includes("T") ? ` · ${hora(f.creadoEn)}` : ""}</Dato>
+            <Dato etiqueta="Fecha">{fechaLegible(diaDeRegistro(f.creadoEn)) || "—"}{String(f.creadoEn || "").includes("T") ? ` · ${horaSinCero(f.creadoEn)}` : ""}</Dato>
             <Dato etiqueta="Registrada por">{nombre(f.registradoPor)}</Dato>
             <Dato etiqueta="Forma de pago">{textoFormaDePago(f, abonos)}{f.metodoPago === "cuotas" && f.cuotasTotales ? ` (${f.cuotasPagadas || 0}/${f.cuotasTotales} cuotas)` : ""}</Dato>
           </Columna>

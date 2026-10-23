@@ -6,7 +6,7 @@ import { etiquetaEstadoCita } from "../../utilidades/estadosCita"
 import { coincideSeguimiento, responsableDeCita } from "../../utilidades/filtrosCitas"
 import { nombreDeMiembro } from "../../utilidades/equipo"
 import { diagnosticosPorMes } from "../../utilidades/reportesDiagnosticos"
-import { nombreMes } from "../../utilidades/formatoFecha"
+import { nombreMes, horaSinCero } from "../../utilidades/formatoFecha"
 import { enRango, mesesDelRango } from "../../utilidades/reportesPeriodo"
 import { metricasDelPeriodo, resumenPedidos } from "../../utilidades/reportesDatos"
 import { movimientosDelRango } from "../../utilidades/reportesInventario"
@@ -47,12 +47,12 @@ export function catalogoExportaciones(r, rango, { incluirNoCompraron = false } =
     // ── Citas ──
     { id: "citas-detalle", modulo: "citas", nombre: "Citas del período", linea: "Todas las citas con su paciente, motivo, origen, visita, profesional y estado.",
       modelo: () => lista("Citas del período", [
-        col("Fecha", (c) => c.fecha, "fecha"), col("Hora", (c) => c.hora), col("Paciente", (c) => c.paciente), col("Cédula", (c) => c.cedula), col("Teléfono", (c) => c.telefono), col("Motivo", (c) => c.motivo),
+        col("Fecha", (c) => c.fecha, "fecha"), col("Hora", (c) => horaSinCero(c.hora)), col("Paciente", (c) => c.paciente), col("Cédula", (c) => c.cedula), col("Teléfono", (c) => c.telefono), col("Motivo", (c) => c.motivo),
         col("Origen", (c) => etiquetaOrigenCita(c.origen)), col("Visita", (c) => (coincideSeguimiento(c, "primera", historial) ? "Primera vez" : "Seguimiento")),
         col("Profesional", profesional), col("Estado", (c) => etiquetaEstadoCita(c.estado)), col("Cancelada por", (c) => (c.estado !== "Cancelada" ? "" : c.canceladaPor === "paciente" ? "El paciente" : "La óptica")),
       ], [...citasEnRango].sort((a, b) => (a.fecha + a.hora < b.fecha + b.hora ? -1 : 1))) },
     { id: "citas-inasistencias", modulo: "citas", nombre: "Citas no efectuadas para reagendar", linea: "Las citas que no se efectuaron, con el teléfono del paciente, para contactarlo.",
-      modelo: () => lista("Citas no efectuadas del período", [col("Fecha", (c) => c.fecha, "fecha"), col("Hora", (c) => c.hora), col("Paciente", (c) => c.paciente), col("Teléfono", (c) => c.telefono), col("Motivo", (c) => c.motivo), col("Profesional", profesional)], citasEnRango.filter((c) => c.estado === "No Asistió")) },
+      modelo: () => lista("Citas no efectuadas del período", [col("Fecha", (c) => c.fecha, "fecha"), col("Hora", (c) => horaSinCero(c.hora)), col("Paciente", (c) => c.paciente), col("Teléfono", (c) => c.telefono), col("Motivo", (c) => c.motivo), col("Profesional", profesional)], citasEnRango.filter((c) => c.estado === "No Asistió")) },
     { id: "citas-tasa-mes", modulo: "citas", nombre: "Citas no efectuadas mes a mes", linea: "Cuántas citas hubo cada mes y qué porcentaje no se efectuó.",
       modelo: () => lista("Citas no efectuadas mes a mes", [col("Mes", (x) => x.etiqueta), col("Citas", (x) => x.m.programadas.length, "entero"), col("Atendidas", (x) => x.m.atendidas.length, "entero"), col("No efectuadas", (x) => x.m.noAsistio.length, "entero"), col("Canceladas", (x) => x.m.canceladas.length, "entero"), col("Tasa de citas no efectuadas", (x) => x.m.tasaInasist, "tasa")], meses.map((x) => ({ ...x, m: delRango(x) })), false) },
     pdf("citas", "Citas"),

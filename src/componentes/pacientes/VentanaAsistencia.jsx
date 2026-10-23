@@ -8,7 +8,7 @@ import { leerEventosDeCitas } from "../../utilidades/eventosCita"
 import { motivoDeLaCita } from "../../utilidades/contactarPaciente"
 import { useContactosDelPaciente } from "../../utilidades/contactosPaciente"
 import { CANALES, ETIQUETA_MOTIVO } from "../../utilidades/crmContactos"
-import { fechaLegible } from "../../utilidades/formatoFecha"
+import { fechaLegible, horaSinCero } from "../../utilidades/formatoFecha"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
 import { etiquetaMiembro } from "../../utilidades/equipo"
 
@@ -54,7 +54,7 @@ export default function VentanaAsistencia({ paciente, citas = [], equipo = [], o
                     const quien = c.atendidoPor || c.asignadoA ? etiquetaMiembro(equipo, c.atendidoPor || c.asignadoA) : ""
                     return (
                       <li key={c.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-3.5 py-2.5 text-[15px]">
-                        <span className="text-slate-800">{fechaLegible(c.fecha)} · {c.hora}</span>
+                        <span className="text-slate-800">{fechaLegible(c.fecha)} · {horaSinCero(c.hora)}</span>
                         <span className="min-w-0 text-slate-600">{c.motivo || "Consulta general"}{quien ? ` · ${quien.split(" ")[0]}` : ""}</span>
                         {g.conMotivo && <span className="basis-full text-sm text-slate-500">{motivoDeLaCita(c, seguimiento)}</span>}
                       </li>

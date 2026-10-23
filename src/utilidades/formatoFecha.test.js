@@ -32,8 +32,8 @@ describe("hora y fecha con hora", () => {
     expect(horaLegible(new Date(2026, 9, 7, 12, 0))).toBe("12:00 PM")
   })
   it("fecha corta con hora, con o sin año", () => {
-    expect(fechaHoraLegible(new Date(2026, 9, 7, 8, 19))).toBe("7 oct, 08:19 AM")
-    expect(fechaHoraLegible(new Date(2026, 9, 3, 15, 20), { anio: true })).toBe("3 oct 2026, 03:20 PM")
+    expect(fechaHoraLegible(new Date(2026, 9, 7, 8, 19))).toBe("7 oct, 8:19 AM")
+    expect(fechaHoraLegible(new Date(2026, 9, 3, 15, 20), { anio: true })).toBe("3 oct 2026, 3:20 PM")
     expect(fechaHoraLegible("nada")).toBe("")
   })
 })

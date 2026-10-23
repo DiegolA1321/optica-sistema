@@ -4,7 +4,7 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { descargarMisDatosPaciente } from "../utilidades/portalDatos"
 import { fechaAISO, slotsDisponibles } from "../utilidades/disponibilidad"
 import useHorasOcupadasEnVivo from "../utilidades/useHorasOcupadasEnVivo"
-import { formatoFecha } from "../utilidades/formatoFecha"
+import { formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { Eye, Home, CalendarDays, ReceiptText, UserRound, CheckCircle2, AlertCircle, Stethoscope, CalendarClock, KeyRound, Lock, X } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
@@ -161,7 +161,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setCitas(citas.map((c) => (c.id === cancelando.id ? { ...c, estado: "Cancelada" } : c)))
     refrescarHorasOcupadas()
     setGuardandoCancelar(false)
-    avisar(`Cancelaste tu cita del ${formatoFecha(cancelando.fecha, "medio")} a las ${cancelando.hora}.`)
+    avisar(`Cancelaste tu cita del ${formatoFecha(cancelando.fecha, "medio")} a las ${horaSinCero(cancelando.hora)}.`)
     setCancelando(null)
   }
 
@@ -332,7 +332,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
     setConfirmandoCita(false)
     setModalAgendar(false); setFecha(""); setHora(""); setError("")
     setSeccion("citas")
-    avisar(`Tu cita quedó agendada para el ${formatoFecha(nuevaCita.fecha, "medio")} a las ${nuevaCita.hora}. ¡Te esperamos!${parametrizacion?.permitirReagendarPaciente ? ` Puedes cambiarla o cancelarla hasta con ${horasAntesPermitidas} hora${horasAntesPermitidas === 1 ? "" : "s"} de anticipación, desde «Mis citas».` : ""}`, nuevaCita)
+    avisar(`Tu cita quedó agendada para el ${formatoFecha(nuevaCita.fecha, "medio")} a las ${horaSinCero(nuevaCita.hora)}. ¡Te esperamos!${parametrizacion?.permitirReagendarPaciente ? ` Puedes cambiarla o cancelarla hasta con ${horasAntesPermitidas} hora${horasAntesPermitidas === 1 ? "" : "s"} de anticipación, desde «Mis citas».` : ""}`, nuevaCita)
   }
 
   const handleCambiarClave = async (e) => {
@@ -512,7 +512,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
 
       {/* ─── REAGENDAR ─── */}
       {reagendando && (
-        <Cascaron pantallaCompletaEnCelular titulo="Reagendar cita" subtitulo={"Tenías: " + formatoFecha(reagendando.fecha, "medio") + " · " + reagendando.hora} Icono={CalendarClock} ancho="max-w-3xl" onCerrar={() => !guardandoReagenda && setReagendando(null)}
+        <Cascaron pantallaCompletaEnCelular titulo="Reagendar cita" subtitulo={"Tenías: " + formatoFecha(reagendando.fecha, "medio") + " · " + horaSinCero(reagendando.hora)} Icono={CalendarClock} ancho="max-w-3xl" onCerrar={() => !guardandoReagenda && setReagendando(null)}
           pie={<>
             <span />
             <div className="ml-auto flex items-center gap-2">
@@ -530,7 +530,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
 
       {/* ─── CANCELAR ─── */}
       {cancelando && (
-        <Cascaron titulo="¿Cancelar esta cita?" subtitulo={formatoFecha(cancelando.fecha, "medio") + " · " + cancelando.hora} Icono={AlertCircle} ancho="max-w-md" onCerrar={() => !guardandoCancelar && setCancelando(null)}
+        <Cascaron titulo="¿Cancelar esta cita?" subtitulo={formatoFecha(cancelando.fecha, "medio") + " · " + horaSinCero(cancelando.hora)} Icono={AlertCircle} ancho="max-w-md" onCerrar={() => !guardandoCancelar && setCancelando(null)}
           pie={<>
             <span />
             <div className="ml-auto flex items-center gap-2">

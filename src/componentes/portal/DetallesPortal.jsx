@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Star, Stethoscope, UserRound, FileText, Glasses, Wallet, Eye, Store, MapPin, Phone, MessageCircle, Navigation, Clock, CalendarClock, X, CalendarPlus, Landmark } from "lucide-react"
-import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
+import { formatoFecha, nombreMes, horaSinCero } from "../../utilidades/formatoFecha"
 import { dinero } from "../../utilidades/formatoMoneda"
 import { diaDeRegistro } from "../../utilidades/periodoLista"
 import { NOTA_ESTADO_CITA, nombreDeLosLentes, textoControl } from "../../utilidades/portalPaciente"
@@ -39,7 +39,7 @@ function DetalleCita({ cita, detalle, detalleDisponible, direccion, citaProps, o
     if (!r.ok) setError(r.error)
   }
   return (
-    <Cascaron pantallaCompletaEnCelular titulo="Tu cita" subtitulo={mayuscula(formatoFecha(cita.fecha, "largo")) + " · " + cita.hora} Icono={Stethoscope} ancho="max-w-xl" onCerrar={onCerrar} pie={<PieCerrar onCerrar={onCerrar} />}>
+    <Cascaron pantallaCompletaEnCelular titulo="Tu cita" subtitulo={mayuscula(formatoFecha(cita.fecha, "largo")) + " · " + horaSinCero(cita.hora)} Icono={Stethoscope} ancho="max-w-xl" onCerrar={onCerrar} pie={<PieCerrar onCerrar={onCerrar} />}>
       <div className="space-y-3 p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2"><EstadoCita estado={cita.estado} enCalendario={Boolean(citaProps.calendarioAgregada?.(cita.id))} /><span className="text-lg text-pt-texto">{NOTA_ESTADO_CITA[cita.estado]}</span></div>
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">

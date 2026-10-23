@@ -4,7 +4,7 @@
 import { ultimaVisita, diasDesdeUltimaVisita, diasCumpleEnVentana, diasVencido, esInactivo, contarConsultas, contarReferidos, esClienteFrecuente, puntajeFidelidad, fechaProximoControl } from "./fidelizacion"
 import { fechaAISO, hoyISO, isoAFechaLocal } from "./disponibilidad"
 import { diaDeRegistro } from "./periodoLista"
-import { formatoFecha } from "./formatoFecha"
+import { formatoFecha, horaSinCero } from "./formatoFecha"
 import { diasEnEspera, esDelPortal } from "./pasesVenta"
 
 // ─── Motivos ───
@@ -292,7 +292,7 @@ export const textoEntrega = (entrega) => (entrega?.tipo === "envio" ? `Te lo env
 export function armarMensaje(plantilla, { paciente, opticaNombre, opticaTelefono = "", consultas = [], cita = null, orden = "", entrega = null, medidas = null, ejemplo = false } = {}) {
   const control = paciente ? fechaProximoControl(paciente, consultas) : null
   const textoControl = control ? formatoFecha(fechaAISO(control), "medio") : "pronto"
-  const textoCita = cita?.fecha ? `${formatoFecha(cita.fecha, "calendario", { enFrase: true })}${cita.hora ? ` a las ${cita.hora}` : ""}` : ejemplo ? "martes 20 de octubre a las 04:00 PM" : "tu cita"
+  const textoCita = cita?.fecha ? `${formatoFecha(cita.fecha, "calendario", { enFrase: true })}${cita.hora ? ` a las ${horaSinCero(cita.hora)}` : ""}` : ejemplo ? "martes 20 de octubre a las 4:00 PM" : "tu cita"
   const conUnidad = (t) => (/mm\s*$/i.test(String(t).trim()) ? String(t).trim() : `${String(t).trim()} mm`)
   const lineasMedidas = [medidas?.dp && `• Distancia pupilar: ${conUnidad(medidas.dp)}`, medidas?.altura && `• Altura de montaje: ${conUnidad(medidas.altura)}`].filter(Boolean).join("\n")
   const textoMedidas = lineasMedidas || (ejemplo ? "• Distancia pupilar: 62 mm\n• Altura de montaje: 18 mm" : "")

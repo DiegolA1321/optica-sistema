@@ -1,7 +1,7 @@
 "use client"
 
 import { INK } from "@/lib/tema"
-import { hora } from "../../utilidades/formatoFecha"
+import { horaSinCero } from "../../utilidades/formatoFecha"
 import Sugerencia from "./Sugerencia"
 
 // Gráficas del módulo Reportes: barras y una cuadrícula, siempre con su valor a la vista y el detalle al pasar el cursor.
@@ -66,7 +66,7 @@ export function CuadriculaDiaHora({ cuadricula, onElegir }) {
       <thead>
         <tr>
           <th scope="col" className="w-12" />
-          {horas.map((h) => <th key={h} scope="col" className="truncate text-xs font-semibold text-slate-500">{hora(`${h}:00`)}</th>)}
+          {horas.map((h) => <th key={h} scope="col" className="truncate text-xs font-semibold text-slate-500">{horaSinCero(`${h}:00`)}</th>)}
         </tr>
       </thead>
       <tbody>
@@ -78,7 +78,7 @@ export function CuadriculaDiaHora({ cuadricula, onElegir }) {
               if (!c) return <td key={h} className="h-9 rounded-md bg-slate-50 text-center text-xs text-slate-300" aria-label="Sin citas">·</td>
               const n = c.noAsistio.length
               const intensidad = max > 0 ? n / max : 0
-              const tip = `${d.etiqueta} ${hora(`${h}:00`)}: ${n} no efectuada${n === 1 ? "" : "s"} de ${c.citas.length} cita${c.citas.length === 1 ? "" : "s"}`
+              const tip = `${d.etiqueta} ${horaSinCero(`${h}:00`)}: ${n} no efectuada${n === 1 ? "" : "s"} de ${c.citas.length} cita${c.citas.length === 1 ? "" : "s"}`
               return (
                 <td key={h} className="p-0">
                   <Sugerencia texto={tip} as="div">

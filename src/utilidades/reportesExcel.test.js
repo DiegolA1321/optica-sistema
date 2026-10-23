@@ -51,7 +51,7 @@ describe("Excel: ventas del período, para el contador", () => {
     expect(texto).toContain("Ventas del período, para el contador")
     expect(texto).toContain("Período: 1 oct 2026 a 31 oct 2026")
     expect(texto).toContain("Filtros: Origen: Web")
-    expect(texto).toContain("Generado: 12 oct 2026, 08:05 PM · por Diego Alarcón")
+    expect(texto).toContain("Generado: 12 oct 2026, 8:05 PM · por Diego Alarcón")
     const titulos = h.data[ENCABEZADO_FILAS]
     expect(titulos.map((c) => c.value)).toEqual(m.columnas.map((c) => c.titulo))
     const primera = h.data[ENCABEZADO_FILAS + 1]
@@ -193,6 +193,6 @@ describe("Excel: cualquier lista de una ventana", () => {
 describe("PDF del período", () => {
   it("el encabezado lleva la óptica, la pestaña, el período, los filtros y quién lo generó", () => {
     const e = encabezadoPdf({ opticaNombre: "Óptica Demo", pestana: "Ventas", rango, filtros: "Origen: Web", usuarioNombre: "Diego Alarcón", ahora: new Date(2026, 9, 12, 20, 5) })
-    expect(e).toEqual({ optica: "Óptica Demo", titulo: "Reporte de Ventas", periodo: "Período: 1 oct 2026 a 31 oct 2026", filtros: "Filtros: Origen: Web", generado: "Generado: 12 oct 2026, 08:05 PM · por Diego Alarcón" })
+    expect(e).toEqual({ optica: "Óptica Demo", titulo: "Reporte de Ventas", periodo: "Período: 1 oct 2026 a 31 oct 2026", filtros: "Filtros: Origen: Web", generado: "Generado: 12 oct 2026, 8:05 PM · por Diego Alarcón" })
   })
 })

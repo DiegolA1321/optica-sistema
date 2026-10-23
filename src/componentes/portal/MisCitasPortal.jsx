@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { ChevronRight, Search } from "lucide-react"
-import { formatoFecha } from "../../utilidades/formatoFecha"
+import { formatoFecha, horaSinCero } from "../../utilidades/formatoFecha"
 import { agruparPorAnio, filtrarVisitas } from "../../utilidades/portalVistas"
 import { resultadoDeCita } from "../../utilidades/resultadoDeCita"
 import CampoFecha from "../CampoFecha"
@@ -113,7 +113,7 @@ export default function MisCitasPortal({ cargando, proximas, historial, citaProp
                         <button type="button" onClick={() => setAbierta(c)} aria-label={`Ver el detalle de tu cita del ${formatoFecha(c.fecha, "medio")}`} className="pt-abrir absolute inset-0 cursor-pointer" />
                         <div className="flex items-baseline gap-2 @[740px]/portal:block">
                           <p className="text-base font-semibold leading-snug text-pt-marino">{formatoFecha(c.fecha, "medioSinAnio")}</p>
-                          <p className="text-base leading-snug text-pt-texto">{c.hora}</p>
+                          <p className="text-base leading-snug text-pt-texto">{horaSinCero(c.hora)}</p>
                         </div>
                         <div className="min-w-0">
                           <p className="text-base font-semibold leading-snug text-pt-marino">{c.motivo || "Consulta"}</p>

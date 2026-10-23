@@ -24,7 +24,7 @@ import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
 import ComprobanteVentaModal from "./ComprobanteVentaModal"
 import { registrarLog } from "../utilidades/logs"
 import { ordenarPorFechaYCreacion } from "../utilidades/fidelizacion"
-import { fechaLegible, formatoFecha } from "../utilidades/formatoFecha"
+import { fechaLegible, formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import { tendenciaEntreConsultas } from "../utilidades/tendenciaGraduacion"
 import { cambioEntre, lineaDeCambio } from "../utilidades/cambioGraduacion"
 import { imprimirHojaReceta } from "../utilidades/imprimirHojaReceta"
@@ -275,7 +275,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
           const r = await moverCitaAHoy({ supabase, opticaId: usuario?.opticaId, cita, citas, setCitas, usuario })
           if (r.error) { onAviso?.(r.error); return }
           cita = r.cita
-          onAviso?.(`La cita era de otro día: se movió a hoy, a las ${cita.hora}.`)
+          onAviso?.(`La cita era de otro día: se movió a hoy, a las ${horaSinCero(cita.hora)}.`)
         }
         if (cita && !["Atendida", "Cancelada", "No Asistió", "En Atención"].includes(cita.estado)) {
           aperturaCita.current.estado = cita.estado
@@ -481,7 +481,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       else {
         setCitas?.((prev) => [...prev, citaControl])
         registrarLog(usuario, "citas", "Agendó el control desde la ficha clínica", `${citaControl.paciente} · ${fechaLegible(citaControl.fecha)}`)
-        onAviso?.(`Control agendado para el ${fechaLegible(citaControl.fecha)} a las ${citaControl.hora}.`)
+        onAviso?.(`Control agendado para el ${fechaLegible(citaControl.fecha)} a las ${horaSinCero(citaControl.hora)}.`)
       }
     }
 
@@ -703,7 +703,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold" style={{ color: INK }}>{pacienteSeleccionado}{edadPaciente != null ? ` · ${edadPaciente} años` : ""}</p>
                   <p className="text-xs text-slate-500">
-                    {citaDeLaVisita ? `Cita ${citaDeLaVisita.hora} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? "Hoy" : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}` : "Sin cita · consulta directa"}
+                    {citaDeLaVisita ? `Cita ${horaSinCero(citaDeLaVisita.hora)} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? "Hoy" : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}` : "Sin cita · consulta directa"}
                     {f.motivo && !citaDeLaVisita ? ` · ${f.motivo}` : ""}
                   </p>
                 </div>

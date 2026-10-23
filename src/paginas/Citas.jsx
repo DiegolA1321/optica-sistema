@@ -3,7 +3,7 @@
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 
-import { fechaLegible, formatoFecha, tituloSemana } from "../utilidades/formatoFecha"
+import { fechaLegible, formatoFecha, tituloSemana, horaSinCero } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabaseClient"
 import {
@@ -162,7 +162,7 @@ function TarjetaCita({ cita, equipo, vistaPropia = false, primeraVez, onAbrirDet
       <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-3 pl-6">
         <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-slate-600">
           <Clock size={14} className="text-slate-500" />
-          <span>{cita.hora}</span>
+          <span>{horaSinCero(cita.hora)}</span>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {cita.estado === "Atendida" ? (
@@ -1887,9 +1887,9 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
         </>}
         >
           <div className="p-6">
-            <p className="text-sm font-semibold" style={{ color: INK }}>¿Mover la cita al {formatoFecha(moviendo.fecha, "calendario", { enFrase: true })} a las {moviendo.hora}?</p>
+            <p className="text-sm font-semibold" style={{ color: INK }}>¿Mover la cita al {formatoFecha(moviendo.fecha, "calendario", { enFrase: true })} a las {horaSinCero(moviendo.hora)}?</p>
             <p className="mt-1.5 text-sm text-slate-500">
-              Ahora está {moviendo.cita.fecha === moviendo.fecha ? "ese mismo día" : "el " + formatoFecha(moviendo.cita.fecha, "calendario", { enFrase: true })} a las {moviendo.cita.hora}. La cita se reagenda, no se crea otra.
+              Ahora está {moviendo.cita.fecha === moviendo.fecha ? "ese mismo día" : "el " + formatoFecha(moviendo.cita.fecha, "calendario", { enFrase: true })} a las {horaSinCero(moviendo.cita.hora)}. La cita se reagenda, no se crea otra.
             </p>
           </div>
         </Cascaron>
@@ -1918,7 +1918,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
           )}
 
           <p className="rounded-lg bg-slate-50 p-2.5 text-center text-sm text-slate-600">
-            Horario actual: <span className="font-mono font-bold text-slate-800">{reagendando.fecha ? etiquetaFecha(reagendando.fecha) : "Sin fecha"} · {reagendando.hora}</span>
+            Horario actual: <span className="font-mono font-bold text-slate-800">{reagendando.fecha ? etiquetaFecha(reagendando.fecha) : "Sin fecha"} · {horaSinCero(reagendando.hora)}</span>
           </p>
 
           <div>
@@ -1990,7 +1990,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
         </>}
         >
           <p className="p-6 text-sm text-slate-600">
-            {reagendada.paciente} ahora tiene su cita el <span className="font-semibold text-slate-800">{etiquetaFecha(reagendada.fecha)} a las {reagendada.hora}</span>. Ya se actualizó en su portal — ¿quieres avisarle también por WhatsApp?
+            {reagendada.paciente} ahora tiene su cita el <span className="font-semibold text-slate-800">{etiquetaFecha(reagendada.fecha)} a las {horaSinCero(reagendada.hora)}</span>. Ya se actualizó en su portal — ¿quieres avisarle también por WhatsApp?
           </p>
         </Cascaron>
       )}

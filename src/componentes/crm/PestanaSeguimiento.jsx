@@ -9,7 +9,7 @@ import { BotonFiltrar, CampoBusqueda, FiltroActivo, FranjaDatos, SelectorPeriodo
 import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, plural } from "../ventas/estilos"
 import { InsigniaMotivo, InsigniaResultado } from "./piezas"
 import { CANALES, DIAS_PARA_AGENDAR, ETIQUETA_MOTIVO, categoriaDeContacto, citaQueAgendo, resultadoEfectivo, resumenSeguimiento } from "../../utilidades/crmContactos"
-import { fechaHoraLegible, fechaLegible, formatoFecha, hora } from "../../utilidades/formatoFecha"
+import { fechaHoraLegible, fechaLegible, formatoFecha, horaSinCero } from "../../utilidades/formatoFecha"
 import { hoyISO } from "../../utilidades/disponibilidad"
 import { diaDeRegistro, enPeriodo } from "../../utilidades/periodoLista"
 
@@ -141,7 +141,7 @@ export default function PestanaSeguimiento({ contactos, citas, pacientes, campan
                 <li key={c.id} data-fila className="relative px-5 py-3 transition-colors hover:bg-slate-50/70">
                   <div className={"grid grid-cols-1 items-center gap-x-4 gap-y-1 " + COLUMNAS}>
                     <button type="button" onClick={() => setDetalle(c)} aria-label={`Ver el contacto con ${p?.nombre || "un paciente"}`} className="absolute inset-0 cursor-pointer" />
-                    <p className="text-sm text-slate-700">{dia ? formatoFecha(dia, "medioSinAnio") : "—"}<span className="block text-xs text-slate-500">{hora(c.creadoEn)}</span></p>
+                    <p className="text-sm text-slate-700">{dia ? formatoFecha(dia, "medioSinAnio") : "—"}<span className="block text-xs text-slate-500">{horaSinCero(c.creadoEn)}</span></p>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold" style={{ color: INK }} title={p?.nombre}>{p?.nombre || "Paciente eliminado"}</p>
                       <p className="truncate text-xs text-slate-500" title={por}>{por}</p>

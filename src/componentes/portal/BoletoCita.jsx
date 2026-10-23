@@ -2,7 +2,7 @@
 
 import { useRef } from "react"
 import { CalendarDays, CalendarPlus, ChevronRight, Check } from "lucide-react"
-import { formatoFecha, nombreMes } from "../../utilidades/formatoFecha"
+import { formatoFecha, nombreMes, horaSinCero } from "../../utilidades/formatoFecha"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
 import { fechaAISO } from "../../utilidades/disponibilidad"
 import { NOTA_ESTADO_CITA } from "../../utilidades/portalPaciente"
@@ -77,7 +77,7 @@ export default function BoletoCita({ cita, detalle = null, direccion = "", citaP
           <span aria-hidden="true" className="flex flex-col items-center leading-none"><span className="font-heading text-5xl font-bold tabular-nums">{dia}</span><span className="mt-1 text-lg font-medium">{nombreMes(mes - 1, "corto")}</span></span>
           <div className="min-w-0">
             <p className="text-base font-medium text-white/80">Tu próxima cita · {semana.toLowerCase()}</p>
-            <p className="font-heading text-[32px] font-bold leading-tight tabular-nums">{cita.hora}</p>
+            <p className="font-heading text-[32px] font-bold leading-tight tabular-nums">{horaSinCero(cita.hora)}</p>
           </div>
           <p className="sr-only">{formatoFecha(cita.fecha, "largo")}</p>
           {onAbrir && <ChevronRight size={24} className="ml-auto shrink-0 text-white/70" aria-hidden="true" />}
@@ -99,7 +99,7 @@ export default function BoletoCita({ cita, detalle = null, direccion = "", citaP
 
   // ── Ancho ──
   const cabecera = <p className="text-base font-semibold text-pt-texto">Tu próxima cita · {cuando(cita.fecha)}</p>
-  const hora = <p className="font-heading text-[33px] font-bold leading-none tabular-nums text-pt-marino">{cita.hora}</p>
+  const hora = <p className="font-heading text-[33px] font-bold leading-none tabular-nums text-pt-marino">{horaSinCero(cita.hora)}</p>
   const motivo = <p className="text-lg font-semibold leading-snug text-pt-marino">{cita.motivo || "Consulta"}</p>
   // Si la óptica no deja cambiar la cita desde el portal (o ya falta poco), se dice en una línea con la salida por WhatsApp.
   const textoSinCambios = cita.estado === "Pendiente" && !reagendable ? (citaProps.cambiosPermitidos === false ? "¿Necesitas cambiarla?" : citaProps.avisoNoReagendable?.(cita)) : null
@@ -125,7 +125,7 @@ export default function BoletoCita({ cita, detalle = null, direccion = "", citaP
             <div className="grid h-full gap-x-8 gap-y-3 grid-cols-[minmax(0,1fr)_minmax(15rem,0.55fr)]">
               <div className="flex min-w-0 flex-col gap-1.5">
                 {cabecera}
-                <p className="font-heading text-[30px] font-bold leading-none tabular-nums text-pt-marino">{cita.hora}</p>
+                <p className="font-heading text-[30px] font-bold leading-none tabular-nums text-pt-marino">{horaSinCero(cita.hora)}</p>
                 <p className="text-lg font-semibold leading-snug text-pt-marino">{cita.motivo || "Consulta"}</p>
                 {detalle?.profesional && <p className="text-base text-pt-texto">Con {detalle.profesional}</p>}
                 {nota && <p className="text-base text-pt-texto">{nota}</p>}

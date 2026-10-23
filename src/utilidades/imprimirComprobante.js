@@ -1,7 +1,7 @@
 // "Imprimir comprobante": el comprobante de venta interno ya guardado, para reimprimirlo cuando el paciente lo pida. Lógica pura que arma el HTML
 // (imprimirHtml lo manda a la impresora). No lleva medidas ni datos clínicos: es un documento comercial (regla 29).
 import { dinero } from "./formatoMoneda"
-import { fechaLegible, hora } from "./formatoFecha"
+import { fechaLegible, horaSinCero } from "./formatoFecha"
 import { escapar, logoHtml } from "./proforma"
 import { numeroComprobante, LEYENDA_INTERNO } from "./comprobantes"
 import { abonosDeFactura, totalAbonado, saldoFactura } from "./abonos"
@@ -48,7 +48,7 @@ export function armarHtmlComprobante({ opticaNombre = "Óptica", opticaDatos = {
 </style></head><body>
 ${logoHtml(opticaDatos.logoUrl, opticaNombre)}<h1>${escapar(opticaNombre)}</h1>
 ${contacto ? `<p class="contacto">${contacto}</p>` : ""}
-<p>Comprobante de venta <b>${escapar(numeroComprobante(factura.numero))}</b> · ${escapar(fechaLegible(fecha))}${factura.creadoEn && String(factura.creadoEn).includes("T") ? ` · ${escapar(hora(factura.creadoEn))}` : ""}</p>
+<p>Comprobante de venta <b>${escapar(numeroComprobante(factura.numero))}</b> · ${escapar(fechaLegible(fecha))}${factura.creadoEn && String(factura.creadoEn).includes("T") ? ` · ${escapar(horaSinCero(factura.creadoEn))}` : ""}</p>
 ${anulada ? `<div class="anulada">VENTA ANULADA${factura.anuladaMotivo ? ` · ${escapar(factura.anuladaMotivo)}` : ""}</div>` : ""}
 <div class="aviso">${escapar(LEYENDA_INTERNO)}</div>
 <p><b>Paciente:</b> ${escapar(paciente.nombre)}${paciente.cedula ? ` · ${escapar(paciente.cedula)}` : ""}</p>

@@ -5,7 +5,7 @@ import { dinero } from "../utilidades/formatoMoneda"
 import { numeroComprobante } from "../utilidades/comprobantes"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
-import { fechaHoraLegible, fechaCorta, fechaLegible, formatoFecha, nombreMes as nombreMesDe } from "../utilidades/formatoFecha"
+import { fechaHoraLegible, fechaCorta, fechaLegible, formatoFecha, nombreMes as nombreMesDe, horaSinCero } from "../utilidades/formatoFecha"
 import { useState, useEffect, useMemo } from "react"
 import {
   Users,
@@ -213,7 +213,7 @@ export default function Inicio({
     >
       <div className="flex items-center gap-3.5">
         <div className="flex w-20 flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50 px-2 py-1.5 font-mono text-xs font-bold text-slate-700 transition-colors group-hover:bg-blue-50 group-hover:text-blue-600">
-          <span>{cita.hora || "09:00 AM"}</span>
+          <span>{horaSinCero(cita.hora || "9:00 AM")}</span>
           {mostrarFecha ? (
             <span className="font-sans text-xs font-medium text-slate-500">
               {(() => { const f = parseFechaFlexible(cita.fecha); return f ? fechaCorta(f) : "" })()}
@@ -388,7 +388,7 @@ export default function Inicio({
         <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Siguiente paciente</p>
         {siguiente ? (
           <>
-            <p className="truncate text-lg font-semibold" style={{ color: INK }}>{siguiente.paciente} <span className="font-mono text-sm font-bold text-slate-500">· {siguiente.hora}</span></p>
+            <p className="truncate text-lg font-semibold" style={{ color: INK }}>{siguiente.paciente} <span className="font-mono text-sm font-bold text-slate-500">· {horaSinCero(siguiente.hora)}</span></p>
             <p className="truncate text-sm text-slate-500">{siguiente.motivo || "Consulta general"}{siguiente.estado === "En Espera" ? " · ya llegó" : ""}</p>
           </>
         ) : (
@@ -609,7 +609,7 @@ export default function Inicio({
         casos: atencionesVista.map(({ cita, dias }) => ({
           id: cita.id, nombre: cita.paciente,
           insignia: { texto: textoAtencionAbierta(dias), tono: "urgente" },
-          detalle: `${fechaLegible(cita.fecha)}, ${cita.hora} · ${cita.motivo || "Consulta general"}`,
+          detalle: `${fechaLegible(cita.fecha)}, ${horaSinCero(cita.hora)} · ${cita.motivo || "Consulta general"}`,
           accion: puedeAtenderAqui ? { etiqueta: "Seguir atendiendo", navega: true, onClick: () => onAtenderCita?.(cita) } : null,
         })),
       })
@@ -639,7 +639,7 @@ export default function Inicio({
         nombres: nombresResumidos(grupos.map((g) => `${g.personaNombre || etiquetaMiembro(equipo, g.personaId)} el ${formatoFecha(g.fecha, "medioSinAnio")}`)),
         casos: grupos.flatMap((g) => g.citas.map((c) => ({
           id: c.id, nombre: c.paciente,
-          detalle: `${fechaLegible(c.fecha)}, ${c.hora} · ausencia de ${g.personaNombre || etiquetaMiembro(equipo, g.personaId)}`,
+          detalle: `${fechaLegible(c.fecha)}, ${horaSinCero(c.hora)} · ausencia de ${g.personaNombre || etiquetaMiembro(equipo, g.personaId)}`,
           accion: { etiqueta: "Reasignar", onClick: () => setReasignarGrupo(g) },
         }))),
       })
@@ -663,7 +663,7 @@ export default function Inicio({
           return {
             id: c.id, nombre: c.paciente,
             insignia: c.estado === "No Asistió" ? { texto: "No efectuada", tono: "urgente" } : { texto: "Canceló el paciente", tono: "neutro" },
-            detalle: `${fechaLegible(c.fecha)}, ${c.hora} · ${motivo}${seg?.contactadaEn ? ` · Contactado el ${fechaLegible(String(seg.contactadaEn).slice(0, 10))}` : ""}`,
+            detalle: `${fechaLegible(c.fecha)}, ${horaSinCero(c.hora)} · ${motivo}${seg?.contactadaEn ? ` · Contactado el ${fechaLegible(String(seg.contactadaEn).slice(0, 10))}` : ""}`,
             acciones,
           }
         }),

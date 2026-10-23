@@ -2,7 +2,7 @@ import { useMemo, useRef } from "react"
 import { Plus, CalendarClock } from "lucide-react"
 import { etiquetaEstadoCita } from "../utilidades/estadosCita"
 import { fechaAISO, hoyISO, nombreDeDiaCerrado, minutosDesdeMedianoche, horaA12, horarioEfectivo, diaAbierto } from "../utilidades/disponibilidad"
-import { formatoFecha, diaSemanaCorto } from "../utilidades/formatoFecha"
+import { formatoFecha, diaSemanaCorto, horaSinCero } from "../utilidades/formatoFecha"
 import { minutosAHHMM } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
 import { colorDe, useAlturaDisponible } from "./calendarioComun"
@@ -106,11 +106,11 @@ export default function CalendarioMes({ mes, citasPorFecha, disponibilidad, coin
                             e.stopPropagation()
                             onAbrirDetalle?.(c)
                           }}
-                          title={`${c.paciente} · ${c.hora}${c.estado ? ` · ${etiquetaEstadoCita(c.estado)}` : ""}`}
+                          title={`${c.paciente} · ${horaSinCero(c.hora)}${c.estado ? ` · ${etiquetaEstadoCita(c.estado)}` : ""}`}
                           className={"flex w-full min-w-0 items-center gap-1 rounded border-l-[3px] px-1.5 text-left text-xs leading-4 transition-shadow hover:shadow-md hover:brightness-[0.97] cursor-pointer " + (esCoincidencia ? "ring-2 ring-blue-500 " : "") + (c.estado === "Cancelada" ? "opacity-50" : "")}
                           style={{ height: ALTO_ETIQUETA, backgroundColor: color.fondo, borderLeftColor: color.linea, color: color.texto, opacity: coincide && !esCoincidencia ? 0.3 : undefined }}
                         >
-                          <span className="shrink-0 font-bold tabular-nums">{horaA12(minutosAHHMM(minutosDesdeMedianoche(c.hora)))}</span>
+                          <span className="shrink-0 font-bold tabular-nums">{horaSinCero(minutosAHHMM(minutosDesdeMedianoche(c.hora)))}</span>
                           <span className={"min-w-0 flex-1 truncate font-semibold " + (c.estado === "Cancelada" ? "line-through" : "")}>{c.paciente}</span>
                         </button>
                       )

@@ -1,5 +1,5 @@
 // Piezas del agendamiento en la web pública: borrador en la pestaña, texto de la fecha, archivo de calendario (.ics) y enlaces del paso «Listo».
-import { formatoFecha, nombreMes, hora as horaTexto } from "./formatoFecha"
+import { formatoFecha, nombreMes, horaSinCero as horaTexto } from "./formatoFecha"
 import { minutosDesdeMedianoche, isoAFechaLocal } from "./disponibilidad"
 
 // ─── Borrador (sessionStorage de la pestaña; nunca la base) ───

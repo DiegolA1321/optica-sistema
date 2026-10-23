@@ -2,7 +2,7 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Receipt, CalendarClock, Plus } from "lucide-react"
 import { isoAFechaLocal, hoyISO, horaA12 } from "../utilidades/disponibilidad"
-import { rangoLargo, diaSemanaCorto } from "../utilidades/formatoFecha"
+import { rangoLargo, diaSemanaCorto, horaSinCero } from "../utilidades/formatoFecha"
 import { diasDeSemana, rangoHoras, franjasSombreadas, bloquesDelDia, minutosAHHMM, celdaLibre, validarMovimiento, PASO_MINUTOS } from "../utilidades/calendarioSemana"
 import { INK } from "@/lib/tema"
 import { colorDe, useAlturaDisponible, LEYENDA_ESTADOS } from "./calendarioComun"
@@ -254,7 +254,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                         setArrastre({ id: b.cita.id, offsetMin: Math.max(0, Math.min(b.fin - b.inicio - 1, (e.clientY - r.top) / PX_POR_MIN)), dur: b.fin - b.inicio })
                       }}
                       onDragEnd={terminarArrastre}
-                      title={`${b.cita.paciente} · ${b.cita.hora}${b.cita.estado === "Pendiente" ? " — arrastra para reagendar" : ""}`}
+                      title={`${b.cita.paciente} · ${horaSinCero(b.cita.hora)}${b.cita.estado === "Pendiente" ? " — arrastra para reagendar" : ""}`}
                       className={"absolute overflow-hidden rounded-md border-l-4 px-2 py-1 text-left transition-shadow hover:shadow-lg hover:brightness-[0.97] cursor-pointer " + (esCoincidencia ? "ring-2 ring-blue-500 shadow-md" : "")}
                       style={{
                         top: (b.inicio - rango.inicio) * PX_POR_MIN + 1,
@@ -272,7 +272,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                         {cobro && <Receipt size={12} className="mt-px shrink-0 text-amber-600" aria-label="Cobro pendiente" />}
                       </div>
                       {altoBloque >= 38 && (
-                        <p className="truncate text-xs font-medium" style={{ color: color.texto, opacity: 0.8 }}>{[b.cita.hora, b.cita.motivo].filter(Boolean).join(" · ")}</p>
+                        <p className="truncate text-xs font-medium" style={{ color: color.texto, opacity: 0.8 }}>{[horaSinCero(b.cita.hora), b.cita.motivo].filter(Boolean).join(" · ")}</p>
                       )}
                     </button>
                   )

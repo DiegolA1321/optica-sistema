@@ -1,7 +1,7 @@
 // Reportes: los siete reportes que se pueden sacar, cada uno armado para un propósito. Aquí solo se arman los datos (modelos) y la
 // hoja de Excel; la pantalla los pide desde "Exportar". Números y fechas salen como números y fechas (no como texto), con el ancho
 // de columna que alcanza para que nada quede cortado y una fila de totales donde corresponde.
-import { formatoFecha, hora, fechaLegible } from "./formatoFecha"
+import { formatoFecha, fechaLegible, horaSinCero } from "./formatoFecha"
 import { ahoraEcuador } from "./horaEcuador"
 import { registrarLog } from "./logs"
 import { numeroComprobante } from "./comprobantes"
@@ -210,7 +210,7 @@ const celda = (v, tipo, extra = {}) => {
 // ctx: { opticaNombre, usuarioNombre, rango, filtrosTexto, ahora }
 export function modeloAHoja(modelo, ctx) {
   const ahora = ctx.ahora || ahoraEcuador()
-  const generado = `${formatoFecha(ahora, "medio")}, ${hora(ahora)}`
+  const generado = `${formatoFecha(ahora, "medio")}, ${horaSinCero(ahora)}`
   const encabezado = [
     [{ value: ctx.opticaNombre || "Óptica", type: String, fontWeight: "bold", fontSize: 14 }],
     [{ value: modelo.titulo, type: String, fontWeight: "bold", fontSize: 12 }],

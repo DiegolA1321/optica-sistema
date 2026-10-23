@@ -4,7 +4,7 @@ import { useState } from "react"
 import { CalendarPlus, Sparkles, Moon, LockOpen, Lock, Loader2 } from "lucide-react"
 import AbrirDiaForm from "./AbrirDiaForm"
 import { INK, GRAD_MARCA } from "@/lib/tema"
-import { formatoFecha } from "../utilidades/formatoFecha"
+import { formatoFecha, horaSinCero } from "../utilidades/formatoFecha"
 import { hoyISO, etiquetaFecha, minutosDesdeMedianoche, horaA12, diaTieneCupo, horarioEfectivo, diaAbierto, abiertoPorExcepcion, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado } from "../utilidades/disponibilidad"
 import { Cascaron } from "./AtencionPaciente"
 import { colorDe } from "./calendarioComun"
@@ -49,7 +49,7 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
     if (ok) { setCerrando(false); setNombreCierre("") }
   }
   const porEstado = ordenadas.reduce((acc, c) => { const k = colorDe(c.estado).etiqueta; acc[k] = (acc[k] || { n: 0, color: colorDe(c.estado) }); acc[k].n++; return acc }, {})
-  const resumenHoras = ordenadas.length > 0 ? ` · de ${ordenadas[0].hora} a ${ordenadas[ordenadas.length - 1].hora}` : ""
+  const resumenHoras = ordenadas.length > 0 ? ` · de ${horaSinCero(ordenadas[0].hora)} a ${horaSinCero(ordenadas[ordenadas.length - 1].hora)}` : ""
   const horaSugerida = minutos != null ? horaA12(`${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`) : null
 
   const mensaje = filtrado
@@ -183,7 +183,7 @@ export default function DiaCitasModal({ iso, minutos = null, citas = [], citasTo
                     onClick={() => onAbrirDetalle?.(c)}
                     className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer"
                   >
-                    <span className="w-[4.25rem] shrink-0 text-xs font-bold tabular-nums text-slate-700">{c.hora}</span>
+                    <span className="w-[4.25rem] shrink-0 text-xs font-bold tabular-nums text-slate-700">{horaSinCero(c.hora)}</span>
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-white" style={{ background: GRAD_MARCA }} aria-hidden="true">{c.iniciales || "·"}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold" style={{ color: INK }}>{c.paciente}</span>
