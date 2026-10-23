@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import {
-  motivosDe, listaParaContactar, contarPorMotivo, filtrarPorMotivo, avisosDelCrm, estadoDelMotivo, resultadoEfectivo, citaPosterior,
+  motivosDe, listaParaContactar, contarPorMotivo, filtrarPorMotivo, avisosDelCrm, estadoDelMotivo, resultadoEfectivo, citaPosterior, citaQueAgendo, categoriaDeContacto,
   aceptaRecordatorios, aceptaPromociones, puedeContactarPor, permisoDeMotivo, armarMensaje, plantillaDe, PLANTILLAS_BASE,
   destinatariosCampana, resumenSeguimiento, rankingReferidores, rankingFrecuentes, rankingPuntaje, fechaEnDias, MOTIVO_PROMOCION, insertarEnCursor, VARIABLES_PLANTILLA, variablesDe, MOTIVOS_DE_AVISO, ETIQUETA_MOTIVO, alNombreActual,
 } from "./crmContactos"
@@ -452,5 +452,36 @@ describe("«Por vender» vive en Para contactar (motivo «Recibió su diagnósti
     expect(ETIQUETA_MOTIVO.por_vender).toBe("Por vender")
     expect(PLANTILLAS_BASE.por_vender).toMatch(/proforma/)
     expect(MOTIVOS_DE_AVISO.por_vender).toBeUndefined()
+  })
+})
+
+describe("citaQueAgendo: la cita que el paciente agendó después de un contacto", () => {
+  const contacto = { pacienteId: "a", creadoEn: "2026-10-01T12:00:00-05:00" }
+  const cita = (creadoEn, extra = {}) => ({ id: "x", pacienteId: "a", estado: "Pendiente", fecha: "2026-10-20", creadoEn, ...extra })
+  it("cuenta si la agendó en los 15 días siguientes y devuelve esa cita", () => {
+    const c = cita("2026-10-10T09:00:00-05:00")
+    expect(citaQueAgendo(contacto, [c])).toBe(c)
+    expect(resultadoEfectivo(contacto, [c])).toBe("agendo")
+  })
+  it("no cuenta si la agendó antes del contacto, pasados los 15 días o si es de otro paciente o está cancelada", () => {
+    expect(citaQueAgendo(contacto, [cita("2026-09-30T09:00:00-05:00")])).toBeNull()
+    expect(citaQueAgendo(contacto, [cita("2026-10-20T09:00:00-05:00")])).toBeNull()
+    expect(citaQueAgendo(contacto, [cita("2026-10-05T09:00:00-05:00", { pacienteId: "b" })])).toBeNull()
+    expect(citaQueAgendo(contacto, [cita("2026-10-05T09:00:00-05:00", { estado: "Cancelada" })])).toBeNull()
+    expect(resultadoEfectivo(contacto, [cita("2026-10-20T09:00:00-05:00")])).toBeNull()
+  })
+})
+
+describe("resumenSeguimiento y categoriaDeContacto", () => {
+  const c = (id, resultado) => ({ id, pacienteId: id, creadoEn: "2026-10-01T12:00:00-05:00", resultado })
+  it("separa agendaron, respondieron sin agendar, sin respuesta y falta el resultado, con sus porcentajes", () => {
+    const lista = [c("1", "agendo"), c("2", "volver_a_contactar"), c("3", "no_le_interesa"), c("4", "no_respondio"), c("5", null)]
+    expect(categoriaDeContacto(lista[1], [])).toBe("respondio")
+    const r = resumenSeguimiento(lista, [])
+    expect(r).toMatchObject({ contactos: 5, agendaron: 1, sinAgendar: 2, sinRespuesta: 1, faltan: 1, respondieron: 3, pctAgendaron: 20, pctSinAgendar: 40 })
+    expect(r.agendaron + r.sinAgendar + r.sinRespuesta + r.faltan).toBe(r.contactos) // las cuatro categorías suman todos los contactos
+  })
+  it("sin contactos no hay porcentajes", () => {
+    expect(resumenSeguimiento([], [])).toMatchObject({ contactos: 0, pctAgendaron: null, tasaRespuesta: null })
   })
 })

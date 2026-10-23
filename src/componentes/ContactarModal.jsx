@@ -28,7 +28,7 @@ export default function ContactarModal({ paciente, telefono, motivo, mensaje: in
       etiqueta="Contactar"
       onCerrar={onCerrar}
       formulario={{ onSubmit: alEnviar }}
-      pie={<PieFormulario onCancelar={onCerrar} etiquetaGuardar="Enviar por WhatsApp" deshabilitado={vacio} nota="Queda en el Seguimiento del CRM." />}
+      pie={<PieFormulario onCancelar={onCerrar} etiquetaGuardar="Enviar por WhatsApp" deshabilitado={vacio} nota="Queda en el Historial de contactos del CRM." />}
     >
       <div className="space-y-1.5 px-5 py-4">
         <label htmlFor="contactar-mensaje" className="text-sm font-semibold text-slate-700">Mensaje <span className="font-normal text-slate-500">· puedes cambiarlo antes de enviar</span></label>

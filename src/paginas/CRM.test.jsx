@@ -63,7 +63,7 @@ describe("CRM: Para contactar", () => {
     expect(screen.getByRole("button", { name: /Nueva campaña/ })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /^Plantillas$/ })).toBeInTheDocument()
     expect(tab("Para contactar")).toHaveTextContent("3") // Ana (vencido), Beto (cumple) y Carla (próximo); Eva no acepta mensajes
-    for (const t of ["Seguimiento", "Campañas", "Fidelización"]) expect(tab(t)).toBeInTheDocument()
+    for (const t of ["Historial de contactos", "Campañas", "Fidelización"]) expect(tab(t)).toBeInTheDocument()
   })
 
   it("una fila por paciente con su motivo, y cada filtro trae exactamente los que dice su número", async () => {
@@ -96,7 +96,7 @@ describe("CRM: Para contactar", () => {
     expect(tab("Para contactar")).toHaveTextContent("2")
   })
 
-  it("Contactar abre WhatsApp con el mensaje del motivo ya escrito y anota el contacto, que queda en Seguimiento", async () => {
+  it("Contactar abre WhatsApp con el mensaje del motivo ya escrito y anota el contacto, que queda en el Historial de contactos", async () => {
     montar()
     await enPanel("Ana Vencida")
     fireEvent.click(within(fila("Ana Vencida")).getByRole("button", { name: /Contactar a Ana Vencida/ }))
@@ -114,8 +114,10 @@ describe("CRM: Para contactar", () => {
     await waitFor(() => expect(aviso).toHaveBeenCalledWith(expect.stringContaining("Contacto con Ana Vencida registrado")))
     // en la fila: contactado hoy y falta anotar el resultado
     await waitFor(() => expect(within(fila("Ana Vencida")).getByText(/Hoy · WhatsApp/)).toBeInTheDocument())
-    fireEvent.click(tab("Seguimiento"))
-    expect(await screen.findByText("1 contacto en el mes")).toBeInTheDocument()
+    fireEvent.click(tab("Historial de contactos"))
+    const franja = await screen.findByRole("list", { name: "Resumen del historial de contactos" })
+    expect(within(franja).getByRole("button", { name: /^Contactados/ })).toHaveTextContent("1")
+    expect(within(screen.getByRole("list", { name: "Contactos" })).getByText("Ana Vencida")).toBeInTheDocument()
   })
 
   it("el servidor rechaza el contacto: se avisa con sus palabras", async () => {
@@ -217,53 +219,118 @@ describe("CRM sin pacientes", () => {
   })
 })
 
-describe("CRM: Seguimiento", () => {
+describe("CRM: Historial de contactos", () => {
   const contactos = [
     { id: "c1", paciente_id: "p1", motivo: "control_vencido", canal: "whatsapp", mensaje: "Hola Ana", resultado: "agendo", creado_en: marca(-1), creado_por_nombre: "Ana Admin", resultado_en: marca(-1) },
     { id: "c2", paciente_id: "p3", motivo: "control_proximo", canal: "llamada", mensaje: "", resultado: "no_respondio", creado_en: marca(-2), creado_por_nombre: "Vera", resultado_en: marca(-2) },
     { id: "c3", paciente_id: "p2", motivo: "cumpleanos", canal: "whatsapp", mensaje: "Feliz cumple", resultado: null, creado_en: marca(0), creado_por_nombre: "Ana Admin" },
   ]
-  it("cuenta los contactados, los que agendaron y la tasa de respuesta de lo que se ve", async () => {
-    base.filas.crm_contactos = contactos
-    montar()
-    fireEvent.click(await screen.findByRole("tab", { name: /Seguimiento/ }))
-    expect(await screen.findByText("3 contactos en el mes")).toBeInTheDocument()
-    const t = (titulo) => screen.getByText(titulo, { selector: "span" }).closest("div")
-    expect(t("Contactados")).toHaveTextContent("3")
-    expect(t("Agendaron")).toHaveTextContent("1")
-    expect(t("Tasa de respuesta")).toHaveTextContent("33 %") // solo "agendó" respondió de 3 contactos
-    expect(screen.getByText("1 de 3 respondieron")).toBeInTheDocument()
+  const abrir = async (extra) => { base.filas.crm_contactos = contactos; montar(extra); fireEvent.click(await screen.findByRole("tab", { name: /Historial de contactos/ })); return screen.findByRole("list", { name: "Resumen del historial de contactos" }) }
+  const dato = (franja, nombre) => within(franja).getByRole("button", { name: new RegExp(`^${nombre}`) })
+
+  it("se llama «Historial de contactos» (con su número) y ya no tiene el selector de mes con flechas ni «Lo que se ve en la lista»", async () => {
+    await abrir()
+    expect(tab("Historial de contactos")).toHaveTextContent("3")
+    expect(screen.queryByRole("tab", { name: /^Seguimiento/ })).toBeNull()
+    expect(screen.queryByText("Lo que se ve en la lista")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Periodo anterior" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Período del historial" })).toHaveTextContent("Este mes")
+    expect(screen.getByRole("button", { name: /^Filtrar/ })).toBeInTheDocument()
   })
-  it("el filtro por resultado reduce la lista y los números a lo mismo", async () => {
-    base.filas.crm_contactos = contactos
-    montar()
-    fireEvent.click(await screen.findByRole("tab", { name: /Seguimiento/ }))
-    await screen.findByText("3 contactos en el mes")
-    fireEvent.click(screen.getByRole("button", { name: /Agendaron:/ }))
-    expect(await screen.findByText("1 contacto en el mes")).toBeInTheDocument()
-    expect(within(panel()).getByText("Ana Vencida")).toBeInTheDocument()
-    expect(within(panel()).queryByText("Carla Próxima")).not.toBeInTheDocument()
+
+  it("la franja cuenta contactados, agendaron (con su %), respondieron sin agendar, sin respuesta y falta el resultado", async () => {
+    const franja = await abrir()
+    expect(dato(franja, "Contactados")).toHaveTextContent("3")
+    expect(dato(franja, "Agendaron una cita")).toHaveTextContent("1")
+    expect(dato(franja, "Agendaron una cita")).toHaveTextContent("33 % de los contactados")
+    expect(dato(franja, "Respondieron sin agendar")).toHaveTextContent("0")
+    expect(dato(franja, "Sin respuesta")).toHaveTextContent("1")
+    expect(dato(franja, "Falta registrar el resultado")).toHaveTextContent("1")
   })
-  it("un contacto se abre en la ventana estándar con su mensaje y quién lo hizo", async () => {
-    base.filas.crm_contactos = contactos
+
+  it("los números coinciden con «Este mes» del panel de arriba", async () => {
+    const franja = await abrir()
+    const mes = within(screen.getByRole("region", { name: "Resumen del CRM" })).getByRole("region", { name: "Este mes" })
+    expect(mes).toHaveTextContent("3 contactados")
+    expect(mes).toHaveTextContent("1 volvió a agendar")
+    expect(dato(franja, "Contactados")).toHaveTextContent("3")
+    expect(dato(franja, "Agendaron una cita")).toHaveTextContent("1")
+  })
+
+  it("cada dato filtra la lista al pulsarlo y se quita al volver a pulsarlo", async () => {
+    const franja = await abrir()
+    fireEvent.click(dato(franja, "Agendaron una cita"))
+    const lista = screen.getByRole("list", { name: "Contactos" })
+    expect(within(lista).getAllByRole("listitem")).toHaveLength(1)
+    expect(within(lista).getByText("Ana Vencida")).toBeInTheDocument()
+    fireEvent.click(dato(franja, "Falta registrar el resultado"))
+    expect(within(screen.getByRole("list", { name: "Contactos" })).getByText("Beto Cumpleañero")).toBeInTheDocument()
+    fireEvent.click(dato(franja, "Falta registrar el resultado"))
+    expect(within(screen.getByRole("list", { name: "Contactos" })).getAllByRole("listitem")).toHaveLength(3)
+  })
+
+  it("la fila trae el paciente con quién lo contactó y por dónde, el motivo, el resultado y la acción que corresponde", async () => {
+    await abrir()
+    const lista = screen.getByRole("list", { name: "Contactos" })
+    const ana = within(lista).getByText("Ana Vencida").closest("li")
+    expect(ana).toHaveTextContent("WhatsApp · Ana Admin")
+    expect(ana).toHaveTextContent("Control vencido")
+    expect(ana).toHaveTextContent("Agendó")
+    const carla = within(lista).getByText("Carla Próxima").closest("li")
+    expect(carla).toHaveTextContent("Llamada · Vera")
+    expect(carla).toHaveTextContent("Sin respuesta")
+    expect(within(carla).getByRole("button", { name: "Volver a contactar a Carla Próxima" })).toBeInTheDocument()
+    const beto = within(lista).getByText("Beto Cumpleañero").closest("li")
+    expect(beto).toHaveTextContent("Falta el resultado")
+    expect(within(beto).getByRole("button", { name: "Registrar resultado" })).toBeInTheDocument()
+    expect(within(ana).queryByRole("button", { name: /Registrar resultado|Volver a contactar/ })).toBeNull()
+  })
+
+  it("«Volver a contactar» abre la ventana de Contactar con el mismo motivo", async () => {
+    await abrir()
+    fireEvent.click(within(screen.getByRole("list", { name: "Contactos" })).getByRole("button", { name: "Volver a contactar a Carla Próxima" }))
+    expect(await screen.findByRole("dialog")).toBeInTheDocument()
+  })
+
+  it("si el paciente agenda una cita en los 15 días siguientes, el resultado cambia solo a «Agendó» con la fecha de la cita", async () => {
+    const cita = { id: "ct1", pacienteId: "p2", estado: "Pendiente", fecha: dia(6), creadoEn: `${dia(0)}T22:00:00-05:00` }
+    await abrir({ citas: [cita] })
+    const beto = within(screen.getByRole("list", { name: "Contactos" })).getByText("Beto Cumpleañero").closest("li")
+    expect(beto).toHaveTextContent(/Agendó · \d+ \w+/)
+    expect(beto).not.toHaveTextContent("Falta el resultado")
+  })
+
+  it("un contacto se abre en la ventana estándar con su mensaje, quién lo hizo y los otros contactos de ese paciente", async () => {
+    base.filas.crm_contactos = [...contactos, { id: "c4", paciente_id: "p1", motivo: "sin_visitar", canal: "whatsapp", mensaje: "Te extrañamos", resultado: "no_respondio", creado_en: marca(-9), creado_por_nombre: "Vera" }]
     montar()
-    fireEvent.click(await screen.findByRole("tab", { name: /Seguimiento/ }))
-    fireEvent.click(await screen.findByRole("button", { name: /Ver el contacto con Ana Vencida/ }))
+    fireEvent.click(await screen.findByRole("tab", { name: /Historial de contactos/ }))
+    fireEvent.click((await screen.findAllByRole("button", { name: /Ver el contacto con Ana Vencida/ }))[0])
     const v = await screen.findByRole("dialog", { name: "Contacto con el paciente" })
     expect(within(v).getByText("Hola Ana")).toBeInTheDocument()
     expect(within(v).getByText("Ana Admin")).toBeInTheDocument()
+    expect(within(within(v).getByRole("list", { name: "Otros contactos del paciente" })).getAllByRole("listitem")).toHaveLength(1)
   })
-  it("sin contactos lo dice y lleva a la lista de trabajo", async () => {
+
+  it("sin contactos explica para qué sirve y lleva a la lista de trabajo", async () => {
     montar()
-    fireEvent.click(await screen.findByRole("tab", { name: /Seguimiento/ }))
+    fireEvent.click(await screen.findByRole("tab", { name: /Historial de contactos/ }))
     expect(await screen.findByText("Todavía no hay contactos registrados")).toBeInTheDocument()
+    expect(screen.getByText(/Así sabes a quién volver a escribir y cuántos vuelven a la óptica/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: /Ir a Para contactar/ }))
     expect(await enPanel("Ana Vencida")).toBeInTheDocument()
+  })
+
+  it("sin contactos en el período la franja dice «Sin contactos en este período» en vez de «—»", async () => {
+    base.filas.crm_contactos = [{ id: "v1", paciente_id: "p1", motivo: "control_vencido", canal: "whatsapp", mensaje: "x", resultado: "agendo", creado_en: marca(-90), creado_por_nombre: "Ana Admin" }]
+    montar()
+    fireEvent.click(await screen.findByRole("tab", { name: /Historial de contactos/ }))
+    await waitFor(() => expect(within(screen.getByRole("list", { name: "Resumen del historial de contactos" })).getAllByText("Sin contactos en este período").length).toBeGreaterThan(0))
+    expect(within(screen.getByRole("list", { name: "Resumen del historial de contactos" })).queryByText("—")).toBeNull()
   })
 })
 
 describe("CRM: Campañas", () => {
-  it("crea una campaña de control vencido y envía a cada paciente, que queda marcado y en Seguimiento", async () => {
+  it("crea una campaña de control vencido y envía a cada paciente, que queda marcado y en el Historial de contactos", async () => {
     montar()
     fireEvent.click(await screen.findByRole("button", { name: /Nueva campaña/ }))
     const v = await screen.findByRole("dialog", { name: "Nueva campaña" })
@@ -424,8 +491,8 @@ describe("CRM: el panel de arriba", () => {
     expect(mes).toHaveTextContent("2 contactados")
     expect(mes).toHaveTextContent("1 volvió a agendar")
     expect(mes).toHaveTextContent("1 campaña enviada")
-    fireEvent.click(within(mes).getByRole("button", { name: /Ver el seguimiento/ }))
-    expect(tab("Seguimiento")).toHaveAttribute("aria-selected", "true")
+    fireEvent.click(within(mes).getByRole("button", { name: /Ver el historial/ }))
+    expect(tab("Historial de contactos")).toHaveAttribute("aria-selected", "true")
     fireEvent.click(within(within(panelArriba).getByRole("region", { name: "Cumpleaños próximos" })).getByRole("button", { name: /Ver/ }))
     expect(tab("Fidelización")).toHaveAttribute("aria-selected", "true")
   })

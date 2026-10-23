@@ -39,7 +39,7 @@ export function crearEscribirPorWhatsApp({ plantillas, opticaNombre, opticaTelef
       if (!anotar) { avisar?.(`WhatsApp abierto para ${paciente?.nombre || "el paciente"}.`); return }
       anotar({ paciente, motivo, mensaje: texto }).then((r) => {
         if (alRegistrar) alRegistrar(r)
-        else avisar?.(r.ok ? `WhatsApp abierto para ${paciente.nombre}. Queda en el Seguimiento del CRM.` : `WhatsApp abierto para ${paciente.nombre}, pero no se pudo anotar en el CRM: ${r.error}`)
+        else avisar?.(r.ok ? `WhatsApp abierto para ${paciente.nombre}. Queda en el Historial de contactos del CRM.` : `WhatsApp abierto para ${paciente.nombre}, pero no se pudo anotar en el CRM: ${r.error}`)
       })
     }
     if (pedirVentana) pedirVentana({ paciente, telefono: tel, motivo, mensaje, enviar })

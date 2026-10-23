@@ -503,7 +503,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
   const tieneCorreoValido = (pa) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pa?.correo || "")
   // El mensaje del perfil queda en el Seguimiento del CRM como los demás contactos (migración 0139); si no se pudo anotar, se dice.
   const anotarEnCrm = (paciente, canal, mensaje) => {
-    escribirPorWhatsApp.manual({ paciente, canal, mensaje }).then((r) => onAviso?.(r.ok ? `Mensaje a ${paciente.nombre} abierto. Queda en el Seguimiento del CRM.` : `Mensaje abierto, pero no se pudo anotar en el CRM: ${r.error}`))
+    escribirPorWhatsApp.manual({ paciente, canal, mensaje }).then((r) => onAviso?.(r.ok ? `Mensaje a ${paciente.nombre} abierto. Queda en el Historial de contactos del CRM.` : `Mensaje abierto, pero no se pudo anotar en el CRM: ${r.error}`))
   }
   const enviarMensajeGmail = () => {
     const asunto = `Mensaje de ${nombreOptica}`

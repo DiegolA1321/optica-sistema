@@ -236,7 +236,7 @@ export function VentanaCampana({ campana, pacientes, consultas, contactos, optic
           </ul>
         )}
         <p className="text-xs text-slate-500">
-          {plural(pendientes, "paciente pendiente", "pacientes pendientes")}. Cada envío queda en Seguimiento.
+          {plural(pendientes, "paciente pendiente", "pacientes pendientes")}. Cada envío queda en el Historial de contactos.
           {quitadosDelGrupo > 0 && ` Al crearla se quitaron ${plural(quitadosDelGrupo, "paciente", "pacientes")}.`}
           {sinPermiso > 0 && ` No se incluyen ${plural(sinPermiso, "paciente", "pacientes")} del grupo que ${grupo?.consentimiento === "promocion" ? "no aceptaron promociones y saludos" : "no aceptaron recordatorios de salud"}.`}
         </p>

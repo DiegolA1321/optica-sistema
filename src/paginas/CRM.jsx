@@ -35,7 +35,7 @@ const TABS = ["contactar", "seguimiento", "campanas", "fidelizacion"]
 const uno = (n, singular, plural) => (n === 1 ? singular : plural)
 
 // CRM y fidelización: responde "¿a quién tengo que contactar hoy, por qué y qué pasó cuando lo contacté?". Cuatro pestañas: Para contactar (la lista de trabajo),
-// Seguimiento (el historial), Campañas (un mensaje para un grupo) y Fidelización (cumpleanos y rankings). Las plantillas (el texto de cada mensaje) se abren con el botón «Plantillas».
+// Historial de contactos (antes Seguimiento), Campañas (un mensaje para un grupo) y Fidelización (cumpleanos y rankings). Las plantillas (el texto de cada mensaje) se abren con el botón «Plantillas».
 // Arriba, un panel con cuatro listas cortas (cumpleaños próximos, los más fieles, los que más refieren y lo de este mes). El análisis va en Reportes.
 export default function CRM({
   usuario, crm, alcancePropio = false, pacientes = [], consultas = [], citas = [], ordenesLab = [], pases = [], facturasVenta = [], parametrizacion, setParametrizacion, cargaInicial = false,
@@ -81,6 +81,8 @@ export default function CRM({
     registro: ({ paciente: p, motivo: m, mensaje }) => crm.contactar({ paciente: p, motivo: m, canal: "whatsapp", mensaje }),
     alRegistrar: (r) => notificar(r.ok ? `Saludo a ${paciente.nombre} registrado.` : r.error),
   })
+  // «Volver a contactar» (Historial de contactos): la ventana de Contactar con el mismo motivo del contacto anterior; el nuevo contacto queda registrado.
+  const volverAContactar = (c, paciente) => contactar({ paciente, telefono: paciente.telefono || paciente.contacto || paciente.celular }, c.motivo)
   const contactoPendiente = (pacienteId, motivo) => contactos.find((c) => c.pacienteId === pacienteId && !c.resultado && !c.campanaId && c.motivo === motivo)
     || contactos.find((c) => c.pacienteId === pacienteId && !c.resultado && !c.campanaId) || null
   const abrirResultado = (fila, motivo) => setResultadoDe({ paciente: fila.paciente, motivo, contacto: contactoPendiente(fila.id, motivo) })
@@ -153,7 +155,7 @@ export default function CRM({
   const verFidelizacion = (vista) => () => { setVistaFidelizacion(vista); setTab("fidelizacion") }
   const pestanas = [
     { id: "contactar", titulo: "Para contactar", cuenta: filas.length },
-    { id: "seguimiento", titulo: "Seguimiento" },
+    { id: "seguimiento", titulo: "Historial de contactos", cuenta: contactos.length },
     { id: "campanas", titulo: "Campañas", cuenta: campanas.length },
     { id: "fidelizacion", titulo: "Fidelización" },
   ]
@@ -204,7 +206,7 @@ export default function CRM({
             {tab === "seguimiento" && (
               <PestanaSeguimiento
                 contactos={contactos} citas={citas} pacientes={pacientes} campanas={campanas} puedeContactar={puedeContactar}
-                onResultado={abrirResultadoDeContacto} onVerPerfil={onVerPerfil} onIrAContactar={() => setTab("contactar")}
+                onResultado={abrirResultadoDeContacto} onVolverAContactar={volverAContactar} onVerPerfil={onVerPerfil} onIrAContactar={() => setTab("contactar")}
               />
             )}
             {tab === "campanas" && (

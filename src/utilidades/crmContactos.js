@@ -46,7 +46,7 @@ export const POSTVENTA_HASTA = 15
 // ─── Resultados de un contacto ───
 export const RESULTADOS = {
   agendo: { id: "agendo", etiqueta: "Agendó cita", tono: "verde" },
-  no_respondio: { id: "no_respondio", etiqueta: "No respondió", tono: "gris" },
+  no_respondio: { id: "no_respondio", etiqueta: "Sin respuesta", tono: "ambar" },
   volver_a_contactar: { id: "volver_a_contactar", etiqueta: "Volver a contactar", tono: "ambar" },
   no_le_interesa: { id: "no_le_interesa", etiqueta: "No le interesa", tono: "gris" },
   no_desea_mensajes: { id: "no_desea_mensajes", etiqueta: "No desea recibir mensajes", tono: "rojo" },
@@ -126,13 +126,24 @@ function entregaReciente(paciente, ordenes, hoy) {
 
 // ─── Qué pasó con cada contacto ───
 // Una cita que el paciente agendó DESPUÉS del contacto lo resuelve sola ("agendó"), salvo que ya haya dicho que no quiere mensajes.
-export function citaPosterior(contacto, citas = []) {
+// La cita que el paciente agendó después de un contacto, dentro de los 15 días siguientes (la primera que agendó), o null.
+export const DIAS_PARA_AGENDAR = 15
+export function citaQueAgendo(contacto, citas = []) {
   const desde = msDe(contacto.creadoEn)
-  return citas.some((c) => c.pacienteId === contacto.pacienteId && ESTADOS_CITA_VIVA.includes(c.estado) && msDe(c.creadoEn) > desde)
+  const hasta = desde + DIAS_PARA_AGENDAR * 86400000
+  return citas
+    .filter((c) => c.pacienteId === contacto.pacienteId && ESTADOS_CITA_VIVA.includes(c.estado) && msDe(c.creadoEn) > desde && msDe(c.creadoEn) <= hasta)
+    .sort((a, b) => msDe(a.creadoEn) - msDe(b.creadoEn))[0] || null
 }
+export const citaPosterior = (contacto, citas = []) => citaQueAgendo(contacto, citas) !== null
 export function resultadoEfectivo(contacto, citas = []) {
   if (contacto.resultado === "no_desea_mensajes" || contacto.resultado === "no_le_interesa" || contacto.resultado === "agendo") return contacto.resultado
   return citaPosterior(contacto, citas) ? "agendo" : contacto.resultado || null
+}
+// En qué grupo de la franja de Historial cae un contacto: «agendo», «respondio» (respondió sin agendar), «sin_respuesta» o «falta» (falta registrar el resultado).
+export function categoriaDeContacto(contacto, citas = []) {
+  const r = resultadoEfectivo(contacto, citas)
+  return r === "agendo" ? "agendo" : r === null ? "falta" : r === "no_respondio" ? "sin_respuesta" : "respondio"
 }
 
 const masReciente = (lista) => lista.reduce((a, b) => (msDe(b.creadoEn) > msDe(a.creadoEn) ? b : a), lista[0])
@@ -358,16 +369,13 @@ export function detalleDeDestinatario(grupo, paciente, { consultas = [], citas =
 // ─── Seguimiento: el historial de contactos y sus números ───
 export function resumenSeguimiento(contactos, citas = []) {
   const pacientes = new Set(contactos.map((c) => c.pacienteId))
-  let agendaron = 0
-  let respondieron = 0
-  for (const c of contactos) {
-    const r = resultadoEfectivo(c, citas)
-    if (r === "agendo") agendaron++
-    if (r && r !== "no_respondio") respondieron++
-  }
+  const n = { agendo: 0, respondio: 0, sin_respuesta: 0, falta: 0 }
+  for (const c of contactos) n[categoriaDeContacto(c, citas)]++
+  const pct = (x) => (contactos.length ? Math.round((x / contactos.length) * 100) : null)
   return {
-    contactos: contactos.length, pacientes: pacientes.size, agendaron, respondieron,
-    tasaRespuesta: contactos.length ? Math.round((respondieron / contactos.length) * 100) : null,
+    contactos: contactos.length, pacientes: pacientes.size, agendaron: n.agendo, respondieron: n.agendo + n.respondio,
+    sinAgendar: n.respondio, sinRespuesta: n.sin_respuesta, faltan: n.falta,
+    tasaRespuesta: pct(n.agendo + n.respondio), pctAgendaron: pct(n.agendo), pctSinAgendar: pct(n.respondio),
   }
 }
 

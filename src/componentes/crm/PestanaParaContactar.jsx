@@ -133,7 +133,7 @@ export default function PestanaParaContactar({ filas, sinPermiso, filtro, onFilt
           </ContenedorLista>
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-slate-500">
             <span>
-              El mensaje sale de las plantillas (Campañas → Plantillas). Cuando se le escribe, el contacto queda en Seguimiento.
+              El mensaje sale de las plantillas (botón «Plantillas»). Cuando se le escribe, el contacto queda en el Historial de contactos.
               {sinPermiso > 0 && <> {plural(sinPermiso, "paciente tiene", "pacientes tienen")} un motivo que no se muestra porque no aceptó ese tipo de mensaje.</>}
             </span>
             {visibles < n && <button type="button" onClick={() => setVisibles((x) => x + POR_PAGINA)} className="text-sm font-semibold text-blue-700 hover:text-blue-800 cursor-pointer">Ver {Math.min(POR_PAGINA, n - visibles)} más · quedan {n - visibles}</button>}

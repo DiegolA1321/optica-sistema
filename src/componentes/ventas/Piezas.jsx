@@ -130,8 +130,8 @@ export function SelectorPeriodo({ periodo, onCambiar, buscando = false, ariaLabe
 }
 
 // La franja de datos: una sola caja con rayitas finas entre los datos. Cada dato es un botón que filtra la lista; el activo se marca y el rótulo dice qué cuenta.
-// datos: [{ id, etiqueta, valor, sub, punto?: "rojo" | "ambar", activo?, onClick, ayuda? }]
-const PUNTO = { rojo: "bg-red-600", ambar: "bg-amber-600" }
+// datos: [{ id, etiqueta, valor, sub, punto?: "rojo" | "ambar" | "verde", activo?, onClick, ayuda? }]
+const PUNTO = { rojo: "bg-red-600", ambar: "bg-amber-600", verde: "bg-green-600" }
 export function FranjaDatos({ datos, etiqueta }) {
   return (
     <ul aria-label={etiqueta} className="grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm sm:grid-cols-3 lg:flex lg:divide-x lg:divide-slate-200/70">

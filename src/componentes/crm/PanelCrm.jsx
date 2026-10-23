@@ -48,11 +48,11 @@ export default function PanelCrm({ resumen, onVerCumpleanos, onVerFieles, onVerR
         enlace={referidores.total > 0 ? "Ver todos" : ""} onEnlace={onVerReferidores} ayuda="Abre el ranking de quienes más refieren" />
       <Lista titulo="Este mes"
         filas={[
-          { id: "contactados", nombre: `${mes.contactados} ${por(mes.contactados, "contactado", "contactados")}`, detalle: "pacientes a quienes se escribió" },
+          { id: "contactados", nombre: `${mes.contactados} ${por(mes.contactados, "contactado", "contactados")}`, detalle: "contactos hechos, como en el historial" },
           { id: "volvieron", nombre: `${mes.volvieron} ${por(mes.volvieron, "volvió", "volvieron")} a agendar`, detalle: "agendaron cita después" },
           { id: "campanas", nombre: `${mes.campanas} ${por(mes.campanas, "campaña enviada", "campañas enviadas")}`, detalle: "con al menos un envío" },
         ]}
-        enlace="Ver el seguimiento" onEnlace={onVerSeguimiento} ayuda="Abre el seguimiento de este mes" />
+        enlace="Ver el historial" onEnlace={onVerSeguimiento} ayuda="Abre el historial de contactos de este mes" />
     </div>
   )
 }
