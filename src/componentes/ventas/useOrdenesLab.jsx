@@ -64,7 +64,7 @@ export function useOrdenesLab({ ordenes, setOrdenes, pacientes = [], equipo = []
     if (!p?.telefono) return
     // La plantilla «Lentes listos» del CRM en la ventana de Contactar; el aviso se registra al enviar (si se cierra la ventana no pasa nada) y el contacto queda en el Seguimiento del CRM.
     escribirPorWhatsApp({
-      paciente: p, motivo: "lentes_listos", contexto: { orden: numeroOrden(o.numero), entrega: { tipo: o.entrega, direccion: o.direccionEntrega } },
+      paciente: p, motivo: o.entrega === "envio" ? "lentes_listos_envio" : "lentes_listos", contexto: { orden: numeroOrden(o.numero), entrega: { tipo: o.entrega, direccion: o.direccionEntrega } },
       alEnviar: async () => {
         setTrabajando(o.id)
         const { data, error } = supabase ? await supabase.rpc("registrar_aviso_paciente", { p_orden_id: o.id }) : { data: new Date().toISOString(), error: null }

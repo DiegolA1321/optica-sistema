@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Check, Copy, Download, Megaphone, MessageCircle, RotateCcw, Zap } from "lucide-react"
+import { Check, Copy, Download, Megaphone, MessageCircle, Zap } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import { Cascaron, PieFormulario } from "../AtencionPaciente"
 import { BOTON_CERRAR, CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, plural } from "../ventas/estilos"
@@ -9,22 +9,16 @@ import { Insignia } from "../ventas/Lista"
 import { NombrePaciente } from "./piezas"
 import EditorMensaje from "./EditorMensaje"
 import {
-  CORREO_AUTOMATICO_ACTIVO, GRUPOS_CAMPANA, MAX_PLANTILLA, ORDEN_GRUPOS, PLANTILLAS_BASE, armarMensaje, destinatariosCampana, modeloListaCampana, plantillaDe,
+  CORREO_AUTOMATICO_ACTIVO, GRUPOS_CAMPANA, MAX_PLANTILLA, ORDEN_GRUPOS, armarMensaje, destinatariosCampana, modeloListaCampana, plantillaDe,
 } from "../../utilidades/crmContactos"
 import { fechaHoraLegible, formatoFecha } from "../../utilidades/formatoFecha"
 import { hoyISO } from "../../utilidades/disponibilidad"
 import { abrirWhatsApp } from "../../utilidades/whatsapp"
 
-const NOMBRE_MOTIVO_PLANTILLA = {
-  control_vencido: "Control vencido", control_proximo: "Control que vence pronto", cumpleanos: "Cumpleaños", sin_visitar: "Reactivación (sin visitar hace más de 12 meses)",
-  postventa: "Seguimiento después de la compra", promocion: "Promoción",
-  cita_no_efectuada: "Cita no efectuada (Contactar al paciente)", cita_reagendada: "Cita reagendada", lentes_listos: "Pedido listo",
-  medidas_montaje: "Medidas de montaje pedidas", por_vender: "Recibió su diagnóstico y no ha comprado",
-}
 const CAMPO = "w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-50"
 
 // ─── Nueva campaña: grupo, nombre y mensaje ───
-export function VentanaNuevaCampana({ pacientes, consultas, plantillas, opticaNombre, onCrear, onCerrar }) {
+export function VentanaNuevaCampana({ pacientes, consultas, plantillas, opticaNombre, opticaTelefono, onCrear, onCerrar }) {
   const hoy = hoyISO()
   const grupos = useMemo(() => Object.fromEntries(ORDEN_GRUPOS.map((g) => [g, destinatariosCampana(g, { pacientes, consultas, hoy })])), [pacientes, consultas, hoy])
   const primero = ORDEN_GRUPOS.find((g) => grupos[g].pacientes.length > 0) || ORDEN_GRUPOS[0]
@@ -42,7 +36,7 @@ export function VentanaNuevaCampana({ pacientes, consultas, plantillas, opticaNo
     if (!editado.mensaje) setMensaje(plantillaDe(GRUPOS_CAMPANA[g].motivo, plantillas))
   }
   const ejemplo = grupos[grupo].pacientes[0]
-  const vista = armarMensaje(mensaje, { paciente: ejemplo || { nombre: "Nombre del paciente" }, opticaNombre, consultas })
+  const vista = armarMensaje(mensaje, { paciente: ejemplo || { nombre: "Nombre del paciente" }, opticaNombre, opticaTelefono, consultas })
   const falta = total === 0 || nombre.trim().length < 3 || mensaje.trim().length < 10 || mensaje.length > MAX_PLANTILLA
 
   const enviar = async (e) => {
@@ -100,7 +94,7 @@ export function VentanaNuevaCampana({ pacientes, consultas, plantillas, opticaNo
 }
 
 // ─── Una campaña: enviar uno por uno o exportar la lista ───
-export function VentanaCampana({ campana, pacientes, consultas, contactos, opticaNombre, usuario, puedeEnviar, onEnviar, onVerPerfil, onAviso, onCerrar }) {
+export function VentanaCampana({ campana, pacientes, consultas, contactos, opticaNombre, opticaTelefono, usuario, puedeEnviar, onEnviar, onVerPerfil, onAviso, onCerrar }) {
   const hoy = hoyISO()
   const [copiado, setCopiado] = useState(false)
   const [enviando, setEnviando] = useState(null)
@@ -118,7 +112,7 @@ export function VentanaCampana({ campana, pacientes, consultas, contactos, optic
     return [...destinatarios, ...extra]
   }, [destinatarios, enviados, pacientes])
   const pendientes = filas.filter((p) => !enviados.has(p.id)).length
-  const mensajeDe = (p) => armarMensaje(campana.mensaje, { paciente: p, opticaNombre, consultas })
+  const mensajeDe = (p) => armarMensaje(campana.mensaje, { paciente: p, opticaNombre, opticaTelefono, consultas })
 
   const enviar = async (p) => {
     if (enviando) return
@@ -191,21 +185,7 @@ export function VentanaCampana({ campana, pacientes, consultas, contactos, optic
 
 // ─── Mensajes y envíos automáticos: el texto de cada motivo y, en los que pueden salir solos, su interruptor ───
 // Hoy solo el saludo de cumpleaños puede enviarse solo (por correo). El interruptor sigue apagado mientras no haya correo configurado.
-const CUANDO_SE_USA = {
-  control_vencido: "Recordatorio de salud para quien ya pasó su control.",
-  control_proximo: "Recordatorio de salud para quien está por cumplir su control.",
-  cumpleanos: "Saludo para quien cumple años. Va a quien aceptó promociones y saludos.",
-  sin_visitar: "Recordatorio de salud para quien lleva más de 12 meses sin venir.",
-  postventa: "Recordatorio de salud unos días después de entregar los lentes.",
-  promocion: "Para campañas de ofertas. Solo va a quien aceptó promociones y saludos.",
-  cita_no_efectuada: "Desde «Contactar al paciente» (Inicio y Citas): una cita que no se efectuó o que el paciente canceló.",
-  cita_reagendada: "Al avisarle por WhatsApp que su cita cambió de fecha u hora.",
-  lentes_listos: "Desde el aviso «pedido listo» de Ventas y del Inicio.",
-  medidas_montaje: "Cuando el paciente pidió sus medidas desde el portal y se le envían por WhatsApp.",
-  por_vender: "Desde Ventas, a quien recibió su diagnóstico y todavía no compra.",
-}
-
-function InterruptorAutomatico({ activo, puedeEditar, onCambiar }) {
+export function InterruptorAutomatico({ activo, puedeEditar, onCambiar }) {
   const bloqueado = !CORREO_AUTOMATICO_ACTIVO || !puedeEditar
   const encendido = CORREO_AUTOMATICO_ACTIVO && activo
   return (
@@ -219,54 +199,5 @@ function InterruptorAutomatico({ activo, puedeEditar, onCambiar }) {
         <span className={"absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform " + (encendido ? "translate-x-5" : "translate-x-0")} />
       </button>
     </div>
-  )
-}
-
-export function VentanaPlantillas({ plantillas, opticaNombre, puedeEditar, cumpleAuto, onCumpleAuto, onGuardar, onCerrar }) {
-  const [borrador, setBorrador] = useState(() => Object.fromEntries(Object.keys(PLANTILLAS_BASE).map((m) => [m, plantillaDe(m, plantillas)])))
-  const [guardando, setGuardando] = useState(false)
-  const [error, setError] = useState("")
-  const cambios = Object.keys(PLANTILLAS_BASE).filter((m) => borrador[m].trim() !== plantillaDe(m, plantillas).trim())
-  const invalido = cambios.some((m) => borrador[m].trim().length < 10 || borrador[m].length > MAX_PLANTILLA)
-
-  const enviar = async (e) => {
-    e.preventDefault()
-    if (cambios.length === 0 || invalido || guardando) return
-    setGuardando(true)
-    setError("")
-    for (const m of cambios) {
-      // Un texto igual al mensaje base se guarda vacío: así la óptica vuelve a seguir el mensaje base si algún día cambia.
-      const r = await onGuardar(m, borrador[m].trim() === PLANTILLAS_BASE[m].trim() ? "" : borrador[m])
-      if (r?.ok === false) { setError(r.error || "No se pudo guardar."); setGuardando(false); return }
-    }
-    onCerrar(true)
-  }
-
-  return (
-    <Cascaron titulo="Mensajes y envíos automáticos" subtitulo="El texto de cada motivo y los que pueden enviarse solos" Icono={MessageCircle} onCerrar={() => onCerrar(false)} ancho="max-w-2xl" formulario={{ onSubmit: enviar }}
-      pie={puedeEditar
-        ? <PieFormulario onCancelar={() => onCerrar(false)} etiquetaGuardar={cambios.length > 1 ? `Guardar ${cambios.length} cambios` : "Guardar"} guardando={guardando} deshabilitado={cambios.length === 0 || invalido} nota="Mensajes cortos, cordiales y con el nombre de la óptica." />
-        : <><span className="text-xs text-slate-500">Solo quien tiene permiso de editar el CRM puede cambiar los mensajes.</span><button type="button" onClick={() => onCerrar(false)} className={BOTON_CERRAR}>Cerrar</button></>}>
-      <div className="space-y-5 px-5 py-4">
-        {Object.keys(PLANTILLAS_BASE).map((m) => {
-          const esBase = borrador[m].trim() === PLANTILLAS_BASE[m].trim()
-          return (
-            <div key={m} className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <label htmlFor={`plantilla-${m}`} className="text-sm font-bold" style={{ color: INK }}>{NOMBRE_MOTIVO_PLANTILLA[m]}</label>
-                  <p className="text-xs text-slate-500">{CUANDO_SE_USA[m]}</p>
-                </div>
-                {puedeEditar && !esBase && <button type="button" onClick={() => setBorrador((b) => ({ ...b, [m]: PLANTILLAS_BASE[m] }))} className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"><RotateCcw size={12} aria-hidden="true" /> Volver al mensaje base</button>}
-              </div>
-              <EditorMensaje id={`plantilla-${m}`} ayudaId={`plantilla-${m}-largo`} motivo={m} valor={borrador[m]} soloLectura={!puedeEditar} onCambio={(t) => setBorrador((b) => ({ ...b, [m]: t }))} />
-              <p className="text-xs text-slate-500">Ejemplo: {armarMensaje(borrador[m], { paciente: { nombre: "Rosa Bravo Cedeño" }, opticaNombre, ejemplo: true })}</p>
-              {m === "cumpleanos" && <InterruptorAutomatico activo={cumpleAuto} puedeEditar={puedeEditar} onCambiar={onCumpleAuto} />}
-            </div>
-          )
-        })}
-        {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p>}
-      </div>
-    </Cascaron>
   )
 }

@@ -136,7 +136,7 @@ export function FranjaDatos({ datos, etiqueta }) {
     <ul aria-label={etiqueta} className="grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm sm:grid-cols-3 lg:flex lg:divide-x lg:divide-slate-200/70">
       {datos.map((d) => (
         <li key={d.id} className="min-w-0 border-b border-slate-200/70 last:border-b-0 lg:flex-1 lg:border-b-0">
-          <button type="button" onClick={d.onClick} disabled={!d.onClick} aria-pressed={d.onClick ? Boolean(d.activo) : undefined} title={d.ayuda}
+          <button type="button" onClick={d.onClick} disabled={!d.onClick} aria-pressed={d.onClick && d.activo !== undefined ? Boolean(d.activo) : undefined} title={d.ayuda}
             className={"block h-full w-full px-4 py-3 text-left transition-colors " + (d.onClick ? "cursor-pointer " : "cursor-default ") + (d.activo ? "bg-blue-50/70" : d.onClick ? "hover:bg-slate-50" : "")}>
             <span className="flex items-center gap-2 text-sm text-slate-600">
               {d.punto && <span className={"h-2.5 w-2.5 shrink-0 rounded-full " + PUNTO[d.punto]} aria-hidden="true" />}

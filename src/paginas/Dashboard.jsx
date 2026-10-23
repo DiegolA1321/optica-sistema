@@ -161,7 +161,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   })
   // Todo aviso con «WhatsApp» escribe con la plantilla del CRM y deja su contacto en el Seguimiento (un solo camino: EscribirPorWhatsApp.jsx).
   // La ventana de Contactar es una sola para todo el sistema: aquí se guarda el pedido abierto y más abajo se dibuja.
-  const { escribir: escribirPorWhatsApp, ventana: ventanaContactar } = useContactar({ plantillas: crm.plantillas, opticaNombre: usuario?.opticaNombre, consultas, contactarDeAviso: crm.contactarDeAviso, contactarManual: crm.contactarManual, avisar: (m) => mostrarAviso(m) })
+  const { escribir: escribirPorWhatsApp, ventana: ventanaContactar } = useContactar({ plantillas: crm.plantillas, opticaNombre: usuario?.opticaNombre, opticaTelefono: parametrizacion?.opticaTelefono, consultas, contactarDeAviso: crm.contactarDeAviso, contactarManual: crm.contactarManual, avisar: (m) => mostrarAviso(m) })
   // El programa de fidelización (puntos, nivel y descuento sugerido): una sola cuenta para el Resumen del paciente, el CRM y «Nueva venta».
   const fidelidad = useMemo(() => armarFidelidad({ programa: programaDe(parametrizacion), pacientes, consultas, facturas: facturasVenta, abonos }), [parametrizacion, pacientes, consultas, facturasVenta, abonos])
   const paraContactar = useMemo(() => (crm.cargando ? null : listaParaContactar({ pacientes, consultas, ordenes: ordenesLab, pases, facturas: facturasVenta, citas, contactos: crm.contactos })), [crm.cargando, crm.contactos, pacientes, consultas, ordenesLab, pases, facturasVenta, citas])

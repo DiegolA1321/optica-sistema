@@ -33,9 +33,9 @@ const ORDEN = ["puntaje", "frecuentes", "referidores"]
 
 // Pestaña "Fidelización": los rankings completos (con todos los nombres) y el puntaje. Es para conocer a los mejores pacientes, no una lista de tareas:
 // por eso aquí no hay botones de contacto.
-export default function PestanaFidelizacion({ pacientes, consultas, onVerPerfil }) {
+export default function PestanaFidelizacion({ pacientes, consultas, onVerPerfil, vistaInicial = "puntaje" }) {
   const { de } = useFidelidadCon({ pacientes, consultas })
-  const [vista, setVista] = useState("puntaje")
+  const [vista, setVista] = useState(VISTAS[vistaInicial] ? vistaInicial : "puntaje")
   const [texto, setTexto] = useState("")
   const [visibles, setVisibles] = useState(POR_PAGINA)
   const rankings = useMemo(() => ({

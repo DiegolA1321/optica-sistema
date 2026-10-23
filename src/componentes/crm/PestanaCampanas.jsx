@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { Megaphone, MessageSquareText } from "lucide-react"
+import { Megaphone } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import { ContenedorLista, EncabezadoLista, Vacio, Insignia } from "../ventas/Lista"
 import { CLASE_ACCION_PRINCIPAL, CLASE_ACCION_SECUNDARIA, plural } from "../ventas/estilos"
@@ -16,7 +16,7 @@ const ENCABEZADO = [{ texto: "Campaña" }, { texto: "Grupo" }, { texto: "Creada"
 
 // Pestaña "Campañas": un mensaje preparado para un grupo. Aquí se ven las campañas y cuánto va de cada una; se crean desde el botón de la
 // cabecera y se envían una por una (cada envío por WhatsApp queda marcado y en Seguimiento).
-export default function PestanaCampanas({ campanas, contactos, pacientes, consultas, puedeCrear, puedeVerPlantillas, onNueva, onAbrir, onPlantillas }) {
+export default function PestanaCampanas({ campanas, contactos, pacientes, consultas, puedeCrear, onNueva, onAbrir }) {
   const hoy = hoyISO()
   const progreso = useMemo(() => {
     const enviados = new Map()
@@ -34,7 +34,6 @@ export default function PestanaCampanas({ campanas, contactos, pacientes, consul
     <div className="space-y-3">
       <div className="flex min-h-9 flex-wrap items-center justify-between gap-3 px-1">
         <ConteoCitas texto={campanas.length === 0 ? "Sin campañas" : plural(campanas.length, "campaña", "campañas")} />
-        {puedeVerPlantillas && <button type="button" onClick={onPlantillas} className={CLASE_ACCION_SECUNDARIA}><MessageSquareText size={14} aria-hidden="true" /> Plantillas</button>}
       </div>
 
       {campanas.length === 0 ? (

@@ -27,7 +27,8 @@ export const MOTIVO_PROMOCION = "promocion"
 export const MOTIVOS_DE_AVISO = {
   cita_no_efectuada: { id: "cita_no_efectuada", etiqueta: "Cita no efectuada", corta: "Cita no efectuada" },
   cita_reagendada: { id: "cita_reagendada", etiqueta: "Cita reagendada", corta: "Cita reagendada" },
-  lentes_listos: { id: "lentes_listos", etiqueta: "Pedido listo", corta: "Pedido listo" },
+  lentes_listos: { id: "lentes_listos", etiqueta: "Pedido listo (retira)", corta: "Pedido listo (retira)" },
+  lentes_listos_envio: { id: "lentes_listos_envio", etiqueta: "Pedido listo (envío)", corta: "Pedido listo (envío)" },
   medidas_montaje: { id: "medidas_montaje", etiqueta: "Medidas de montaje pedidas", corta: "Medidas de montaje" },
 }
 export const ETIQUETA_MOTIVO = {
@@ -221,37 +222,40 @@ export function avisosDelCrm(filas, contactos = [], hoy = hoyISO()) {
 
 // ─── Mensajes ───
 export const PLANTILLAS_BASE = {
-  control_vencido: "Hola {nombre}, te saludamos de {óptica}. Ya pasó la fecha de tu control visual y revisarlo a tiempo cuida tu salud. ¿Te agendamos una cita?",
-  control_proximo: "Hola {nombre}, te saludamos de {óptica}. Tu control visual se acerca ({fecha_del_control}). Escríbenos y te reservamos tu horario.",
-  cumpleanos: "¡Feliz cumpleaños, {nombre}! Todo el equipo de {óptica} te desea un día excelente.",
-  sin_visitar: "Hola {nombre}, te saludamos de {óptica}. Hace tiempo no te vemos y queremos saber cómo estás. ¿Agendamos una revisión de tu vista?",
-  postventa: "Hola {nombre}, te escribimos de {óptica}. ¿Cómo te has adaptado a tus lentes nuevos? Si sientes alguna molestia, cuéntanos y lo revisamos.",
-  [MOTIVO_PROMOCION]: "Hola {nombre}, en {óptica} tenemos una promoción para ti. Escríbenos y te contamos los detalles.",
-  cita_no_efectuada: "Hola {nombre}, te escribimos de {óptica}. No pudimos atenderte en tu cita del {fecha_de_la_cita}. Cuéntanos qué día y hora te quedan bien y la reagendamos.",
-  cita_reagendada: "Hola {nombre}, te escribimos de {óptica} para avisarte que tu cita fue reagendada. Nueva fecha: {fecha_de_la_cita}. Cualquier duda, contáctanos por aquí.",
-  lentes_listos: "Hola {nombre}, te escribimos de {óptica}: tu pedido (orden {orden}) ya está listo. {entrega}",
-  medidas_montaje: "Hola {nombre}, te escribimos de {óptica}. Estas son las medidas que nos pediste para tus lentes:\n{medidas}\nCualquier duda, escríbenos.",
-  por_vender: "Hola {nombre}, te escribimos de {óptica}. Quedamos pendientes de los lentes que te recomendó el optómetra: ¿pudiste revisar tu proforma o quieres que te ayudemos con tu compra? Con gusto te atendemos.",
+  control_vencido: "Hola {nombre}, te saludamos de {optica}. Ya pasó la fecha de tu control visual y revisarlo a tiempo cuida tu salud. ¿Te agendamos una cita? Escríbenos o llámanos al {telefono_optica}.",
+  control_proximo: "Hola {nombre}, te saludamos de {optica}. Tu control visual se acerca ({fecha_control}). Escríbenos y te reservamos tu horario.",
+  cumpleanos: "¡Feliz cumpleaños, {nombre}! Todo el equipo de {optica} te desea un día excelente.",
+  sin_visitar: "Hola {nombre}, te saludamos de {optica}. Hace tiempo no te vemos y queremos saber cómo estás. ¿Agendamos una revisión de tu vista?",
+  postventa: "Hola {nombre}, te escribimos de {optica}. ¿Cómo te has adaptado a tus lentes nuevos? Si sientes alguna molestia, cuéntanos y lo revisamos.",
+  [MOTIVO_PROMOCION]: "Hola {nombre}, en {optica} tenemos una promoción para ti. Escríbenos y te contamos los detalles.",
+  cita_no_efectuada: "Hola {nombre}, notamos que no pudiste venir a tu cita del {fecha_cita}. ¿Te ayudamos a agendar una nueva? Escríbenos o llámanos al {telefono_optica}. — {optica}",
+  cita_reagendada: "Hola {nombre}, te escribimos de {optica} para avisarte que tu cita fue reagendada. Nueva fecha: {fecha_cita}. Cualquier duda, contáctanos por aquí.",
+  lentes_listos: "Hola {nombre}, te escribimos de {optica}: tu pedido (orden {orden}) ya está listo. Te esperamos en la óptica para retirarlo.",
+  lentes_listos_envio: "Hola {nombre}, te escribimos de {optica}: tu pedido (orden {orden}) ya está listo. {entrega}",
+  medidas_montaje: "Hola {nombre}, te escribimos de {optica}. Estas son las medidas que nos pediste para tus lentes:\n{medidas}\nCualquier duda, escríbenos.",
+  por_vender: "Hola {nombre}, te escribimos de {optica}. Quedamos pendientes de los lentes que te recomendó el optómetra: ¿pudiste revisar tu proforma o quieres que te ayudemos con tu compra? Con gusto te atendemos.",
 }
+// Los datos automáticos que se pueden usar en una plantilla (se reemplazan por el dato real al armar el mensaje).
 export const VARIABLES_PLANTILLA = [
   { id: "{nombre}", ayuda: "Nombre del paciente, como está guardado" },
-  { id: "{óptica}", ayuda: "Nombre de tu óptica" },
-  { id: "{fecha_del_control}", ayuda: "Fecha de su próximo control" },
-  { id: "{fecha_de_la_cita}", ayuda: "Día y hora de la cita", solo: ["cita_no_efectuada", "cita_reagendada"] },
-  { id: "{orden}", ayuda: "Número del pedido", solo: ["lentes_listos"] },
-  { id: "{entrega}", ayuda: "Cómo recibe su pedido: «Te esperamos en la óptica para retirarlo» o «Te lo enviaremos a su dirección»", solo: ["lentes_listos"] },
+  { id: "{optica}", ayuda: "Nombre de tu óptica" },
+  { id: "{telefono_optica}", ayuda: "Teléfono de tu óptica (el de Configuración)" },
+  { id: "{fecha_control}", ayuda: "Fecha de su próximo control", solo: ["control_vencido", "control_proximo", "sin_visitar", "postventa"], campana: true },
+  { id: "{fecha_cita}", ayuda: "Día y hora de la cita", solo: ["cita_no_efectuada", "cita_reagendada"] },
+  { id: "{orden}", ayuda: "Número del pedido", solo: ["lentes_listos", "lentes_listos_envio"] },
+  { id: "{entrega}", ayuda: "Cómo recibe su pedido: «Te esperamos en la óptica para retirarlo» o «Te lo enviaremos a su dirección»", solo: ["lentes_listos", "lentes_listos_envio"] },
   { id: "{medidas}", ayuda: "La distancia pupilar y la altura de montaje que ya existen", solo: ["medidas_montaje"] },
 ]
-// Las variables que se ofrecen al editar la plantilla de un motivo: las de siempre y las propias de ese motivo. Sin motivo (una campaña), solo las de siempre.
-export const variablesDe = (motivo) => VARIABLES_PLANTILLA.filter((v) => !v.solo || (motivo && v.solo.includes(motivo)))
+// Las variables que se ofrecen al editar la plantilla de un motivo: las de siempre y las propias de ese motivo. Sin motivo (una campaña), las de siempre y la fecha del control.
+export const variablesDe = (motivo) => VARIABLES_PLANTILLA.filter((v) => !v.solo || (motivo ? v.solo.includes(motivo) : v.campana === true))
 export const MAX_PLANTILLA = 500
 
 // Los mensajes que salen solos van por correo. Se enciende cuando la óptica tenga su correo configurado (igual que el correo de la factura electrónica).
 export const CORREO_AUTOMATICO_ACTIVO = false
 
 // Los mensajes que las ópticas guardaron antes usan los nombres viejos: se siguen entendiendo.
-const NOMBRES_VIEJOS = { "{optica}": "{óptica}", "{control}": "{fecha_del_control}" }
-const alNombreActual = (texto) => Object.entries(NOMBRES_VIEJOS).reduce((t, [viejo, nuevo]) => t.replaceAll(viejo, nuevo), String(texto || ""))
+const NOMBRES_VIEJOS = { "{óptica}": "{optica}", "{control}": "{fecha_control}", "{fecha_del_control}": "{fecha_control}", "{fecha_de_la_cita}": "{fecha_cita}" }
+export const alNombreActual = (texto) => Object.entries(NOMBRES_VIEJOS).reduce((t, [viejo, nuevo]) => t.replaceAll(viejo, nuevo), String(texto || ""))
 
 // Un texto con una variable insertada donde estaba el cursor (o en lugar de lo seleccionado); sin cursor, al final.
 // Devuelve el texto nuevo y dónde queda el cursor, justo después de la variable.
@@ -274,18 +278,22 @@ export const textoEntrega = (entrega) => (entrega?.tipo === "envio" ? `Te lo env
 
 // Lo propio de un aviso va en el segundo argumento: cita ({ fecha, hora }), orden (el número ya escrito) y medidas ({ dp, altura }). Con `ejemplo`, las variables de esos avisos llevan
 // un dato de muestra (la vista previa de la plantilla en el CRM).
-export function armarMensaje(plantilla, { paciente, opticaNombre, consultas = [], cita = null, orden = "", entrega = null, medidas = null, ejemplo = false } = {}) {
+export function armarMensaje(plantilla, { paciente, opticaNombre, opticaTelefono = "", consultas = [], cita = null, orden = "", entrega = null, medidas = null, ejemplo = false } = {}) {
   const control = paciente ? fechaProximoControl(paciente, consultas) : null
   const textoControl = control ? formatoFecha(fechaAISO(control), "medio") : "pronto"
   const textoCita = cita?.fecha ? `${formatoFecha(cita.fecha, "calendario", { enFrase: true })}${cita.hora ? ` a las ${cita.hora}` : ""}` : ejemplo ? "martes 20 de octubre a las 04:00 PM" : "tu cita"
   const conUnidad = (t) => (/mm\s*$/i.test(String(t).trim()) ? String(t).trim() : `${String(t).trim()} mm`)
   const lineasMedidas = [medidas?.dp && `• Distancia pupilar: ${conUnidad(medidas.dp)}`, medidas?.altura && `• Altura de montaje: ${conUnidad(medidas.altura)}`].filter(Boolean).join("\n")
   const textoMedidas = lineasMedidas || (ejemplo ? "• Distancia pupilar: 62 mm\n• Altura de montaje: 18 mm" : "")
-  return alNombreActual(plantilla)
+  const telefono = String(opticaTelefono || "").trim() || (ejemplo ? "042 345 678" : "")
+  // Sin teléfono configurado, la frase «o llámanos al …» se quita en vez de quedar vacía.
+  const sinTelefono = (t) => (telefono ? t : t.replace(/ ?(?:o )?llámanos al \{telefono_optica\}/gi, ""))
+  return sinTelefono(alNombreActual(plantilla))
     .replaceAll("{nombre}", paciente?.nombre || "")
-    .replaceAll("{óptica}", opticaNombre || "tu óptica")
-    .replaceAll("{fecha_del_control}", textoControl)
-    .replaceAll("{fecha_de_la_cita}", textoCita)
+    .replaceAll("{optica}", opticaNombre || "tu óptica")
+    .replaceAll("{telefono_optica}", telefono)
+    .replaceAll("{fecha_control}", textoControl)
+    .replaceAll("{fecha_cita}", textoCita)
     .replaceAll("{orden}", orden || (ejemplo ? "000012" : ""))
     .replaceAll("{entrega}", textoEntrega(entrega))
     .replaceAll("{medidas}", textoMedidas)

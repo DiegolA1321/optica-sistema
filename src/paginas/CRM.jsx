@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useMemo, useState } from "react"
-import { Contact, Gift, HeartHandshake, Megaphone, Send } from "lucide-react"
+import { HeartHandshake, Megaphone } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import { BotonRequierenAtencion } from "../componentes/RequiereAtencionPorArea"
@@ -11,25 +11,30 @@ import PestanaParaContactar from "../componentes/crm/PestanaParaContactar"
 import PestanaSeguimiento from "../componentes/crm/PestanaSeguimiento"
 import PestanaCampanas from "../componentes/crm/PestanaCampanas"
 import PestanaFidelizacion from "../componentes/crm/PestanaFidelizacion"
+import PestanaPlantillas, { MOTIVOS_PLANTILLA } from "../componentes/crm/PestanaPlantillas"
+import VentanaCumpleanos from "../componentes/crm/VentanaCumpleanos"
+import { FranjaDatos, Pestanas } from "../componentes/ventas/Piezas"
 import VentanaResultado from "../componentes/crm/VentanaResultado"
-import { VentanaCampana, VentanaNuevaCampana, VentanaPlantillas } from "../componentes/crm/VentanasCampana"
-import { CLASE_ACCION_SECUNDARIA } from "../componentes/ventas/estilos"
+import { VentanaCampana, VentanaNuevaCampana } from "../componentes/crm/VentanasCampana"
+import { CLASE_ACCION_SECUNDARIA, plural } from "../componentes/ventas/estilos"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { puede } from "../utilidades/permisosUi"
 import { motivoDeCampana } from "../utilidades/crmDatos"
 import { avisosDelCrm, contarPorMotivo, listaParaContactar, MOTIVOS, MOTIVOS_DE_AVISO } from "../utilidades/crmContactos"
+import { enDias, proximosCumpleanos, resumenCrm } from "../utilidades/crmResumen"
 import { useFidelidadCon } from "../componentes/FidelidadContexto"
 import { useEscribirPorWhatsApp } from "../componentes/EscribirPorWhatsApp"
 import { fechaLegible } from "../utilidades/formatoFecha"
-import { diaDeRegistro, enPeriodo } from "../utilidades/periodoLista"
+import { diaDeRegistro } from "../utilidades/periodoLista"
+import { formatoFecha } from "../utilidades/formatoFecha"
 import { hoyISO } from "../utilidades/disponibilidad"
 import NotaAlcance from "../componentes/NotaAlcance"
 
-const TABS = ["contactar", "seguimiento", "campanas", "fidelizacion"]
+const TABS = ["contactar", "seguimiento", "campanas", "fidelizacion", "plantillas"]
 const uno = (n, singular, plural) => (n === 1 ? singular : plural)
 
-// CRM y fidelización: responde "¿a quién tengo que contactar hoy, por qué y qué pasó cuando lo contacté?". Cuatro pestañas: Para contactar (la lista de trabajo),
-// Seguimiento (el historial), Campañas (un mensaje para un grupo) y Fidelización (los rankings). El análisis va en Reportes.
+// CRM y fidelización: responde "¿a quién tengo que contactar hoy, por qué y qué pasó cuando lo contacté?". Cinco pestañas: Para contactar (la lista de trabajo),
+// Seguimiento (el historial), Campañas (un mensaje para un grupo), Fidelización (los rankings) y Plantillas (el texto de cada mensaje). Arriba, cinco datos rápidos que abren su lista. El análisis va en Reportes.
 export default function CRM({
   usuario, crm, alcancePropio = false, pacientes = [], consultas = [], citas = [], ordenesLab = [], pases = [], facturasVenta = [], parametrizacion, setParametrizacion, cargaInicial = false,
   onVerPerfil, onRegistrarPaciente, onAviso, accionInicial, onAccionInicialConsumida,
@@ -39,7 +44,8 @@ export default function CRM({
   const [tab, setTab] = useParamUrl("tab", "contactar", TABS)
   const [filtro, setFiltro] = useState("todos")
   const [resultadoDe, setResultadoDe] = useState(null) // { paciente, motivo, contacto }
-  const [ventana, setVentana] = useState(null) // "nueva" | "plantillas" | { campanaId }
+  const [ventana, setVentana] = useState(null) // "nueva" | "cumpleanos" | { campanaId }
+  const [vistaFidelizacion, setVistaFidelizacion] = useState("puntaje") // el ranking con el que abre «Fidelización» (las tarjetas de arriba eligen cuál)
   const notificar = useCallback((msg) => onAviso?.(msg), [onAviso])
   const { contactos, campanas, plantillas } = crm
   const opticaNombre = usuario?.opticaNombre || "tu óptica"
@@ -133,14 +139,24 @@ export default function CRM({
   const cumpleAuto = parametrizacion?.cumpleAuto === true
   const setCumpleAuto = (v) => setParametrizacion?.((prev) => ({ ...prev, cumpleAuto: v }))
 
-  const contactosDelMes = useMemo(() => contactos.filter((c) => enPeriodo(c.creadoEn, { filtro: "mes", ref: "", desde: "", hasta: "" }, hoy)).length, [contactos, hoy])
   const { de: fidelidadDe } = useFidelidadCon({ pacientes, consultas })
-  const conPuntaje = useMemo(() => pacientes.filter((p) => fidelidadDe(p).puntos.total > 0).length, [pacientes, fidelidadDe])
+  const resumen = useMemo(() => resumenCrm({ pacientes, contactos, citas, filas, puntosDe: fidelidadDe, hoy }), [pacientes, contactos, citas, filas, fidelidadDe, hoy])
+  const contactosDelMes = resumen.contactados.n
+  // Los cinco datos de arriba: cada uno abre su lista (la pestaña o la ventana con el mismo número).
+  const verFidelizacion = (vista) => () => { setVistaFidelizacion(vista); setTab("fidelizacion") }
+  const datosRapidos = [
+    { id: "cumple", etiqueta: "Próximo cumpleaños", valor: resumen.cumple ? resumen.cumple.paciente.nombre : "—", sub: resumen.cumple ? `${formatoFecha(resumen.cumple.fecha, "medioSinAnio")} · ${enDias(resumen.cumple.dias)}` : "sin fechas de nacimiento", onClick: () => setVentana("cumpleanos"), ayuda: "Pulsa para ver los próximos cumpleaños" },
+    { id: "fiel", etiqueta: "Cliente más fiel", valor: resumen.fiel ? resumen.fiel.paciente.nombre : "—", sub: resumen.fiel ? `${resumen.fiel.nivel ? resumen.fiel.nivel + " · " : ""}${resumen.fiel.puntos} pts` : "nadie suma puntos todavía", onClick: verFidelizacion("puntaje"), ayuda: "Pulsa para ver el ranking de puntos" },
+    { id: "referidor", etiqueta: "Más referidos", valor: resumen.referidor ? resumen.referidor.paciente.nombre : "—", sub: resumen.referidor ? plural(resumen.referidor.n, "paciente referido", "pacientes referidos") : "nadie ha referido todavía", onClick: verFidelizacion("referidores"), ayuda: "Pulsa para ver quién refiere más" },
+    { id: "controles", etiqueta: "Controles vencidos", punto: resumen.controles > 0 ? "ambar" : undefined, valor: String(resumen.controles), sub: "para contactar", onClick: () => irA("contactar", "control_vencido"), ayuda: "Pulsa para ver a quién contactar por su control" },
+    { id: "contactados", etiqueta: "Contactados este mes", valor: String(resumen.contactados.n), sub: resumen.contactados.n === 0 ? "ninguno todavía" : `${resumen.contactados.volvieron} ${resumen.contactados.volvieron === 1 ? "volvió" : "volvieron"}`, onClick: () => setTab("seguimiento"), ayuda: "Pulsa para ver el seguimiento de este mes" },
+  ]
   const pestanas = [
-    { id: "contactar", etiqueta: "Para contactar", cuenta: filas.length, Icono: Contact },
-    { id: "seguimiento", etiqueta: "Seguimiento", cuenta: contactosDelMes, Icono: Send, ayuda: "Contactos de este mes" },
-    { id: "campanas", etiqueta: "Campañas", cuenta: campanas.length, Icono: Megaphone },
-    { id: "fidelizacion", etiqueta: "Fidelización", cuenta: conPuntaje, Icono: Gift, ayuda: "Pacientes con puntaje" },
+    { id: "contactar", titulo: "Para contactar", cuenta: filas.length },
+    { id: "seguimiento", titulo: "Seguimiento" },
+    { id: "campanas", titulo: "Campañas" },
+    { id: "fidelizacion", titulo: "Fidelización" },
+    { id: "plantillas", titulo: "Plantillas", cuenta: MOTIVOS_PLANTILLA.length },
   ]
 
   const cargando = cargaInicial || crm.cargando
@@ -173,19 +189,8 @@ export default function CRM({
               <button type="button" onClick={crm.recargar} className={CLASE_ACCION_SECUNDARIA}>Reintentar</button>
             </div>
           )}
-          <div role="tablist" aria-label="Secciones del CRM" className="flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-            {pestanas.map(({ id, etiqueta, cuenta, Icono, ayuda }) => {
-              const activo = tab === id
-              return (
-                <button key={id} type="button" role="tab" id={`crm-tab-${id}`} aria-selected={activo} aria-controls="crm-panel" title={ayuda} onClick={() => setTab(id)}
-                  className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-                  style={activo ? { background: GRAD_MARCA } : undefined}>
-                  <Icono size={14} aria-hidden="true" /> {etiqueta}
-                  <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (activo ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{cuenta}</span>
-                </button>
-              )
-            })}
-          </div>
+          <FranjaDatos etiqueta="Datos rápidos del CRM" datos={datosRapidos} />
+          <Pestanas etiqueta="Secciones del CRM" pestanas={pestanas} activa={tab} onCambiar={setTab} idBase="crm" />
 
           <div id="crm-panel" role="tabpanel" aria-labelledby={`crm-tab-${tab}`}>
             {tab === "contactar" && (
@@ -203,28 +208,29 @@ export default function CRM({
             {tab === "campanas" && (
               <div className="space-y-3">
                 <PestanaCampanas
-                  campanas={campanas} contactos={contactos} pacientes={pacientes} consultas={consultas} puedeCrear={puedeContactar} puedeVerPlantillas
-                  onNueva={() => setVentana("nueva")} onAbrir={(id) => setVentana({ campanaId: id })} onPlantillas={() => setVentana("plantillas")}
+                  campanas={campanas} contactos={contactos} pacientes={pacientes} consultas={consultas} puedeCrear={puedeContactar}
+                  onNueva={() => setVentana("nueva")} onAbrir={(id) => setVentana({ campanaId: id })}
                 />
               </div>
             )}
-            {tab === "fidelizacion" && <PestanaFidelizacion pacientes={pacientes} consultas={consultas} onVerPerfil={onVerPerfil} />}
+            {tab === "fidelizacion" && <PestanaFidelizacion key={vistaFidelizacion} vistaInicial={vistaFidelizacion} pacientes={pacientes} consultas={consultas} onVerPerfil={onVerPerfil} />}
+            {tab === "plantillas" && (
+              <PestanaPlantillas plantillas={plantillas} opticaNombre={opticaNombre} opticaTelefono={parametrizacion?.opticaTelefono} puedeEditar={puedeEditar}
+                cumpleAuto={cumpleAuto} onCumpleAuto={setCumpleAuto} onGuardar={crm.guardarPlantilla} onAviso={notificar} />
+            )}
           </div>
         </>
       )}
 
       {resultadoDe && <VentanaResultado paciente={resultadoDe.paciente} motivo={resultadoDe.motivo} contacto={resultadoDe.contacto} onGuardar={guardarResultado} onCerrar={() => setResultadoDe(null)} />}
-      {ventana === "nueva" && <VentanaNuevaCampana pacientes={pacientes} consultas={consultas} plantillas={plantillas} opticaNombre={opticaNombre} onCrear={crearCampana} onCerrar={() => setVentana(null)} />}
+      {ventana === "nueva" && <VentanaNuevaCampana pacientes={pacientes} consultas={consultas} plantillas={plantillas} opticaNombre={opticaNombre} opticaTelefono={parametrizacion?.opticaTelefono} onCrear={crearCampana} onCerrar={() => setVentana(null)} />}
       {campanaAbierta && (
         <VentanaCampana
-          campana={campanaAbierta} pacientes={pacientes} consultas={consultas} contactos={contactos} opticaNombre={opticaNombre} usuario={usuario} puedeEnviar={puedeContactar}
+          campana={campanaAbierta} pacientes={pacientes} consultas={consultas} contactos={contactos} opticaNombre={opticaNombre} opticaTelefono={parametrizacion?.opticaTelefono} usuario={usuario} puedeEnviar={puedeContactar}
           onEnviar={enviarDeCampana(campanaAbierta)} onVerPerfil={onVerPerfil ? (id) => { setVentana(null); onVerPerfil(id) } : null} onAviso={notificar} onCerrar={() => setVentana(null)}
         />
       )}
-      {ventana === "plantillas" && (
-        <VentanaPlantillas plantillas={plantillas} opticaNombre={opticaNombre} puedeEditar={puedeEditar} cumpleAuto={cumpleAuto} onCumpleAuto={setCumpleAuto} onGuardar={crm.guardarPlantilla}
-          onCerrar={(guardado) => { setVentana(null); if (guardado) notificar("Plantillas guardadas.") }} />
-      )}
+      {ventana === "cumpleanos" && <VentanaCumpleanos cumpleanos={proximosCumpleanos(pacientes, hoy, 10)} onVerPerfil={onVerPerfil ? (id) => { setVentana(null); onVerPerfil(id) } : null} onCerrar={() => setVentana(null)} />}
     </div>
   )
 }

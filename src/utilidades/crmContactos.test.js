@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
   motivosDe, listaParaContactar, contarPorMotivo, filtrarPorMotivo, avisosDelCrm, estadoDelMotivo, resultadoEfectivo, citaPosterior,
   aceptaRecordatorios, aceptaPromociones, puedeContactarPor, permisoDeMotivo, armarMensaje, plantillaDe, PLANTILLAS_BASE,
-  destinatariosCampana, resumenSeguimiento, rankingReferidores, rankingFrecuentes, rankingPuntaje, fechaEnDias, MOTIVO_PROMOCION, insertarEnCursor, VARIABLES_PLANTILLA, variablesDe, MOTIVOS_DE_AVISO, ETIQUETA_MOTIVO,
+  destinatariosCampana, resumenSeguimiento, rankingReferidores, rankingFrecuentes, rankingPuntaje, fechaEnDias, MOTIVO_PROMOCION, insertarEnCursor, VARIABLES_PLANTILLA, variablesDe, MOTIVOS_DE_AVISO, ETIQUETA_MOTIVO, alNombreActual,
 } from "./crmContactos"
 import { diasCumpleEnVentana, esInactivo } from "./fidelizacion"
 import { hoyISO } from "./disponibilidad"
@@ -274,14 +274,16 @@ describe("mensajes", () => {
     expect(insertarEnCursor("Hola", "{nombre}").texto).toBe("Hola {nombre}")
   })
   it("las variables tienen nombre claro y explicación; las propias de un aviso solo se ofrecen en su motivo", () => {
-    expect(VARIABLES_PLANTILLA.map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}", "{fecha_de_la_cita}", "{orden}", "{entrega}", "{medidas}"])
+    expect(VARIABLES_PLANTILLA.map((v) => v.id)).toEqual(["{nombre}", "{optica}", "{telefono_optica}", "{fecha_control}", "{fecha_cita}", "{orden}", "{entrega}", "{medidas}"])
     expect(VARIABLES_PLANTILLA.every((v) => v.ayuda.length > 5)).toBe(true)
-    expect(variablesDe("cumpleanos").map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}"])
-    expect(variablesDe().map((v) => v.id)).toEqual(["{nombre}", "{óptica}", "{fecha_del_control}"])
-    expect(variablesDe("cita_no_efectuada").map((v) => v.id)).toContain("{fecha_de_la_cita}")
+    expect(variablesDe("cumpleanos").map((v) => v.id)).toEqual(["{nombre}", "{optica}", "{telefono_optica}"])
+    expect(variablesDe("cita_no_efectuada").map((v) => v.id)).toEqual(["{nombre}", "{optica}", "{telefono_optica}", "{fecha_cita}"]) // los datos que muestra el diseño
+    expect(variablesDe("control_vencido").map((v) => v.id)).toContain("{fecha_control}")
+    expect(variablesDe().map((v) => v.id)).toEqual(["{nombre}", "{optica}", "{telefono_optica}", "{fecha_control}"]) // una campaña no tiene cita ni pedido
     expect(variablesDe("cita_no_efectuada").map((v) => v.id)).not.toContain("{medidas}")
     expect(variablesDe("medidas_montaje").map((v) => v.id)).toContain("{medidas}")
     expect(variablesDe("lentes_listos").map((v) => v.id)).toContain("{orden}")
+    expect(variablesDe("lentes_listos_envio").map((v) => v.id)).toContain("{entrega}")
   })
   it("cada motivo de aviso tiene su plantilla base, su etiqueta y usa solo variables que existen", () => {
     const ids = VARIABLES_PLANTILLA.map((v) => v.id)
@@ -294,7 +296,8 @@ describe("mensajes", () => {
   it("los avisos arman su mensaje con lo propio de cada uno", () => {
     const paciente = { nombre: "Rosa Bravo Cedeño" }
     const cita = armarMensaje(plantillaDe("cita_no_efectuada"), { paciente, opticaNombre: "Óptica Sol", cita: { fecha: "2026-10-20", hora: "04:00 PM" } })
-    expect(cita).toBe("Hola Rosa Bravo Cedeño, te escribimos de Óptica Sol. No pudimos atenderte en tu cita del martes, 20 de octubre a las 04:00 PM. Cuéntanos qué día y hora te quedan bien y la reagendamos.")
+    expect(cita).toBe("Hola Rosa Bravo Cedeño, notamos que no pudiste venir a tu cita del martes, 20 de octubre a las 04:00 PM. ¿Te ayudamos a agendar una nueva? Escríbenos. — Óptica Sol") // sin teléfono configurado se quita «llámanos al …»
+    expect(armarMensaje(plantillaDe("cita_no_efectuada"), { paciente, opticaNombre: "Óptica Sol", opticaTelefono: "042 345 678", cita: { fecha: "2026-10-20", hora: "04:00 PM" } })).toContain("Escríbenos o llámanos al 042 345 678. — Óptica Sol")
     expect(armarMensaje(plantillaDe("lentes_listos"), { paciente, opticaNombre: "Visión", orden: "OL-0007" })).toContain("(orden OL-0007)")
     const medidas = armarMensaje(plantillaDe("medidas_montaje"), { paciente, opticaNombre: "Solna", medidas: { dp: "62", altura: "18 mm" } })
     expect(medidas).toContain("• Distancia pupilar: 62 mm\n• Altura de montaje: 18 mm")
@@ -302,11 +305,23 @@ describe("mensajes", () => {
     expect(armarMensaje(plantillaDe("medidas_montaje"), { paciente, opticaNombre: "Solna", medidas: { dp: "62", altura: "" } })).not.toContain("Altura")
   })
   it("la plantilla que la óptica personalizó manda sobre la base también en los avisos", () => {
-    const propia = armarMensaje(plantillaDe("lentes_listos", { lentes_listos: "{nombre}, ya puedes pasar por tus lentes a {óptica}." }), { paciente: { nombre: "Ana" }, opticaNombre: "Visión" })
+    const propia = armarMensaje(plantillaDe("lentes_listos", { lentes_listos: "{nombre}, ya puedes pasar por tus lentes a {optica}." }), { paciente: { nombre: "Ana" }, opticaNombre: "Visión" })
     expect(propia).toBe("Ana, ya puedes pasar por tus lentes a Visión.")
   })
+  it("lo que la óptica guardó con los nombres de antes se sigue entendiendo", () => {
+    const viejo = "Hola {nombre}, de {óptica}: tu cita {fecha_de_la_cita} y tu control {fecha_del_control}."
+    expect(alNombreActual(viejo)).toBe("Hola {nombre}, de {optica}: tu cita {fecha_cita} y tu control {fecha_control}.")
+    expect(armarMensaje(viejo, { paciente: { nombre: "Ana" }, opticaNombre: "Visión", cita: { fecha: "2026-10-20", hora: "04:00 PM" } })).toContain("de Visión: tu cita martes, 20 de octubre")
+  })
+  it("pedido listo tiene una plantilla para quien retira y otra para el envío (con su dirección)", () => {
+    const paciente = { nombre: "Ana" }
+    expect(armarMensaje(plantillaDe("lentes_listos"), { paciente, opticaNombre: "Visión", orden: "OL-0007", entrega: { tipo: "retira" } })).toContain("Te esperamos en la óptica para retirarlo.")
+    expect(armarMensaje(plantillaDe("lentes_listos_envio"), { paciente, opticaNombre: "Visión", orden: "OL-0007", entrega: { tipo: "envio", direccion: "Av. Colón" } })).toContain("Te lo enviaremos a Av. Colón.")
+    expect(ETIQUETA_MOTIVO.lentes_listos).toBe("Pedido listo (retira)")
+    expect(ETIQUETA_MOTIVO.lentes_listos_envio).toBe("Pedido listo (envío)")
+  })
   it("con ejemplo, las variables de un aviso llevan un dato de muestra", () => {
-    expect(armarMensaje("{fecha_de_la_cita} · {orden} · {medidas}", { ejemplo: true })).toContain("martes 20 de octubre a las 04:00 PM · 000012 · • Distancia pupilar")
+    expect(armarMensaje("{fecha_cita} · {orden} · {medidas}", { ejemplo: true })).toContain("martes 20 de octubre a las 04:00 PM · 000012 · • Distancia pupilar")
   })
   it("el control vencido es un recordatorio de salud, no una promoción", () => {
     expect(PLANTILLAS_BASE.control_vencido).not.toMatch(/promoci|oferta|descuento/i)
@@ -314,7 +329,7 @@ describe("mensajes", () => {
   it("todas las plantillas base son cortas y nombran a la óptica", () => {
     for (const t of Object.values(PLANTILLAS_BASE)) {
       expect(t.length).toBeLessThanOrEqual(200)
-      expect(t).toContain("{óptica}")
+      expect(t).toContain("{optica}")
       expect(t).toContain("{nombre}")
     }
   })

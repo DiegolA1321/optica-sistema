@@ -13,6 +13,7 @@ const AZUL = "#2563eb"
 const VERDE = "#15803d"
 const ROJO = "#b91c1c"
 
+const redondear = (v) => Math.round(v * 100) / 100
 const num = (v) => String(Math.round(v * 10) / 10)
 
 export default function GraficoTendencia({
@@ -24,8 +25,8 @@ export default function GraficoTendencia({
   const maxValores = Math.max(1, ...a.valores, ...a.promedio, ...a.tendencia.map((v) => v ?? 0))
   const y = (v) => alto - (Math.max(0, v) / maxValores) * alto
   const x = (i) => i + 0.5
-  const lineaPromedio = a.promedio.map((v, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(v).toFixed(2)}`).join(" ")
-  const puntosTendencia = a.tendencia.map((v, i) => (v == null ? null : `${x(i)},${y(v).toFixed(2)}`)).filter(Boolean)
+  const lineaPromedio = a.promedio.map((v, i) => `${i === 0 ? "M" : "L"}${x(i)},${redondear(y(v))}`).join(" ")
+  const puntosTendencia = a.tendencia.map((v, i) => (v == null ? null : `${x(i)},${redondear(y(v))}`)).filter(Boolean)
   const lineaTendencia = puntosTendencia.length > 1 ? `M${puntosTendencia.join(" L")}` : ""
   const plurales = periodo === "mes" ? "meses" : `${periodo}s`
 

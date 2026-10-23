@@ -26,11 +26,11 @@ SIN_PROVEEDOR.manual = async () => ({ ok: true })
 export const useEscribirPorWhatsApp = () => useContext(Contexto) || SIN_PROVEEDOR
 
 // Lo que arma el Dashboard con los datos del CRM: la plantilla de la óptica, el contacto registrado, el aviso flotante y la ventana (`pedirVentana` la dibuja).
-export function crearEscribirPorWhatsApp({ plantillas, opticaNombre, consultas, contactarDeAviso, contactarManual, avisar, pedirVentana }) {
+export function crearEscribirPorWhatsApp({ plantillas, opticaNombre, opticaTelefono, consultas, contactarDeAviso, contactarManual, avisar, pedirVentana }) {
   const escribir = ({ paciente, telefono, motivo, contexto = {}, alEnviar, registro, alRegistrar }) => {
     const tel = telefono || paciente?.telefono
     if (!tel || /^sin /i.test(tel)) { avisar?.(`${paciente?.nombre || "El paciente"} no tiene teléfono registrado.`); return { sinTelefono: true } }
-    const mensaje = armarMensaje(plantillaDe(motivo, plantillas), { paciente, opticaNombre, consultas, ...contexto })
+    const mensaje = armarMensaje(plantillaDe(motivo, plantillas), { paciente, opticaNombre, opticaTelefono, consultas, ...contexto })
     // Dentro del clic de «Enviar por WhatsApp»: primero la ventana de WhatsApp (si se espera a otra cosa antes, el navegador la bloquea) y después el registro.
     const enviar = (texto) => {
       abrirWhatsApp(tel, texto)
