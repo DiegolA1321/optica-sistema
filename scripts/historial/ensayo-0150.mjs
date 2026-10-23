@@ -110,6 +110,23 @@ try {
   await c.query("select public.enviar_recordatorios_citas($1::timestamptz)", [EC("2026-11-06T08:00:00")])
   const ultimo = (await cola()).slice(antes)
   ok(ultimo.length >= 1 && ultimo.every((b) => b.from === "Recordatorios <avisos@dominio-verificado.com>") && !!(await enviado(L)), "el recordatorio sale con el remitente configurado")
+
+  // ── Una cita creada hace menos de 2 horas no recibe recordatorio todavía ──
+  const citaCreada = async (fecha, hora, creada) => (await q(
+    "insert into citas_base (optica_id, paciente, cedula, telefono, fecha, hora, motivo, estado, origen, correo, created_at) values ($1, $2, '1710034065', '0991234567', $3, $4, 'Consulta General', 'Pendiente', 'presencial', 'prueba@example.invalid', $5) returning id",
+    [optica.id, 'Paciente Ensayo ' + hora, fecha, hora, creada]))[0].id
+  const N = await citaCreada("2026-11-09", "04:00 PM", EC("2026-11-09T07:00:00")) // creada hace 3 h → sí
+  const M = await citaCreada("2026-11-09", "03:00 PM", EC("2026-11-09T08:30:00")) // creada a las 8:30 → recibe recordatorio desde las 10:30
+  await c.query("select public.enviar_recordatorios_citas($1::timestamptz)", [EC("2026-11-09T10:29:00")])
+  ok(!!(await enviado(N)), "creada hace 3 horas: sí recibe recordatorio")
+  ok(!(await enviado(M)), "creada hace 1 hora y 59 minutos: todavía NO (el paciente acaba de recibir su confirmación)")
+  await c.query("select public.enviar_recordatorios_citas($1::timestamptz)", [EC("2026-11-09T10:30:00")])
+  ok(!!(await enviado(M)), "al cumplir las 2 horas, ya sale")
+  const hoyCreada = await citaCreada("2026-11-10", "09:00 AM", EC("2026-11-09T22:30:00")) // creada de noche
+  await c.query("select public.enviar_recordatorios_citas($1::timestamptz)", [EC("2026-11-09T22:40:00")])
+  ok(!(await enviado(hoyCreada)), "creada hace 10 minutos y en horario de descanso: no sale")
+  await c.query("select public.enviar_recordatorios_citas($1::timestamptz)", [EC("2026-11-10T07:00:00")])
+  ok(!!(await enviado(hoyCreada)), "a las 7:00 AM del día siguiente (ya con más de 2 horas) sale")
 } catch (e) {
   console.error("ERROR", e.message); fallos++
 } finally {

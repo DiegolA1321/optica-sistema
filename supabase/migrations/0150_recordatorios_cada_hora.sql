@@ -9,7 +9,8 @@
 --      recordatorio. El cron corre cada hora, en punto. «p_ahora» (por defecto, ahora) existe para poder probar la regla con un reloj fijo; el cron la llama sin él.
 --   2. Sin duplicados: cada cita se «reclama» (recordatorio_enviado_at) en una sola instrucción ANTES de pedir el envío; si otra corrida ya la reclamó, se salta. Una cita ya enviada
 --      nunca se vuelve a enviar, aunque siga dentro de las 24 horas. Mismas condiciones de siempre: la óptica no apagó los recordatorios, el paciente los acepta, hay un correo válido
---      (sin correo válido la cita se marca como procesada y no se envía nada). Una cita que ya empezó no recibe recordatorio.
+--      (sin correo válido la cita se marca como procesada y no se envía nada). Una cita que ya empezó no recibe recordatorio. Una cita CREADA hace menos de 2 horas tampoco: el
+--      paciente acaba de recibir su confirmación y el recordatorio se vería repetido; sale cuando cumple las 2 horas (si para entonces sigue dentro de las 24 h y en horario de envío).
 --   3. Horario de descanso: entre las 9:00 PM y las 7:00 AM (hora de Ecuador) no se envía nada; lo pendiente sale a las 7:00 AM (una cita de las 8:00 AM agendada de noche recibe su
 --      correo a las 7:00 AM). Ya no dice «mañana»: el asunto es «Recordatorio de tu cita en {óptica}» y la hora se escribe sin cero de adelante («9:00 AM»).
 --   4. El cron diario «recordatorios_citas_diarios» se reemplaza por «recordatorios_citas_cada_hora» (0 * * * *, UTC; la función decide por la hora de Ecuador).
@@ -76,6 +77,8 @@ begin
     left join pacientes p on p.id = c.paciente_id
     where c.estado = 'Pendiente'
       and c.recordatorio_enviado_at is null
+      -- no se creó hace menos de 2 horas (el paciente acaba de recibir su confirmación: el recordatorio se vería repetido)
+      and c.created_at <= p_ahora - interval '2 hours'
       -- la cita empieza dentro de las próximas 24 horas (y todavía no empezó)
       and (c.fecha + make_interval(mins => public._minutos_hora(c.hora))) > v_ahora
       and (c.fecha + make_interval(mins => public._minutos_hora(c.hora))) <= v_ahora + interval '24 hours'
