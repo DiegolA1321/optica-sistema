@@ -66,10 +66,11 @@ test('el Resumen del paciente muestra su fidelización (nivel, puntos, referidos
   await page.getByRole('tab', { name: /Resumen/ }).click()
   const fid = page.getByRole('region', { name: 'Fidelización' })
   await expect(fid).toContainText('Frecuente · 30 pts')
-  await expect(fid).toContainText('Faltan 60 para Preferente')
-  await expect(fid).toContainText('5 % sugerido al vender')
+  await expect(fid).toContainText('Faltan 60 para Preferente (10 % de descuento)')
   await expect(fid).toContainText('Referidos')
-  await expect(fid).toContainText(/15 de mayo \((en \d+ días?|es hoy)\)/) // «12 de octubre (en 351 días)»
+  await expect(fid).toContainText('Cumpleaños del paciente')
+  await expect(fid).toContainText('15 de mayo')
+  await expect(fid).toContainText(/Cumplirá \d+ · en \d+ días?|Cumple \d+ · hoy/) // «Cumplirá 37 · en 204 días»
   // El Resumen ya no repite lo que tienen otras pestañas
   await expect(page.getByRole('region', { name: 'Información clínica' })).toHaveCount(0)
   // Un punto de más con la regla configurable: se explica de dónde salen los puntos
@@ -91,11 +92,11 @@ for (const rol of ['ADMIN', 'RECEPCION', 'VENTAS']) {
     await venta.getByLabel('Material').fill('CR-39').catch(async () => { await venta.getByLabel('Material').selectOption({ index: 1 }) })
     await venta.getByLabel('Precio de la luna').fill('100')
     await venta.getByRole('button', { name: /Agregar luna/ }).click()
-    const sugerencia = venta.getByRole('status').filter({ hasText: 'Cliente Frecuente' })
+    const sugerencia = venta.getByText('Frecuente · 5 % sugerido')
     const permiso = Object.entries(permisosVentas).find(([n]) => n.toLowerCase().startsWith(rol === 'ADMIN' ? 'admin' : rol === 'RECEPCION' ? 'recep' : 'venta'))?.[1]
     if (rol === 'ADMIN' || permiso) {
-      await expect(sugerencia).toContainText('(30 puntos): descuento sugerido de 5 %')
-      await sugerencia.getByRole('button', { name: 'Aplicar a todas las líneas' }).click()
+      await expect(sugerencia).toBeVisible()
+      await venta.getByRole('button', { name: 'Aplicar descuento' }).click()
       await expect(venta.getByText('$95.00', { exact: true }).first()).toBeVisible()
       expect(await venta.locator('input').evaluateAll((els) => els.map((e) => e.value))).toContain('Fidelización: nivel Frecuente')
     } else {
@@ -177,7 +178,7 @@ test('«Enviar mensaje» del perfil: lo escrito se manda por WhatsApp y queda en
   const url = await page.evaluate(() => (window.__abiertos || []).at(-1))
   expect(decodeURIComponent(new URL(url).searchParams.get('text'))).toContain('Hola, te escribimos de la óptica')
   await irA(page, 'CRM y fidelización')
-  await page.getByRole('tab', { name: /Seguimiento/ }).click()
+  await page.getByRole('tab', { name: /Historial de contactos/ }).click()
   await expect(page.getByText(nombre).first()).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText('Mensaje desde el perfil').first()).toBeVisible()
 })

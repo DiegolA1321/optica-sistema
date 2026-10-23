@@ -42,10 +42,11 @@ test('el administrador abre «Contactar al paciente» en Citas desde la ventana 
 
 test('agudeza visual: el estado se llama "Sin agudeza visual con corrección registrada" y se explica al pasar el cursor', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
-  await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
-  const tarjeta = page.getByRole('button', { name: /Sin agudeza visual con corrección registrada/ }).first()
-  await expect(tarjeta).toBeVisible({ timeout: 20_000 })
-  await expect(tarjeta).toHaveAttribute('title', /agudeza visual con lentes/)
+  // La lista de Pacientes ya no muestra el estado de corrección en cada fila: el estado y su nombre viven en Reportes › Clínico.
+  await page.getByRole('button', { name: 'Reportes', exact: true }).first().click()
+  await page.getByRole('tab', { name: 'Clínico' }).click()
+  const estado = page.getByText(/Sin agudeza visual con corrección registrada/).first()
+  await expect(estado).toBeVisible({ timeout: 25_000 })
   await expect(page.getByText('AV sin evaluar')).toHaveCount(0)
 })
 

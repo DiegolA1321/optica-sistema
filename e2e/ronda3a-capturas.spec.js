@@ -64,7 +64,7 @@ test('capturas del perfil: Resumen, Citas, Diagnóstico (con y sin refracción, 
 
   // Citas
   await page.getByRole('tab', { name: /Citas/ }).click()
-  await expect(page.getByRole('region', { name: 'Visitas por año' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Asistencia a sus citas' })).toBeVisible()
   await foto(page, 'perfil-citas-con-datos')
 
   // Diagnóstico: la consulta más reciente NO tuvo refracción
