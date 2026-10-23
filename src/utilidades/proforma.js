@@ -23,10 +23,12 @@ export function lineasProformaDeConsulta(consulta, parametrizacion) {
 export const VIGENCIA_PROFORMA_DIAS = 15
 
 // Datos de la óptica que salen en la proforma (viven en la parametrización).
-export function datosOpticaProforma(parametrizacion) {
+// `logoUrl`: el logo de la óptica (opticas.logo_url, el mismo de todo el sistema); los documentos impresos lo ponen arriba del nombre.
+export function datosOpticaProforma(parametrizacion, logoUrl = "") {
   const texto = (v) => (typeof v === "string" ? v.trim() : "")
   const dias = Math.round(Number(parametrizacion?.vigenciaProformaDias))
   return {
+    logoUrl: texto(logoUrl),
     direccion: texto(parametrizacion?.opticaDireccion),
     telefono: texto(parametrizacion?.opticaTelefono),
     ruc: texto(parametrizacion?.opticaRuc),
@@ -35,6 +37,8 @@ export function datosOpticaProforma(parametrizacion) {
 }
 
 export const escapar = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
+// El logo en un documento impreso (HTML): entero (object-fit: contain), con alto y ancho máximos; sin logo no sale nada. Estilos en línea para que sirva en cualquier plantilla.
+export const logoHtml = (url, nombre = "") => (url ? `<img src="${escapar(url)}" alt="${escapar(nombre ? `Logo de ${nombre}` : "Logo")}" style="display:block;height:auto;width:auto;max-height:56px;max-width:180px;object-fit:contain;margin:0 0 8px">` : "")
 const medida = (o) => (o && (o.esfera || o.cilindro || o.eje) ? `${o.esfera || "—"} | ${o.cilindro || "—"} | ${o.eje || "—"}°` : "No registrada")
 
 // datos: { opticaNombre, paciente: { nombre, cedula }, diagnostico: {...consulta}, lineas: [{ descripcion, cantidad, precioUnitario }], incluirMedidas, fecha }
@@ -65,7 +69,7 @@ export function armarHtmlProforma({ opticaNombre = "Óptica", opticaDatos = {}, 
   th{font-size:11px;text-transform:uppercase;color:#64748b}.n{text-align:right;font-variant-numeric:tabular-nums}
   .contacto{color:#475569;font-size:12px}.total{margin-top:12px;text-align:right;font-size:16px;font-weight:700}p{margin:3px 0}
 </style></head><body>
-<h1>${escapar(opticaNombre)}</h1>
+${logoHtml(opticaDatos.logoUrl, opticaNombre)}<h1>${escapar(opticaNombre)}</h1>
 ${contacto ? `<p class="contacto">${contacto}</p>` : ""}
 <p>Proforma · ${escapar(fechaLegible(fecha))} · <b>Válida hasta ${escapar(fechaLegible(validaHasta))}</b></p>
 <div class="aviso">Esto es un presupuesto. No es un comprobante de venta ni una factura electrónica, y no reserva productos ni inventario.</div>
@@ -90,8 +94,11 @@ export function imprimirHtml(html) {
   doc.close()
   const limpiar = () => setTimeout(() => marco.remove(), 1500)
   marco.contentWindow.focus()
-  setTimeout(() => {
+  // Si el documento lleva imágenes (el logo), se espera a que carguen (hasta 2 s) para que salgan en la hoja.
+  const imagenes = [...doc.images].filter((i) => !i.complete)
+  const cargadas = imagenes.length ? Promise.race([Promise.all(imagenes.map((i) => new Promise((ok) => { i.onload = ok; i.onerror = ok }))), new Promise((ok) => setTimeout(ok, 2000))]) : Promise.resolve()
+  cargadas.then(() => setTimeout(() => {
     marco.contentWindow.print()
     limpiar()
-  }, 250)
+  }, 250))
 }

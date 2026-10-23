@@ -3,26 +3,9 @@
 import { flushSync } from "react-dom"
 import { createRoot } from "react-dom/client"
 import HojaConteo from "../componentes/inventario/HojaConteo"
-import { armarPdfPaginas, leerHoja } from "./descargarHojaReceta"
+import { armarPdfPaginas, leerHoja, logoComoJpeg } from "./descargarHojaReceta"
+import { anchoDeLogo } from "../componentes/LogoImpreso"
 import { ALTO_PAGINA, seccionesDeConteo } from "./conteoImpresion"
-
-// El logo como JPEG (fondo blanco) para el PDF; si no se puede leer (otro origen sin permiso, sin red), el PDF sale sin él.
-async function logoComoJpeg(url) {
-  try {
-    const img = new Image()
-    img.crossOrigin = "anonymous"
-    await new Promise((ok, mal) => { img.onload = ok; img.onerror = mal; img.src = url })
-    const lado = 200
-    const lienzo = document.createElement("canvas")
-    lienzo.width = lado; lienzo.height = lado
-    const c = lienzo.getContext("2d")
-    c.fillStyle = "#fff"; c.fillRect(0, 0, lado, lado)
-    const f = Math.min(lado / img.width, lado / img.height)
-    c.drawImage(img, (lado - img.width * f) / 2, (lado - img.height * f) / 2, img.width * f, img.height * f)
-    const blob = await new Promise((ok) => lienzo.toBlob(ok, "image/jpeg", 0.9))
-    return blob ? { jpeg: new Uint8Array(await blob.arrayBuffer()), px: lado, py: lado } : null
-  } catch { return null }
-}
 
 export const nombreArchivoConteo = (fechaISO = "") => `hoja-de-conteo${fechaISO ? `-${fechaISO}` : ""}.pdf`
 
@@ -34,13 +17,15 @@ export async function armarPdfConteo({ optica = {}, activos = [], descontinuados
   document.body.appendChild(caja)
   const raiz = createRoot(caja)
   try {
-    flushSync(() => raiz.render(<HojaConteo optica={optica} secciones={secciones} fecha={fecha} />))
+    // El logo primero: su proporción decide el ancho de su lugar en la hoja (entero, sin deformarse).
     const logo = optica.logoUrl ? await logoComoJpeg(optica.logoUrl) : null
+    const opticaHoja = { ...optica, logoUrl: logo ? optica.logoUrl : "", logoAncho: logo ? anchoDeLogo(logo.proporcion, 56, 150) : undefined }
+    flushSync(() => raiz.render(<HojaConteo optica={opticaHoja} secciones={secciones} fecha={fecha} />))
     const paginas = [...caja.querySelectorAll("[data-hoja-conteo-pagina]")].map((el) => {
       const datos = leerHoja(el)
       const marca = el.querySelector("[data-logo]")
       const imagenes = []
-      if (logo && marca) { const b = el.getBoundingClientRect(); const r = marca.getBoundingClientRect(); imagenes.push({ x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height, ...logo }) }
+      if (logo && marca) { const b = el.getBoundingClientRect(); const r = marca.getBoundingClientRect(); imagenes.push({ x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height, jpeg: logo.jpeg, px: logo.px, py: logo.py }) }
       return { ...datos, alto: ALTO_PAGINA, imagenes }
     })
     return armarPdfPaginas({ paginas, titulo: "Hoja de conteo fisico" })

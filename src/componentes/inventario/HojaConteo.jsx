@@ -2,6 +2,7 @@
 // la tabla por categoría con filas alternadas (producto, en el sistema, contado, diferencia y observaciones; «Código» solo si algún producto lo tiene); al final, los totales y las firmas.
 // Estilos en línea a propósito: el PDF lee cómo quedó dibujada (descargarHojaConteo) y no depende de las clases de la pantalla.
 import { INK, GOLD } from "@/lib/tema"
+import LogoImpreso from "../LogoImpreso"
 import { ALTO_CABECERA_TABLA, ALTO_FILA, ALTO_PAGINA, ALTO_TITULO, hayCodigos, paginarConteo, totalesDeConteo } from "../../utilidades/conteoImpresion"
 
 const GRIS = "#64748b"
@@ -34,7 +35,7 @@ export default function HojaConteo({ optica = {}, secciones = [], fecha = "" }) 
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `3px solid ${GOLD}`, paddingBottom: 14 }}>
                 <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                  {optica.logoUrl && <div data-logo style={{ width: 56, height: 56 }} />}
+                  <LogoImpreso url={optica.logoUrl} nombre={optica.nombre} alto={56} ancho={optica.logoAncho} />
                   <div>
                     <h1 style={{ margin: 0, fontFamily: "Georgia, serif", fontSize: 24 }}>{optica.nombre || "Tu óptica"}</h1>
                     {contacto && <p style={{ margin: "4px 0 0", fontSize: 12, color: GRIS }}>{contacto}</p>}

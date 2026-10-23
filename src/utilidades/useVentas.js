@@ -81,7 +81,7 @@ export function useVentas({
     }
     imprimirHtml(armarHtmlProforma({
       opticaNombre: usuario?.opticaNombre,
-      opticaDatos: datosOpticaProforma(parametrizacion),
+      opticaDatos: datosOpticaProforma(parametrizacion, usuario?.opticaLogoUrl),
       paciente: item.paciente,
       diagnostico: item.consulta,
       lineas: lineas.map((l) => ({ descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precioUnitario })),

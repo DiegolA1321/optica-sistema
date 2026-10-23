@@ -55,7 +55,7 @@ export default function DetalleComprobante({ factura: f, paciente, abonos = [], 
   }, [f.id, abonos.map((x) => x.id + x.monto).join(","), abonosAnulados.length])
 
   const imprimir = () => {
-    imprimirHtml(armarHtmlComprobante({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOpticaProforma(parametrizacion), paciente: paciente || {}, factura: f, abonos, claveAcceso: fe.datos?.claveAcceso || "", autorizadaEl: fe.datos?.autorizadaEl || "", vendedor: nombre(f.registradoPor) === "—" ? "" : nombre(f.registradoPor) }))
+    imprimirHtml(armarHtmlComprobante({ opticaNombre: usuario?.opticaNombre, opticaDatos: datosOpticaProforma(parametrizacion, usuario?.opticaLogoUrl), paciente: paciente || {}, factura: f, abonos, claveAcceso: fe.datos?.claveAcceso || "", autorizadaEl: fe.datos?.autorizadaEl || "", vendedor: nombre(f.registradoPor) === "—" ? "" : nombre(f.registradoPor) }))
     registrarLog(usuario, "ventas", "Reimprimió un comprobante", `${paciente?.nombre || ""} · ${numeroComprobante(f.numero)}`)
   }
   const con = (accion) => () => accion({ factura: f, paciente })

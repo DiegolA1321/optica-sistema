@@ -8,6 +8,7 @@ import { textoAgudeza } from "../utilidades/agudeza"
 import { dioptriaTexto } from "../utilidades/refraccion"
 import { recetasDe } from "../utilidades/graduacion"
 import { lineasDeExamen } from "../utilidades/resumenExamen"
+import LogoImpreso from "./LogoImpreso"
 
 const GRIS = "#64748b"
 const dato = (valor) => (valor === "" || valor == null ? "—" : valor)
@@ -21,7 +22,7 @@ function Fila({ etiqueta, children }) {
   return children ? <p style={{ margin: "0 0 6px" }}><b>{etiqueta}:</b> {children}</p> : null
 }
 
-// optica: { nombre, direccion, telefono, correo, logoUrl } · paciente: { nombre, cedula, edad } · receta: la consulta del paciente (fecha, od, oi, medidas, diagnostico,
+// optica: { nombre, direccion, telefono, correo, logoUrl (el logo de la óptica, el mismo de Configuración; logoAncho solo lo pone el PDF) } · paciente: { nombre, cedula, edad } · receta: la consulta del paciente (fecha, od, oi, medidas, diagnostico,
 // lenteRecomendado, indicaciones, profesionalNombre, profesionalRegistro). `mostrarMedidas`: la distancia pupilar y la altura de montaje (en el portal, solo si la óptica lo permite).
 // `completo`: «Imprimir diagnóstico» del perfil: la MISMA hoja, pero con todo el diagnóstico de la consulta (motivo, agudeza visual, la receta si hubo refracción, salud ocular, diagnóstico e
 // indicaciones). Si la consulta no tuvo refracción, no lleva la tabla de graduación ni la nota de validez de la receta.
@@ -54,7 +55,7 @@ export default function HojaReceta({ optica = {}, paciente = {}, receta = {}, mo
     <div data-hoja-receta style={{ fontFamily: "system-ui, sans-serif", color: INK, padding: "32px 40px", maxWidth: 780, margin: "0 auto", background: "#fff" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 24, borderBottom: `3px solid ${GOLD}`, paddingBottom: 14 }}>
         <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-          {optica.logoUrl && <img src={optica.logoUrl} alt="" style={{ height: 52, width: 52, objectFit: "contain" }} />}
+          <LogoImpreso url={optica.logoUrl} nombre={optica.nombre} ancho={optica.logoAncho} />
           <div>
             <h1 style={{ margin: 0, fontFamily: "Georgia, serif", fontSize: 24 }}>{optica.nombre || "Tu óptica"}</h1>
             {contacto && <p style={{ margin: "4px 0 0", fontSize: 12, color: GRIS }}>{contacto}</p>}

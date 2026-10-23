@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { Settings, Receipt, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2, Gift } from "lucide-react"
-import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
+import PaginaPublicaEditor from "../componentes/configuracion/PaginaPublicaEditor"
 import DatosBancarios from "../componentes/DatosBancarios"
 import PanelFidelidadConfig from "../componentes/PanelFidelidadConfig"
 import AccesoSoporte from "../componentes/soporte/AccesoSoporte"
@@ -337,7 +337,7 @@ const PESTANAS = [
   { id: "privacidad", label: "Privacidad", icon: ShieldCheck },
 ]
 
-export default function Configuracion({ usuario, alActualizarUsuario, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario }) {
+export default function Configuracion({ usuario, alActualizarUsuario, onNavegar, parametrizacion, setParametrizacion, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario }) {
   // Alerta de confirmación antes de guardar — caso de la reunión con el ing:
   // un click accidental en un interruptor no debe activar/desactivar algo
   // sin que el usuario se dé cuenta. Los toggles ya no aplican el cambio de
@@ -372,6 +372,8 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
   // navegación una vez que el resto del sistema estuviera terminado, en vez
   // de un solo scroll interminable.
   const [tab, setTab] = useParamUrl("tab", "politicas", ["politicas", "catalogos", "inventario", "ventas", "login", "fidelizacion", "privacidad"])
+  const abrioPagina = useRef(false)
+  if (tab === "login") abrioPagina.current = true
 
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
 
@@ -616,17 +618,22 @@ export default function Configuracion({ usuario, alActualizarUsuario, parametriz
         </div>
       )}
 
-      {tab === "login" && (
-        <div role="tabpanel" id="panel-configuracion" aria-labelledby="tab-login">
+      {/* El editor se queda montado al cambiar de pestaña (solo oculto): así lo escrito sin guardar no se pierde por mirar otra pestaña. */}
+      {abrioPagina.current && (
+        <div hidden={tab !== "login"} role="tabpanel" id={tab === "login" ? "panel-configuracion" : undefined} aria-labelledby="tab-login">
           <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-500">Página pública</p>
           <p className="mb-3 text-xs leading-relaxed text-slate-500">
-            Es lo primero que ve un paciente antes de agendar una cita: nombre, colores, mensaje de bienvenida y las tarjetas de servicios. Los cambios de esta pestaña se aplican con «Guardar cambios», al final; las otras pestañas se guardan al instante.
+            Es lo primero que ve un paciente antes de agendar una cita: logo, nombre, color, textos, servicios y preguntas. Los cambios se aplican con «Guardar», al final, y antes puedes ver cómo quedan en la vista previa.
           </p>
-          <PersonalizacionLogin
+          <PaginaPublicaEditor
             opticaId={usuario?.opticaId}
+            nombreOptica={usuario?.opticaNombre || "Tu óptica"}
             marca={usuario?.opticaMarca}
             logoUrl={usuario?.opticaLogoUrl}
+            motivos={motivosConsulta}
             onGuardado={({ marca, logoUrl }) => alActualizarUsuario?.({ opticaMarca: marca, opticaLogoUrl: logoUrl })}
+            onNavegar={onNavegar}
+            onIrADatos={() => { setTab("catalogos"); window.scrollTo?.({ top: 0 }) }}
           />
         </div>
       )}

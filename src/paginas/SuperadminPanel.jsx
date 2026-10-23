@@ -63,7 +63,7 @@ import {
   Image as ImageIcon,
   LogIn,
 } from "lucide-react"
-import PersonalizacionLogin from "../componentes/PersonalizacionLogin"
+import PaginaPublicaEditor from "../componentes/configuracion/PaginaPublicaEditor"
 import { supabase, crearClienteTemporal } from "../lib/supabaseClient"
 import SeccionMfa from "./SeccionMfa"
 import { fechaAISO, hoyISO } from "../utilidades/disponibilidad"
@@ -2725,12 +2725,13 @@ export default function SuperadminPanel({ usuario, alSalir, alActualizarUsuario,
 
           {/* ─── Personalización del login (lo único que ve el cliente) — desde
               la migración 0052 el propio admin de esta óptica también puede
-              editar esto desde su Configuración; PersonalizacionLogin.jsx es
-              el mismo componente que usa ese lado. ─── */}
+              editar esto desde su Configuración; PaginaPublicaEditor.jsx es
+              el mismo editor que usa ese lado. ─── */}
           <div id="personalizacion-login">
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Personalización del login</p>
-            <PersonalizacionLogin
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Página pública</p>
+            <PaginaPublicaEditor
               opticaId={detalle.id}
+              nombreOptica={detalle.nombre}
               marca={detalle.marca}
               logoUrl={detalle.logo_url}
               onGuardado={({ marca, logoUrl }) => {

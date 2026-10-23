@@ -4,6 +4,7 @@
 import { flushSync } from "react-dom"
 import { createRoot } from "react-dom/client"
 import HojaReceta from "../componentes/HojaReceta"
+import { anchoDeLogo } from "../componentes/LogoImpreso"
 
 const A4 = { ancho: 595.28, alto: 841.89 }
 const ANCHO_HOJA = 780 // el ancho de la hoja (HojaReceta), en px
@@ -161,27 +162,54 @@ export function leerHoja(hoja) {
   return { ancho: base.width, alto: base.height, rects, palabras }
 }
 
+// El logo de la óptica como JPEG para el PDF (el PDF de aquí no sabe de PNG con transparencia ni de SVG): se dibuja en un lienzo sobre fondo blanco, entero y con su proporción,
+// con un lado de 600 px como máximo. Un SVG se convierte igual (el navegador lo dibuja en el lienzo). Si no se puede leer (otro origen sin permiso, sin red, un SVG que el
+// navegador no dibuja), devuelve null y el PDF sale con el nombre de la óptica y sin logo.
+export async function logoComoJpeg(url) {
+  try {
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    await new Promise((ok, mal) => { img.onload = ok; img.onerror = mal; img.src = url })
+    const w = img.naturalWidth || 300
+    const h = img.naturalHeight || 300
+    const f = 600 / Math.max(w, h)
+    const lienzo = document.createElement("canvas")
+    lienzo.width = Math.max(1, Math.round(w * f)); lienzo.height = Math.max(1, Math.round(h * f))
+    const c = lienzo.getContext("2d")
+    c.fillStyle = "#fff"; c.fillRect(0, 0, lienzo.width, lienzo.height)
+    c.drawImage(img, 0, 0, lienzo.width, lienzo.height)
+    const blob = await new Promise((ok) => lienzo.toBlob(ok, "image/jpeg", 0.9))
+    return blob ? { jpeg: new Uint8Array(await blob.arrayBuffer()), px: lienzo.width, py: lienzo.height, proporcion: lienzo.width / lienzo.height } : null
+  } catch { return null }
+}
+
 async function hojaAPdf(datos) {
+  const logo = datos.optica?.logoUrl ? await logoComoJpeg(datos.optica.logoUrl) : null
+  const optica = { ...datos.optica, logoUrl: logo ? datos.optica.logoUrl : "", logoAncho: logo ? anchoDeLogo(logo.proporcion) : undefined }
   const caja = document.createElement("div")
   caja.setAttribute("aria-hidden", "true")
   caja.style.cssText = `position:fixed;left:-10000px;top:0;width:${ANCHO_HOJA}px;background:#fff;pointer-events:none`
   document.body.appendChild(caja)
   const raiz = createRoot(caja)
   try {
-    flushSync(() => raiz.render(<HojaReceta {...datos} />))
+    flushSync(() => raiz.render(<HojaReceta {...datos} optica={optica} />))
     const hoja = caja.querySelector("[data-hoja-receta]")
     if (!hoja) throw new Error("No se pudo preparar la hoja.")
-    return armarPdfVectorial(leerHoja(hoja))
+    const lectura = leerHoja(hoja)
+    const marca = hoja.querySelector("[data-logo]")
+    const imagenes = []
+    if (logo && marca) { const b = hoja.getBoundingClientRect(); const r = marca.getBoundingClientRect(); imagenes.push({ x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height, jpeg: logo.jpeg, px: logo.px, py: logo.py }) }
+    return armarPdfPaginas({ paginas: [{ ...lectura, imagenes }], titulo: "Receta de optica" })
   } finally {
     raiz.unmount()
     caja.remove()
   }
 }
 
-// Baja la receta como PDF. Devuelve true si la bajó; si algo falla devuelve false para que quien llama use otro camino (el diálogo de impresión). El logo (una imagen) no va en el PDF.
+// Baja la receta como PDF. Devuelve true si la bajó; si algo falla devuelve false para que quien llama use otro camino (el diálogo de impresión). El logo de la óptica va en el PDF como imagen (si no se puede leer, el PDF sale sin él).
 export async function descargarHojaReceta(datos) {
   try {
-    const pdf = await hojaAPdf({ ...datos, optica: { ...datos.optica, logoUrl: "" } })
+    const pdf = await hojaAPdf(datos)
     const url = URL.createObjectURL(new Blob([pdf], { type: "application/pdf" }))
     const enlace = document.createElement("a")
     enlace.href = url

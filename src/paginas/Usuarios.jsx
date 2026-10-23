@@ -19,6 +19,7 @@ import { unirPermisos, menuDePermisos, resumenPermisos } from "../utilidades/rol
 import RolesPanel from "../componentes/RolesPanel"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import ModalMisRoles from "../componentes/ModalMisRoles"
+import FotoProfesional from "../componentes/FotoProfesional"
 import { cargarMisPermisos } from "../utilidades/sesionPermisos"
 import { INK, ACCION_VER } from "@/lib/tema"
 
@@ -40,6 +41,9 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
   // creado después puede cambiar los de los demás, pero no los suyos. La base lo hace cumplir (migración 0098).
   const [esPrincipal, setEsPrincipal] = useState(true)
   const [misRolesAbierto, setMisRolesAbierto] = useState(false)
+  // La foto del profesional (perfiles.foto_url, migración 0148) se lee aparte y con tolerancia: en una base sin esa columna la lista carga igual y no se ofrece el control de foto.
+  const [fotos, setFotos] = useState({})
+  const [fotosDisponibles, setFotosDisponibles] = useState(false)
   const [mensajeExito, setMensajeExito] = useState(null)
   const mostrarExito = (msg) => { setMensajeExito(msg); setTimeout(() => setMensajeExito(null), DURACION_AVISO_MS) }
 
@@ -61,6 +65,10 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
     setNivelesVigentes(v === true)
     if (perfiles) setAsistentes(perfiles.map((p) => ({ id: p.id, nombre: p.nombre, correo: p.email, etiquetaRol: p.etiqueta_rol || "", esOptometra: !!p.es_optometra, cedula: p.cedula || "", registroProfesional: p.registro_profesional || "", activo: p.activo !== false, desactivadoEn: p.desactivado_en, motivoDesactivacion: p.motivo_desactivacion || "", permisos: {} })))
     setCargando(false)
+    try {
+      const { data: f, error: errorFotos } = await supabase.from("perfiles").select("id, foto_url").eq("optica_id", usuario.opticaId)
+      if (!errorFotos && Array.isArray(f)) { setFotos(Object.fromEntries(f.map((x) => [x.id, x.foto_url || ""]))); setFotosDisponibles(true) } else setFotosDisponibles(false)
+    } catch { setFotosDisponibles(false) }
   }, [usuario?.opticaId, setAsistentes])
   useEffect(() => { cargar() }, [cargar])
   const reintentarCarga = () => { setErrorCarga(false); setCargando(true); cargar() }
@@ -311,7 +319,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
             <li className="flex flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>{(usuario.nombre || "A").charAt(0).toUpperCase()}</div>
+                  {fotos[usuario.id] ? <img src={fotos[usuario.id]} alt={`Foto de ${usuario.nombre}`} className="h-10 w-10 shrink-0 rounded-full object-cover" /> : <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: GRAD }}>{(usuario.nombre || "A").charAt(0).toUpperCase()}</div>}
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-slate-800">{usuario.nombre}</p>
                     {usuario.correo && <p className="truncate font-mono text-xs text-slate-500">{usuario.correo}</p>}
@@ -325,6 +333,9 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
                 {usuario.esOptometra && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"><Glasses size={10} aria-hidden="true" /> Atiende pacientes</span>}
               </div>
               <p className="mt-3 text-xs text-slate-500">Ve y administra todos los módulos; no se desactiva desde aquí.{esPrincipal ? " Puedes sumarte roles para trabajar con su vista (por ejemplo, la de Optómetra)." : " Solo el administrador principal cambia sus propios roles."}</p>
+              {fotosDisponibles && usuario.esOptometra && (
+                <div className="mt-3"><FotoProfesional opticaId={usuario.opticaId} perfilId={usuario.id} nombre={usuario.nombre} url={fotos[usuario.id] || ""} onCambio={(u) => setFotos((p) => ({ ...p, [usuario.id]: u }))} onAviso={mostrarExito} /></div>
+              )}
               {esPrincipal && nivelesVigentes && (
                 <button type="button" onClick={() => setMisRolesAbierto(true)} className="mt-3 inline-flex items-center gap-1.5 self-start rounded-lg border border-slate-200/60 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
                   <Pencil size={13} aria-hidden="true" /> Mis roles
@@ -343,7 +354,7 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: a.activo === false ? "#94a3b8" : GRAD }}>{a.nombre.charAt(0).toUpperCase()}</div>
+                      {fotos[a.id] ? <img src={fotos[a.id]} alt={`Foto de ${a.nombre}`} className={"h-10 w-10 shrink-0 rounded-full object-cover " + (a.activo === false ? "grayscale" : "")} /> : <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: a.activo === false ? "#94a3b8" : GRAD }}>{a.nombre.charAt(0).toUpperCase()}</div>}
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-slate-800">{a.nombre}</p>
                         <p className="truncate font-mono text-xs text-slate-500">{a.correo}</p>
@@ -399,6 +410,9 @@ export default function Usuarios({ usuario, asistentes = [], setAsistentes, alAc
             {atiende && <span className="mt-1 block text-xs text-slate-500">Este rol atiende pacientes: su registro sale en cada receta que firma.</span>}
           </label>
         </div>
+        {fotosDisponibles && (atiende || asistentes.find((x) => x.id === modal.id)?.esOptometra) && (modal.id != null
+          ? <FotoProfesional opticaId={usuario.opticaId} perfilId={modal.id} nombre={nombre} url={fotos[modal.id] || ""} onCambio={(u) => setFotos((p) => ({ ...p, [modal.id]: u }))} onAviso={mostrarExito} />
+          : <p className="text-xs text-slate-500">Podrás agregar su foto después de crear la cuenta.</p>)}
         {modal.id != null ? (
           <div className="flex items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 text-slate-600"><Info size={17} className="mt-0.5 shrink-0" /><p className="text-xs leading-relaxed">El correo y la contraseña no se cambian desde aquí. Correo actual: <span className="font-mono font-semibold">{correo}</span></p></div>
         ) : (

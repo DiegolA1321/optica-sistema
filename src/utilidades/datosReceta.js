@@ -6,7 +6,7 @@ export function datosOpticaReceta(usuario = {}, parametrizacion = {}) {
   const marca = usuario?.opticaMarca || {}
   return {
     nombre: usuario?.opticaNombre,
-    logoUrl: usuario?.opticaLogoUrl || marca.logoUrl || "",
+    logoUrl: usuario?.opticaLogoUrl || "", // el logo de la óptica (opticas.logo_url), el mismo que ve todo el sistema
     direccion: texto(parametrizacion?.opticaDireccion) || texto(marca.direccion),
     telefono: texto(parametrizacion?.opticaTelefono) || texto(marca.telefono),
     correo: texto(marca.correo),

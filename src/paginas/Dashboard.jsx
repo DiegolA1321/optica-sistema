@@ -84,6 +84,7 @@ import { useContactar } from "../componentes/useContactar"
 import { ProveedorFidelidad, armarFidelidad } from "../componentes/FidelidadContexto"
 import { ProveedorParametrizacion } from "../componentes/ParametrizacionContexto"
 import { programaDe } from "../utilidades/programaFidelidad"
+import LogoOptica from "../componentes/LogoOptica"
 
 
 // ─── Paleta de firma ───
@@ -757,6 +758,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         return (
           <Configuracion
             usuario={usuario}
+            onNavegar={navegar}
             alActualizarUsuario={alActualizarUsuario}
             parametrizacion={parametrizacion}
             setParametrizacion={setParametrizacion}
@@ -878,9 +880,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         <div className="sidebar-scroll relative z-10 min-h-0 flex-1 overflow-y-auto">
           <div className={"flex min-w-0 items-center justify-between border-b border-slate-200/70 px-4 py-5 " + (colapsado ? "lg:justify-center lg:px-0" : "")}>
             <div className="flex min-w-0 items-center gap-3">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD, boxShadow: "0 10px 24px -8px rgba(34,211,238,0.6)" }}>
-                <Eye size={22} strokeWidth={2.2} />
-              </div>
+              {/* El logo de la óptica (el mismo de Configuración › Página pública), entero y sin deformarse; sin logo, el ojo de marca. */}
+              <LogoOptica url={usuario?.opticaLogoUrl} nombre={usuario?.opticaNombre} tamano={44} />
               <div className={"min-w-0 leading-tight " + (colapsado ? "lg:hidden" : "")}>
                 <p className="truncate text-lg font-bold tracking-tight text-slate-900">
                   {usuario?.opticaNombre || "Mi Óptica"}

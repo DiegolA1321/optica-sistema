@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabaseClient"
 import MiniaturaProducto from "./MiniaturaProducto"
 
 // Subida de foto de producto (armazón/lente) — mismo patrón que subirLogo en
-// PersonalizacionLogin.jsx (bucket público, path {optica_id}/{archivo}), acá
+// PaginaPublicaEditor.jsx (bucket público, path {optica_id}/{archivo}), acá
 // reutilizado porque ahora hay tres formularios de alta de producto
 // (Inventario, y las altas rápidas embebidas en Factura/Venta).
 export default function CampoImagenProducto({ opticaId, valor, onCambio, label = "Foto del producto" }) {

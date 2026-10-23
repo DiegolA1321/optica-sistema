@@ -2,7 +2,7 @@
 // (imprimirHtml lo manda a la impresora). No lleva medidas ni datos clínicos: es un documento comercial (regla 29).
 import { dinero } from "./formatoMoneda"
 import { fechaLegible, hora } from "./formatoFecha"
-import { escapar } from "./proforma"
+import { escapar, logoHtml } from "./proforma"
 import { numeroComprobante, LEYENDA_INTERNO } from "./comprobantes"
 import { abonosDeFactura, totalAbonado, saldoFactura } from "./abonos"
 import { brutoLinea, descuentoLinea, subtotalLinea, totalesDeLineas } from "./descuentos"
@@ -46,7 +46,7 @@ export function armarHtmlComprobante({ opticaNombre = "Óptica", opticaDatos = {
   .totales{margin-top:12px;text-align:right}.totales p{margin:2px 0}.total{font-size:16px;font-weight:700}
   .anulada{margin:10px 0;padding:8px 10px;border:2px solid #b91c1c;color:#b91c1c;font-weight:700;text-align:center}
 </style></head><body>
-<h1>${escapar(opticaNombre)}</h1>
+${logoHtml(opticaDatos.logoUrl, opticaNombre)}<h1>${escapar(opticaNombre)}</h1>
 ${contacto ? `<p class="contacto">${contacto}</p>` : ""}
 <p>Comprobante de venta <b>${escapar(numeroComprobante(factura.numero))}</b> · ${escapar(fechaLegible(fecha))}${factura.creadoEn && String(factura.creadoEn).includes("T") ? ` · ${escapar(hora(factura.creadoEn))}` : ""}</p>
 ${anulada ? `<div class="anulada">VENTA ANULADA${factura.anuladaMotivo ? ` · ${escapar(factura.anuladaMotivo)}` : ""}</div>` : ""}
