@@ -9,7 +9,7 @@
 -- SE CONSERVA: la óptica y sus datos (nombre, slug, logo, marca/página pública, ajustes, catálogos, datos bancarios), el horario (disponibilidad y horarios por persona),
 --   usuarios (perfiles) y roles, plantillas del CRM, productos (inventario, sus costos y su saldo inicial en el kárdex) y el registro de auditoría del superadmin.
 --
--- Decisiones para Diego (están marcadas con ◆ abajo): (1) las 678 «visitas» a la página pública; (2) la cuenta de acceso del paciente «Prueba Unificacion Citas» en el sistema de ingreso.
+-- Incluye (por indicación de Diego) las 678 visitas a la página pública y las cuentas de ingreso de prueba.
 
 begin;
 
@@ -51,15 +51,18 @@ delete from public.pacientes_base             where optica_id = 'b6eb867a-6b08-4
 
 -- ── Actividad ──
 delete from public.logs_optica                where optica_id = 'b6eb867a-6b08-42c6-b493-27d139bed64e';
--- ◆ (1) Las 678 visitas a la página pública (26 ago. – 19 oct.) son tráfico de las pruebas y alimentan el embudo del panel del superadmin. Quitar el comentario para borrarlas:
--- delete from public.visitas                  where optica_id = 'b6eb867a-6b08-42c6-b493-27d139bed64e';
+-- Las 678 visitas a la página pública (26 ago. – 19 oct.) son tráfico de las pruebas y alimentaban el embudo del panel del superadmin (Diego: se borran).
+delete from public.visitas                    where optica_id = 'b6eb867a-6b08-42c6-b493-27d139bed64e';
 
 -- ── Numeración: los comprobantes y los pedidos vuelven a empezar en 1 ──
 delete from public.contador_comprobantes_venta where optica_id = 'b6eb867a-6b08-42c6-b493-27d139bed64e';
 delete from public.contador_ordenes_laboratorio where optica_id = 'b6eb867a-6b08-42c6-b493-27d139bed64e';
 
--- ◆ (2) Cuenta de ingreso del paciente «Prueba Unificacion Citas» (auth.users, sin perfil): el SQL no la toca (las cuentas se quitan con la Edge Function eliminar-cuenta-auth, no con SQL).
---     Queda sin paciente al que apuntar y sin ningún permiso; se puede quitar aparte con la función, o dejarla.
+-- Cuentas de ingreso de prueba:
+--  · La del paciente «Prueba Unificacion Citas» (portal) no es de Supabase Auth: vive en su propia fila de pacientes (tiene_cuenta y su clave), y se va con el borrado de pacientes de arriba.
+--  · Sí hay una cuenta de Supabase Auth huérfana de prueba de esta óptica, sin perfil ni datos: secretaria.qa.prueba@opticasolna.test (creada el 4 sept.). Se borra solo si sigue sin perfil;
+--    sus sesiones e identidades caen en cascada.
+delete from auth.users where id = 'a7076863-4b31-492a-a977-90f09b56468a' and email = 'secretaria.qa.prueba@opticasolna.test' and not exists (select 1 from public.perfiles p where p.id = auth.users.id);
 
 -- Ensayo: se REVIERTE. Para aplicar de verdad, con respaldo hecho y aprobación, cambiar «rollback» por «commit».
 rollback;
