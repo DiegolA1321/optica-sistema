@@ -73,7 +73,7 @@ test('Inicio: «Descartar» un aviso pide el motivo, lo saca de la lista, queda 
     await iniciarSesion(page, 'ADMIN', 'E2E')
     const area = page.getByRole('region', { name: 'Requiere tu atención: Inventario' })
     await expect(area).toBeVisible({ timeout: 20_000 })
-    await area.getByRole('button', { name: /con stock bajo$/ }).click()
+    await area.getByRole('button', { name: /con sobrestock$/ }).click()
     const ventana = page.getByRole('dialog')
     const antes = await ventana.getByRole('button', { name: /^Descartar el aviso de / }).count()
     expect(antes).toBeGreaterThan(0)
@@ -82,17 +82,17 @@ test('Inicio: «Descartar» un aviso pide el motivo, lo saca de la lista, queda 
     await boton.click()
     const panel = ventana.getByRole('group', { name: `Descartar el aviso de ${nombre}` })
     await expect(panel.getByRole('button', { name: 'Descartar el aviso' })).toBeDisabled() // sin motivo no se descarta
-    await panel.getByRole('radio', { name: 'No se repondrá' }).click()
-    await panel.getByLabel(/Detalle/).fill('E2E: producto descontinuado')
+    await panel.getByRole('radio', { name: 'Es una compra por temporada' }).click()
+    await panel.getByLabel(/Detalle/).fill('E2E: compra por temporada')
     await page.screenshot({ path: 'docs/ronda2-capturas/descartar-aviso.png' })
     await panel.getByRole('button', { name: 'Descartar el aviso' }).click()
     await expect(page.getByText(`Aviso de ${nombre} descartado.`)).toBeVisible({ timeout: 15_000 })
 
     // Queda registrado: quién, por qué y cuándo.
     const fila = (await q("select tipo, motivo, detalle, descartado_nombre, descartado_por from avisos_descartados where optica_id = $1", [optica.id]))[0]
-    expect(fila.tipo).toBe('inventario:stock_bajo')
-    expect(fila.motivo).toBe('No se repondrá')
-    expect(fila.detalle).toBe('E2E: producto descontinuado')
+    expect(fila.tipo).toBe('inventario:sobrestock')
+    expect(fila.motivo).toBe('Es una compra por temporada')
+    expect(fila.detalle).toBe('E2E: compra por temporada')
     expect(fila.descartado_nombre.length).toBeGreaterThan(0)
     expect(fila.descartado_por).toBeTruthy()
 

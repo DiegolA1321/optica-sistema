@@ -228,6 +228,16 @@ describe("Inicio del administrador", () => {
     expect(stock).toEqual(["bajo", "bajo"])
   })
 
+  it("el stock bajo NO se puede descartar: avisa mientras dure", () => {
+    const inventario = [{ id: "i1", nombre: "Montura A", stock: 1, precio: 50 }, { id: "i2", nombre: "Líquido", stock: 38, precio: 5 }]
+    render(<Inicio {...base} inventario={inventario} maximoStock={30} onDescartar={async () => ({})} onRestaurar={async () => ({})} />)
+    fireEvent.click(tarj("Inventario", /producto con stock bajo/))
+    const bajo = screen.getByRole("dialog")
+    expect(bajo).toHaveTextContent("Montura A")
+    expect(within(bajo).queryByRole("button", { name: /^Descartar el aviso de / })).toBeNull()
+    fireEvent.keyDown(bajo, { key: "Escape" })
+  })
+
   it("cuando toca el conteo, Inventario lo avisa con «Imprimir hoja»; sin que toque, no hay aviso", () => {
     const hojas = []
     const { unmount } = render(<Inicio {...base} conteoPendiente={{ toca: false, dias: 10, cada: 30, nunca: false }} onImprimirConteo={() => hojas.push("hoja")} />)

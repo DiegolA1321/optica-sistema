@@ -823,7 +823,8 @@ export default function Inicio({
         })),
       })
     }
-    const dStock = incStock && productosBajoStock.length > 0 ? descarteDe("inventario:stock_bajo", productosBajoStock, (p) => p.id, (p) => p.nombre) : null
+    // El stock bajo NO se descarta: avisa mientras dure (descartarlo es olvidarse de reponer). El sobrestock sí.
+    const dStock = incStock && productosBajoStock.length > 0 ? { visibles: productosBajoStock, total: productosBajoStock.length, hay: true, extra: {} } : null
     if (dStock?.hay) {
       const n = dStock.visibles.length
       poner("inventario", {
