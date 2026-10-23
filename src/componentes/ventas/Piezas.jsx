@@ -16,13 +16,14 @@ const BOTON_BARRA = "inline-flex h-10 shrink-0 items-center gap-2 whitespace-now
 export function Pestanas({ etiqueta, pestanas, activa, onCambiar, idBase }) {
   return (
     <div role="tablist" aria-label={etiqueta} className="flex flex-wrap items-end gap-x-1 border-b border-slate-200/70">
-      {pestanas.map(({ id, titulo, cuenta }) => {
+      {pestanas.map(({ id, titulo, cuenta, nuevas }) => {
         const esta = activa === id
         return (
           <button key={id} type="button" role="tab" id={`${idBase}-tab-${id}`} aria-selected={esta} aria-controls={`${idBase}-panel`} onClick={() => onCambiar(id)}
             className={"-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3.5 pb-2.5 pt-2.5 text-[15px] font-semibold transition-colors cursor-pointer " + (esta ? "border-blue-600 text-blue-700" : "border-transparent text-slate-600 hover:text-slate-900")}>
             {titulo}
             {cuenta != null && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold tabular-nums text-slate-500">{cuenta}</span>}
+            {nuevas > 0 && <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-bold text-white">{nuevas === 1 ? "1 nueva" : `${nuevas} nuevas`}</span>}
           </button>
         )
       })}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { BookOpen, Inbox, Megaphone, MessageSquare, MessageSquarePlus, Plus, Users } from "lucide-react"
+import { MessageSquare, MessageSquarePlus, Plus } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import { MODO_SAAS_VISIBLE } from "@/lib/config"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
@@ -12,6 +12,7 @@ import VentanaNuevoAviso from "../componentes/soporte/VentanaNuevoAviso"
 import VentanaConsulta from "../componentes/soporte/VentanaConsulta"
 import BloqueSuscripcion from "../componentes/soporte/BloqueSuscripcion"
 import { CLASE_ACCION_SECUNDARIA } from "../componentes/ventas/estilos"
+import { Pestanas } from "../componentes/ventas/Piezas"
 import {
   EVENTO_SOPORTE_CAMBIADO, avisarCambioSoporte, leerAvisos, leerAvisosInternos, leerDestinatariosDeAvisos, leerMisConsultas, marcarAvisosInternosLeidos, marcarAvisosLeidos, retirarAvisoInterno,
 } from "../utilidades/soporteDatos"
@@ -100,11 +101,11 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
     : consultasDe(p).filter((c) => c.respuestaSinLeer && (c.autorId === usuario.id || c.iniciadaPor === "soporte")).length)
   const pestanas = useMemo(() => {
     const defs = {
-      consultas: { etiqueta: NOMBRE_PESTANA_CONSULTAS.consultas, Icono: MessageSquare },
-      personal: { etiqueta: NOMBRE_PESTANA_CONSULTAS.personal, Icono: Users },
-      sistema: { etiqueta: NOMBRE_PESTANA_CONSULTAS.sistema, Icono: Inbox },
-      avisos: { etiqueta: "Avisos", Icono: Megaphone, cuenta: avisosLista.length, nuevas: avisosSinLeer },
-      ayuda: { etiqueta: "Ayuda", Icono: BookOpen },
+      consultas: { titulo: NOMBRE_PESTANA_CONSULTAS.consultas },
+      personal: { titulo: NOMBRE_PESTANA_CONSULTAS.personal },
+      sistema: { titulo: NOMBRE_PESTANA_CONSULTAS.sistema },
+      avisos: { titulo: "Avisos", cuenta: avisosLista.length, nuevas: avisosSinLeer },
+      ayuda: { titulo: "Ayuda" },
     }
     return pestanasDeSoporte(usuario).map((id) => {
       const d = defs[id]
@@ -115,7 +116,8 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
 
   // La acción principal de la cabecera: el administrador publica en Avisos y escribe al soporte en las demás; en "Consultas del personal" no hay botón
   // (ahí contesta), y la ayuda no lo repite.
-  const accionCabecera = esAdmin && tab === "avisos" ? "aviso" : (esAdmin && tab === "personal") ? null : "consulta"
+  // En las pestañas de consultas, «Nueva consulta» está en su propia tarjeta (no se repite arriba).
+  const accionCabecera = esAdmin && tab === "avisos" ? "aviso" : (tab === "consultas" || tab === "sistema" || (esAdmin && tab === "personal")) ? null : "consulta"
 
   return (
     <div className="w-full space-y-5 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
@@ -147,20 +149,7 @@ export default function Mensajes({ usuario, pantallaOrigen = "", moduloOrigen = 
         </div>
       )}
 
-      <div role="tablist" aria-label="Secciones de Soporte" className="flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200/60 bg-white p-1 shadow-sm">
-        {pestanas.map(({ id, etiqueta, cuenta, nuevas, Icono }) => {
-          const activo = tab === id
-          return (
-            <button key={id} type="button" role="tab" id={`soporte-tab-${id}`} aria-selected={activo} aria-controls="soporte-panel" onClick={() => setTab(id)}
-              className={"flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors cursor-pointer " + (activo ? "text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800")}
-              style={activo ? { background: GRAD_MARCA } : undefined}>
-              <Icono size={14} aria-hidden="true" /> {etiqueta}
-              {cuenta !== undefined && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (activo ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500")}>{cuenta}</span>}
-              {nuevas > 0 && <span className={"rounded-full px-1.5 py-0.5 text-xs font-bold " + (activo ? "bg-white text-blue-700" : "bg-blue-600 text-white")}>{nuevas === 1 ? "1 nueva" : `${nuevas} nuevas`}</span>}
-            </button>
-          )
-        })}
-      </div>
+      <Pestanas etiqueta="Secciones de Soporte" pestanas={pestanas} activa={tab} onCambiar={setTab} idBase="soporte" />
 
       <div id="soporte-panel" role="tabpanel" aria-labelledby={`soporte-tab-${tab}`}>
         {tab === "ayuda" && <PestanaAyuda key={ayuda.clave} esAdmin={esAdmin} puedeEscribir={puedeEscribir} onEscribir={escribir} busquedaInicial={ayuda.texto} moduloInicial={ayuda.modulo} enfocar={ayuda.clave > 0} />}

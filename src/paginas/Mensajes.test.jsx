@@ -145,14 +145,15 @@ describe("Soporte: Mis consultas (personal → administrador)", () => {
   it("sin consultas dice qué pasa y ofrece escribir", async () => {
     render(<Mensajes usuario={staff()} />)
     expect(await screen.findByText("Todavía no escribiste ninguna consulta")).toBeInTheDocument()
-    expect(screen.getAllByRole("button", { name: /Nueva consulta/ }).length).toBe(2)
+    expect(screen.getAllByRole("button", { name: /Nueva consulta/ }).length).toBe(1) // un solo camino: el botón está donde está la lista (no también arriba)
   })
-  it("cada consulta muestra su número, asunto, módulo, urgencia, fecha y estado, y que está con su administrador", async () => {
+  it("cada consulta muestra su asunto, quién la tiene, su fecha y su estado (el número, el módulo y la urgencia se ven al abrirla)", async () => {
     datos.leerMisConsultas.mockResolvedValue({ datos: [mia()] })
     render(<Mensajes usuario={staff()} />)
     const lista = await screen.findByRole("list", { name: "Mis consultas" })
     const fila = within(lista).getByRole("listitem")
-    for (const t of ["SOP-0007", "No puedo cobrar un abono", "Ventas", "Urgente", "Recibida", "Con tu administrador"]) expect(within(fila).getByText(t)).toBeInTheDocument()
+    for (const t of ["No puedo cobrar un abono", "Urgente", "Recibida", "Con tu administrador"]) expect(within(fila).getByText(t)).toBeInTheDocument()
+    expect(within(fila).queryByText("SOP-0007")).toBeNull()
     expect(within(fila).getByText(/12 oct 2026/)).toBeInTheDocument()
   })
   it("el contador de la pestaña coincide con las filas", async () => {
@@ -246,7 +247,7 @@ describe("Soporte: Soporte del sistema (el administrador)", () => {
   it("sin consultas ofrece escribir al soporte", async () => {
     render(<Mensajes usuario={admin} />)
     expect(await screen.findByText("Todavía no escribiste al soporte del sistema")).toBeInTheDocument()
-    expect(screen.getAllByRole("button", { name: /Nueva consulta/ }).length).toBe(2)
+    expect(screen.getAllByRole("button", { name: /Nueva consulta/ }).length).toBe(1) // un solo camino: el botón está donde está la lista (no también arriba)
   })
   it("muestra sus consultas y le deja calificar la atención", async () => {
     datos.leerMisConsultas.mockResolvedValue({ datos: [consulta({ estado: "resuelta", resueltaEn: "2026-10-13T10:00:00Z" }), dePersonal({ id: "c9", numero: 9 })] })
