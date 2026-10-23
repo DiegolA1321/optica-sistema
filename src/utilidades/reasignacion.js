@@ -2,6 +2,7 @@
 // Una ausencia de "Mi horario" vive en disponibilidad.excepciones[fecha].ausencias como { inicio, fin, motivo, usuarioId, usuarioNombre }.
 // Las anteriores a este cambio no tienen autor: no se pueden atribuir a nadie, así que no generan avisos.
 import { minutosDesde24h, minutosDesdeMedianoche } from "./disponibilidad"
+import { ausenciaCubreMinuto, diasDelRango } from "./agendaPersonal"
 import { esReasignable } from "./profesionalCita"
 import { puede } from "./permisosUi"
 
@@ -18,7 +19,10 @@ export function ausenciaCubreCita(ausencia, cita) {
 export function ausenteEnHorario(disponibilidad, personaId, fecha, hora) {
   if (!personaId || !fecha || !hora) return false
   const ausencias = disponibilidad?.excepciones?.[fecha]?.ausencias || []
-  return ausencias.some((a) => a.usuarioId === personaId && ausenciaCubreCita(a, { hora }))
+  if (ausencias.some((a) => a.usuarioId === personaId && ausenciaCubreCita(a, { hora }))) return true
+  // Las ausencias aprobadas de «Horario → Ausencias».
+  const minuto = minutosDesdeMedianoche(hora)
+  return (disponibilidad?.profesionales || []).some((p) => p.id === personaId && (p.ausencias || []).some((a) => ausenciaCubreMinuto(a, fecha, minuto, disponibilidad)))
 }
 
 // Grupos de citas por reasignar: una entrada por persona y fecha con ausencia registrada que todavía tiene citas abiertas
@@ -39,6 +43,19 @@ export function citasPorReasignar(citas = [], disponibilidad, hoy) {
     for (const g of porPersona.values()) {
       g.citas.sort((a, b) => minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
       grupos.push(g)
+    }
+  }
+  // Las ausencias APROBADAS (Horario → Ausencias): cada día de la ausencia, las citas abiertas de esa persona que caen en su tiempo ausente.
+  for (const p of disponibilidad?.profesionales || []) {
+    for (const a of p.ausencias || []) {
+      for (const fecha of diasDelRango(a.desde < hoy ? hoy : a.desde, a.hasta)) {
+        const afectadas = citas.filter((c) => c.fecha === fecha && c.asignadoA === p.id && esReasignable(c) && ausenciaCubreMinuto(a, fecha, minutosDesdeMedianoche(c.hora), disponibilidad))
+        if (afectadas.length === 0) continue
+        let g = grupos.find((x) => x.fecha === fecha && x.personaId === p.id)
+        if (!g) { g = { fecha, personaId: p.id, personaNombre: null, citas: [] }; grupos.push(g) }
+        for (const c of afectadas) if (!g.citas.some((x) => x.id === c.id)) g.citas.push(c)
+        g.citas.sort((x, y) => minutosDesdeMedianoche(x.hora) - minutosDesdeMedianoche(y.hora))
+      }
     }
   }
   return grupos.sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.personaNombre || "").localeCompare(b.personaNombre || ""))

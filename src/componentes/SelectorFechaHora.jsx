@@ -16,7 +16,7 @@ const DIAS_CORTOS = ["L", "M", "X", "J", "V", "S", "D"]
 // Calendario + horarios reutilizable: solo deja elegir fechas con cupo real
 // (según el horario del optómetra) y horas que aún no están ocupadas.
 // mesInicial (ISO): mes que se muestra mientras todavía no hay fecha elegida (por ejemplo el de una fecha recomendada).
-export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, hora, onCambiarFecha, onCambiarHora, mesesAdelante = 2, mesInicial = "", publico = false, grande = false }) {
+export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, hora, onCambiarFecha, onCambiarHora, mesesAdelante = 2, mesInicial = "", publico = false, grande = false, profesionalId = null }) {
   // `grande`: números y horarios de 18 px y celdas de 48 px, para el portal del paciente (regla 48).
   const hoy = hoyISO()
   const mesHoy = new Date(ahoraEcuador().getFullYear(), ahoraEcuador().getMonth(), 1)
@@ -35,13 +35,13 @@ export default function SelectorFechaHora({ disponibilidad, citas = [], fecha, h
       const d = new Date(mesVista.getFullYear(), mesVista.getMonth(), n)
       const iso = fechaAISO(d)
       const pasado = iso < hoy
-      const disponible = !pasado && diaTieneCupo(iso, disponibilidad, citas, { publico })
+      const disponible = !pasado && diaTieneCupo(iso, disponibilidad, citas, { publico, profesionalId })
       arr.push({ numero: n, iso, disponible })
     }
     return arr
-  }, [mesVista, disponibilidad, citas, hoy, publico])
+  }, [mesVista, disponibilidad, citas, hoy, publico, profesionalId])
 
-  const slots = useMemo(() => (fecha ? slotsDisponibles(fecha, disponibilidad, citas, { publico }) : []), [fecha, disponibilidad, citas, publico])
+  const slots = useMemo(() => (fecha ? slotsDisponibles(fecha, disponibilidad, citas, { publico, profesionalId }) : []), [fecha, disponibilidad, citas, publico, profesionalId])
 
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))

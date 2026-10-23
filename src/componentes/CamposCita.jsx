@@ -38,6 +38,7 @@ export default function CamposCita({ prefijoId, motivosConsulta = [], equipo = [
         onCambiarFecha={setFecha}
         onCambiarHora={(h) => { setHora(h); setHoraPersonalizada(false) }}
         mesesAdelante={14}
+        profesionalId={asignadoA || null}
       />
 
       {/* Horario personalizado — para un paciente que llega fuera de la grilla de horarios fijos

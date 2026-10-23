@@ -1944,6 +1944,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
             hora={nuevaHora}
             onCambiarFecha={setNuevaFecha}
             onCambiarHora={setNuevaHora}
+            profesionalId={reagendando.asignadoA || null}
           />
 
           {/* Excepción, no flujo normal, solo para el administrador: el estado lo deduce el sistema (En atención al abrir la ficha, Atendida al guardarla,

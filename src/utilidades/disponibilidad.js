@@ -1,5 +1,6 @@
 import { ahoraEcuador } from "./horaEcuador"
 import { formatoFecha, hora } from "./formatoFecha"
+import { horaOfrecida } from "./agendaPersonal"
 // ─── Utilidades de disponibilidad y horario del optómetra ───
 // Toda la lógica de "qué días/horas puede reservar un paciente" vive aquí,
 // para que el panel del optómetra (Horario.jsx) y los flujos de agendamiento
@@ -272,12 +273,14 @@ export function ausenciasDeFecha(fechaISO, disponibilidad) {
 // Si la fecha es hoy, también descarta los horarios que ya pasaron — antes se
 // podía agendar (desde cualquiera de los 4 flujos que comparten esta función)
 // una cita a una hora anterior a la actual del mismo día.
-export function slotsDisponibles(fechaISO, disponibilidad, citas = [], { publico = false } = {}) {
+// `profesionalId`: la agenda de esa persona (su horario y sus ausencias). Sin él, una hora se ofrece si algún profesional atiende (agendaPersonal.js); sin profesionales marcados, el horario de la óptica de siempre.
+export function slotsDisponibles(fechaISO, disponibilidad, citas = [], { publico = false, profesionalId = null } = {}) {
   const horario = horarioEfectivo(fechaISO, disponibilidad)
   if (!diaAbierto(horario)) return []
   if (publico && !reservasWebPermitidas(fechaISO, disponibilidad)) return []
   const duracionDefault = disponibilidad?.duracionCita || 40
   const todos = generarSlots({ manana: horario.manana, tarde: horario.tarde, duracion: duracionDefault })
+    .filter((h) => horaOfrecida(disponibilidad, fechaISO, minutosDesdeMedianoche(h), profesionalId))
   const esHoyFecha = fechaISO === hoyISO()
   const ahoraMin = esHoyFecha ? ahoraEcuador().getHours() * 60 + ahoraEcuador().getMinutes() : null
   // "Cancelada" no debe bloquear el horario — el hallazgo E7 encontró que
