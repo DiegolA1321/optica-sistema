@@ -182,6 +182,11 @@ export async function prepararAvisosInicio(entorno = 'E2E') {
   const { data: producto } = await cliente.from('inventario').select('id').eq('optica_id', optica).eq('nombre', NOMBRE_PRODUCTO).maybeSingle()
   if (!producto) falla('producto con stock bajo', (await cliente.from('inventario').insert({ optica_id: optica, nombre: NOMBRE_PRODUCTO, categoria: 'Monturas', stock: 0, precio: 10, observacion: '' })).error)
 
+  // Un producto con más unidades que el máximo general (30): el aviso de sobrestock, que sí se puede descartar.
+  const NOMBRE_SOBRE = 'E Dos E Montura de sobra'
+  const { data: sobra } = await cliente.from('inventario').select('id').eq('optica_id', optica).eq('nombre', NOMBRE_SOBRE).maybeSingle()
+  if (!sobra) falla('producto con sobrestock', (await cliente.from('inventario').insert({ optica_id: optica, nombre: NOMBRE_SOBRE, categoria: 'Monturas', stock: 50, precio: 10, observacion: '' })).error)
+
   const pacienteDe = async (nombre, extra = {}) => {
     const { data: existente } = await cliente.from('pacientes').select('id').eq('optica_id', optica).eq('nombre', nombre).maybeSingle()
     if (existente) return existente.id

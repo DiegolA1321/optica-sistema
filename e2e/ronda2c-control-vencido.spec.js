@@ -40,5 +40,5 @@ test('Control vencido: Agendar control, WhatsApp y Descartar; el enlace lleva a 
   await page.getByRole('button', { name: 'Inicio', exact: true }).first().click()
   ventana = await abrir()
   await ventana.getByRole('button', { name: /^Abrir en Pacientes · Control vencido/ }).click()
-  await expect(page.getByRole('button', { name: /^Control vencido \(\d+\)/ })).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole('button', { name: /Con control vencido/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 })
 })

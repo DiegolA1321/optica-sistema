@@ -129,8 +129,8 @@ test.describe('Inicio del administrador', () => {
     test.skip(await tarjeta.count() === 0, 'Esta óptica no tiene productos con stock bajo')
     await tarjeta.click()
     await page.getByRole('dialog').getByRole('button', { name: /^Abrir en Inventario · Stock bajo/ }).click()
-    // Inventario abre con el filtro "Stock bajo" ya activo, visible como una etiqueta con su "x" (el stock bajo ya no es una tarjeta)
-    await expect(page.getByRole('button', { name: 'Quitar el filtro Stock bajo' })).toBeVisible({ timeout: 15_000 })
+    // Inventario abre con el filtro «Stock bajo» ya activo: el dato de la franja queda pulsado (se vuelve a pulsar para quitarlo)
+    await expect(page.getByRole('list', { name: 'Resumen del inventario' }).getByRole('button', { name: /^Stock bajo/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 })
   })
 
   test('el Inicio del administrador no lista citas (solo números): las tarjetas llevan a Citas', async ({ page }) => {
@@ -222,7 +222,7 @@ test('Inicio de Ventas', async ({ page }) => {
   const cuerpo = main(page)
   await expect(cuerpo.getByRole('region', { name: 'Requiere tu atención: Ventas' })).toBeVisible({ timeout: 20_000 })
   await expect(cuerpo.getByRole('button', { name: /productos? con stock bajo$/ })).toHaveCount(1)
-  await expect(cuerpo.getByRole('button', { name: /[oó]rden(es)? atrasadas?$/ }).first()).toBeVisible()
+  await expect(cuerpo.getByRole('button', { name: /pedidos? atrasados?$/ }).first()).toBeVisible()
   await capturar(page, 'ventas')
 })
 
@@ -260,7 +260,7 @@ test('"N pacientes registrados sin ninguna consulta" coincide con "Sin consulta"
   expect(Number(((await total.innerText()).match(/(\d+)/) || [])[1])).toBe(enInicio)
 })
 
-test('el contador del menú de Ventas solo lo ve quien puede vender', async ({ browser }) => {
+test('el menú de Ventas no lleva número para ningún rol (la Ronda 4 lo quitó)', async ({ browser }) => {
   const veContador = async (cuenta) => {
     const contexto = await browser.newContext()
     const page = await contexto.newPage()
@@ -273,9 +273,10 @@ test('el contador del menú de Ventas solo lo ve quien puede vender', async ({ b
     await contexto.close()
     return /\d/.test(texto)
   }
+  // Desde la Ronda 4 el menú de Ventas ya no lleva número (lo que requiere atención está en «Requieren atención» de Ventas): ningún rol lo ve, y quien no tiene Ventas ni siquiera tiene el módulo.
   expect(await veContador('OPTOMETRA'), 'Paula (sin Ventas) no debe verlo').toBe(false)
-  expect(await veContador('VENTAS'), 'Ventas sí').toBe(true)
-  expect(await veContador('RECEPCION'), 'Recepción (ventas: crear) sí').toBe(true)
+  expect(await veContador('VENTAS'), 'Ventas: sin número en el menú').toBe(false)
+  expect(await veContador('RECEPCION'), 'Recepción: sin número en el menú').toBe(false)
 })
 
 // "Siguiente paciente" de Paula necesita una cita suya de hoy: esa prueba vive en e2e/flujo-completo.spec.js (óptica de pruebas).

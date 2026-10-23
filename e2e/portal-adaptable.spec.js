@@ -21,7 +21,7 @@ for (const [nombre, ancho, alto] of TAMANOS) {
     await expect(page.getByPlaceholder('Ej. 0912345678 o tu usuario')).toBeVisible()
     m = await sinScroll()
     expect(m.doc, 'ventana de inicio de sesión').toBeLessThanOrEqual(m.ancho)
-    await expect(page.getByText('¿Olvidaste tu contraseña? Comunícate con la óptica')).toBeVisible()
+    await expect(page.getByRole('button', { name: '¿Olvidaste tu contraseña?' })).toBeVisible()
     void dialogo
     await escribirSecreto(page, page.getByPlaceholder('Ej. 0912345678 o tu usuario'), process.env.E2E_PORTAL_CEDULA)
     await escribirSecreto(page, page.getByPlaceholder('Tu contraseña'), process.env.E2E_PORTAL_CLAVE)

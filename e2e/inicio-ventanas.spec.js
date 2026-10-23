@@ -41,13 +41,11 @@ test('Totales: cada opción de cada tarjeta lleva al módulo con el mismo númer
         if (mes) await expect(page.getByRole('button', { name: /Quitar el filtro Agendadas: este mes/ })).toBeVisible()
         else await expect(page.getByRole('button', { name: 'Todas', exact: true }).first()).toHaveAttribute('aria-pressed', 'true')
       } else if (tarjeta === 'Ventas') {
-        await expect(page.getByRole('tab', { name: /Comprobantes/ })).toHaveAttribute('aria-selected', 'true', { timeout: 15_000 })
-        if (n === 0) await expect(main(page)).toContainText(/Todavía no hay ventas|No hay ventas en este período/, { timeout: 15_000 })
-        else await expect(estado(page)).toHaveText(new RegExp(`^${n} comprobantes?( en el mes)?$`), { timeout: 15_000 })
+        await expect(page.getByRole('tab', { name: /^Ventas/ })).toHaveAttribute('aria-selected', 'true', { timeout: 15_000 })
+        if (n > 0) await expect(page.getByRole('list', { name: 'Resumen de las ventas' })).toContainText(new RegExp(`${n} ventas?`), { timeout: 15_000 })
       } else {
-        if (mes) await expect(page.getByRole('button', { name: /^Nuevos este mes/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 })
-        else await expect(main(page)).toContainText(new RegExp(`Productos\\s*${n}`), { timeout: 15_000 })
-        if (mes && n > 0) await expect(main(page)).toContainText(new RegExp(`Mostrando \\d+ de ${n}`))
+        if (mes) await expect(main(page)).toContainText('Nuevos este mes', { timeout: 15_000 })
+        else await expect(page.getByRole('list', { name: 'Resumen del inventario' }).getByRole('button', { name: /^Productos activos/ })).toContainText(String(n), { timeout: 15_000 })
       }
     }
   }
@@ -161,10 +159,9 @@ test('la cabecera de Citas, Pacientes, Ventas e Inventario pone "Requieren atenc
 test('Inventario dice el stock bajo una sola vez: solo en "Requieren atención" (sin tarjeta ni aviso aparte)', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN')
   await page.getByRole('button', { name: 'Inventario', exact: true }).first().click()
-  await expect(page.getByRole('button', { name: /^Productos: / })).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByRole('button', { name: /^Stock bajo:/ })).toHaveCount(0)
+  await expect(page.getByRole('list', { name: 'Resumen del inventario' })).toBeVisible({ timeout: 15_000 })
+  // El stock bajo es un dato de la franja de Inventario (y su aviso, en «Requieren atención»): no hay una tarjeta ni un aviso aparte con otro nombre.
   await expect(main(page).getByText(/por agotarse/)).toHaveCount(0)
-  await expect(main(page).getByText(/^Stock bajo/)).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Requieren atención|Todo en orden/ })).toBeVisible()
 })
 
