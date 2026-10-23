@@ -26,7 +26,7 @@ const elegirHorario = async (ventana, indiceDia = 0) => {
   const dias = ventana.locator('button[title="Disponible"]')
   if (!(await dias.count())) await ventana.getByRole('button', { name: 'Mes siguiente' }).click()
   await dias.nth(indiceDia).click()
-  await ventana.locator('button:enabled').filter({ hasText: /^\d{2}:\d{2} (AM|PM)$/ }).first().click()
+  await ventana.locator('button:enabled').filter({ hasText: /^\d{1,2}:\d{2} (AM|PM)$/ }).first().click()
 }
 
 for (const [nombre, ancho, alto] of TAMANOS) {
@@ -100,11 +100,11 @@ for (const [nombre, ancho, alto] of TAMANOS) {
           await expect(detalle).toContainText(telefonoNuevo) // el teléfono nuevo, en la cita
           await expect(detalle).toContainText(nueva.hora) // la hora nueva (reagendada)
           await staff.keyboard.press('Escape') // cierra el detalle de la cita
-          // El saldo es el mismo monto que en Cobros y saldos (Ventas).
+          // El saldo es el mismo monto que en la lista de Ventas (la venta debe $40.00).
           await staff.getByRole('button', { name: /^Ventas/ }).first().click()
-          await staff.getByRole('tab', { name: /Cobros y saldos/ }).click()
-          await expect(staff.getByText(NOMBRE).first()).toBeVisible({ timeout: 15_000 })
-          await expect(staff.locator('main').getByText('$40.00').first()).toBeVisible()
+          await staff.getByRole('tab', { name: /^Ventas/ }).click()
+          await staff.getByLabel(/Buscar paciente/).fill(NOMBRE)
+          await expect(staff.getByRole('list', { name: 'Ventas' }).getByRole('listitem').filter({ hasText: NOMBRE }).first()).toContainText('$40.00', { timeout: 15_000 })
         } finally { await ctx.close() }
         const perfil = (await q("select telefono from pacientes_base where id = $1", [paciente.id]))[0]
         expect(perfil.telefono).toBe(telefonoNuevo) // y en su perfil

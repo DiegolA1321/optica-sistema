@@ -26,6 +26,17 @@ test.afterEach(async () => {
   factura = null
 })
 
+// El personal revisa un pago: Ventas › dato «Pago por verificar» › la venta › «Revisar» la transferencia de ese monto (abre «Pago de …»).
+async function revisarPago(personal, monto) {
+  await personal.getByRole('button', { name: /^Ventas/ }).first().click()
+  await personal.getByRole('tab', { name: /^Ventas/ }).click()
+  await personal.getByRole('list', { name: 'Resumen de las ventas' }).getByRole('button', { name: /^Pago por verificar/ }).click()
+  await personal.getByRole('list', { name: 'Ventas' }).getByRole('button', { name: /^Ver la venta/ }).first().click()
+  const venta = personal.getByRole('dialog', { name: /^Venta CV-/ })
+  await venta.getByRole('list', { name: 'Transferencias por verificar' }).getByRole('listitem').filter({ hasText: monto }).getByRole('button', { name: 'Revisar' }).click()
+  return personal.getByRole('dialog', { name: 'Pago por verificar' })
+}
+
 test('el paciente paga por transferencia y la óptica lo confirma o lo rechaza', async ({ browser }) => {
   test.setTimeout(300_000)
   // Una venta nueva con saldo para el paciente fijo del portal: la prueba no gasta el saldo de las demás.
@@ -74,14 +85,9 @@ test('el paciente paga por transferencia y la óptica lo confirma o lo rechaza',
     // 3. Ventas y el Inicio lo cuentan
     await personal.getByRole('button', { name: 'Inicio', exact: true }).first().click()
     await personal.reload()
-    await expect(personal.getByText(/pago(s)? por transferencia por verificar/).first()).toBeVisible({ timeout: 60_000 })
-    await personal.getByRole('button', { name: /^Ventas/ }).first().click()
-    await personal.getByRole('tab', { name: /Cobros y saldos/ }).click()
-    const lista = personal.getByRole('list', { name: 'Pagos por verificar' })
-    await expect(lista).toContainText('$10.00', { timeout: 60_000 })
-    await lista.getByRole('button', { name: /Revisar el pago de .* por \$10\.00/ }).first().click()
-    const revision = personal.getByRole('dialog', { name: 'Pago por verificar' })
-    await expect(revision.getByTitle('Comprobante en PDF')).toBeVisible({ timeout: 20_000 })
+    await expect(personal.getByText(/pagos? por verificar/).first()).toBeVisible({ timeout: 60_000 })
+    const revision = await revisarPago(personal, '$10.00')
+    await expect(revision.getByRole('region', { name: 'Comprobante' }).locator('iframe')).toBeVisible({ timeout: 20_000 })
     await revision.getByRole('button', { name: 'Confirmar pago' }).click()
     await expect(personal.getByText(/Pago confirmado/).first()).toBeVisible({ timeout: 30_000 })
 
@@ -102,10 +108,7 @@ test('el paciente paga por transferencia y la óptica lo confirma o lo rechaza',
     await expect(ventana.getByRole('status')).toBeVisible({ timeout: 30_000 })
     await ventana.getByRole('button', { name: 'Listo' }).click()
     await personal.reload()
-    await personal.getByRole('button', { name: /^Ventas/ }).first().click()
-    await personal.getByRole('tab', { name: /Cobros y saldos/ }).click()
-    await personal.getByRole('list', { name: 'Pagos por verificar' }).getByRole('button', { name: /Revisar el pago de .* por \$5\.00/ }).first().click()
-    const rev2 = personal.getByRole('dialog', { name: 'Pago por verificar' })
+    const rev2 = await revisarPago(personal, '$5.00')
     await rev2.getByRole('button', { name: 'Rechazar' }).click()
     await rev2.getByLabel(/Motivo del rechazo/).fill('No aparece en la cuenta')
     await rev2.getByRole('button', { name: 'Rechazar pago' }).click()

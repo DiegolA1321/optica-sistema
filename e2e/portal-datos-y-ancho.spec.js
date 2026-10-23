@@ -29,8 +29,8 @@ test.describe('Portal: datos y ancho', () => {
     await entrar(page)
     await expect(page.getByRole('region', { name: 'Bienvenida' })).toHaveCount(0)
     await expect(page.getByText('Te damos la bienvenida')).toHaveCount(0)
-    await expect(page.getByText('Aún no tienes una cita agendada')).toHaveCount(0)
-    await expect(page.getByRole('region', { name: 'Tu próxima cita' })).toContainText(/\d{1,2}:\d{2} (AM|PM)/)
+    // La cita de la Demo pasa con el tiempo: con una futura se ve su hora; sin ninguna, el mensaje de siempre (no la bienvenida de un paciente nuevo).
+    await expect(page.getByRole('region', { name: 'Tu próxima cita' })).toContainText(/\d{1,2}:\d{2} (AM|PM)|Aún no tienes una cita agendada/)
     await expect(page.getByRole('region', { name: 'Tus lentes' })).toBeVisible()
     await expect(page.getByRole('region', { name: 'Pendiente para ti' })).toContainText('por pagar')
     await expect(page.getByRole('region', { name: 'Tu graduación' })).toBeVisible()

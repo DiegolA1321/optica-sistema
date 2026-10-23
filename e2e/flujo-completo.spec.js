@@ -91,7 +91,7 @@ test('2 · Paula atiende al paciente: ficha, diagnóstico y control', async ({ p
   const terminada = page.getByRole('status').filter({ hasText: 'Atención terminada' })
   await expect(terminada).toContainText('la cita quedó atendida', { timeout: 20_000 })
   await terminada.getByRole('button', { name: 'Pasar a la óptica' }).click()
-  await expect(page.getByText(/Listo para venta/).first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/Pasó a la óptica/).first()).toBeVisible({ timeout: 15_000 })
 })
 
 test('3 · Vera vende desde «Nueva venta» con el último diagnóstico como guía, un abono dividido (efectivo y tarjeta) y luna: se crea el pedido', async ({ page }) => {
@@ -184,7 +184,7 @@ test('4b · La venta en la lista de Ventas: su entrega y el comprobante con sus 
   await expect(fila).toContainText('Pagada') // el saldo se cobró al entregar
   await expect(fila).toContainText('Entregado') // la columna «Entrega» dice cómo va su pedido
   await fila.getByRole('button', { name: /^Ver la venta CV-/ }).click()
-  const detalle = page.getByRole('dialog', { name: /^Comprobante CV-/ })
+  const detalle = page.getByRole('dialog', { name: /^Venta CV-/ })
   await expect(detalle).toContainText('Pagos')
   await expect(detalle).toContainText('Efectivo $20.00 + Tarjeta $10.00')
   await expect(detalle.getByRole('button', { name: /Imprimir comprobante/ })).toBeVisible()

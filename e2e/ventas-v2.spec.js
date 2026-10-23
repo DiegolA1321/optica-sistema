@@ -78,7 +78,7 @@ test.describe('Ventas (Demo, solo lectura)', () => {
 
   test('el detalle de la venta se puede reimprimir y muestra quién registró cada pago', async ({ page }) => {
     await page.getByRole('list', { name: 'Ventas' }).getByRole('button', { name: /^Ver la venta/ }).first().click()
-    const d = page.getByRole('dialog', { name: /^Comprobante CV-/ })
+    const d = page.getByRole('dialog', { name: /^Venta CV-/ })
     await expect(d.getByRole('button', { name: /Imprimir comprobante/ })).toBeVisible()
     await expect(d.getByText('Registrada por')).toBeVisible()
     await expect(d.getByText('Detalle de la venta')).toBeVisible()

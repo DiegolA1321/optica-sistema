@@ -110,7 +110,7 @@ test('cabecera con los botones en una fila, Resumen con avisos arriba, Citas con
   const dias = form.locator('button[title="Disponible"]')
   if (!(await dias.count())) await form.getByRole('button', { name: 'Mes siguiente' }).click()
   await dias.last().click()
-  await form.locator('button:enabled').filter({ hasText: /^\d{2}:\d{2} (AM|PM)$/ }).first().click()
+  await form.locator('button:enabled').filter({ hasText: /^\d{1,2}:\d{2} (AM|PM)$/ }).first().click()
   await form.getByRole('button', { name: 'Confirmar cita' }).click()
   await page.getByRole('dialog').last().getByRole('button', { name: 'Confirmar', exact: true }).click()
   await expect(page.getByText(`Cita agendada para ${nombre}.`)).toBeVisible({ timeout: 15_000 })

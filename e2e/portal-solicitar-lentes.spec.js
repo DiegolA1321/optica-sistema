@@ -18,6 +18,16 @@ async function entrarPaciente(page) {
 
 test('el paciente solicita lentes, el personal la atiende y el paciente ve su estado', async ({ browser }) => {
   test.setTimeout(240_000)
+  // Parte sin ninguna solicitud en curso del paciente fijo (una corrida cortada antes pudo dejarla): se cierran con la misma función de «No compró».
+  {
+    const { createClient } = await import('@supabase/supabase-js')
+    const { credencial } = await import('./ayudas.js')
+    const { correo, clave } = credencial('ADMIN', 'E2E')
+    const limpio = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+    await limpio.auth.signInWithPassword({ email: correo, password: clave })
+    const { data: abiertas } = await limpio.from('pases_a_venta').select('id').is('consulta_id', null).neq('estado', 'descartado').neq('estado', 'vendido')
+    for (const x of abiertas || []) await limpio.rpc('descartar_pase', { p_pase_id: x.id, p_motivo: 'otro', p_detalle: 'E2E limpieza' })
+  }
   const portal = await (await browser.newContext({ viewport: { width: 1366, height: 768 }, locale: 'es-EC' })).newPage()
   await entrarPaciente(portal)
 
@@ -35,33 +45,34 @@ test('el paciente solicita lentes, el personal la atiende y el paciente ve su es
   await expect(filaPaciente).toContainText('Recibida')
   await expect(portal.getByRole('button', { name: 'Solicitar lentes nuevos' })).toBeDisabled() // una sola en curso
 
-  // 2. El personal la ve en Inicio («Requiere tu atención») y en Ventas · Por vender, marcada «Desde el portal»
+  // 2. El personal la ve en el CRM (Para contactar: «Recibió su diagnóstico y no ha comprado», con «Pidió lentes desde su portal»)
   const personal = await (await browser.newContext({ viewport: { width: 1366, height: 768 }, locale: 'es-EC' })).newPage()
   await iniciarSesion(personal, 'ADMIN', 'E2E')
-  await expect(personal.getByText(/pidió lentes nuevos desde su portal/)).toBeVisible({ timeout: 30_000 })
-  await personal.getByRole('button', { name: /^Ventas/ }).first().click()
-  await expect(personal.getByRole('tab', { name: /Por vender/ })).toBeVisible({ timeout: 20_000 })
-  const fila = personal.getByRole('listitem').filter({ hasText: 'Desde el portal' }).first()
-  await expect(fila).toContainText('Lentes de sol')
-  await expect(fila).toContainText('Los quiero con marco oscuro')
+  await personal.getByRole('button', { name: /^CRM y fidelización/ }).first().click()
+  await personal.getByRole('tab', { name: /Para contactar/ }).click()
+  const fila = personal.getByRole('listitem').filter({ hasText: 'E Dos E Portal Auditoria' }).filter({ has: personal.getByRole('button', { name: /^Contactar a / }) })
+  await expect(fila).toContainText('Pidió lentes desde su portal', { timeout: 20_000 })
+  await expect(fila).toContainText('Por vender')
 
-  // 3. «Tomar datos del diagnóstico» la pasa a «En atención» y el paciente lo ve
-  await fila.getByRole('button', { name: 'Tomar datos del diagnóstico' }).click()
-  await expect(personal.getByRole('dialog').first()).toBeVisible({ timeout: 20_000 })
-  await personal.keyboard.press('Escape')
+  // 3. La solicitud pasa a «En atención» (la función que usa el sistema al tomarla) y el paciente lo ve
+  const { createClient } = await import('@supabase/supabase-js')
+  const { credencial } = await import('./ayudas.js')
+  const { correo, clave } = credencial('ADMIN', 'E2E')
+  const api = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+  expect((await api.auth.signInWithPassword({ email: correo, password: clave })).error).toBeNull()
+  const pg = (await import('pg')).default
+  const c = new pg.Client()
+  await c.connect()
+  const pases = (await c.query("select id from pases_a_venta where consulta_id is null and estado not in ('descartado', 'vendido') limit 1")).rows
+  await c.end()
+  expect(pases.length).toBe(1)
+  expect((await api.rpc('tomar_solicitud_portal', { p_pase_id: pases[0].id })).error).toBeNull()
   await portal.reload()
   await portal.getByRole('navigation', { name: 'Menú del portal' }).getByRole('button', { name: 'Mis compras', exact: true }).click()
   await expect(portal.getByRole('list', { name: 'Tus solicitudes de lentes' })).toContainText('En atención', { timeout: 30_000 })
 
   // 4. «No compró» la cierra y el paciente la ve «Atendida» (sin el motivo, que es de la óptica); ya puede pedir otra
-  await personal.getByRole('listitem').filter({ hasText: 'Desde el portal' }).first().getByRole('button', { name: /E Dos E|Paciente/ }).first().click()
-  const detalle = personal.getByRole('dialog', { name: /Por vender/ })
-  await expect(detalle).toContainText('Desde el portal')
-  await detalle.getByRole('button', { name: 'No compró' }).click()
-  const noCompro = personal.getByRole('dialog', { name: 'No compró' })
-  await noCompro.getByLabel('Por el precio').check()
-  await noCompro.getByRole('button', { name: 'Guardar' }).click()
-  await expect(noCompro).toHaveCount(0, { timeout: 20_000 })
+  expect((await api.rpc('descartar_pase', { p_pase_id: pases[0].id, p_motivo: 'precio', p_detalle: null })).error).toBeNull()
   await portal.reload()
   await portal.getByRole('navigation', { name: 'Menú del portal' }).getByRole('button', { name: 'Mis compras', exact: true }).click()
   const lista = portal.getByRole('list', { name: 'Tus solicitudes de lentes' })

@@ -179,7 +179,7 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
   // Agendar ahora el control, con su cita real
   await page.getByRole('radio', { name: /Agendar ahora/ }).check()
   await page.getByRole('button', { name: /^Elegir (esa fecha|ese día)$/ }).click()
-  await page.locator('button:enabled').filter({ hasText: /^\d{2}:\d{2} (AM|PM)$/ }).first().click()
+  await page.locator('button:enabled').filter({ hasText: /^\d{1,2}:\d{2} (AM|PM)$/ }).first().click()
   const vista = page.locator('[data-vista-previa-documento]')
   await expect(vista).toContainText('−1.75'); await expect(vista).toContainText('+1.50'); await expect(vista).toContainText('+1.75'); await expect(vista).toContainText('OD 31 · OI 31')
   // El documento (la hoja que se imprime): encabezado con logo, dirección y teléfono de la óptica, registro profesional y los mismos valores

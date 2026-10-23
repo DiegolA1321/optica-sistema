@@ -36,10 +36,10 @@ async function crearPaciente() {
 }
 
 async function abrirComprobante(page) {
-  await page.getByRole('tab', { name: /Comprobantes/ }).click()
-  await page.getByLabel(/Buscar: paciente/).fill(nombre)
-  await page.getByRole('button', { name: /Ver el comprobante/ }).first().click()
-  return page.getByRole('dialog', { name: /^Comprobante CV-/ })
+  await page.getByRole('tab', { name: /^Ventas/ }).click()
+  await page.getByLabel(/Buscar paciente/).fill(nombre)
+  await page.getByRole('button', { name: /Ver la venta/ }).first().click()
+  return page.getByRole('dialog', { name: /^Venta CV-/ })
 }
 
 test('1 · Vera vende $50 de contado', async ({ page }) => {
@@ -62,7 +62,7 @@ test('2 · Vera registra la factura electrónica: número, clave validada, fecha
   await iniciarSesion(page, 'VENTAS', 'E2E')
   await page.getByRole('button', { name: /^Ventas/ }).first().click()
   const detalle = await abrirComprobante(page)
-  numeroCV = Number((await detalle.getAttribute('aria-label')).match(/CV-(\d+)/)[1])
+  numeroCV = Number((await detalle.getByRole('heading', { level: 2 }).first().textContent()).match(/CV-(\d+)/)[1])
   await expect(detalle).toContainText('todavía no tiene su factura electrónica registrada')
   await detalle.getByRole('button', { name: 'Registrar la factura electrónica' }).click()
   const modal = page.getByRole('dialog', { name: 'Factura electrónica (SRI)' })

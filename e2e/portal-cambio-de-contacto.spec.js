@@ -24,11 +24,11 @@ test('el paciente cambia su teléfono: la ficha lo muestra y la óptica recibe e
 
   const personal = await (await browser.newContext({ viewport: { width: 1366, height: 768 }, locale: 'es-EC' })).newPage()
   await iniciarSesion(personal, 'ADMIN', 'E2E')
-  await expect(personal.getByText(/actualizó? su contacto desde su portal|actualizaron su contacto desde su portal/).first()).toBeVisible({ timeout: 40_000 })
+  await expect(personal.getByRole('button', { name: /actualizó? su contacto desde su portal|actualizaron su contacto desde su portal/ }).first()).toBeVisible({ timeout: 40_000 })
   // la ficha del paciente tiene el teléfono nuevo
   await personal.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
   await personal.getByRole('textbox', { name: /buscar paciente/i }).fill('E Dos E Portal Auditoria')
-  await expect(personal.getByRole('row').filter({ hasText: 'E Dos E Portal Auditoria' })).toContainText(nuevo, { timeout: 30_000 })
+  await expect(personal.getByRole('row').filter({ hasText: 'E Dos E Portal Auditoria' }).first()).toContainText(nuevo, { timeout: 30_000 })
   // el aviso se marca como visto
   await personal.getByRole('button', { name: 'Inicio', exact: true }).first().click()
   // (las corridas anteriores pueden haber dejado avisos: se marcan todos)

@@ -26,10 +26,10 @@ async function crearPaciente() {
 }
 
 async function abrirComprobante(page) {
-  await page.getByRole('tab', { name: /Comprobantes/ }).click()
-  await page.getByLabel(/Buscar: paciente/).fill(nombre)
-  await page.getByRole('button', { name: /Ver el comprobante/ }).first().click()
-  return page.getByRole('dialog', { name: /^Comprobante CV-/ })
+  await page.getByRole('tab', { name: /^Ventas/ }).click()
+  await page.getByLabel(/Buscar paciente/).fill(nombre)
+  await page.getByRole('button', { name: /Ver la venta/ }).first().click()
+  return page.getByRole('dialog', { name: /^Venta CV-/ })
 }
 
 test('1 · Vera vende $100 con un abono inicial de $60', async ({ page }) => {
@@ -44,8 +44,7 @@ test('1 · Vera vende $100 con un abono inicial de $60', async ({ page }) => {
   await venta.getByPlaceholder(/Descripción del servicio/).fill(PREFIJO + 'Servicio')
   await venta.getByPlaceholder('0.00').fill('100')
   await venta.getByRole('button', { name: /Agregar línea/ }).click()
-  await venta.getByRole('button', { name: 'Abonos', exact: true }).click()
-  await venta.locator('#abono-inicial').fill('60')
+  await venta.getByLabel('Pago hoy').fill('60') // paga $60 hoy de los $100: el resto queda como saldo
   await venta.getByRole('button', { name: 'Guardar venta' }).click()
   await expect(venta).toHaveCount(0, { timeout: 20_000 })
 })
@@ -90,11 +89,7 @@ test('3 · Anular el abono: queda marcado (no se borra), no cuenta y se ve apart
   await expect(detalle).toContainText('se registró en la venta equivocada')
   await expect(detalle.getByRole('button', { name: /Corregir el abono/ })).toHaveCount(0) // ya no se puede corregir
   await page.keyboard.press('Escape')
-  // Cobrado hoy no suma el abono anulado y lo muestra aparte.
-  await page.getByRole('tab', { name: /Cobros y saldos/ }).click()
-  const anulados = page.getByRole('list', { name: 'Abonos anulados de ese día' })
-  await expect(anulados).toContainText(nombre.split(' ').slice(0, 2).join(' '))
-  await expect(anulados).toContainText('$45.00')
-  const cobros = page.getByRole('list', { name: 'Cobros del día' })
-  await expect(cobros.getByRole('listitem').filter({ hasText: nombre })).toHaveCount(0)
+  // La franja de Ventas no cuenta el abono anulado como cobrado: la venta vuelve a deber todo.
+  await page.getByLabel(/Buscar paciente/).fill(nombre)
+  await expect(page.getByRole('list', { name: 'Ventas' }).getByRole('listitem').filter({ hasText: nombre })).toContainText('Debe $100.00')
 })
