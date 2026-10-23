@@ -2,6 +2,7 @@
 
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
+import MiPresenciaPublica from "../componentes/MiPresenciaPublica"
 
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef, Suspense } from "react"
@@ -1180,6 +1181,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           </>}
         >
           <div className="p-5">
+          {usuario?.esOptometra && <MiPresenciaPublica usuario={usuario} onAviso={(m) => mostrarAviso(m)} />}
           <div className="mb-5 space-y-2 rounded-xl border border-slate-200/60 p-4">
             <label htmlFor="registroProfesional" className="block text-sm font-bold" style={{ color: INK }}>
               Número de registro profesional <span className="font-normal text-slate-400">(opcional)</span>

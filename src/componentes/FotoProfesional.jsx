@@ -5,15 +5,18 @@ import { ImagePlus, Loader2, UserRound } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { TIPOS_IMAGEN_PRINCIPAL, errorDeArchivo } from "../utilidades/paginaPublicaEditor"
 
-// La foto de un profesional que atiende (optómetra): sale en «Quiénes somos» de la página pública, junto a su nombre y su registro (que ya se editan en Usuarios).
+// La foto de un profesional que atiende (optómetra): se usa dentro del sistema («Te atiende…» en el agendamiento); en «Quiénes somos» solo si esa persona activó «Mostrarme en la página pública» (Mi cuenta).
+// `propia`: la persona sube la suya (Mi cuenta, RPC guardar_mi_foto); sin ella, el administrador la sube desde Usuarios (guardar_foto_de).
 // Se sube al bucket público `logos` ({optica_id}/fotos/{perfil_id}.ext, hasta 2 MB, PNG, JPG o WEBP) y se guarda en perfiles.foto_url (RPC guardar_foto_de) al instante, con su aviso.
 // `onCambio(url)`: url nueva, o "" si se quitó. `onAviso(texto)`: el aviso flotante de la pantalla.
-export default function FotoProfesional({ opticaId, perfilId, nombre = "", url = "", onCambio, onAviso }) {
+export default function FotoProfesional({ opticaId, perfilId, nombre = "", url = "", onCambio, onAviso, propia = false }) {
   const [subiendo, setSubiendo] = useState(false)
   const [error, setError] = useState("")
 
   const guardarUrl = async (nueva) => {
-    const { error: e } = await supabase.rpc("guardar_foto_de", { p_perfil: perfilId, p_foto_url: nueva || null }) // migración 0148: la base valida que sea del administrador de su óptica
+    const { error: e } = propia
+      ? await supabase.rpc("guardar_mi_foto", { p_foto_url: nueva || null })
+      : await supabase.rpc("guardar_foto_de", { p_perfil: perfilId, p_foto_url: nueva || null }) // migración 0148: la base valida que sea del administrador de su óptica
     return e
   }
 
@@ -47,7 +50,7 @@ export default function FotoProfesional({ opticaId, perfilId, nombre = "", url =
 
   return (
     <div data-foto-profesional>
-      <span className="mb-1.5 block text-sm font-semibold text-slate-700">Foto <span className="font-normal text-slate-500">· sale en la página pública, junto a su nombre y su registro</span></span>
+      <span className="mb-1.5 block text-sm font-semibold text-slate-700">Foto <span className="font-normal text-slate-500">· se usa en «Te atiende…» del agendamiento; en la página pública solo si la persona activa «Mostrarme»</span></span>
       <div className="flex flex-wrap items-center gap-3">
         <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400">
           {url ? <img src={url} alt={nombre ? `Foto de ${nombre}` : "Foto"} className="h-full w-full object-cover" /> : <UserRound size={26} aria-hidden="true" />}
