@@ -35,6 +35,7 @@ import MiHorario from "../componentes/horario/MiHorario"
 import AusenciasAdmin from "../componentes/horario/AusenciasAdmin"
 import { useDatosPersonal } from "../componentes/horario/useDatosPersonal"
 import { Pestanas } from "../componentes/ventas/Piezas"
+import TablaSkeleton from "../componentes/TablaSkeleton"
 import { miembrosActivos } from "../utilidades/equipo"
 import { esAdministrador } from "../utilidades/comunicacionInterna"
 import { Cascaron } from "../componentes/AtencionPaciente"
@@ -373,7 +374,9 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ci
       {datos.error && <p role="alert" className="rounded-xl border border-red-200/60 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{datos.error}</p>}
 
       <div id="horario-panel" role="tabpanel" aria-labelledby={`horario-tab-${vista}`}>
-      {vista === "mi" ? (
+      {datos.cargando && vista !== "general" ? (
+        <TablaSkeleton />
+      ) : vista === "mi" ? (
         <MiHorario usuario={usuario} esProfesional={esProfesional} disponibilidad={disponibilidad} citas={citas} datos={datos} onAviso={avisar} />
       ) : vista === "equipo" ? (
         <HorariosPersonal miembros={miembros} disponibilidad={disponibilidad} citas={citas} datos={datos} onAviso={avisar} />

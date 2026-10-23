@@ -172,7 +172,7 @@ Mismos colores, mismo botón principal, mismos campos. Editar no cambia de color
 
 ### 32. Las fechas se eligen con el calendario del sistema, no con el nativo del navegador
 `CampoFecha` (`src/componentes/CampoFecha.jsx`) tiene el mismo calendario que el selector de citas y mes/año en listas para llegar a una fecha de nacimiento sin pulsar "anterior" cien veces. Los campos de fecha nuevos lo usan.
-- **Pendiente de migrar (mismo defecto):** nacimiento en "Confirmar datos" y en las altas rápidas de Citas, abonos, orden de laboratorio, ausencias en Horario, Reportes y vencimiento en Superadmin.
+- **Pendiente de migrar (mismo defecto):** nacimiento en "Confirmar datos" y en las altas rápidas de Citas, abonos, orden de laboratorio, Reportes y vencimiento en Superadmin. (Las ausencias de Horario ya usan `CampoFecha`.)
 
 ### 33. Un bloque de resumen va de lo clínico a lo comercial: primero lo que decide la atención
 En el Resumen del paciente el orden es: estado de corrección, control recomendado, última consulta y compras; después las citas; al final la fidelización. Quien atiende lee de arriba abajo y lo primero es lo que necesita para atender.
@@ -272,6 +272,14 @@ La graduación se explica al paciente en el portal y se le enseña en la consult
 Citas, compras, recetas, órdenes y solicitudes se leen como una tabla (encabezado de columnas; en pantalla angosta las columnas se apilan con su rótulo). Las columnas reparten el ancho con `fr` y mínimos que caben en una laptop de 1093 px (nunca anchos fijos que dejen el centro vacío). Los montos van a la derecha en su columna y los estados a la izquierda en una columna fija. Toda tarjeta o fila que resume algo abre su detalle en la ventana estándar, y TODA su área se pulsa (un botón `.pt-abrir` sobre la fila, no solo el título). El contenido ocupa el ancho disponible menos 32 px, sin tope. Lo comprueba `e2e/diseno-reglas.spec.js`.
 - **Cómo aplicarlo:** una lista nueva lleva `data-lista`, cada fila `data-fila` y sus celdas `data-col="monto"` / `data-col="estado"`; la prueba la recorre sola.
 
+### 51. Todo gráfico de una serie en el tiempo es el mismo gráfico de tendencia
+`GraficoTendencia` (`src/componentes/graficas/`) es la única forma de dibujar «cuánto va de cada período»: barras por período, la línea del promedio de 3 períodos y la línea punteada de la tendencia; arriba el último valor con su cambio frente al período anterior y cuánto sube o baja por período según la tendencia; debajo, una frase que lo explica en palabras. Las cuentas están en `utilidades/tendencia.js`. Con menos de 3 períodos con datos no se dibuja la tendencia y la frase dice por qué (no se inventa una línea con dos puntos).
+- **Cómo aplicarlo:** un gráfico nuevo de meses, semanas o años usa esta pieza (Reportes, el panel del superadmin, el perfil...). Las barras siguen siendo botones que abren la lista de lo que las compone (regla 5). El color de la tendencia dice si lo que pasa conviene (verde) o no (rojo) según el indicador.
+
+### 52. Un dato sensible se guarda en privado y lo ve solo quien lo envió y quien administra
+El documento de respaldo de una ausencia puede ser un certificado médico: va a un almacenamiento privado, en la carpeta de quien lo envía, y solo lo leen esa persona y el administrador de su óptica (ni otros empleados ni el superadmin). Lo que el resto del sistema necesita saber de esa ausencia (el tiempo bloqueado en la agenda y en la web) viaja sin el motivo, sin el tipo y sin el documento.
+- **Cómo aplicarlo:** al agregar un dato sensible, decide quién lo lee en la política de la base (regla 36), guárdalo fuera de la tabla que lee todo el equipo y entrega a las demás pantallas solo el resumen que necesitan. Se prueba con una sesión real de cada rol (`scripts/historial/ensayo-0143-0146.mjs`).
+
 ---
 
 ## Lista de revisión antes de dar una pantalla por terminada
@@ -315,3 +323,5 @@ Cada pregunta remite a una regla; la respuesta debe ser "sí".
 35. ¿Se ve y funciona en celular (390 px), tablet (768 px) y laptop (1366×768), sin desplazamiento horizontal, con el menú adaptado y todo lo que se toca de 44 px o más? (48)
 36. ¿Lo que el paciente y el personal ven del mismo hecho es un solo componente con dos versiones, con las mismas cuentas, y el documento que se entrega es una sola hoja? (49)
 37. ¿Cada lista es una tabla de columnas que reparten el ancho, con montos y estados alineados, y toda la fila se pulsa y abre su detalle? (50)
+38. ¿Todo gráfico de una serie en el tiempo es el de tendencia (barras, promedio de 3 períodos, tendencia punteada, cambio y frase), y sin tendencia dibujada con menos de 3 períodos? (51)
+39. ¿Un dato sensible se guarda en privado, lo lee solo quien lo envió y quien administra, y las demás pantallas reciben solo el resumen que necesitan? (52)
