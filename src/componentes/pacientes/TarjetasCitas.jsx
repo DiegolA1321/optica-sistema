@@ -35,12 +35,12 @@ export function AsistenciaCitas({ citas = [], filtro = null, onFiltro, onAbrir, 
       <div aria-hidden="true" className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-slate-100">
         {SEGMENTOS.slice(0, 3).filter((s) => a[s.clave] > 0).map((s) => <div key={s.id} className={s.color} style={{ width: `${(a[s.clave] / a.resueltas) * 100}%` }} />)}
       </div>
-      <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm text-slate-600 sm:grid-cols-4">
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-slate-600">
         {SEGMENTOS.map((s) => (
           <li key={s.id}>
-            <button type="button" onClick={() => onFiltro(s.id)} aria-pressed={filtro === s.id} className={"flex w-full items-start gap-1.5 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-slate-100 cursor-pointer " + (filtro === s.id ? "bg-slate-100 font-semibold" : "")}>
+            <button type="button" onClick={() => onFiltro(s.id)} aria-pressed={filtro === s.id} className={"flex items-start gap-1.5 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-slate-100 cursor-pointer " + (filtro === s.id ? "bg-slate-100 font-semibold" : "")}>
               <span aria-hidden="true" className={"mt-1.5 h-2 w-2 shrink-0 rounded-full " + s.punto} />
-              <span className="min-w-0">{a[s.clave]} {plural(a[s.clave], s.uno, s.varios)}</span>
+              <span className="min-w-0 whitespace-nowrap">{a[s.clave]} {plural(a[s.clave], s.uno, s.varios)}</span>
             </button>
           </li>
         ))}

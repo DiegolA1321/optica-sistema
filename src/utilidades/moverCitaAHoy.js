@@ -2,7 +2,7 @@
 // nunca queda una cita "En atención" con fecha futura. Lo usan Citas ("Atender") y la ficha clínica (entrar desde el perfil del paciente).
 import { ahoraEcuador } from "./horaEcuador"
 import { hoyISO, horaA12 } from "./disponibilidad"
-import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "./erroresCitas"
+import { mensajeErrorCita } from "./erroresCitas"
 import { MENSAJE_SIN_PERMISO, fueBloqueadoPorPermiso } from "./permisos"
 import { registrarLog } from "./logs"
 import { fechaLegible } from "./formatoFecha"
@@ -29,7 +29,7 @@ export async function moverCitaAHoy({ supabase, opticaId, cita, citas, setCitas,
   if (supabase && opticaId) {
     const { data, error } = await supabase.from("citas").update({ fecha: hoy, hora }).eq("id", cita.id).select()
     if (fueBloqueadoPorPermiso({ error, data })) return { error: MENSAJE_SIN_PERMISO }
-    if (error) return { error: esErrorHoraInvalida(error) ? MENSAJE_HORA_INVALIDA : "No se pudo mover la cita al día de hoy. Revisa tu conexión e intenta de nuevo." }
+    if (error) return { error: mensajeErrorCita(error, "No se pudo mover la cita al día de hoy. Revisa tu conexión e intenta de nuevo.") }
   }
   setCitas?.((prev) => prev.map((c) => (c.id === cita.id ? { ...c, fecha: hoy, hora } : c)))
   registrarLog(usuario, "citas", "Movió una cita al día en que se atiende", `${cita.paciente} · de ${fechaLegible(cita.fecha)} a hoy, ${hora}`)

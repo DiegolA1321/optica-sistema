@@ -129,6 +129,8 @@ export async function crearCitaDeHoyParaPaula(entorno = 'E2E', { diasDespues = 0
   const paula = (equipo || []).find((m) => /Paula/.test(m.nombre))
   if (!paula) throw new Error('No se encontró a Paula en el equipo de la óptica de pruebas.')
 
+  // Las citas ya terminadas de otras pruebas (atendidas, sin asistir) siguen ocupando su hora para la regla de una hora por profesional: se quitan para que cada prueba parta de un día libre.
+  await quitarCitasTerminadasDeHoy()
   const nombre = nombrePrueba()
   const { data: paciente, error: errorPaciente } = await cliente.from('pacientes').insert({
     optica_id: perfil.optica_id, nombre, cedula: cedulaValida(), telefono: telefonoPrueba(), correo: 'Sin Correo', fecha_nacimiento: '1990-05-15',
@@ -333,4 +335,24 @@ export async function elegirVista(page, vista) {
   if (vista === 'Lista') { await grupo.getByRole('button', { name: /^Lista/ }).click(); return }
   await grupo.getByRole('button', { name: /^Calendario/ }).click()
   await page.getByRole('menuitemradio', { name: new RegExp(vista) }).click()
+}
+
+// Quita de la óptica de pruebas TODAS las citas de hoy de las pruebas («E Dos E …»), también las atendidas (que no se pueden cancelar): para probar «Mi próxima jornada»,
+// que solo aparece cuando hoy no hay ninguna. Solo la óptica de pruebas, y solo lo creado por pruebas.
+export async function vaciarHoyDeLasPruebas() {
+  const pg = (await import('pg')).default
+  const c = new pg.Client()
+  await c.connect()
+  try {
+    await c.query("delete from public.citas_base where optica_id = (select id from public.opticas where slug = $1) and fecha = $2 and paciente like 'E Dos E %'", [SLUG_PRUEBAS, hoyLocalISO()])
+  } finally { await c.end() }
+}
+
+async function quitarCitasTerminadasDeHoy() {
+  const pg = (await import('pg')).default
+  const c = new pg.Client()
+  await c.connect()
+  try {
+    await c.query("delete from public.citas_base where optica_id = (select id from public.opticas where slug = $1) and fecha = $2 and paciente like 'E Dos E %' and estado in ('Atendida', 'No Asistió')", [SLUG_PRUEBAS, hoyLocalISO()])
+  } finally { await c.end() }
 }

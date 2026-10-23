@@ -16,7 +16,7 @@ export default function ComprasBasicas({ lista = [], cargando = false }) {
     )
   }
   return (
-    <section aria-label="Compras del paciente">
+    <section aria-label="Compras que ve este rol">
       <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Compras</h3>
       <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200/60 bg-white">
         {lista.map((c) => (

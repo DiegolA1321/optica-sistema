@@ -20,7 +20,7 @@ const MODULOS = [
 ]
 
 // Los errores que no son de la aplicación (extensiones, recursos externos bloqueados) no cuentan.
-const IGNORAR = [/favicon/i, /frame-ancestors.*ignored when delivered via a <meta>/i, /Failed to load resource/i, /fonts\.g(oogleapis|static)/i, /sentry/i, /ResizeObserver/i, /Download the React DevTools/i]
+const IGNORAR = [/favicon/i,  /Failed to load resource/i, /fonts\.g(oogleapis|static)/i, /sentry/i, /ResizeObserver/i, /Download the React DevTools/i]
 
 function vigilar(page) {
   const errores = []
