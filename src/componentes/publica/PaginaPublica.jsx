@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Menu, X, LogIn, MapPin, Phone, Check, Star, Eye, Glasses, RefreshCcw, Sparkles, Stethoscope } from "lucide-react"
+import { Menu, X, LogIn, MapPin, Check, Star, Eye, Glasses, RefreshCcw, Sparkles, Stethoscope } from "lucide-react"
 import BotonWhatsAppFlotante from "./BotonWhatsAppFlotante"
 import LogoOptica from "../LogoOptica"
 import OjoOptico from "./OjoOptico"
@@ -121,7 +121,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
       {/* ─── Barra superior ─── */}
       <header className="sticky top-0 z-40 w-full border-b border-slate-200/70 bg-white/95 backdrop-blur-md">
-        <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 flex items-center justify-between gap-3 py-3">
+        <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-12 flex items-center justify-between gap-3 py-3">
           <div className="flex min-w-0 items-center gap-8">
             <a href="#inicio" className="flex min-w-0 items-center gap-3 rounded-lg">
               <LogoOptica url={logoUrl} nombre={pp.nombre} color={color} tamano={40} ancho="ancho" />
@@ -136,13 +136,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
               ))}
             </nav>
           </div>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-            {telefonoIntl && (
-              <a href={"tel:+" + telefonoIntl} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-sm font-semibold text-slate-700 transition-colors hover:text-slate-950" aria-label={"Llamar al " + telefono} data-telefono-barra>
-                <Phone size={16} aria-hidden="true" className="sm:hidden" />
-                <span className="hidden sm:inline">{telefono}</span>
-              </a>
-            )}
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={abrirLogin}
@@ -180,7 +174,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
       <main>
         {/* ─── Inicio ─── */}
         <section id="inicio" className="relative scroll-mt-20 overflow-hidden" style={{ background: "linear-gradient(135deg,#FFFFFF 0%,#F1F6FF 55%,#E6EFFE 100%)" }}>
-          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 grid grid-cols-1 items-center gap-10 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8 lg:py-20">
+          <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-12 grid grid-cols-1 items-center gap-10 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8 lg:py-12">
             <div className="flex min-w-0 flex-col items-start gap-6">
               {estado && (
                 <span className="lg-rise lg-d1 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-slate-600">
@@ -224,7 +218,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
         {/* ─── Quiénes somos ─── */}
         <section id="quienes-somos" aria-labelledby="t-quienes" className="scroll-mt-20 bg-white">
-          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 grid grid-cols-1 gap-10 py-14 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-14 lg:py-16">
+          <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-12 grid grid-cols-1 gap-10 py-9 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-14 lg:py-11">
             <div className="min-w-0">
               <Eyebrow color={color}>Quiénes somos</Eyebrow>
               <Titulo id="t-quienes">{q.anoFundacion ? `Cuidamos tu vista desde ${q.anoFundacion}` : "Cuidamos tu vista"}</Titulo>
@@ -279,7 +273,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
         {/* ─── Servicios ─── */}
         <section id="servicios" aria-labelledby="t-servicios" className="scroll-mt-20" style={{ backgroundColor: FONDO_SUAVE }}>
-          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 py-14 lg:py-16">
+          <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-12 py-9 lg:py-11">
             <Eyebrow color={color}>Nuestros servicios</Eyebrow>
             <Titulo id="t-servicios">Todo lo que tu visión necesita</Titulo>
             <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -307,7 +301,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
         {/* ─── Cómo agendar ─── */}
         <section id="como-agendar" aria-labelledby="t-como" className="scroll-mt-20 bg-white">
-          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 py-14 lg:py-16">
+          <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-12 py-9 lg:py-11">
             <Eyebrow color={color}>Cómo agendar</Eyebrow>
             <Titulo id="t-como">Tu cita en tres pasos, sin crear cuenta</Titulo>
             <ol className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-center lg:gap-8">
@@ -328,7 +322,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
         {/* ─── Lo que dicen nuestros pacientes (opcional: la escribe la óptica; sin opiniones no se dibuja) ─── */}
         {pp.opiniones.length > 0 && (
           <section id="opiniones" aria-labelledby="t-opiniones" className="scroll-mt-20 bg-white">
-            <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 pb-6 pt-2 lg:pb-8">
+            <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-12 pb-3 pt-0 lg:pb-4">
               <Eyebrow color={color}>Lo que dicen nuestros pacientes</Eyebrow>
               <Titulo id="t-opiniones">Pacientes que ya ven mejor</Titulo>
               <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -348,7 +342,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
         {/* ─── Preguntas frecuentes ─── */}
         <section id="preguntas" aria-labelledby="t-preguntas" className="scroll-mt-20" style={{ backgroundColor: FONDO_SUAVE }}>
-          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 py-14 lg:py-16">
+          <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-12 py-9 lg:py-11">
             <Eyebrow color={color}>Preguntas frecuentes</Eyebrow>
             <Titulo id="t-preguntas">Antes de tu visita</Titulo>
             <div className="mt-6 grid grid-cols-1 items-start gap-3 md:grid-cols-2">
@@ -364,7 +358,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
         {/* ─── Contacto ─── */}
         <section id="contacto" aria-labelledby="t-contacto" className="scroll-mt-20 bg-white">
-          <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 grid grid-cols-1 gap-8 py-14 md:grid-cols-2 lg:gap-14 lg:py-16">
+          <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-12 grid grid-cols-1 gap-8 py-9 md:grid-cols-2 lg:gap-14 lg:py-11">
             <div className="min-w-0">
               <Eyebrow color={color}>Contacto</Eyebrow>
               <Titulo id="t-contacto">Visítanos o escríbenos</Titulo>
@@ -409,7 +403,7 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
 
       {/* ─── Pie ─── */}
       <footer className="mt-auto text-white" style={{ backgroundColor: NAVY }}>
-        <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10 flex flex-col items-center justify-between gap-2 py-5 text-sm text-white/80 md:flex-row">
+        <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-12 flex flex-col items-center justify-between gap-2 py-5 text-sm text-white/80 md:flex-row">
           <p className="flex items-center gap-2">
             <LogoOptica url={logoUrl} nombre={pp.nombre} color={color} tamano={24} />
             © {anio} {pp.nombre}

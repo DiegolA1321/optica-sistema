@@ -58,17 +58,28 @@ describe("Página pública: barra y menú", () => {
 })
 
 describe("Página pública: ajustes de la segunda revisión", () => {
-  it("el teléfono se ve arriba junto a «Iniciar sesión»", () => {
+  it("arriba queda solo «Iniciar sesión» junto al menú: el teléfono está en Contacto y en el botón flotante", () => {
     pintar()
     const cabecera = screen.getByRole("banner")
-    expect(within(cabecera).getByRole("link", { name: /Llamar al 0987654321/ })).toHaveAttribute("href", "tel:+593987654321")
-    expect(within(cabecera).getByText("0987654321")).toBeInTheDocument()
+    expect(within(cabecera).queryByRole("link", { name: /Llamar/ })).toBeNull()
+    expect(within(cabecera).queryByText("0987654321")).toBeNull()
+    expect(within(cabecera).getByRole("button", { name: "Iniciar sesión" })).toBeInTheDocument()
+    expect(within(document.querySelector("#contacto")).getByRole("link", { name: "Llamar" })).toHaveAttribute("href", "tel:+593987654321")
+    expect(document.querySelector("[data-whatsapp-flotante]")).not.toBeNull()
   })
 
-  it("sin teléfono configurado no hay enlace de llamada arriba ni botón flotante", () => {
+  it("sin teléfono configurado no hay botón flotante de WhatsApp", () => {
     pintar({ opticaPublica: optica({ settings: { opticaDireccion: "Av. X" } }) })
-    expect(document.querySelector("[data-telefono-barra]")).toBeNull()
     expect(document.querySelector("[data-whatsapp-flotante]")).toBeNull()
+  })
+
+  it("el contenido de las secciones usa un contenedor de 1296 px con 48 px de relleno: 1200 px de contenido como máximo", () => {
+    pintar()
+    for (const id of ["#inicio", "#quienes-somos", "#servicios", "#como-agendar", "#preguntas", "#contacto"]) {
+      const contenedor = document.querySelector(`${id} > div`)
+      expect(contenedor.className, id).toContain("max-w-[1296px]")
+      expect(contenedor.className, id).toContain("lg:px-12")
+    }
   })
 
   it("«Por qué elegirnos» muestra las tres razones (editables) cuando ningún optómetra activó «Mostrarme»", () => {
