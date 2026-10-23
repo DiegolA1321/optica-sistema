@@ -52,8 +52,8 @@ import { etiquetaMiembro, miembrosActivos } from "../utilidades/equipo"
 import { puedeReasignar, ausenteEnHorario } from "../utilidades/reasignacion"
 import { lineaProfesional as textoProfesional, mostrarProfesional } from "../utilidades/profesionalCita"
 import CamposCita from "../componentes/CamposCita"
-import { esAtencionInmediata, validarHorarioCita, registrarCita } from "../utilidades/agendarCita"
-import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
+import { esAtencionInmediata, validarHorarioCita, registrarCita, refrescarCitas } from "../utilidades/agendarCita"
+import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA, esHoraOcupadaError, MENSAJE_HORA_OCUPADA } from "../utilidades/erroresCitas"
 import { puede } from "../utilidades/permisosUi"
 import { diasAtencionAbierta, textoAtencionAbierta } from "../utilidades/atencionAbierta"
 import ConfirmarDejarDeAtender from "../componentes/ConfirmarDejarDeAtender"
@@ -514,7 +514,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
 
   const agendarCita = async () => {
     const paciente = pacienteSeleccionado
-    const { cita: nuevaCita, error: errorInsert } = await registrarCita(supabase, opticaId, paciente, {
+    const { cita: nuevaCita, error: errorInsert, horaOcupada } = await registrarCita(supabase, opticaId, paciente, {
       fecha,
       hora: horaPersonalizada ? horaA12(horaCustom) : hora,
       duracionMinutos: horaPersonalizada ? (Number(duracionCustom) || disponibilidad?.duracionCita || 40) : null,
@@ -526,6 +526,8 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
     if (errorInsert) {
       setError(errorInsert)
       setConfirmando(false)
+      // Otra persona tomó esa hora: se limpia la elegida y los horarios se actualizan solos.
+      if (horaOcupada) { setHora(""); refrescarCitas(supabase, opticaId, setCitas, hoyISO()) }
       return
     }
 
@@ -991,7 +993,8 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
           return
         }
         if (errorUpdate) {
-          setBannerError(errorUpdate.code === "23505" ? "Ese horario ya no está disponible — alguien más lo acaba de reservar." : esErrorHoraInvalida(errorUpdate) ? MENSAJE_HORA_INVALIDA : "No se pudo reagendar la cita. Revisa tu conexión e intenta de nuevo.")
+          setBannerError(esHoraOcupadaError(errorUpdate) ? MENSAJE_HORA_OCUPADA : esErrorHoraInvalida(errorUpdate) ? MENSAJE_HORA_INVALIDA : "No se pudo reagendar la cita. Revisa tu conexión e intenta de nuevo.")
+          if (esHoraOcupadaError(errorUpdate)) refrescarCitas(supabase, opticaId, setCitas, hoyISO())
           setMoviendo(null)
           return
         }

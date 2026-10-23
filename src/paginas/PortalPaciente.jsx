@@ -2,10 +2,11 @@
 
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 import { descargarMisDatosPaciente } from "../utilidades/portalDatos"
-import { fechaAISO } from "../utilidades/disponibilidad"
+import { fechaAISO, slotsDisponibles } from "../utilidades/disponibilidad"
+import useHorasOcupadasEnVivo from "../utilidades/useHorasOcupadasEnVivo"
 import { formatoFecha } from "../utilidades/formatoFecha"
 import React, { useState, useMemo, useEffect, useRef } from "react"
-import { Eye, Home, CalendarDays, Glasses, ReceiptText, UserRound, CheckCircle2, AlertCircle, Stethoscope, CalendarClock, KeyRound, Lock, X } from "lucide-react"
+import { Eye, Home, CalendarDays, ReceiptText, UserRound, CheckCircle2, AlertCircle, Stethoscope, CalendarClock, KeyRound, Lock, X } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import SelectorLista from "../componentes/SelectorLista"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
@@ -29,6 +30,7 @@ import { programaDe, resumenDePuntosPrograma } from "../utilidades/programaFidel
 import { recetasDe } from "../utilidades/graduacion"
 import CabeceraPortal, { Campanita } from "../componentes/portal/CabeceraPortal"
 import MisDatosPortal from "../componentes/portal/MisDatosPortal"
+import LogoOptica from "../componentes/LogoOptica"
 import { usePortalDatos } from "../componentes/portal/usePortalDatos"
 import { useConsulta } from "../componentes/portal/useAncho"
 import { IconoLentes, BotonCalendario } from "../componentes/portal/piezas"
@@ -39,7 +41,7 @@ import { avisosDelPaciente, descargarIcs } from "../utilidades/portalVistas"
 
 import { supabase } from "../lib/supabaseClient"
 import { validarClaveNueva } from "../utilidades/validaciones"
-import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
+import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA, esHoraOcupadaError, MENSAJE_HORA_OCUPADA } from "../utilidades/erroresCitas"
 
 const OPCIONES = [
   { id: "resumen", nombre: "Inicio", corto: "Inicio", icono: Home },
@@ -103,12 +105,20 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
 
   // `citas` acá solo trae las citas DE ESTE paciente (mis_citas_paciente): el calendario de agendar/reagendar necesita saber qué horarios ya están
   // ocupados por CUALQUIERA. horas_ocupadas_publicas() expone solo fecha/hora (sin datos de otros pacientes) para calcular la disponibilidad real.
-  const [horasOcupadas, setHorasOcupadas] = useState([])
-  const refrescarHorasOcupadas = () => {
-    if (!supabase || !opticaId) return
-    supabase.rpc("horas_ocupadas_publicas", { p_optica_id: opticaId }).then(({ data }) => { if (data) setHorasOcupadas(data) })
-  }
-  useEffect(() => { refrescarHorasOcupadas() }, [opticaId]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Se refresca sola cada ~20 s y al volver el foco a la pestaña mientras una ventana de horarios está abierta (utilidades/useHorasOcupadasEnVivo.js).
+  const { horas: horasOcupadas, refrescar: refrescarHorasOcupadas } = useHorasOcupadasEnVivo(opticaId, { activo: modalAgendar || Boolean(reagendando) })
+  // Si la hora elegida se ocupa mientras la ventana está abierta (otra persona la tomó), se avisa y se limpia; lo demás no se mueve.
+  const horasReagenda = useMemo(() => (reagendando ? horasOcupadas.filter((c) => !(c.fecha === reagendando.fecha && c.hora === reagendando.hora)) : horasOcupadas), [horasOcupadas, reagendando])
+  useEffect(() => {
+    if (!modalAgendar || !fecha || !hora) return
+    const s = slotsDisponibles(fecha, disponibilidad, horasOcupadas, { publico: true, porProfesional: true }).find((x) => x.hora === hora)
+    if (s && !s.libre) { setHora(""); setErrorCita(""); setError(`La hora ${hora} acaba de ocuparse. Elige otra; ya actualizamos los horarios.`) }
+  }, [horasOcupadas]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!reagendando || !fechaReagenda || !horaReagenda) return
+    const s = slotsDisponibles(fechaReagenda, disponibilidad, horasReagenda, { porProfesional: true }).find((x) => x.hora === horaReagenda)
+    if (s && !s.libre) { setHoraReagenda(""); setErrorReagenda(`La hora ${horaReagenda} acaba de ocuparse. Elige otra; ya actualizamos los horarios.`) }
+  }, [horasOcupadas]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const horasAntesPermitidas = parametrizacion?.horasAntesReagendar ?? 2
   // Una cita se puede cambiar o cancelar si la óptica lo permite, sigue pendiente y faltan al menos N horas (hora de Ecuador).
@@ -164,12 +174,12 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       if (errorRpc || data !== true) {
         setGuardandoReagenda(false)
         const delServidor = mensajeDelServidor(errorRpc)
-        if (delServidor && !delServidor.includes("ya no está disponible")) {
-          setErrorReagenda(delServidor)
-          setHoraReagenda("")
-        } else if (errorRpc?.message?.includes("horario")) {
-          setErrorReagenda("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
+        if (esHoraOcupadaError(errorRpc)) {
+          setErrorReagenda(MENSAJE_HORA_OCUPADA)
           refrescarHorasOcupadas()
+          setHoraReagenda("")
+        } else if (delServidor) {
+          setErrorReagenda(delServidor)
           setHoraReagenda("")
         } else if (esErrorHoraInvalida(errorRpc)) {
           setErrorReagenda(MENSAJE_HORA_INVALIDA + " Elige otra hora.")
@@ -297,8 +307,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
       })
       if (errorRpc || !data?.[0]) {
         setGuardandoCita(false)
-        if (errorRpc?.message?.includes("horario")) {
-          setErrorCita("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
+        if (esHoraOcupadaError(errorRpc)) {
+          setErrorCita(MENSAJE_HORA_OCUPADA)
           refrescarHorasOcupadas()
           setHora("")
         } else if (esErrorHoraInvalida(errorRpc)) {
@@ -375,11 +385,8 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
   // Con 1024 px o más el portal lleva el menú a la izquierda; con menos (tablet y celular), una barra de navegación abajo. Se dibuja una sola versión.
   const laptop = useConsulta("(min-width: 1024px)", true)
   const nombreMostrado = opticaPublica?.nombre || "Mi Óptica"
-  const marca = () => (
-    <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl lg:h-9 lg:w-9 lg:rounded-[10px]" style={{ background: logoUrl ? "#fff" : "var(--portal-acento)", color: logoUrl ? undefined : identidad.textoBoton, boxShadow: logoUrl ? "inset 0 0 0 1px rgb(226 232 240)" : undefined }}>
-      {logoUrl ? <img src={logoUrl} alt="" className="h-full w-full object-contain p-1" /> : <Glasses size={22} aria-hidden="true" />}
-    </div>
-  )
+  // El logo de la óptica (el mismo de Configuración), siempre entero; sin logo, el ojo de marca con el degradado del color de la óptica.
+  const marca = () => <LogoOptica url={logoUrl} nombre={nombreMostrado} color={identidad.acento} tamano={40} />
   return (
     <div style={estiloRaiz} className="flex h-[100dvh] overflow-hidden bg-pt-fondo font-sans text-pt-marino">
       {/* ─── MENÚ LATERAL (laptop): la marca de la óptica y las cinco pantallas ─── */}
@@ -498,7 +505,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
               <label htmlFor="portal-motivo" className="mb-1.5 block text-base font-semibold text-slate-700">Motivo de la cita</label>
               <SelectorLista id="portal-motivo" etiqueta="Motivo de la cita" valor={motivo} onChange={setMotivo} options={motivosConsulta} placeholder="Elige el motivo" requerido />
             </div>
-            <SelectorFechaHora publico grande disponibilidad={disponibilidad} citas={horasOcupadas} fecha={fecha} hora={hora} onCambiarFecha={setFecha} onCambiarHora={setHora} />
+            <SelectorFechaHora publico grande porProfesional disponibilidad={disponibilidad} citas={horasOcupadas} fecha={fecha} hora={hora} onCambiarFecha={setFecha} onCambiarHora={setHora} />
           </div>
         </Cascaron>
       )}
@@ -516,7 +523,7 @@ export default function PortalPaciente({ usuario, citas = [], setCitas, consulta
         >
           <div className="space-y-4 p-3 sm:p-5">
             {errorReagenda && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-base font-medium text-red-700"><AlertCircle size={20} aria-hidden="true" /> {errorReagenda}</div>}
-            <SelectorFechaHora grande disponibilidad={disponibilidad} citas={horasOcupadas.filter((c) => !(c.fecha === reagendando.fecha && c.hora === reagendando.hora))} fecha={fechaReagenda} hora={horaReagenda} onCambiarFecha={setFechaReagenda} onCambiarHora={setHoraReagenda} />
+            <SelectorFechaHora grande porProfesional disponibilidad={disponibilidad} citas={horasReagenda} fecha={fechaReagenda} hora={horaReagenda} onCambiarFecha={setFechaReagenda} onCambiarHora={setHoraReagenda} />
           </div>
         </Cascaron>
       )}

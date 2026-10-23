@@ -1,6 +1,6 @@
 import { ahoraEcuador } from "./horaEcuador"
 import { formatoFecha, hora } from "./formatoFecha"
-import { horaOfrecida } from "./agendaPersonal"
+import { horaOfrecida, profesionalesDe, disponibleEnMinuto } from "./agendaPersonal"
 // ─── Utilidades de disponibilidad y horario del optómetra ───
 // Toda la lógica de "qué días/horas puede reservar un paciente" vive aquí,
 // para que el panel del optómetra (Horario.jsx) y los flujos de agendamiento
@@ -241,6 +241,8 @@ export function etiquetaFecha(f) {
 //      finalice, los horarios siguientes no van a estar disponibles...
 //      si le doy finalizar, ahí sí aparece disponible".
 const ESTADOS_TERMINALES_CITA = ["Atendida", "No Asistió", "Cancelada"]
+// Una cita cancelada o que no se efectuó (No Asistió) deja libre su hora (la base aplica lo mismo: migración 0149).
+const ESTADOS_QUE_LIBERAN_HORA = ["Cancelada", "No Asistió"]
 
 // Minuto en que una cita deja de "ocupar" agenda. `ahoraMin` (minutos desde
 // medianoche de HOY) solo aplica si la cita es de hoy — una cita futura o
@@ -274,7 +276,10 @@ export function ausenciasDeFecha(fechaISO, disponibilidad) {
 // podía agendar (desde cualquiera de los 4 flujos que comparten esta función)
 // una cita a una hora anterior a la actual del mismo día.
 // `profesionalId`: la agenda de esa persona (su horario y sus ausencias). Sin él, una hora se ofrece si algún profesional atiende (agendaPersonal.js); sin profesionales marcados, el horario de la óptica de siempre.
-export function slotsDisponibles(fechaISO, disponibilidad, citas = [], { publico = false, profesionalId = null } = {}) {
+// `porProfesional` (web pública y portal): «una hora, un profesional» (migración 0149). Una hora está libre si ALGUNO de los profesionales que atienden (o el elegido) la tiene sin otra cita suya
+// (cita.asignado_a / asignadoA); con «cualquiera», ocupada solo si TODOS la tienen ocupada. Una cita sin profesional bloquea a todos cuando la óptica tiene 0 o 1 profesional, o cuando las filas no
+// traen el dato de profesional (base sin la 0149: una hora, una cita para toda la óptica). Sin profesionales marcados, cae a la regla de siempre.
+export function slotsDisponibles(fechaISO, disponibilidad, citas = [], { publico = false, profesionalId = null, porProfesional = false } = {}) {
   const horario = horarioEfectivo(fechaISO, disponibilidad)
   if (!diaAbierto(horario)) return []
   if (publico && !reservasWebPermitidas(fechaISO, disponibilidad)) return []
@@ -291,9 +296,29 @@ export function slotsDisponibles(fechaISO, disponibilidad, citas = [], { publico
   // cual) es lo que permite que una cita con horario personalizado más
   // larga que un slot bloquee también el/los siguientes.
   const ocupados = citas
-    .filter((c) => c.fecha === fechaISO && c.estado !== "Cancelada")
+    .filter((c) => c.fecha === fechaISO && !ESTADOS_QUE_LIBERAN_HORA.includes(c.estado))
     .map((c) => ({ inicio: minutosDesdeMedianoche(c.hora), fin: finCitaMinutos(c, duracionDefault, ahoraMin) }))
     .concat(ausenciasDeFecha(fechaISO, disponibilidad).map((a) => ({ inicio: minutosDesde24h(a.inicio), fin: minutosDesde24h(a.fin) })))
+  const todosPros = disponibilidad?.profesionales || []
+  if (porProfesional && todosPros.length > 0) {
+    const propias = citas
+      .filter((c) => c.fecha === fechaISO && !ESTADOS_QUE_LIBERAN_HORA.includes(c.estado))
+      .map((c) => {
+        const dueno = c.asignado_a ?? c.asignadoA ?? null
+        const traeProfesional = "asignado_a" in c || "asignadoA" in c
+        return { inicio: minutosDesdeMedianoche(c.hora), fin: finCitaMinutos(c, duracionDefault, ahoraMin), dueno, bloqueaATodos: dueno == null && (!traeProfesional || todosPros.length <= 1) }
+      })
+    const ausencias = ausenciasDeFecha(fechaISO, disponibilidad).map((a) => ({ inicio: minutosDesde24h(a.inicio), fin: minutosDesde24h(a.fin) }))
+    return todos.map((h) => {
+      const inicioSlot = minutosDesdeMedianoche(h)
+      const finSlot = inicioSlot + duracionDefault
+      const pasada = esHoyFecha && inicioSlot <= ahoraMin
+      const ausente = ausencias.some((o) => haySolapamiento(inicioSlot, finSlot, o.inicio, o.fin))
+      const candidatos = profesionalesDe(disponibilidad, profesionalId).filter((p) => disponibleEnMinuto(p, fechaISO, inicioSlot, disponibilidad))
+      const libreAlguno = candidatos.some((p) => !propias.some((o) => (o.bloqueaATodos || o.dueno === p.id) && haySolapamiento(inicioSlot, finSlot, o.inicio, o.fin)))
+      return { hora: h, libre: !ausente && !pasada && libreAlguno }
+    })
+  }
   return todos.map((h) => {
     const inicioSlot = minutosDesdeMedianoche(h)
     const finSlot = inicioSlot + duracionDefault
@@ -317,7 +342,7 @@ export function conflictoHorarioPersonalizado(fechaISO, horaAMPM, duracionMinuto
   const esHoyFecha = fechaISO === hoyISO()
   const ahoraMin = esHoyFecha ? ahoraEcuador().getHours() * 60 + ahoraEcuador().getMinutes() : null
   const chocaConCita = citas
-    .filter((c) => c.fecha === fechaISO && c.estado !== "Cancelada" && c.id !== citaIdExcluir)
+    .filter((c) => c.fecha === fechaISO && !ESTADOS_QUE_LIBERAN_HORA.includes(c.estado) && c.id !== citaIdExcluir)
     .some((c) => haySolapamiento(inicio, fin, minutosDesdeMedianoche(c.hora), finCitaMinutos(c, duracionDefault, ahoraMin)))
   if (chocaConCita) return true
   return ausenciasDeFecha(fechaISO, disponibilidad)

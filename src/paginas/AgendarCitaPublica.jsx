@@ -1,111 +1,150 @@
-import PermisosAlRegistrar from "../componentes/PermisosAlRegistrar"
-import { formatoFecha } from "../utilidades/formatoFecha"
-import React, { useState, useEffect } from "react"
-import {
-  ArrowLeft,
-  User,
-  Phone,
-  Mail,
-  Clock,
-  Check,
-  Eye,
-  HeartPulse,
-  Glasses,
-  Stethoscope,
-  ChevronRight,
-  CheckCircle2,
-  Copy,
-  ShieldCheck,
-  CalendarDays,
-  CreditCard,
-  Cake,
-} from "lucide-react"
-import CampoFecha from "../componentes/CampoFecha"
+import React, { useState, useEffect, useMemo } from "react"
+import { ArrowLeft, ChevronRight } from "lucide-react"
 import SelectorFechaHora from "../componentes/SelectorFechaHora"
 import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
-import { filtrarSoloLetras, filtrarSoloNumeros, esEmailValido, esCedulaValida } from "../utilidades/validaciones"
+import LogoOptica from "../componentes/LogoOptica"
+import PasosAgendar from "../componentes/agendar/PasosAgendar"
+import ResumenCita from "../componentes/agendar/ResumenCita"
+import BloqueProfesional from "../componentes/agendar/BloqueProfesional"
+import PasoDatos from "../componentes/agendar/PasoDatos"
+import { datosCompletos } from "../utilidades/validacionDatosAgendar"
+import PasoListo from "../componentes/agendar/PasoListo"
+import { esEmailValido } from "../utilidades/validaciones"
 import { supabase } from "../lib/supabaseClient"
-import { INK, PORCELAIN, GOLD } from "@/lib/tema"
-import { esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
-
-// ─── Paleta de firma (consistente con el login) ───
-const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
+import { INK, PORCELAIN } from "@/lib/tema"
+import { esHoraOcupadaError, esErrorHoraInvalida, MENSAJE_HORA_INVALIDA } from "../utilidades/erroresCitas"
+import { colorMarca, degradadoMarca } from "../utilidades/marcaOptica"
+import { slotsDisponibles } from "../utilidades/disponibilidad"
+import { fechaDiaCorto, fechaDiaLargo, leerBorrador, guardarBorrador, borrarBorrador } from "../utilidades/agendarWeb"
+import useHorasOcupadasEnVivo from "../utilidades/useHorasOcupadasEnVivo"
 
 // Motivos que trae el sistema si la óptica aún no cargó los suyos (los mismos de la agenda interna).
 const MOTIVOS_POR_DEFECTO = ["Consulta General", "Examen de Control", "Adaptación de Lentes", "Garantía / Ajuste"]
-// Texto de ayuda para los motivos conocidos; un motivo que la óptica agregó va solo con su nombre.
+// Texto de ayuda de una línea para los motivos conocidos; un motivo que la óptica agregó va solo con su nombre.
 const AYUDA_MOTIVO = {
-  "Consulta General": { descripcion: "Revisión de tu vista o una molestia que quieras consultar.", icon: Stethoscope },
-  "Examen de Control": { descripcion: "Control de tu graduación o seguimiento de tu examen anterior.", icon: Eye },
-  "Adaptación de Lentes": { descripcion: "Ayuda para adaptarte a lentes nuevos o progresivos.", icon: Glasses },
-  "Garantía / Ajuste": { descripcion: "Ajuste, reparación o garantía de tus lentes o monturas.", icon: ShieldCheck },
+  "Consulta General": "Revisión o una molestia",
+  "Examen de Control": "Seguimiento de tu receta",
+  "Adaptación de Lentes": "Lentes nuevos o progresivos",
+  "Garantía / Ajuste": "Reparación o ajuste",
+}
+const AYUDA_HORAS = "Solo se muestran las horas en que el optómetra atiende y no tiene otra cita. Las ocupadas aparecen tachadas."
+const textoHoraPerdida = (hora) => `La hora ${hora} acaba de ocuparse. Elige otra; ya actualizamos los horarios.`
+
+const DATOS_VACIOS = {
+  nombres: "", apellidos: "", cedula: "", fechaNacimiento: "", telefono: "", correo: "",
+  // Los permisos para recibir mensajes (Recordatorios de salud sí, Promociones y saludos no, por defecto).
+  aceptaRecordatorios: true, aceptaPromociones: false,
+  motivo: "", motivoElegido: false,
+  // Pre-triage remoto (opcional): lo que el optómetra ve al revisar la cita antes de atenderla. No es un test de agudeza visual ni reemplaza el examen.
+  triage: { sintomas: [], desdeCuando: "", detalle: "" },
+  fecha: null, hora: "", codigoCita: "",
 }
 
-export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, disponibilidad, opticaId, opticaPublica, parametrizacion, motivosConsulta = MOTIVOS_POR_DEFECTO }) {
-  const horasAntesPermitidas = parametrizacion?.horasAntesReagendar ?? 2
+// Lo que se recuerda al recargar (solo la pestaña): únicamente lo que la persona escribió o eligió.
+function armarBorrador({ paso, formData, profesionalId, esPasaporte, conMolestia }) {
+  const b = { paso, profesionalId, esPasaporte }
+  for (const c of ["nombres", "apellidos", "cedula", "fechaNacimiento", "telefono", "correo", "fecha", "hora"]) if (formData[c]) b[c] = formData[c]
+  if (formData.motivoElegido) b.motivo = formData.motivo
+  if (conMolestia) b.triage = formData.triage
+  return b
+}
+
+export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, disponibilidad, opticaId, opticaPublica, motivosConsulta = MOTIVOS_POR_DEFECTO, motivoInicial = "" }) {
   const nombreOptica = opticaPublica?.marca?.nombreMarca || opticaPublica?.nombre || "esta óptica"
-  const [paso, setPaso] = useState(1)
-  const [enviando, setEnviando] = useState(false)
-  const [errorReserva, setErrorReserva] = useState("")
-
-  // Hallazgo E7: `citas` (prop compartido de App.jsx) solo se llena cuando
-  // un admin inició sesión en este mismo navegador — un visitante nuevo
-  // agendando desde su propio dispositivo lo ve siempre vacío, así que el
-  // calendario mostraba TODOS los horarios como libres sin importar las
-  // citas reales. horas_ocupadas_publicas() expone solo fecha/hora (sin
-  // datos del paciente) para que la disponibilidad que ve el público sea
-  // la real, sin necesitar acceso a `citas` (protegida por RLS).
-  const [horasOcupadas, setHorasOcupadas] = useState([])
-  useEffect(() => {
-    if (!supabase || !opticaId) return
-    supabase.rpc("horas_ocupadas_publicas", { p_optica_id: opticaId }).then(({ data }) => {
-      if (data) setHorasOcupadas(data)
-    })
-  }, [opticaId])
-
-  const [formData, setFormData] = useState({
-    nombres: "",
-    apellidos: "",
-    cedula: "",
-    fechaNacimiento: "",
-    telefono: "",
-    correo: "",
-    // Los permisos para recibir mensajes (Recordatorios de salud sí, Promociones y saludos no, por defecto).
-    aceptaRecordatorios: true,
-    aceptaPromociones: false,
-    motivo: motivosConsulta.includes("Consulta General") ? "Consulta General" : (motivosConsulta[0] || "Consulta General"),
-    // Pre-triage remoto: solo se le pide al paciente cuando el motivo es una
-    // molestia real (ver marco referencial del anteproyecto — la
-    // teleoptometría se usa sobre todo para esto, decidir con más contexto
-    // si hace falta ver al paciente antes de su cita). No es un test de
-    // agudeza visual ni reemplaza el examen — es lo que el optómetra ve al
-    // revisar la cita antes de atenderla.
-    triage: { sintomas: [], desdeCuando: "", detalle: "" },
-    fecha: null,
-    hora: "",
-    codigoCita: "",
-  })
-
-  const [copiado, setCopiado] = useState(false)
-  const [confirmando, setConfirmando] = useState(false)
+  const color = colorMarca(opticaPublica?.marca)
+  const marca = { color, fondo: degradadoMarca(color) }
 
   // Los motivos son los que configuró la óptica (Configuración → Catálogos), los mismos de su agenda interna:
   // el paciente elige uno de ellos y la cita se guarda con ese texto, sin traducciones.
-  const motivos = (motivosConsulta.length > 0 ? motivosConsulta : MOTIVOS_POR_DEFECTO).map((nombre) => ({
-    id: nombre,
-    titulo: nombre,
-    descripcion: AYUDA_MOTIVO[nombre]?.descripcion || "",
-    icon: AYUDA_MOTIVO[nombre]?.icon || Stethoscope,
-  }))
+  const motivos = (motivosConsulta.length > 0 ? motivosConsulta : MOTIVOS_POR_DEFECTO).map((nombre) => ({ id: nombre, titulo: nombre, descripcion: AYUDA_MOTIVO[nombre] || "" }))
+
+  // Al recargar, el agendamiento sigue en el mismo paso con lo ya escrito (sessionStorage de esta pestaña, nunca la base).
+  const borrador = useMemo(() => leerBorrador(opticaId), [opticaId])
+  const [paso, setPaso] = useState(() => (borrador?.paso === 2 || borrador?.paso === 1 ? borrador.paso : 1))
+  const [formData, setFormData] = useState(() => {
+    const inicial = motivoInicial && motivos.some((m) => m.titulo === motivoInicial) ? motivoInicial : ""
+    const d = { ...DATOS_VACIOS, triage: { sintomas: [], desdeCuando: "", detalle: "" } }
+    if (borrador) {
+      for (const c of ["nombres", "apellidos", "cedula", "fechaNacimiento", "telefono", "correo", "fecha", "hora"]) if (typeof borrador[c] === "string") d[c] = borrador[c]
+      if (borrador.triage && Array.isArray(borrador.triage.sintomas)) d.triage = { sintomas: borrador.triage.sintomas, desdeCuando: borrador.triage.desdeCuando || "", detalle: borrador.triage.detalle || "" }
+      if (typeof borrador.motivo === "string" && motivos.some((m) => m.titulo === borrador.motivo)) { d.motivo = borrador.motivo; d.motivoElegido = true }
+    }
+    if (inicial) { d.motivo = inicial; d.motivoElegido = true }
+    if (!d.motivo) d.motivo = motivos.find((m) => m.titulo === "Consulta General")?.titulo || motivos[0].titulo
+    return d
+  })
+  const [esPasaporte, setEsPasaporte] = useState(() => Boolean(borrador?.esPasaporte))
+  const [profesionalId, setProfesionalId] = useState(() => (typeof borrador?.profesionalId === "string" ? borrador.profesionalId : ""))
+  const [conMolestia, setConMolestia] = useState(() => Boolean(borrador?.triage?.sintomas?.length || borrador?.triage?.desdeCuando || borrador?.triage?.detalle))
+  const [intento, setIntento] = useState(false)
+  const [enviando, setEnviando] = useState(false)
+  const [errorReserva, setErrorReserva] = useState("")
+  const [avisoHora, setAvisoHora] = useState("")
+  const [confirmando, setConfirmando] = useState(false)
+  const [asignado, setAsignado] = useState("")
+  const cambiar = (parcial) => setFormData((prev) => ({ ...prev, ...parcial }))
+
+  // Un paso 2 recordado sin datos completos no tiene sentido: se vuelve al paso 1.
+  useEffect(() => {
+    if (paso === 2 && !datosCompletos(formData, esPasaporte)) setPaso(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Si los motivos de la óptica llegan después de abrir el formulario, el elegido se ajusta al primero válido.
   useEffect(() => {
-    if (!motivos.some((m) => m.titulo === formData.motivo)) setFormData((prev) => ({ ...prev, motivo: motivos[0].titulo }))
+    if (!motivos.some((m) => m.titulo === formData.motivo)) setFormData((prev) => ({ ...prev, motivo: motivos[0].titulo, motivoElegido: false }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [motivosConsulta])
-  // Contar una molestia al optómetra es opcional y va aparte del motivo (antes solo existía con el motivo "molestia").
-  const [conMolestia, setConMolestia] = useState(false)
 
-  const SINTOMAS = ["Dolor", "Enrojecimiento", "Visión borrosa", "Picazón o ardor", "Secreción", "Sensibilidad a la luz", "Golpe o trauma"]
+  // Guardar el borrador mientras se escribe (no en el paso Listo, donde ya no hay nada que recordar).
+  useEffect(() => {
+    if (paso === 3) return
+    guardarBorrador(opticaId, armarBorrador({ paso, formData, profesionalId, esPasaporte, conMolestia }))
+  }, [opticaId, paso, formData, profesionalId, esPasaporte, conMolestia])
+
+  // Hallazgo E7: `citas` (prop compartido de App.jsx) solo se llena cuando un admin inició sesión en este mismo navegador — un visitante nuevo
+  // veía todos los horarios como libres. horas_ocupadas_publicas() expone solo fecha/hora/profesional (sin datos del paciente) para que la
+  // disponibilidad que ve el público sea la real. Se vuelve a pedir sola cada ~20 s y al volver el foco a la pestaña mientras se eligen las horas.
+  const { horas: horasOcupadas, refrescar, cargando } = useHorasOcupadasEnVivo(opticaId, { activo: paso === 2 })
+
+  // Quiénes atienden (profesionales_agendamiento: nombre y foto siempre; el registro solo si la persona activó «Mostrarme en la página pública»). Si la función no existe aún o falla, no hay nombres:
+  // la cantidad sale de la agenda del personal (agenda_profesionales) y no se muestra «Te atiende» sin nombre.
+  const [datosPublicos, setDatosPublicos] = useState(null)
+  useEffect(() => {
+    if (!supabase || !opticaId) return undefined
+    let vivo = true
+    Promise.resolve(supabase.rpc("profesionales_agendamiento", { p_optica_id: opticaId }))
+      .then(({ data, error }) => { if (vivo && !error && Array.isArray(data)) setDatosPublicos(data) })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [opticaId])
+
+  const profesionales = useMemo(() => {
+    const datos = datosPublicos || []
+    return (disponibilidad?.profesionales || []).map((p) => {
+      const d = datos.find((x) => x.id === p.id)
+      return { id: p.id, nombre: d?.nombre || "", registro: d?.registro || "", foto: d?.foto || "" }
+    })
+  }, [disponibilidad, datosPublicos])
+  const profesionalElegido = profesionales.find((p) => p.id === profesionalId) || null
+  const unico = profesionales.length === 1 ? profesionales[0] : null
+
+  // Las horas libres: LA regla única (slotsDisponibles); el mismo cálculo dice si la hora elegida sigue libre tras cada refresco.
+  const opcionesHoras = { publico: true, porProfesional: true, profesionalId: profesionalId || null }
+  const slotsDelDia = useMemo(
+    () => (formData.fecha ? slotsDisponibles(formData.fecha, disponibilidad, horasOcupadas, opcionesHoras) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [formData.fecha, disponibilidad, horasOcupadas, profesionalId],
+  )
+  useEffect(() => {
+    if (paso !== 2 || cargando || !formData.fecha || !formData.hora) return
+    const s = slotsDelDia.find((x) => x.hora === formData.hora)
+    if (s && !s.libre) {
+      setAvisoHora(textoHoraPerdida(formData.hora))
+      setFormData((prev) => ({ ...prev, hora: "" }))
+    }
+  }, [paso, cargando, slotsDelDia, formData.fecha, formData.hora])
+
   const alternarSintoma = (s) => {
     setFormData((prev) => {
       const actuales = prev.triage.sintomas
@@ -113,122 +152,135 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
       return { ...prev, triage: { ...prev.triage, sintomas: siguientes } }
     })
   }
+  const alternarMolestia = () => {
+    if (conMolestia) cambiar({ triage: { sintomas: [], desdeCuando: "", detalle: "" } })
+    setConMolestia((v) => !v)
+  }
 
-  const siguientePaso = () => setPaso((prev) => Math.min(prev + 1, 3))
+  const continuar = () => {
+    setIntento(true)
+    if (!datosCompletos(formData, esPasaporte)) return
+    if (formData.correo && !esEmailValido(formData.correo, false)) return
+    setPaso(2)
+  }
 
-  const anteriorPaso = () => setPaso((prev) => Math.max(prev - 1, 1))
+  const nombreCompleto = [formData.nombres, formData.apellidos].filter(Boolean).join(" ").trim()
+  const nombreProfesional = unico?.nombre || profesionalElegido?.nombre || asignado || ""
+
+  const perderHora = async () => {
+    const hora = formData.hora
+    setConfirmando(false)
+    setErrorReserva("")
+    setFormData((prev) => ({ ...prev, hora: "" }))
+    setAvisoHora(textoHoraPerdida(hora))
+    await refrescar()
+  }
 
   const confirmarReserva = async () => {
-    const nombreCompleto = [formData.nombres, formData.apellidos].filter(Boolean).join(" ").trim()
-    const partesNombre = nombreCompleto.split(" ").filter(Boolean)
-    const iniciales = partesNombre.length > 1
-      ? (partesNombre[0][0] + partesNombre[1][0]).toUpperCase()
-      : (partesNombre[0]?.[0] || "P").toUpperCase()
-
-    const motivoInterno = formData.motivo
-    const triageAEnviar = formData.triage.sintomas.length > 0 || formData.triage.desdeCuando || formData.triage.detalle.trim()
-      ? formData.triage
-      : null
-    const nuevaCita = {
-      paciente: nombreCompleto,
-      cedula: formData.cedula,
-      telefono: formData.telefono,
-      fecha: formData.fecha || "",
-      hora: formData.hora,
-      motivo: motivoInterno,
-      motivoPublico: formData.motivo,
-      triage: triageAEnviar,
-      iniciales,
-      estado: "Pendiente",
-    }
-
+    if (enviando) return
     setErrorReserva("")
-    if (!esCedulaValida(formData.cedula)) {
-      setErrorReserva("La cédula ingresada no es válida — revisa los dígitos.")
-      return
-    }
-    if (!formData.fechaNacimiento) {
-      setErrorReserva("Ingresa tu fecha de nacimiento.")
+    if (!datosCompletos(formData, esPasaporte)) {
+      setConfirmando(false)
+      setIntento(true)
+      setPaso(1)
       return
     }
     if (formData.correo && !esEmailValido(formData.correo, false)) {
       setErrorReserva("Ese correo no es válido — corrígelo o déjalo vacío.")
       return
     }
-    setEnviando(true)
-    let codigoReal = ""
-    if (supabase && opticaId) {
-      // crear_cita_publica ahora también resuelve o crea el registro del
-      // paciente (dedupe por cédula) — antes la cita quedaba sin paciente
-      // vinculado hasta que el personal la completaba a mano (el ing probó
-      // esto en vivo y señaló que "todo paciente que tiene su cita, es un
-      // paciente que ya existe en el registro"). Genera y guarda el código
-      // en el servidor. Al ser una función que devuelve una tabla, el
-      // cliente la recibe como un arreglo de una fila.
-      const { data, error } = await supabase.rpc("crear_cita_publica", {
-        p_optica_id: opticaId,
-        p_paciente: nuevaCita.paciente,
-        p_fecha: nuevaCita.fecha,
-        p_hora: nuevaCita.hora,
-        p_cedula: nuevaCita.cedula,
-        p_fecha_nacimiento: formData.fechaNacimiento,
-        p_telefono: nuevaCita.telefono || null,
-        p_motivo: motivoInterno,
-        p_motivo_publico: formData.motivo,
-        p_correo: formData.correo || null,
-        p_triage: triageAEnviar,
-      })
-      if (error || !data?.[0]) {
-        setEnviando(false)
-        if (error?.message?.includes("horario")) {
-          setErrorReserva("Ese horario ya no está disponible — alguien más lo acaba de reservar. Elige otro.")
-          supabase.rpc("horas_ocupadas_publicas", { p_optica_id: opticaId }).then(({ data }) => { if (data) setHorasOcupadas(data) })
-          setFormData((prev) => ({ ...prev, hora: "" }))
-        } else if (esErrorHoraInvalida(error)) {
-          setErrorReserva(MENSAJE_HORA_INVALIDA + " Elige otra hora.")
-          setFormData((prev) => ({ ...prev, hora: "" }))
-        } else if (error?.message?.includes("cédula")) {
-          setErrorReserva("La cédula ingresada no es válida — revisa los dígitos.")
-        } else {
-          setErrorReserva("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
-        }
-        return
-      }
-      nuevaCita.id = data[0].id
-      codigoReal = data[0].codigo
-      // Los permisos que eligió: si falla no se pierde la cita (valen los de siempre y el paciente los cambia desde su portal).
-      await supabase.rpc("registrar_permisos_cita_publica", { p_cita_id: data[0].id, p_recordatorios: formData.aceptaRecordatorios, p_promociones: formData.aceptaPromociones }).catch(() => {})
-    } else {
-      nuevaCita.id = Date.now()
-      codigoReal = `CIT-${new Date().getFullYear()}-DEMO`
+    const triageAEnviar = formData.triage.sintomas.length > 0 || formData.triage.desdeCuando || formData.triage.detalle.trim() ? formData.triage : null
+    const nuevaCita = {
+      paciente: nombreCompleto,
+      cedula: formData.cedula,
+      telefono: formData.telefono,
+      fecha: formData.fecha || "",
+      hora: formData.hora,
+      motivo: formData.motivo,
+      motivoPublico: formData.motivo,
+      triage: triageAEnviar,
+      iniciales: nombreCompleto.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "P",
+      estado: "Pendiente",
     }
 
-    setCitas?.([...citas, nuevaCita])
-    setFormData((prev) => ({ ...prev, codigoCita: codigoReal }))
-    setEnviando(false)
-    setConfirmando(false)
-    setPaso(3)
+    setEnviando(true)
+    try {
+      let codigoReal = ""
+      if (supabase && opticaId) {
+        // crear_cita_publica resuelve o crea el registro del paciente (dedupe por cédula) y genera el código en el servidor. Es una función que devuelve
+        // una tabla: el cliente la recibe como un ARREGLO de una fila. Solo se manda el profesional si la persona eligió a uno y el tipo de documento si es pasaporte
+        // (así sigue funcionando con la base de antes de la migración 0149).
+        const parametros = {
+          p_optica_id: opticaId,
+          p_paciente: nuevaCita.paciente,
+          p_fecha: nuevaCita.fecha,
+          p_hora: nuevaCita.hora,
+          p_cedula: nuevaCita.cedula,
+          p_fecha_nacimiento: formData.fechaNacimiento || null,
+          p_telefono: nuevaCita.telefono || null,
+          p_motivo: formData.motivo,
+          p_motivo_publico: formData.motivo,
+          p_correo: formData.correo || null,
+          p_triage: triageAEnviar,
+          ...(profesionalId ? { p_profesional_id: profesionalId } : {}),
+          ...(esPasaporte ? { p_tipo_documento: "pasaporte" } : {}),
+        }
+        const { data, error } = await supabase.rpc("crear_cita_publica", parametros)
+        const fila = Array.isArray(data) ? data[0] : data
+        if (error || !fila?.id) {
+          if (esHoraOcupadaError(error)) await perderHora()
+          else if (esErrorHoraInvalida(error)) setErrorReserva(MENSAJE_HORA_INVALIDA + " Elige otra hora.")
+          else if (/c[eé]dula|pasaporte/i.test(error?.message || "")) setErrorReserva(esPasaporte ? "El pasaporte no es válido — revísalo." : "La cédula ingresada no es válida — revisa los dígitos.")
+          else if (/Elige otr[ao]/i.test(error?.message || "")) setErrorReserva(error.message)
+          else setErrorReserva("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
+          return
+        }
+        nuevaCita.id = fila.id
+        codigoReal = fila.codigo
+        // Los permisos que eligió: si falla no se pierde la cita (valen los de siempre y el paciente los cambia desde su portal).
+        // (El cliente devuelve { error } sin lanzar; no es una promesa con .catch.)
+        try {
+          await supabase.rpc("registrar_permisos_cita_publica", { p_cita_id: fila.id, p_recordatorios: formData.aceptaRecordatorios, p_promociones: formData.aceptaPromociones })
+        } catch { /* los permisos de siempre */ }
+      } else {
+        nuevaCita.id = Date.now()
+        codigoReal = `CIT-${formData.fecha?.slice(0, 4) || "0000"}-DEMO`
+      }
+
+      setCitas?.([...citas, nuevaCita])
+      setFormData((prev) => ({ ...prev, codigoCita: codigoReal }))
+      borrarBorrador(opticaId)
+      setConfirmando(false)
+      setPaso(3)
+      // Con «cualquier optómetra», saber quién quedó asignado (si la base lo dice) para mostrarlo en el resumen.
+      if (!profesionalId && profesionales.length > 1) {
+        refrescar().then((filas) => {
+          const mia = (filas || []).find((h) => h.fecha === nuevaCita.fecha && h.hora === nuevaCita.hora && h.asignado_a)
+          const quien = profesionales.find((p) => p.id === mia?.asignado_a)
+          if (quien?.nombre) setAsignado(quien.nombre)
+        })
+      }
+    } catch {
+      setErrorReserva("No pudimos guardar tu cita. Intenta de nuevo en un momento.")
+    } finally {
+      setEnviando(false)
+    }
   }
 
-  const copiarCodigo = () => {
-    navigator.clipboard.writeText(formData.codigoCita)
-    setCopiado(true)
-    setTimeout(() => setCopiado(false), 2000)
-  }
+  const salir = () => { borrarBorrador(opticaId); onVolver?.() }
 
-  const motivoActual = motivos.find((m) => m.titulo === formData.motivo)
-  const IconoMotivo = motivoActual ? motivoActual.icon : Eye
-  const nombreCompleto =
-    [formData.nombres, formData.apellidos].filter(Boolean).join(" ").trim()
-  const fechaTexto = formData.fecha
-    ? formatoFecha(formData.fecha, "largoSinDia")
-    : null
+  const profesionalResumen = nombreProfesional || (profesionales.length > 1 && !asignado ? "Cualquier optómetra" : `Equipo de ${nombreOptica}`)
+  const filasResumen = [
+    { etiqueta: "Motivo", valor: formData.motivo },
+    { etiqueta: "Paciente", valor: nombreCompleto },
+    { etiqueta: "Profesional", valor: profesionalResumen },
+    { etiqueta: "Fecha", valor: fechaDiaCorto(formData.fecha) },
+    { etiqueta: "Hora", valor: formData.hora },
+  ]
+  const resumenCorto = [formData.motivo, formData.fecha ? fechaDiaCorto(formData.fecha) : "", formData.hora].filter(Boolean).join(" · ")
 
   return (
-    <div
-      className="relative flex min-h-screen w-full flex-col font-sans text-slate-800 antialiased selection:bg-cyan-200 selection:text-slate-900"
-      style={{ backgroundColor: PORCELAIN }}
-    >
+    <div className="relative flex min-h-screen w-full flex-col font-sans text-slate-800 antialiased selection:bg-cyan-200 selection:text-slate-900" style={{ backgroundColor: PORCELAIN }}>
       <style>{`
         @keyframes acStep { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         @keyframes acPop  { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
@@ -237,373 +289,83 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
         @media (prefers-reduced-motion: reduce) { .ac-step,.ac-pop { animation: none !important; } }
       `}</style>
 
-      {/* ─── HEADER ─── */}
-      <header
-        className="sticky top-0 z-30 border-b px-4 py-3.5 backdrop-blur-md sm:px-8"
-        style={{ backgroundColor: "rgba(247,245,240,0.85)", borderColor: "rgba(14,43,51,0.08)" }}
-      >
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <button
-            type="button"
-            onClick={onVolver}
-            className="flex items-center gap-2 text-sm font-semibold text-slate-600 transition-colors hover:text-slate-900 cursor-pointer"
-          >
-            <ArrowLeft size={16} /> Volver al inicio
+      {/* ─── CABECERA: volver a la izquierda, logo y nombre al centro ─── */}
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 py-2.5 backdrop-blur-md sm:px-8">
+        <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <button type="button" onClick={salir} className="inline-flex min-h-11 cursor-pointer items-center gap-2 justify-self-start text-sm font-semibold transition-colors hover:underline sm:text-base" style={{ color }}>
+            <ArrowLeft size={18} aria-hidden="true" /> <span>Volver al inicio</span>
           </button>
-
-          <div className="flex items-center gap-2.5">
-            <div
-              className="grid h-9 w-9 place-items-center rounded-xl text-white"
-              style={{ background: GRAD, boxShadow: "0 8px 20px -8px rgba(34,211,238,0.6)" }}
-            >
-              <Eye size={18} />
-            </div>
-            <span className="font-bold tracking-tight" style={{ color: INK }}>
-              {nombreOptica}
-            </span>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <LogoOptica url={opticaPublica?.logo_url} nombre={nombreOptica} color={color} tamano={40} />
+            <span className="max-w-[9rem] truncate font-serif text-lg font-bold tracking-tight sm:max-w-xs sm:text-xl" style={{ color: INK }}>{nombreOptica}</span>
           </div>
-
-          <div className="hidden w-28 sm:block" />
+          <span aria-hidden="true" />
         </div>
       </header>
 
-      {/* ─── CUERPO: RESUMEN (aside) + FORMULARIO ─── */}
-      <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-8 px-4 py-8 sm:px-8 lg:grid-cols-12 lg:gap-10 lg:py-12">
-        {/* ASIDE — resumen en vivo; ya no se muestra en el paso 3, donde el
-            recibo del panel principal es la única fuente de esos datos */}
-        {paso !== 3 && (
-          <aside className="lg:col-span-5">
-            <div
-              className="relative overflow-hidden rounded-3xl p-7 text-white lg:sticky lg:top-24"
-              style={{ backgroundColor: INK }}
-            >
-              {/* decoración */}
-              <svg
-                aria-hidden="true"
-                className="pointer-events-none absolute -right-16 -top-16 h-72 w-72"
-                viewBox="0 0 400 400" fill="none" stroke="#ffffff" style={{ opacity: 0.06 }}
-              >
-                {[70, 130, 190].map((r) => (<circle key={r} cx="200" cy="200" r={r} strokeWidth="1.4" />))}
-              </svg>
-              <div
-                className="pointer-events-none absolute -bottom-10 -left-10 h-56 w-56 rounded-full blur-3xl"
-                style={{ background: "radial-gradient(circle, rgba(34,211,238,0.18), transparent 70%)" }}
-              />
+      <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-5 px-4 py-6 sm:px-8 lg:grid-cols-12 lg:gap-10 lg:py-10">
+        <section className="min-w-0 lg:col-span-8">
+          <h1 className="mb-5 font-serif text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: INK }}>Solicita tu cita en línea</h1>
+          <div className="mb-5"><PasosAgendar paso={paso} color={color} /></div>
 
-              <div className="relative">
-                <span className="inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
-                  Resumen de tu cita
-                </span>
-                <h2 className="mt-3 font-serif text-2xl font-bold leading-tight">
-                  Estás a pocos pasos
-                </h2>
-                <p className="mt-1.5 text-sm text-white/60">
-                  Vamos completando los datos a medida que avanzas.
-                </p>
-
-                <div className="mt-7 flex flex-col gap-1">
-                  <ResumenFila icon={IconoMotivo} label="Motivo" valor={formData.motivo} />
-                  <ResumenFila icon={User} label="Paciente" valor={nombreCompleto || null} />
-                  <ResumenFila icon={CalendarDays} label="Fecha" valor={fechaTexto} />
-                  <ResumenFila icon={Clock} label="Hora" valor={formData.hora || null} />
-                  <ResumenFila icon={Stethoscope} label="Profesional" valor={`Equipo de ${nombreOptica}`} />
-                </div>
-
-                <div className="mt-7 flex flex-col gap-2.5 border-t border-white/10 pt-6">
-                  {["Sin crear cuenta", "Confirmación inmediata", "Datos protegidos"].map((t) => (
-                    <span key={t} className="flex items-center gap-2.5 text-sm text-white/70">
-                      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full" style={{ backgroundColor: "rgba(34,211,238,0.15)" }}>
-                        <Check size={12} strokeWidth={3} style={{ color: "#22D3EE" }} />
-                      </span>
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </aside>
-        )}
-
-        {/* FORMULARIO */}
-        <section className={paso === 3 ? "lg:col-span-12 lg:mx-auto lg:w-full lg:max-w-2xl" : "lg:col-span-7"}>
-          <div className="mb-6">
-            <h1 className="font-serif text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: INK }}>
-              Solicita tu cita en línea
-            </h1>
-            <p className="mt-2 text-sm text-slate-500">
-              Sin crear cuenta y en pocos pasos. Reserva tu espacio rápidamente.
-            </p>
-          </div>
-
-          {/* Stepper */}
-          <div className="mb-8 flex items-center">
-            <StepItem num={1} label="Tus datos" activo={paso === 1} completado={paso > 1} />
-            <Conector activo={paso > 1} />
-            <StepItem num={2} label="Fecha y hora" activo={paso === 2} completado={paso > 2} />
-            <Conector activo={paso > 2} />
-            <StepItem num={3} label="Listo" activo={paso === 3} completado={paso === 3} />
-          </div>
-
-          {/* Tarjeta del formulario */}
-          <div
-            className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8"
-            style={{ boxShadow: "0 30px 60px -30px rgba(14,43,51,0.25)" }}
-          >
-            {/* PASO 1 */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-8" style={{ boxShadow: "0 30px 60px -36px rgba(14,43,51,0.25)" }}>
             {paso === 1 && (
-              <div className="ac-step space-y-8">
-                <div>
-                  <h3 className="text-lg font-bold" style={{ color: INK }}>¿Cómo te llamas?</h3>
-                  <p className="text-xs text-slate-500">Con tu nombre y teléfono basta para coordinar la cita.</p>
-
-                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Campo label="Nombres" icon={User} placeholder="Ej. Diego Andrés"
-                      value={formData.nombres} onChange={(v) => setFormData({ ...formData, nombres: filtrarSoloLetras(v) })} />
-                    <Campo label="Apellidos" icon={User} placeholder="Ej. Zambrano Loor"
-                      value={formData.apellidos} onChange={(v) => setFormData({ ...formData, apellidos: filtrarSoloLetras(v) })} />
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <Campo label="Cédula" icon={CreditCard} type="tel" placeholder="Ej. 1234567890" maxLength={10}
-                        value={formData.cedula} onChange={(v) => setFormData({ ...formData, cedula: filtrarSoloNumeros(v, 10) })} />
-                      {formData.cedula.length === 10 && !esCedulaValida(formData.cedula) && (
-                        <p className="mt-1 text-xs font-medium text-red-600">Esa cédula no parece válida — revisa los dígitos.</p>
-                      )}
-                    </div>
-                    <div>
-                      <label htmlFor="publica-nacimiento" className="mb-1.5 block text-xs font-semibold text-slate-700">Fecha de nacimiento</label>
-                      <CampoFecha id="publica-nacimiento" etiqueta="Fecha de nacimiento" valor={formData.fechaNacimiento} onCambiar={(v) => setFormData({ ...formData, fechaNacimiento: v })} icono={Cake} placeholder="Elige tu fecha" />
-                    </div>
-                  </div>
-                  <p className="mt-1.5 text-xs text-slate-400">
-                    Pedimos tu cédula y nacimiento para no duplicar tu historial si ya nos visitaste antes — nunca para crearte una cuenta.
-                  </p>
-
-                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Campo label="Teléfono / WhatsApp" icon={Phone} type="tel" placeholder="Ej. 0991234567" maxLength={10}
-                      value={formData.telefono} onChange={(v) => setFormData({ ...formData, telefono: filtrarSoloNumeros(v, 10) })} />
-                    <Campo label="Correo (opcional)" icon={Mail} type="email" placeholder="tucorreo@ejemplo.com"
-                      value={formData.correo} onChange={(v) => setFormData({ ...formData, correo: v })} />
-                  </div>
-                  <p className="mt-1.5 text-xs text-slate-400">Teléfono y correo son opcionales — si nos dejas tu correo, te mandamos un recordatorio antes de tu cita.</p>
-                  <div className="mt-4">
-                    <PermisosAlRegistrar persona="yo" idBase="reserva-permisos" recordatorios={formData.aceptaRecordatorios} promociones={formData.aceptaPromociones}
-                      onCambiar={(c) => setFormData((prev) => ({ ...prev, ...(c.recordatorios !== undefined ? { aceptaRecordatorios: c.recordatorios } : {}), ...(c.promociones !== undefined ? { aceptaPromociones: c.promociones } : {}) }))} />
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-bold" style={{ color: INK }}>¿Qué necesitas?</h3>
-                  <p className="text-xs text-slate-500">Elige el motivo principal de tu visita.</p>
-
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    {motivos.map((item) => {
-                      const Icono = item.icon
-                      const seleccionado = formData.motivo === item.titulo
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, motivo: item.titulo })}
-                          className={
-                            "group relative flex flex-col rounded-2xl border p-4 text-left transition-all cursor-pointer " +
-                            (seleccionado
-                              ? "border-blue-500 bg-blue-50/50 shadow-sm"
-                              : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60")
-                          }
-                        >
-                          <div
-                            className="mb-3 grid h-10 w-10 place-items-center rounded-xl text-white transition-all"
-                            style={{
-                              background: seleccionado ? GRAD : "#eef2ff",
-                              color: seleccionado ? "#fff" : "#2563EB",
-                            }}
-                          >
-                            <Icono size={18} />
-                          </div>
-                          <h4 className="text-sm font-bold leading-snug" style={{ color: INK }}>{item.titulo}</h4>
-                          <p className="mt-1 text-xs leading-relaxed text-slate-500">{item.descripcion}</p>
-                          {seleccionado && (
-                            <span className="absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full text-white" style={{ background: GRAD }}>
-                              <Check size={12} strokeWidth={3} />
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => { setConMolestia((v) => !v); if (conMolestia) setFormData((prev) => ({ ...prev, triage: { sintomas: [], desdeCuando: "", detalle: "" } })) }}
-                    aria-expanded={conMolestia}
-                    className="mt-4 flex items-center gap-2 text-xs font-semibold text-blue-700 transition-colors hover:text-blue-800 cursor-pointer"
-                  >
-                    <HeartPulse size={14} aria-hidden="true" /> {conMolestia ? "No tengo ninguna molestia que contar" : "¿Tienes alguna molestia? Cuéntasela al optómetra (opcional)"}
-                  </button>
-
-                  {conMolestia && (
-                    <div className="ac-step mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                      <h4 className="text-sm font-bold" style={{ color: INK }}>Cuéntanos un poco más</h4>
-                      <p className="text-xs text-slate-500">Esto le llega al optómetra antes de tu cita para revisarlo con más contexto — es opcional.</p>
-
-                      <p className="mb-1.5 mt-3 text-xs font-semibold text-slate-600">¿Qué síntomas tienes?</p>
-                      <div className="flex flex-wrap gap-2">
-                        {SINTOMAS.map((s) => {
-                          const activo = formData.triage.sintomas.includes(s)
-                          return (
-                            <button
-                              key={s}
-                              type="button"
-                              onClick={() => alternarSintoma(s)}
-                              className={
-                                "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " +
-                                (activo ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
-                              }
-                            >
-                              {s}
-                            </button>
-                          )
-                        })}
-                      </div>
-
-                      <p className="mb-1.5 mt-4 text-xs font-semibold text-slate-600">¿Desde cuándo?</p>
-                      <div className="flex flex-wrap gap-2">
-                        {["Hoy", "Hace unos días", "Hace más de una semana"].map((op) => (
-                          <button
-                            key={op}
-                            type="button"
-                            onClick={() => setFormData((prev) => ({ ...prev, triage: { ...prev.triage, desdeCuando: op } }))}
-                            className={
-                              "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer " +
-                              (formData.triage.desdeCuando === op ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300")
-                            }
-                          >
-                            {op}
-                          </button>
-                        ))}
-                      </div>
-
-                      <textarea
-                        rows={2}
-                        value={formData.triage.detalle}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, triage: { ...prev.triage, detalle: e.target.value } }))}
-                        placeholder="Algo más que quieras contarnos (opcional)"
-                        className="mt-3 w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex justify-end pt-1">
-                  <BotonPrimario
-                    onClick={siguientePaso}
-                    disabled={!formData.nombres || !formData.apellidos || !esCedulaValida(formData.cedula) || !formData.fechaNacimiento}
-                  >
-                    Continuar <ChevronRight size={16} />
-                  </BotonPrimario>
-                </div>
-              </div>
+              <PasoDatos datos={formData} cambiar={cambiar} esPasaporte={esPasaporte} onPasaporte={setEsPasaporte} intento={intento} motivos={motivos}
+                conMolestia={conMolestia} onMolestia={alternarMolestia} alternarSintoma={alternarSintoma} onContinuar={continuar} marca={marca} />
             )}
 
-            {/* PASO 2 */}
             {paso === 2 && (
-              <div className="ac-step space-y-6">
-                <div>
-                  <h3 className="text-lg font-bold" style={{ color: INK }}>Selecciona fecha y hora</h3>
-                  <p className="text-xs text-slate-500">Elige un día disponible para ver los horarios del optómetra.</p>
-                </div>
+              <div className="ac-step space-y-5">
+                <BloqueProfesional profesionales={profesionales} valor={profesionalId} color={color}
+                  onCambiar={(id) => { setProfesionalId(id); setAvisoHora(""); cambiar({ hora: "" }) }} />
 
-                <SelectorFechaHora
-                  publico
-                  disponibilidad={disponibilidad}
-                  citas={horasOcupadas}
-                  fecha={formData.fecha}
-                  hora={formData.hora}
-                  onCambiarFecha={(iso) => setFormData((prev) => ({ ...prev, fecha: iso, hora: "" }))}
-                  onCambiarHora={(h) => setFormData((prev) => ({ ...prev, hora: h }))}
-                />
+                {avisoHora && <p role="alert" className="rounded-xl bg-amber-50 px-4 py-3 text-base text-amber-900">{avisoHora}</p>}
 
-                <div className="flex items-center justify-between border-t border-slate-100 pt-6">
-                  <button type="button" onClick={anteriorPaso}
-                    className="text-sm font-bold text-slate-500 transition-colors hover:text-slate-800 cursor-pointer">
-                    Atrás
+                {cargando ? (
+                  <div className="grid animate-pulse grid-cols-1 gap-6 md:grid-cols-2" aria-busy="true" aria-label="Cargando horarios">
+                    <div className="h-64 rounded-xl bg-slate-100" />
+                    <div className="h-64 rounded-xl bg-slate-100" />
+                  </div>
+                ) : (
+                  <SelectorFechaHora
+                    publico agrupar porProfesional
+                    color={color}
+                    ayuda={AYUDA_HORAS}
+                    disponibilidad={disponibilidad}
+                    citas={horasOcupadas}
+                    profesionalId={profesionalId || null}
+                    fecha={formData.fecha}
+                    hora={formData.hora}
+                    onCambiarFecha={(iso) => { setAvisoHora(""); setFormData((prev) => ({ ...prev, fecha: iso, hora: "" })) }}
+                    onCambiarHora={(h) => { setAvisoHora(""); cambiar({ hora: h }) }}
+                  />
+                )}
+
+                <div className="flex items-center justify-between gap-3 pt-2">
+                  <button type="button" onClick={() => setPaso(1)} className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 px-1 text-base font-semibold transition-colors hover:underline" style={{ color }}>
+                    <ArrowLeft size={18} aria-hidden="true" /> Atrás
                   </button>
-                  <BotonPrimario onClick={() => setConfirmando(true)} disabled={!formData.fecha || !formData.hora}>
-                    Confirmar reserva <ChevronRight size={16} />
-                  </BotonPrimario>
+                  <button type="button" onClick={() => { setErrorReserva(""); setConfirmando(true) }} disabled={!formData.fecha || !formData.hora}
+                    className="inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl px-6 text-base font-bold text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                    style={{ background: marca.fondo, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}>
+                    Confirmar reserva <ChevronRight size={18} aria-hidden="true" />
+                  </button>
                 </div>
               </div>
             )}
 
-            {/* PASO 3 */}
             {paso === 3 && (
-              <div className="ac-step space-y-6 py-2 text-center">
-                <div className="ac-pop mx-auto grid h-20 w-20 place-items-center rounded-full text-white"
-                  style={{ background: GRAD, boxShadow: "0 20px 40px -12px rgba(34,211,238,0.5)" }}>
-                  <CheckCircle2 size={40} />
-                </div>
-
-                <div>
-                  <h3 className="font-serif text-3xl font-bold" style={{ color: INK }}>¡Tu cita está reservada!</h3>
-                  <p className="mt-1.5 text-sm text-slate-500">Guarda tu código de seguimiento para futuras consultas.</p>
-                </div>
-
-                {/* Código */}
-                <div className="mx-auto max-w-sm rounded-2xl border-2 border-dashed p-4" style={{ borderColor: "rgba(37,99,235,0.3)", backgroundColor: "#eff6ff" }}>
-                  <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Tu código de cita</span>
-                  <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-blue-100 bg-white p-2.5 shadow-sm">
-                    <span className="font-mono text-lg font-black" style={{ color: INK }}>{formData.codigoCita}</span>
-                    <button type="button" onClick={copiarCodigo}
-                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                      style={{ background: GRAD }}>
-                      <Copy size={14} />
-                      {copiado ? "¡Copiado!" : "Copiar"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Recibo con detalles */}
-                <div className="mx-auto max-w-sm rounded-2xl border border-slate-200 bg-slate-50/50 p-4 text-left">
-                  <ReciboFila label="Motivo" valor={formData.motivo} />
-                  <ReciboFila label="Fecha" valor={fechaTexto} />
-                  <ReciboFila label="Hora" valor={formData.hora} />
-                  <ReciboFila label="Profesional" valor={`Equipo de ${nombreOptica}`} ultima />
-                </div>
-
-                {formData.correo && (
-                  <p className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
-                    <ShieldCheck size={14} className="text-emerald-600" />
-                    Te enviaremos un recordatorio por correo antes de tu cita.
-                  </p>
-                )}
-
-                {parametrizacion?.permitirReagendarPaciente && (
-                  <p className="mx-auto max-w-sm text-xs leading-relaxed text-slate-500">
-                    Puedes cambiar el horario o cancelar tu cita hasta con {horasAntesPermitidas} hora{horasAntesPermitidas === 1 ? "" : "s"} de anticipación. Escríbenos o pídelo directamente si tienes cuenta de paciente.
-                  </p>
-                )}
-
-                <div className="mx-auto max-w-sm rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-left">
-                  <p className="text-xs leading-relaxed text-slate-500">
-                    <span className="font-semibold text-slate-700">¿Tienes dudas o necesitas más información?</span> Escríbenos o pregúntale directamente al optómetra el día de tu cita.
-                  </p>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                    Si quieres una experiencia más completa —ver tu receta, tu historial y agendar más rápido la próxima vez— pídele al optómetra que active tu <span className="font-semibold text-slate-700">cuenta de paciente</span> durante tu visita.
-                  </p>
-                </div>
-
-                <button type="button" onClick={onVolver}
-                  className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                  style={{ backgroundColor: INK }}>
-                  Volver a la página principal
-                </button>
-              </div>
+              <PasoListo fecha={formData.fecha} hora={formData.hora} motivo={formData.motivo} profesional={nombreProfesional} codigo={formData.codigoCita}
+                direccion={opticaPublica?.settings?.opticaDireccion} telefono={opticaPublica?.settings?.opticaTelefono}
+                nombreOptica={nombreOptica} duracionMinutos={disponibilidad?.duracionCita || 40} />
             )}
           </div>
         </section>
+
+        {/* Resumen: tarjeta blanca a la derecha (en celular, arriba y plegada). Sigue completa en el paso Listo. */}
+        <aside className="order-first lg:order-none lg:col-span-4">
+          <ResumenCita filas={filasResumen} color={color} corto={resumenCorto} />
+        </aside>
       </main>
 
       {/* ─── CONFIRMACIÓN DE RESERVA ─── */}
@@ -611,105 +373,15 @@ export default function AgendarCitaPublica({ onVolver, citas = [], setCitas, dis
         <ConfirmarCitaModal
           paciente={nombreCompleto}
           motivo={formData.motivo}
-          fecha={fechaTexto}
+          fecha={fechaDiaLargo(formData.fecha)}
           hora={formData.hora}
+          profesional={nombreProfesional}
           onCancelar={() => setConfirmando(false)}
           onConfirmar={confirmarReserva}
           guardando={enviando}
           error={errorReserva}
         />
       )}
-    </div>
-  )
-}
-
-// ─── Subcomponentes ───
-function ResumenFila({ icon: Icon, label, valor }) {
-  const puesto = Boolean(valor)
-  return (
-    <div className="flex items-center gap-3 rounded-xl px-2 py-2.5">
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
-        <Icon size={16} className="text-white/70" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium uppercase tracking-wider text-white/40">{label}</p>
-        <p className={"truncate text-sm font-semibold " + (puesto ? "text-white" : "text-white/35")}>
-          {puesto ? valor : "Por completar"}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function ReciboFila({ label, valor, ultima }) {
-  return (
-    <div className={"flex items-center justify-between py-2 " + (ultima ? "" : "border-b border-slate-200/70")}>
-      <span className="text-xs font-medium text-slate-500">{label}</span>
-      <span className="text-sm font-semibold" style={{ color: INK }}>{valor || "—"}</span>
-    </div>
-  )
-}
-
-function Campo({ label, icon: Icon, value, onChange, placeholder, type = "text", maxLength }) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-xs font-semibold text-slate-700">{label}</label>
-      <div className="relative">
-        <Icon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-        <input
-          type={type}
-          placeholder={placeholder}
-          value={value}
-          maxLength={maxLength}
-          inputMode={maxLength ? "numeric" : undefined}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-slate-50/60 py-3 pl-10 pr-4 text-sm outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
-        />
-      </div>
-    </div>
-  )
-}
-
-function BotonPrimario({ children, onClick, disabled }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-      style={{ background: GRAD, boxShadow: "0 14px 28px -12px rgba(37,99,235,0.6)" }}
-    >
-      {children}
-    </button>
-  )
-}
-
-function Conector({ activo }) {
-  return (
-    <div className="mx-2 h-0.5 flex-1 rounded-full transition-colors sm:mx-3"
-      style={{ background: activo ? GRAD : "rgba(14,43,51,0.12)" }} />
-  )
-}
-
-function StepItem({ num, label, activo, completado }) {
-  const activoOhecho = activo || completado
-  return (
-    <div className="flex items-center gap-2">
-      <div
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold transition-all"
-        style={
-          completado
-            ? { background: GRAD, color: "#fff" }
-            : activo
-            ? { background: GRAD, color: "#fff", boxShadow: "0 0 0 4px rgba(34,211,238,0.18)" }
-            : { backgroundColor: "#e2e8f0", color: "#94a3b8" }
-        }
-      >
-        {completado ? <Check size={14} strokeWidth={3} /> : num}
-      </div>
-      <span className={"hidden text-xs font-semibold sm:block " + (activoOhecho ? "text-slate-800" : "text-slate-500")}>
-        {label}
-      </span>
     </div>
   )
 }

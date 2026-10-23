@@ -9,26 +9,22 @@ import { diaDeRegistro } from "./periodoLista"
 import { estadoVisible } from "./ordenesLaboratorio"
 import { fechaProximoControl } from "./fidelizacion"
 import { formatearTelefonoEC, linkWhatsApp } from "./whatsapp"
+import { colorLegible, esColorValido } from "./marcaOptica"
 
 // ── Identidad de la óptica ──
 // El portal sigue el diseño aprobado (docs/portal-propuesta/): azul #1D5FD6, azul marino #0F2340 en la franja y el boleto, y fondo #F4F7FB. Si la óptica eligió un color propio
-// (Configuración › Personalización), ese color reemplaza al azul en el menú, los botones y los enlaces; el marino no cambia. El texto sobre el acento es blanco u oscuro según el contraste (WCAG).
+// (Configuración › Personalización), ese color reemplaza al azul en el menú, los botones y los enlaces; el marino no cambia. El texto sobre el acento es siempre blanco: un color muy claro se oscurece antes (colorLegible).
 export const AZUL_PORTAL = "#1D5FD6"
 export const MARINO_PORTAL = "#0F2340"
 const AZUL_DEL_SISTEMA = "#2563eb"
-const HEX = /^#[0-9a-f]{6}$/i
-const luminancia = (hex) => {
-  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
-  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
-}
 export function identidadDeLaOptica(opticaPublica) {
   const m = opticaPublica?.marca || {}
-  const propio = HEX.test(m.colorAcento || "") && m.colorAcento.toLowerCase() !== AZUL_DEL_SISTEMA
-  const acento = propio ? m.colorAcento : AZUL_PORTAL
+  const propio = esColorValido(m.colorAcento) && m.colorAcento.trim().toLowerCase() !== AZUL_DEL_SISTEMA
+  // El color de la óptica ya con contraste suficiente (marcaOptica.colorLegible: si es muy claro se oscurece hasta que el texto blanco se lea), el mismo de la página pública.
+  const acento = propio ? colorLegible(m.colorAcento).color : AZUL_PORTAL
   return {
     acento,
-    // Botón principal: texto blanco salvo que el acento sea tan claro que el blanco no se lea (contraste menor a 3:1).
-    textoBoton: (1.05 / (luminancia(acento) + 0.05)) >= 3 ? "#FFFFFF" : "#0E2B33",
+    textoBoton: "#FFFFFF",
     logoUrl: opticaPublica?.logo_url || m.logoUrlClaro || "",
   }
 }

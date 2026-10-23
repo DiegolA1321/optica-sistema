@@ -83,4 +83,37 @@ describe("SelectorFechaHora (hoy fijo: martes 10 de marzo de 2026)", () => {
     render(<SelectorFechaHora disponibilidad={disponibilidadCerrada} fecha="2026-03-10" hora="" onCambiarFecha={() => {}} onCambiarHora={() => {}} />)
     expect(screen.getByText(/no hay horarios disponibles/i)).toBeInTheDocument()
   })
+
+  describe('una hora, un profesional (porProfesional)', () => {
+    const dosPros = { ...disponibilidad, profesionales: [{ id: 'a', usaOptica: true, ausencias: [] }, { id: 'b', usaOptica: true, ausencias: [] }] }
+    const citaDe = (asignado_a, hora = '09:00 AM') => ({ fecha: '2026-03-10', hora, estado: 'Pendiente', duracion_minutos: 60, asignado_a })
+    const render9 = (citas, extra = {}) => render(<SelectorFechaHora disponibilidad={dosPros} citas={citas} fecha='2026-03-10' hora='' onCambiarFecha={() => {}} onCambiarHora={() => {}} publico porProfesional agrupar {...extra} />)
+
+    it('con «cualquiera», la hora sigue libre si otro profesional la tiene libre', () => {
+      render9([citaDe('a')])
+      expect(screen.getByRole('button', { name: '09:00 AM' })).not.toBeDisabled()
+    })
+    it('con «cualquiera», queda ocupada solo si TODOS los que atienden la tienen ocupada', () => {
+      render9([citaDe('a'), citaDe('b')])
+      expect(screen.getByRole('button', { name: '09:00 AM' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: '10:00 AM' })).not.toBeDisabled()
+    })
+    it('con un profesional elegido, solo cuentan las citas de ese profesional', () => {
+      render9([citaDe('a')], { profesionalId: 'a' })
+      expect(screen.getByRole('button', { name: '09:00 AM' })).toBeDisabled()
+    })
+    it('una cita sin profesional bloquea a todos cuando las filas no traen el dato (base de antes de la 0149)', () => {
+      render9([{ fecha: '2026-03-10', hora: '09:00 AM', estado: 'Pendiente', duracion_minutos: 60 }])
+      expect(screen.getByRole('button', { name: '09:00 AM' })).toBeDisabled()
+    })
+    it('una cita que no se efectuó (No Asistió) deja libre su hora', () => {
+      render9([{ ...citaDe('a'), estado: 'No Asistió' }, { ...citaDe('b'), estado: 'Cancelada' }])
+      expect(screen.getByRole('button', { name: '09:00 AM' })).not.toBeDisabled()
+    })
+    it('agrupar separa MAÑANA y TARDE y muestra la ayuda', () => {
+      render9([], { ayuda: 'Las ocupadas aparecen tachadas.' })
+      expect(screen.getByText('Mañana')).toBeInTheDocument()
+      expect(screen.getByText(/ocupadas aparecen tachadas/)).toBeInTheDocument()
+    })
+  })
 })

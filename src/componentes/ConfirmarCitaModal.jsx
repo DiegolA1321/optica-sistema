@@ -1,6 +1,6 @@
 "use client"
 
-import { CalendarCheck, User, Stethoscope, CalendarDays, Clock } from "lucide-react"
+import { CalendarCheck, User, UserRound, Stethoscope, CalendarDays, Clock } from "lucide-react"
 import FilaDato from "./FilaDato"
 import { Cascaron } from "./AtencionPaciente"
 
@@ -11,7 +11,7 @@ const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)"
 // Se monta por encima del formulario de agendar (no lo reemplaza), así que
 // "Cancelar" solo cierra este paso y deja los datos ya escritos intactos.
 // Usa la ventana estándar (regla 43); `capa` z-[70] la deja sobre el formulario.
-export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCancelar, onConfirmar, guardando = false, error = "", etiquetaConfirmar = "Confirmar", etiquetaCancelar = "Cancelar", titulo = "¿Confirmar esta cita?", subtitulo = "Revisa los datos antes de agendar." }) {
+export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, profesional = "", onCancelar, onConfirmar, guardando = false, error = "", etiquetaConfirmar = "Confirmar", etiquetaCancelar = "Cancelar", titulo = "¿Confirmar esta cita?", subtitulo = "Revisa los datos antes de agendar." }) {
   const cerrar = () => { if (!guardando) onCancelar() }
 
   return (
@@ -36,6 +36,7 @@ export default function ConfirmarCitaModal({ paciente, motivo, fecha, hora, onCa
         <div className="space-y-2.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
           {paciente && <FilaDato icon={User} label="Paciente" valor={paciente} />}
           <FilaDato icon={Stethoscope} label="Motivo" valor={motivo} />
+          {profesional && <FilaDato icon={UserRound} label="Profesional" valor={profesional} />}
           <FilaDato icon={CalendarDays} label="Fecha" valor={fecha} />
           <FilaDato icon={Clock} label="Hora" valor={hora} />
         </div>

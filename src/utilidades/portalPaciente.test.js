@@ -3,6 +3,7 @@ import {
   citasProximas, citasHistorial, NOTA_ESTADO_CITA, mapOrdenPaciente, ordenesAbiertasDelPaciente, nombreDeLosLentes,
   textoOrdenPaciente, proximoPasoLentes, identidadDeLaOptica, pasosDeLosLentes, proximoControlDelPaciente, textoControl, saldoDelPaciente, contactoDeLaOptica, tieneContacto, AYUDA_RECETA,
 } from "./portalPaciente"
+import { colorLegible } from "./marcaOptica"
 
 // "Hoy" fijo: 17 de octubre de 2026, mediodía (hora de Ecuador ya convertida: la función recibe un Date local).
 const HOY = new Date(2026, 9, 17, 12, 0, 0)
@@ -165,9 +166,12 @@ describe("identidad de la óptica", () => {
     expect(i.acento).toBe("#7C3AED")
     expect(i.logoUrl).toBe("https://x/logo.png")
   })
-  it("un color mal escrito se ignora, y uno muy claro lleva texto oscuro en los botones", () => {
+  it("un color mal escrito se ignora, y uno muy claro se oscurece para que el texto blanco de los botones se lea", () => {
     expect(identidadDeLaOptica({ marca: { colorAcento: "rojo" } }).acento).toBe("#1D5FD6")
-    expect(identidadDeLaOptica({ marca: { colorAcento: "#FDE047" } }).textoBoton).toBe("#0E2B33")
+    const claro = identidadDeLaOptica({ marca: { colorAcento: "#FDE047" } })
+    expect(claro.acento).not.toBe("#FDE047")
+    expect(claro.acento).toBe(colorLegible("#FDE047").color)
+    expect(claro.textoBoton).toBe("#FFFFFF")
   })
 })
 

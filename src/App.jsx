@@ -323,6 +323,8 @@ function App() {
   // 'panel_superadmin'. Se restauran junto con la sesión para que recargar la página no
   // mande de vuelta al login si ya se había iniciado sesión.
   const [pantallaActual, setPantallaActual] = useState(() => cargarSesion(pacientes).pantalla);
+  // Motivo elegido en «Agendar este servicio» de la página pública: AgendarCitaPublica lo recibe como `motivoInicial`.
+  const [motivoInicial, setMotivoInicial] = useState('');
 
   // Estado para conservar los datos del usuario logueado (sea admin o paciente)
   const [usuario, setUsuario] = useState(() => cargarSesion(pacientes).usuario);
@@ -1309,7 +1311,7 @@ function App() {
             soloModal={sitio.modo === 'admin_sistema'}
             resolviendoOptica={sitio.modo === 'optica' && !opticaPublica && !!supabase}
             AlTenerExito={manejarExitoLogin}
-            AlIrARegistro={() => setPantallaActual('registro_paciente')}
+            AlIrARegistro={(motivo) => { setMotivoInicial(typeof motivo === 'string' ? motivo : ''); setPantallaActual('registro_paciente'); }}
           />
         </div>
       )}
@@ -1324,6 +1326,7 @@ function App() {
           opticaPublica={opticaPublica}
           parametrizacion={parametrizacion}
           motivosConsulta={motivosConsulta}
+          motivoInicial={motivoInicial}
           onVolver={() => setPantallaActual('login')}
         />
       )}
