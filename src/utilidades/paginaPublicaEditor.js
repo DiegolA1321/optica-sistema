@@ -37,6 +37,8 @@ export function formularioDesdeMarca(marca, nombreOptica = "Tu óptica", logoUrl
     mostrarOptometras: p.quienesSomos.mostrarOptometras,
     servicios: p.servicios.map((s) => ({ id: s.id, titulo: s.titulo, texto: s.texto, motivo: s.motivo })),
     preguntas: p.preguntas.map((q) => ({ id: q.id, p: q.p, r: q.r })),
+    razones: p.razones.map((r) => ({ id: r.id, titulo: r.titulo, texto: r.texto })),
+    opiniones: p.opiniones.map((o) => ({ id: o.id, texto: o.texto, nombre: o.nombre })),
   }
 }
 
@@ -87,6 +89,8 @@ export function construirMarca(form, marcaExistente) {
   const base = marcaExistente && typeof marcaExistente === "object" ? marcaExistente : {}
   const { guardar: servicios, aMedias: serviciosAMedias } = limpiarLista(form.servicios, ["titulo", "texto", "motivo"], ["titulo", "texto"])
   const { guardar: preguntas, aMedias: preguntasAMedias } = limpiarLista(form.preguntas, ["p", "r"], ["p", "r"])
+  const { guardar: razones, aMedias: razonesAMedias } = limpiarLista(form.razones || [], ["titulo", "texto"], ["titulo", "texto"])
+  const { guardar: opiniones, aMedias: opinionesAMedias } = limpiarLista(form.opiniones || [], ["texto", "nombre"], ["texto"])
   const { color, ajustado } = colorLegible(form.colorAcento)
   const ano = texto(form.anoFundacion)
   const quienes = { ...(base.quienesSomos || {}), historia: texto(form.historia), mision: texto(form.mision), mostrarAnos: !!form.mostrarAnos, mostrarPacientes: !!form.mostrarPacientes, mostrarOptometras: !!form.mostrarOptometras }
@@ -102,8 +106,10 @@ export function construirMarca(form, marcaExistente) {
     quienesSomos: quienes,
     serviciosPagina: servicios,
     preguntas,
+    razones,
+    opiniones,
   }
-  return { marca, colorAjustado: ajustado, serviciosAMedias, preguntasAMedias }
+  return { marca, colorAjustado: ajustado, serviciosAMedias, preguntasAMedias, razonesAMedias, opinionesAMedias }
 }
 
 // El formulario tal como queda después de guardar (listas ya limpias, color ya ajustado): es la nueva base para saber si hay cambios sin guardar.
@@ -117,6 +123,8 @@ export const formularioTrasGuardar = (form, marca) => ({
   mision: marca.quienesSomos.mision,
   servicios: marca.serviciosPagina,
   preguntas: marca.preguntas,
+  razones: marca.razones,
+  opiniones: marca.opiniones,
 })
 
 export const hayCambios = (a, b) => JSON.stringify(a) !== JSON.stringify(b)

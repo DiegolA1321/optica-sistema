@@ -27,6 +27,14 @@ describe("marcaOptica", () => {
     expect(p.quienesSomos.mostrarPacientes).toBe(false)
     expect(p.quienesSomos.anoFundacion).toBe(2014)
   })
+  it("razones: tres de ejemplo; opiniones: ninguna por defecto, y solo las que tienen texto", () => {
+    const vacia = paginaPublica(null)
+    expect(vacia.razones.length).toBe(3)
+    expect(vacia.opiniones).toEqual([])
+    const p = paginaPublica({ razones: [{ id: "a", titulo: "Rapidez", texto: "Sales con tus lentes el mismo día" }], opiniones: [{ id: "o1", texto: "Muy buena atención", nombre: "María G." }, { id: "o2", texto: "", nombre: "Sin texto" }] })
+    expect(p.razones.map((r) => r.titulo)).toEqual(["Rapidez"])
+    expect(p.opiniones.map((o) => o.nombre)).toEqual(["María G."])
+  })
   it("años de atención desde el año de fundación", () => {
     expect(anosAtendiendo(2014, new Date(2026, 9, 23))).toBe(12)
     expect(anosAtendiendo(2026, new Date(2026, 9, 23))).toBe(null)

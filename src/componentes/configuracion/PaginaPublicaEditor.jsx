@@ -188,7 +188,7 @@ export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu ópti
     if (errorAno) { avisar(`No se pudo guardar. ${errorAno}`); return }
     if (colorInvalido) { avisar("No se pudo guardar: escribe el color como #RRGGBB, por ejemplo #2563EB."); return }
     const r = construirMarca(form, marcaRef.current)
-    const aMedias = r.serviciosAMedias.length + r.preguntasAMedias.length
+    const aMedias = r.serviciosAMedias.length + r.preguntasAMedias.length + r.razonesAMedias.length + r.opinionesAMedias.length
     if (aMedias > 0 && !confirmado) { setConfirmarPerdida({ aMedias }); return }
     setConfirmarPerdida(null)
     setGuardando(true)
@@ -390,6 +390,50 @@ export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu ópti
           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Plus size={14} aria-hidden="true" /> Agregar pregunta</button>
       </Seccion>
 
+      <Seccion titulo="Por qué elegirnos" ayuda="Tres razones que salen en «Quiénes somos» mientras ningún optómetra haya activado «Mostrarme en la página pública»; si alguno lo activó, sale su tarjeta en su lugar. Las que no tengan título y texto no se guardan.">
+        {form.razones.length === 0 && <p className="text-sm italic text-slate-600">Todavía no hay razones: agrega la primera.</p>}
+        {form.razones.map((r, i) => (
+          <div key={r.id} className="rounded-lg border border-slate-200/60 bg-slate-50 p-3" data-razon>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Razón {i + 1}</p>
+              <div className="flex items-center">
+                <button type="button" className={BOTON_ICONO} disabled={i === 0} onClick={() => moverItem("razones", i, -1)} aria-label={`Subir la razón ${i + 1}`}><ArrowUp size={15} /></button>
+                <button type="button" className={BOTON_ICONO} disabled={i === form.razones.length - 1} onClick={() => moverItem("razones", i, 1)} aria-label={`Bajar la razón ${i + 1}`}><ArrowDown size={15} /></button>
+                <button type="button" className={BOTON_ICONO + " hover:text-red-600"} onClick={() => quitarItem("razones", r.id)} aria-label={`Quitar la razón ${i + 1}`}><Trash2 size={15} /></button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <input value={r.titulo} onChange={(e) => cambiarItem("razones", r.id, "titulo", e.target.value)} maxLength={50} placeholder="Título (ej. Equipos de precisión)" aria-label={`Título de la razón ${i + 1}`} className={CAMPO + " font-semibold"} />
+              <input value={r.texto} onChange={(e) => cambiarItem("razones", r.id, "texto", e.target.value)} maxLength={120} placeholder="Una línea que lo explique" aria-label={`Texto de la razón ${i + 1}`} className={CAMPO} />
+            </div>
+          </div>
+        ))}
+        <button type="button" onClick={() => setForm((p) => ({ ...p, razones: [...p.razones, { id: idNuevo("r", p.razones), titulo: "", texto: "" }] }))}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Plus size={14} aria-hidden="true" /> Agregar razón</button>
+      </Seccion>
+
+      <Seccion titulo="Lo que dicen nuestros pacientes" ayuda="Opcional: opiniones que tú escribes (con el permiso de quien las dio). Sin ninguna, esta sección no aparece en la página.">
+        {form.opiniones.length === 0 && <p className="text-sm italic text-slate-600">Todavía no hay opiniones: la sección no se muestra.</p>}
+        {form.opiniones.map((o, i) => (
+          <div key={o.id} className="rounded-lg border border-slate-200/60 bg-slate-50 p-3" data-opinion>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Opinión {i + 1}</p>
+              <div className="flex items-center">
+                <button type="button" className={BOTON_ICONO} disabled={i === 0} onClick={() => moverItem("opiniones", i, -1)} aria-label={`Subir la opinión ${i + 1}`}><ArrowUp size={15} /></button>
+                <button type="button" className={BOTON_ICONO} disabled={i === form.opiniones.length - 1} onClick={() => moverItem("opiniones", i, 1)} aria-label={`Bajar la opinión ${i + 1}`}><ArrowDown size={15} /></button>
+                <button type="button" className={BOTON_ICONO + " hover:text-red-600"} onClick={() => quitarItem("opiniones", o.id)} aria-label={`Quitar la opinión ${i + 1}`}><Trash2 size={15} /></button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <textarea rows={2} value={o.texto} onChange={(e) => cambiarItem("opiniones", o.id, "texto", e.target.value)} maxLength={240} placeholder="Lo que dijo el paciente" aria-label={`Texto de la opinión ${i + 1}`} className={CAMPO + " resize-none"} />
+              <input value={o.nombre} onChange={(e) => cambiarItem("opiniones", o.id, "nombre", e.target.value)} maxLength={60} placeholder="Nombre (ej. María G.)" aria-label={`Nombre de quien dio la opinión ${i + 1}`} className={CAMPO} />
+            </div>
+          </div>
+        ))}
+        <button type="button" onClick={() => setForm((p) => ({ ...p, opiniones: [...p.opiniones, { id: idNuevo("o", p.opiniones), texto: "", nombre: "" }] }))}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200/60 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Plus size={14} aria-hidden="true" /> Agregar opinión</button>
+      </Seccion>
+
       <VistaPrevia leyenda="Así quedará con los cambios de arriba, antes de guardar">
         <MuestraDeLaPagina f={form} nombreOptica={nombreOptica} datos={datos} />
       </VistaPrevia>
@@ -409,7 +453,7 @@ export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu ópti
 
       {confirmarPerdida && (
         <ConfirmarEliminarModal titulo="¿Guardar sin lo que quedó a medias?"
-          mensaje={`Hay ${confirmarPerdida.aMedias} ${confirmarPerdida.aMedias === 1 ? "servicio o pregunta escrito a medias" : "servicios o preguntas escritos a medias"} (falta el título o el texto). Si sigues, no se guardan. Puedes volver y completarlos.`}
+          mensaje={`Hay ${confirmarPerdida.aMedias} ${confirmarPerdida.aMedias === 1 ? "servicio o pregunta escrito a medias" : "servicios, preguntas, razones u opiniones escritos a medias"} (falta el título o el texto). Si sigues, no se guardan. Puedes volver y completarlos.`}
           etiquetaConfirmar="Guardar sin ellos" onCancelar={() => setConfirmarPerdida(null)} onConfirmar={() => guardar(true)} />
       )}
     </div>

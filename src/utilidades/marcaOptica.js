@@ -76,6 +76,13 @@ export const PREGUNTAS_EJEMPLO = [
   { id: "p4", p: "¿Puedo ver mi receta en línea?", r: "Sí: pide en la óptica el acceso a tu portal y verás tus citas y tu receta cuando quieras." },
 ]
 
+// «Por qué elegirnos»: sale en Quiénes somos mientras ningún optómetra haya activado «Mostrarme en la página pública».
+export const RAZONES_EJEMPLO = [
+  { id: "r1", titulo: "Equipos de precisión", texto: "Exámenes con tecnología actual." },
+  { id: "r2", titulo: "Historial digital", texto: "Tu receta y tus visitas siempre disponibles." },
+  { id: "r3", titulo: "Acompañamiento", texto: "Te avisamos de tu control y de tus lentes." },
+]
+
 export const ESLOGAN_POR_DEFECTO = "Ve el mundo con claridad."
 const MENSAJE_ANTIGUO = (n) => `En ${n} cuidamos tu salud visual de principio a fin: examen de precisión, lentes a tu medida y un acompañamiento cercano después de tu compra.`
 export const TEXTO_INICIO_POR_DEFECTO = "Exámenes de la vista, lentes a tu medida y acompañamiento cercano después de tu compra."
@@ -110,6 +117,9 @@ export function paginaPublica(marca, nombre = "Tu óptica") {
     },
     servicios: limpiarLista(m.serviciosPagina, SERVICIOS_EJEMPLO, ["titulo", "texto", "motivo"]),
     preguntas: limpiarLista(m.preguntas, PREGUNTAS_EJEMPLO, ["p", "r"]),
+    razones: limpiarLista(m.razones, RAZONES_EJEMPLO, ["titulo", "texto"]),
+    // Opiniones de pacientes: opcionales, las escribe la óptica; sin ninguna, la sección no se muestra.
+    opiniones: limpiarLista(m.opiniones, [], ["texto", "nombre"]).filter((o) => o.texto.trim()),
   }
 }
 
