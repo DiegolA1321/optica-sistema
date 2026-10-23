@@ -18,14 +18,14 @@ for (const [nombre, ancho, alto] of TAMANOS) {
     expect(m.doc, 'página pública').toBeLessThanOrEqual(m.ancho)
     await page.getByRole('button', { name: 'Iniciar sesión' }).first().click()
     const dialogo = page.getByRole('dialog').first()
-    await expect(page.getByPlaceholder('Cédula o nombre de usuario')).toBeVisible()
+    await expect(page.getByPlaceholder('Ej. 0912345678 o tu usuario')).toBeVisible()
     m = await sinScroll()
     expect(m.doc, 'ventana de inicio de sesión').toBeLessThanOrEqual(m.ancho)
     await expect(page.getByText('¿Olvidaste tu contraseña? Comunícate con la óptica')).toBeVisible()
     void dialogo
-    await escribirSecreto(page, page.getByPlaceholder('Cédula o nombre de usuario'), process.env.E2E_PORTAL_CEDULA)
+    await escribirSecreto(page, page.getByPlaceholder('Ej. 0912345678 o tu usuario'), process.env.E2E_PORTAL_CEDULA)
     await escribirSecreto(page, page.getByPlaceholder('Tu contraseña'), process.env.E2E_PORTAL_CLAVE)
-    await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+    await page.getByRole('button', { name: 'Ingresar', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible({ timeout: 30_000 })
     await expect(page.getByLabel('Cargando tu resumen')).toHaveCount(0, { timeout: 30_000 })
 

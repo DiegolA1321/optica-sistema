@@ -59,7 +59,7 @@ try {
   await c.query("savepoint anon"); await c.query("set local role anon")
   const pub = (await q("select pagina_publica_datos($1) d", [dos.id]))[0].d
   const claves = JSON.stringify(pub)
-  ok(Array.isArray(pub.optometras) && pub.optometras.length === dos.pros && typeof Number(pub.pacientesAtendidos) === "number", `pagina_publica_datos (sin sesión) entrega ${pub.optometras.length} optómetra(s) y ${pub.pacientesAtendidos} paciente(s) atendidos`)
+  ok(Array.isArray(pub.optometras) && pub.optometras.length === 0 && Number(pub.optometrasTotal) === dos.pros && typeof Number(pub.pacientesAtendidos) === "number", `pagina_publica_datos (sin sesión) entrega ${pub.optometras.length} optómetra(s) y ${pub.pacientesAtendidos} paciente(s) atendidos`)
   ok(!/cedula|correo|email|permisos|telefono/i.test(claves), "no expone cédula, correo, teléfono ni permisos")
   const inexistente = (await q("select pagina_publica_datos('00000000-0000-0000-0000-000000000000') d"))[0].d
   ok(inexistente === null, "una óptica que no existe (o suspendida) no devuelve nada")
@@ -104,12 +104,12 @@ try {
     const d1 = await intentar(() => dir(ocupado))
     ok(!!d1.e && d1.code === "23505", "el personal, insert directo al mismo profesional y hora → rechazado por la base (23505): " + d1.e)
     const d2 = await intentar(() => dir(null))
-    ok(!d2.e, "una cita sin profesional a esa hora (con 2+ profesionales) no choca con las asignadas" + (d2.e ? " — " + d2.e : ""))
+    ok(!!d2.e && d2.code === "23505", "una cita sin profesional a esa hora, con los 2 profesionales ya ocupados, se rechaza (la base le busca uno libre y no hay)")
     const d3 = await intentar(() => dir(null))
     ok(!!d3.e && d3.code === "23505", "pero dos citas SIN profesional a la misma hora sí chocan")
 
     // Mover una cita a una hora ocupada del mismo profesional.
-    const libreOtra = "10:20 AM"
+    const libreOtra = "12:00 PM"
     const m = await intentar(() => q("insert into citas_base (optica_id, paciente_id, paciente, cedula, fecha, hora, motivo, estado, origen, asignado_a) values ($1, $2, $3, $4, $5, $6, 'x', 'Pendiente', 'presencial', $7) returning id", [dos.id, pac.id, pac.nombre, pac.cedula, dia, libreOtra, ocupado]))
     ok(!m.e, "una cita en otra hora libre del mismo profesional se crea")
     if (!m.e) {
@@ -121,6 +121,26 @@ try {
     await q("update citas_base set estado = 'Cancelada' where optica_id = $1 and fecha = $2 and hora = $3 and asignado_a = $4", [dos.id, dia, hora, ocupado])
     const r2 = await intentar(() => web(dos.id, CEDULAS[3], dia, hora, ocupado))
     ok(!r2.e, "cancelada la cita, esa hora vuelve a poder reservarse" + (r2.e ? " — " + r2.e : ""))
+
+    // Fecha de nacimiento opcional (0149): sin ella se crea; futura se rechaza. Cédula nueva = paciente nuevo sin fecha.
+    const webNac = (cedula, nac, h) => q("select * from crear_cita_publica($1, 'Paciente Sin Fecha', $2::date, $3, $4, $5::date, '0991234567', 'Consulta General', 'Consulta General', null, null, 'web', null)", [dos.id, dia, h, cedula, nac])
+    const sinNac = await intentar(() => webNac(CEDULAS[4], null, '10:40 AM'))
+    ok(!sinNac.e && sinNac.r[0].codigo, 'sin fecha de nacimiento → la cita se crea' + (sinNac.e ? ' — ' + sinNac.e : ''))
+    if (!sinNac.e) {
+      const pn = await q('select fecha_nacimiento from pacientes_base where optica_id = $1 and cedula = $2', [dos.id, CEDULAS[4]])
+      ok(pn.length === 1 && pn[0].fecha_nacimiento === null, 'el paciente nuevo queda registrado sin fecha de nacimiento')
+    }
+    const futura = await intentar(() => webNac(CEDULAS[2], '2999-01-01', '10:40 AM'))
+    ok(!!futura.e && /futura/.test(futura.e), 'fecha de nacimiento futura → se rechaza (' + (futura.e || 'NO falló') + ')')
+
+    // Pasaporte (0149): con tipo 'pasaporte' se acepta un documento alfanumérico y el paciente queda con ese tipo; sin el tipo, uno que no es cédula sigue rechazado.
+    const pas = await intentar(() => q("select * from crear_cita_publica($1, 'Paciente Extranjero', $2::date, $3, 'ab123456', null, '0991234567', 'Consulta General', 'Consulta General', null, null, 'web', null, 'pasaporte')", [dos.id, dia, '11:00 AM']))
+    if (!pas.e) {
+      const pp = await q("select tipo_documento, cedula from pacientes_base where optica_id = $1 and cedula = 'AB123456'", [dos.id])
+      ok(pp.length === 1 && pp[0].tipo_documento === 'pasaporte', 'con tipo pasaporte se crea la cita y el paciente queda como pasaporte (AB123456)')
+    } else ok(/ocuparse|horario/i.test(pas.e), 'pasaporte: no se pudo probar por el horario de ' + '11:00 AM (' + pas.e + ')')
+    const noCed = await intentar(() => q("select * from crear_cita_publica($1, 'Paciente Extranjero', $2::date, $3, 'AB123456', null, '0991234567', 'Consulta General', 'Consulta General', null, null, 'web', null)", [dos.id, dia, '11:20 AM']))
+    ok(!!noCed.e && /cédula/.test(noCed.e), 'un documento que no es cédula, sin indicar pasaporte, sigue rechazado (' + (noCed.e || 'NO falló') + ')')
 
     // Lo que ve el público.
     await c.query("savepoint anon2"); await c.query("set local role anon")

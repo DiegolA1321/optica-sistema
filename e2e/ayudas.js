@@ -30,9 +30,9 @@ export async function iniciarSesion(page, prefijo, entorno = 'DEMO') {
   if (entorno === 'DEMO') await protegerDemo(page) // la Demo es de solo lectura: cualquier escritura se cancela y falla la corrida
   await page.goto(`/?optica=${slugDe(entorno)}`)
   await page.getByRole('button', { name: 'Iniciar sesión' }).first().click()
-  await escribirSecreto(page, page.getByPlaceholder('Cédula o nombre de usuario'), correo)
+  await escribirSecreto(page, page.getByPlaceholder('Ej. 0912345678 o tu usuario'), correo)
   await escribirSecreto(page, page.getByPlaceholder('Tu contraseña'), clave)
-  await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+  await page.getByRole('button', { name: 'Ingresar', exact: true }).click()
   // No se aserta sobre el campo de contraseña: el registro de Playwright volcaría su HTML con el valor.
   // Sesión iniciada = desaparece la página pública (y su botón "Iniciar sesión"); si falla, se muestra el alert.
   await expect(page.getByRole("button", { name: "Iniciar sesión" })).toHaveCount(0, { timeout: 25_000 })

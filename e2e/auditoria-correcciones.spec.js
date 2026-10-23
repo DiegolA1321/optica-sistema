@@ -8,9 +8,9 @@ const ir = async (page, modulo) => { await page.getByRole('button', { name: modu
 async function entrar(page, slug, correo, clave) {
   await page.goto(`/?optica=${slug}`)
   await page.getByRole('button', { name: 'Iniciar sesión' }).first().click()
-  await escribirSecreto(page, page.getByPlaceholder('Cédula o nombre de usuario'), correo)
+  await escribirSecreto(page, page.getByPlaceholder('Ej. 0912345678 o tu usuario'), correo)
   await escribirSecreto(page, page.getByPlaceholder('Tu contraseña'), clave)
-  await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+  await page.getByRole('button', { name: 'Ingresar', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Iniciar sesión' })).toHaveCount(0, { timeout: 25_000 })
 }
 

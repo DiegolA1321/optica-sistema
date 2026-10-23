@@ -23,9 +23,9 @@ async function entrarAlPortal(browser, cedula, clave) {
   const portal = await contexto.newPage()
   await portal.goto(`/?optica=${SLUG_PRUEBAS}`)
   await portal.getByRole('button', { name: 'Iniciar sesión' }).first().click()
-  await escribirSecreto(portal, portal.getByPlaceholder('Cédula o nombre de usuario'), cedula)
+  await escribirSecreto(portal, portal.getByPlaceholder('Ej. 0912345678 o tu usuario'), cedula)
   await escribirSecreto(portal, portal.getByPlaceholder('Tu contraseña'), clave)
-  await portal.getByRole('button', { name: 'Entrar', exact: true }).click()
+  await portal.getByRole('button', { name: 'Ingresar', exact: true }).click()
   const entro = await portal.getByRole('navigation', { name: 'Menú del portal' }).first().waitFor({ timeout: 20_000 }).then(() => true).catch(() => false)
   return { portal, contexto, entro }
 }

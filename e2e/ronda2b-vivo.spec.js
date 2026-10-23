@@ -33,9 +33,9 @@ test('Portal: el paciente cancela su cita y la ventana le pide el motivo, que qu
 
     await page.goto(`/?optica=${SLUG_PRUEBAS}`)
     await page.getByRole('button', { name: 'Iniciar sesión' }).first().click()
-    await escribirSecreto(page, page.getByPlaceholder('Cédula o nombre de usuario'), process.env.E2E_PORTAL_CEDULA)
+    await escribirSecreto(page, page.getByPlaceholder('Ej. 0912345678 o tu usuario'), process.env.E2E_PORTAL_CEDULA)
     await escribirSecreto(page, page.getByPlaceholder('Tu contraseña'), process.env.E2E_PORTAL_CLAVE)
-    await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+    await page.getByRole('button', { name: 'Ingresar', exact: true }).click()
     await expect(page.getByLabel('Cargando tu resumen')).toHaveCount(0, { timeout: 30_000 })
     await page.getByRole('navigation', { name: 'Menú del portal' }).filter({ visible: true }).getByRole('button', { name: 'Mis citas', exact: true }).click()
     await page.getByRole('button', { name: 'Cancelar cita' }).first().click()

@@ -18,7 +18,7 @@ async function entrarComoSuperadmin(page) {
   await page.goto('/?sitio=admin')
   await escribirSecreto(page, page.locator('#usuario-solo'), process.env.SUPERADMIN_EMAIL)
   await escribirSecreto(page, page.locator('#password-solo'), process.env.SUPERADMIN_PASSWORD)
-  await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+  await page.getByRole('button', { name: 'Ingresar', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Soporte', exact: true }).first()).toBeVisible({ timeout: 30_000 })
 }
 const irASoporte = (page) => page.getByRole('button', { name: 'Soporte', exact: true }).first().click()
