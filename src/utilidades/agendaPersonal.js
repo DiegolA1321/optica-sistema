@@ -6,6 +6,7 @@
 //   Una óptica sin profesionales marcados, o sin horario propio ni ausencias, se comporta como siempre (el horario de la óptica).
 // El servidor aplica la misma regla en la reserva web (migración 0146: _profesional_disponible).
 import { DIAS_SEMANA, horarioEfectivo, minutosDesde24h, minutosDesdeMedianoche } from "./disponibilidad"
+import { formatoFecha } from "./formatoFecha"
 
 export const TURNOS = ["manana", "tarde"]
 export const ETIQUETA_TURNO = { manana: "Mañana", tarde: "Tarde" }
@@ -143,8 +144,7 @@ export function citasEnAusencia({ ausencia, personaId, citas = [], disponibilida
 }
 
 // «30 oct · todo el día», «4 nov · mañana», «15 al 19 oct».
-const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"]
-const corto = (iso) => `${Number(iso.slice(8, 10))} ${MESES[Number(iso.slice(5, 7)) - 1]}`
+const corto = (iso) => formatoFecha(iso, "medioSinAnio")
 export function textoCuando(a) {
   const desde = a.fechaDesde ?? a.desde
   const hasta = a.fechaHasta ?? a.hasta
@@ -173,4 +173,37 @@ export function problemaDeDocumento(archivo) {
   if (!TIPOS_DOCUMENTO.includes(archivo.type)) return "El documento debe ser un PDF o una foto (PNG, JPG o WEBP)."
   if (archivo.size > MAX_BYTES_DOCUMENTO) return "El documento puede pesar hasta 5 MB."
   return ""
+}
+
+// «9:00 AM» (sin cero adelante) a partir de «09:00».
+export function horaCorta(hhmm) {
+  const [h, m] = String(hhmm || "").split(":").map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return ""
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`
+}
+
+// Esta semana de una persona: cuántas citas tiene agendadas (sin las canceladas) y cuántas horas libres le quedan según su horario y sus ausencias (de hoy en adelante).
+// `lunes` = "AAAA-MM-DD" del lunes de la semana; `ahora` = fecha y hora de Ecuador.
+export function resumenSemanaPersona({ lunes, profesional, citas = [], disponibilidad, duracion = 40, ahora }) {
+  const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(ahora.getDate()).padStart(2, "0")}`
+  const ahoraMin = ahora.getHours() * 60 + ahora.getMinutes()
+  const dias = diasDelRango(lunes, (() => { const d = new Date(`${lunes}T12:00:00`); d.setDate(d.getDate() + 6); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` })())
+  const suyas = citas.filter((c) => c.asignadoA === profesional.id && c.estado !== "Cancelada" && dias.includes(c.fecha))
+  let libres = 0
+  for (const fecha of dias) {
+    if (fecha < hoy) continue
+    const dia = diaEfectivo(profesional, fecha, disponibilidad)
+    if (!tieneTurno(dia)) continue
+    const ocupadas = suyas.filter((c) => c.fecha === fecha).map((c) => ({ ini: minutosDesdeMedianoche(c.hora), fin: minutosDesdeMedianoche(c.hora) + (Number(c.duracionMinutos ?? c.duracion_minutos) || duracion) }))
+    for (const k of TURNOS) {
+      if (!turnoActivo(dia?.[k])) continue
+      for (let m = minutosDesde24h(dia[k].inicio); m + duracion <= minutosDesde24h(dia[k].fin); m += duracion) {
+        if (!disponibleEnMinuto(profesional, fecha, m, disponibilidad)) continue
+        if (fecha === hoy && m <= ahoraMin) continue
+        if (ocupadas.some((o) => m < o.fin && o.ini < m + duracion)) continue
+        libres++
+      }
+    }
+  }
+  return { citas: suyas.length, horasLibres: Math.round((libres * duracion) / 60 * 10) / 10 }
 }

@@ -130,7 +130,7 @@ const nombreDeSeccion = (id) => OPCIONES.find((o) => o.id === id)?.nombre || ""
 const MODULO_DE_SECCION = { inicio: "inicio", citas: "citas", consultas: "pacientes", pacientes: "pacientes", ventas: "ventas", inventario: "inventario", crm: "crm", horario: "horario", reportes: "reportes", usuarios: "usuarios", configuracion: "configuracion" }
 const moduloDeSoporte = (id) => MODULO_DE_SECCION[id] || "otro"
 
-export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, reemplazarExcepcionLocal, horarioPersonal, setHorarioPersonal, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], abonosAnulados = [], parametrizacion, setParametrizacion, opticaCreadaEn = null, registrarConteoHecho, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
+export default function Dashboard({ usuario, opticaActiva = true, cargaInicialStaff = false, erroresCarga = [], onCerrarErroresCarga, pacientes = [], setPacientes, citas = [], setCitas, inventario = [], setInventario, consultas = [], setConsultas, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, disponibilidad, setDisponibilidad, recargarAgenda, asistentes = [], setAsistentes, equipo = [], pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], abonosAnulados = [], parametrizacion, setParametrizacion, opticaCreadaEn = null, registrarConteoHecho, motivosConsulta = [], setMotivosConsulta, diagnosticosRapidos = [], setDiagnosticosRapidos, categoriasInventario = [], setCategoriasInventario, alSalir, onSalirImpersonacion, alActualizarUsuario }) {
   const esAsistente = usuario?.rol === "asistente"
   const esAdmin = usuario?.rol === "admin"
   // Cuando un paciente cambia su teléfono o su correo desde su portal (migración 0130).
@@ -733,7 +733,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
           />
         )
       case "horario":
-        return <Horario usuario={usuario} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} reemplazarExcepcionLocal={reemplazarExcepcionLocal} horarioPersonal={horarioPersonal} setHorarioPersonal={setHorarioPersonal} citas={citas} equipo={equipo} />
+        return <Horario usuario={vista?.tipo === "rol" ? { ...usuario, enVistaDeRol: true, permisosNivel: vista.permisos } : usuario} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} citas={citas} setCitas={setCitas} equipo={equipo} onCambioAgenda={recargarAgenda} onReagendarCita={puede(usuario, "citas", "editar") ? (cita) => { setCitaParaEditar(cita.id); navegar("citas") } : undefined} />
       case "crm":
         return (
           <CRM

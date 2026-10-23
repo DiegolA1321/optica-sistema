@@ -5,6 +5,7 @@
 --    así que ningún rol existente cambia):
 --      · alcance_efectivo(modulo) devuelve 'todo', 'atiende' o 'propio' (el más amplio entre los roles de la persona; mismo nombre y firma: create or replace).
 --      · paciente_atendido_por_mi(paciente): ayuda de la política de lectura (solo responde sí o no).
+--      · roles_valida (el disparador que revisa cada rol al guardarlo) acepta el valor nuevo, solo para las fichas clínicas.
 --      · consultas_select deja pasar también las fichas de los pacientes que la persona atiende cuando su alcance es 'atiende'.
 --
 -- 2. La incoherencia que se encontró: un rol que ve las fichas de toda la óptica pero solo sus propias citas veía fichas de otros sin la cita de esa ficha (ni su fecha ni su estado).
@@ -13,7 +14,7 @@
 --
 -- Qué NO cambia: ningún dato, ningún rol existente (ninguno tiene 'atiende'), las citas, las demás políticas ni los permisos. Una óptica nueva no necesita nada.
 --
--- Revertir: volver a poner alcance_efectivo y consultas_select de 0090/0093, recrear la vista `consultas` sin cita_resumen y
+-- Revertir: volver a poner roles_valida, alcance_efectivo y consultas_select de 0090/0093, recrear la vista `consultas` sin cita_resumen y
 --   drop function public.paciente_atendido_por_mi(uuid), public.resumen_cita_de_ficha(uuid).
 
 create or replace function public.paciente_atendido_por_mi(p_paciente uuid)
@@ -55,6 +56,61 @@ as $$
     else 'propio'
   end;
 $$;
+
+-- El disparador que revisa cada rol al guardarlo: igual que antes, con «atiende» aceptado solo en las fichas clínicas.
+create or replace function public.roles_valida()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare
+  v_cat jsonb := _catalogo_permisos();
+  v_modulo text;
+  v_niveles jsonb;
+  v_nivel text;
+  v_limpios jsonb := '{}'::jsonb;
+  v_lista text[];
+begin
+  if jsonb_typeof(new.permisos) <> 'object' or jsonb_typeof(new.alcance) <> 'object' then
+    raise exception 'Los permisos y el alcance del rol no son válidos.';
+  end if;
+  for v_modulo, v_niveles in select * from jsonb_each(new.permisos) loop
+    if not v_cat ? v_modulo then
+      raise exception 'Módulo desconocido en los permisos: %.', v_modulo;
+    end if;
+    if jsonb_typeof(v_niveles) <> 'array' then
+      raise exception 'Los niveles de "%" deben ser una lista.', v_modulo;
+    end if;
+    v_lista := '{}';
+    for v_nivel in select jsonb_array_elements_text(v_niveles) loop
+      if not (v_cat -> v_modulo) @> to_jsonb(v_nivel) then
+        raise exception 'El nivel "%" no existe para el módulo "%".', v_nivel, v_modulo;
+      end if;
+      v_lista := v_lista || v_nivel;
+    end loop;
+    if cardinality(v_lista) > 0 then
+      -- cualquier nivel implica poder ver
+      v_limpios := v_limpios || jsonb_build_object(v_modulo, (select jsonb_agg(l order by array_position(array['ver','crear','editar','eliminar'], l)) from (select distinct unnest(v_lista || 'ver'::text) l) s));
+    end if;
+  end loop;
+  new.permisos := v_limpios;
+  for v_modulo, v_nivel in select key, value #>> '{}' from jsonb_each(new.alcance) loop
+    if v_modulo not in ('citas', 'consultas', 'reportes') then
+      raise exception 'El alcance solo se define para citas, consultas y reportes.';
+    end if;
+    if v_nivel not in ('todo', 'propio', 'atiende') then
+      raise exception 'El alcance debe ser "todo", "propio" o "atiende".';
+    end if;
+    if v_nivel = 'atiende' and v_modulo <> 'consultas' then
+      raise exception 'El alcance «los que atiende» solo existe para las fichas clínicas.';
+    end if;
+  end loop;
+  new.nombre := btrim(new.nombre);
+  new.updated_at := now();
+  return new;
+end;
+$function$;
 
 drop policy consultas_select on public.consultas_base;
 create policy consultas_select on public.consultas_base for select

@@ -5,7 +5,6 @@ import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useParamUrl } from "../utilidades/urlEstado"
-import { sumarDiasISO } from "../utilidades/controles"
 import {
   Clock,
   CalendarClock,
@@ -20,25 +19,26 @@ import {
   Info,
   AlertTriangle,
   User,
-  UserCog,
-  Building2,
-  CalendarX,
-  Plus,
-  Trash2,
   Lock,
 } from "lucide-react"
 import {
   DIAS_SEMANA, ETIQUETAS_DIA, fechaAISO, hoyISO, horarioEfectivo, diaAbierto, horaA12,
   parseFechaFlexible, esHoy as esFechaHoy, esFutura, minutosDesdeMedianoche, minutosDesde24h,
-  haySolapamiento, finCitaMinutos, slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado,
+  slotsDisponibles, citasQueBloqueanCierre, mensajeCierreBloqueado, nombreDeDiaCerrado,
 } from "../utilidades/disponibilidad"
 import { registrarLog } from "../utilidades/logs"
-import { supabase } from "../lib/supabaseClient"
 import { puede } from "../utilidades/permisosUi"
+import { puedeNivel } from "../utilidades/roles"
 import CampoFecha from "../componentes/CampoFecha"
-import HorarioEquipo from "../componentes/HorarioEquipo"
-import { Cascaron, PieFormulario } from "../componentes/AtencionPaciente"
-import { INK, ACCION_ELIMINAR } from "@/lib/tema"
+import HorariosPersonal from "../componentes/horario/HorariosPersonal"
+import MiHorario from "../componentes/horario/MiHorario"
+import AusenciasAdmin from "../componentes/horario/AusenciasAdmin"
+import { useDatosPersonal } from "../componentes/horario/useDatosPersonal"
+import { Pestanas } from "../componentes/ventas/Piezas"
+import { miembrosActivos } from "../utilidades/equipo"
+import { esAdministrador } from "../utilidades/comunicacionInterna"
+import { Cascaron } from "../componentes/AtencionPaciente"
+import { INK } from "@/lib/tema"
 import { fechaLegible as fechaFormato, formatoFecha } from "../utilidades/formatoFecha"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
@@ -65,22 +65,28 @@ const resumenHorario = (horario) => {
   return partes.length ? partes.join(" y ") : "Cerrado"
 }
 
-// Horario personal vacío por defecto — un usuario que nunca tocó "Mi
-// horario" arranca sin nada configurado, no heredando el horario general
-// (caso de la reunión con el ing: son dos cosas distintas a propósito).
 const textoAbiertoPor = (exc) => (exc?.abiertoPor?.nombre ? `Abierto por ${exc.abiertoPor.nombre}${exc.abiertoPor.en ? ` el ${formatoFecha(exc.abiertoPor.en.slice(0, 10), "medio")}` : ""}` : "")
 
-const DIA_PERSONAL_VACIO = () => ({ manana: { activo: false, inicio: "09:00", fin: "13:00" }, tarde: { activo: false, inicio: "14:00", fin: "18:00" } })
-const SEMANA_PERSONAL_VACIA = () => Object.fromEntries(ORDEN_LV.map((d) => [d, DIA_PERSONAL_VACIO()]))
 
-export default function Horario({ usuario, disponibilidad, setDisponibilidad, reemplazarExcepcionLocal, horarioPersonal, setHorarioPersonal, citas = [], equipo = [] }) {
+export default function Horario({ usuario, disponibilidad, setDisponibilidad, citas = [], setCitas, equipo = [], onCambioAgenda, onReagendarCita }) {
   const hoy = hoyISO()
-  const esAdmin = usuario?.rol === "admin"
-  // Editar el horario general de la óptica, sus días cerrados y la duración de las citas: el administrador o quien tenga "Horario de la óptica: editar"
-  // (la base lo exige igual). "Mi horario", el propio, lo edita cada persona sin ese permiso.
-  const puedeEditarHorario = esAdmin || puede(usuario, "horario_optica", "editar")
-  // Se abre en lo suyo: quien edita el horario de la óptica, en el general; el resto, en su propio horario.
-  const [tab, setTab] = useParamUrl("tab", puedeEditarHorario ? "general" : "personal", ["general", "personal"])
+  // En la vista de otro rol el administrador ve lo que vería esa persona.
+  const esAdmin = esAdministrador(usuario)
+  // Editar el horario general de la óptica, sus días cerrados y la duración de las citas: el administrador o quien tenga "Horario de la óptica: editar" (la base lo exige igual).
+  const puedeH = (modulo, nivel) => (usuario?.enVistaDeRol ? puedeNivel(usuario.permisosNivel, modulo, nivel) : puede(usuario, modulo, nivel))
+  const puedeEditarHorario = esAdmin || puedeH("horario_optica", "editar")
+  const veGeneral = puedeEditarHorario || puedeH("horario_optica", "ver")
+  // Lo que se ve (Ronda 5): el administrador, el horario de la óptica, los horarios del personal y las ausencias; el resto, su propio horario (de solo lectura: lo asigna la administración) y, si puede, el de la óptica de referencia.
+  const vistas = esAdmin ? ["general", "equipo", "ausencias"] : ["mi", ...(veGeneral ? ["general"] : [])]
+  const [tabUrl, setTab] = useParamUrl("tab", vistas[0], ["general", "equipo", "ausencias", "mi", "personal"])
+  const vista = tabUrl === "personal" ? (esAdmin ? "equipo" : "mi") : vistas.includes(tabUrl) ? tabUrl : vistas[0]
+  const datos = useDatosPersonal({ usuario, esAdmin, onCambioAgenda })
+  const miembros = useMemo(() => miembrosActivos(equipo), [equipo])
+  const esProfesional = Boolean(equipo.find((m) => m.id === usuario?.id)?.esOptometra)
+  const pendientes = datos.ausencias.filter((a) => a.estado === "pendiente").length
+  const rolDe = (m) => (m.rol === "admin" ? "Administrador" : datos.rolesDe[m.id]?.length ? datos.rolesDe[m.id].join(" · ") : m.esOptometra ? "Optómetra" : "Personal")
+  const [avisoTexto, setAvisoTexto] = useState("")
+  const avisar = (msg, tipo) => (tipo === "error" ? mostrarError(msg) : mostrarGuardado(msg))
   const [mesVista, setMesVista] = useState(new Date(ahoraEcuador().getFullYear(), ahoraEcuador().getMonth(), 1))
   const [fechaEditando, setFechaEditando] = useState(null)
   // Citas que quedarían fuera del horario si se aplica un cambio pendiente —
@@ -100,7 +106,8 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
   const [errorGuardar, setErrorGuardar] = useState("")
   const [guardando, setGuardando] = useState(false)
   const timeoutGuardadoRef = useRef(null)
-  const mostrarGuardado = () => {
+  const mostrarGuardado = (texto = "") => {
+    setAvisoTexto(texto)
     setGuardadoVisible(true)
     clearTimeout(timeoutGuardadoRef.current)
     timeoutGuardadoRef.current = setTimeout(() => setGuardadoVisible(false), 2600)
@@ -323,103 +330,6 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
     registrarLog(usuario, "horario", "Quitó una excepción de horario", fecha)
   }
 
-  // ─── Ausencias (Punto 07 del Diagnóstico Maestro) ───
-  // Viven dentro de disponibilidad.excepciones[fecha].ausencias — el mismo
-  // objeto por fecha que ya usa "Horario general" (arriba), no un mecanismo
-  // aparte, así el calendario público y el interno (que ya leen excepciones
-  // para saber qué horas ofrecer) respetan una ausencia automáticamente. No
-  // bloquean el día completo por defecto: solo el rango de horas indicado
-  // ("Todo el día" es una casilla explícita, no lo que pasa si se deja en
-  // blanco).
-  const [modalAusenciaAbierto, setModalAusenciaAbierto] = useState(false)
-  const [fechaAusencia, setFechaAusencia] = useState(hoy)
-  const [horaInicioAusencia, setHoraInicioAusencia] = useState("")
-  const [horaFinAusencia, setHoraFinAusencia] = useState("")
-  const [todoElDiaAusencia, setTodoElDiaAusencia] = useState(false)
-  const [motivoAusencia, setMotivoAusencia] = useState("")
-  const [errorAusencia, setErrorAusencia] = useState("")
-
-  const abrirModalAusencia = () => {
-    setFechaAusencia(hoy)
-    setHoraInicioAusencia("")
-    setHoraFinAusencia("")
-    setTodoElDiaAusencia(false)
-    setMotivoAusencia("")
-    setErrorAusencia("")
-    setModalAusenciaAbierto(true)
-  }
-
-  // Todas las ausencias futuras/de hoy de cualquier fecha, aplanadas desde
-  // excepciones para la lista "No podré asistir" (antes vivían en su propio
-  // mapa en horarios_usuario, sin ningún efecto real sobre la agenda).
-  const ausenciasOrdenadas = useMemo(() => {
-    const lista = []
-    Object.entries(disponibilidad.excepciones || {}).forEach(([iso, exc]) => {
-      if (iso < hoy) return
-      ;(exc?.ausencias || []).forEach((a, idx) => { if (puedeEditarHorario || a.usuarioId === usuario?.id) lista.push({ fecha: iso, idx, propia: a.usuarioId === usuario?.id, ...a }) })
-    })
-    return lista.sort((a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesde24h(a.inicio) - minutosDesde24h(b.inicio)))
-  }, [disponibilidad.excepciones, hoy])
-
-  // Una persona agrega o quita SOLO sus ausencias, por funciones de la base (no escribe el horario general: no lo necesita). El autor lo pone la base.
-  const aplicarAusencia = async (fecha, inicio, fin, motivo) => {
-    const { data, error } = await supabase.rpc("registrar_ausencia", { p_fecha: fecha, p_inicio: inicio, p_fin: fin, p_motivo: motivo || null })
-    if (!error) reemplazarExcepcionLocal?.(fecha, data)
-    if (error) {
-      setErrorAusencia("No se pudo guardar. Revisa tu conexión e intenta de nuevo.")
-      return
-    }
-    setModalAusenciaAbierto(false)
-    mostrarGuardado()
-    registrarLog(usuario, "horario", "Registró que no podrá asistir", `${fechaFormato(fecha)} · ${inicio}-${fin}${motivo ? " · " + motivo : ""}`)
-  }
-
-  const registrarAusencia = (e) => {
-    e.preventDefault()
-    if (!fechaAusencia) return
-    const horario = horarioEfectivo(fechaAusencia, disponibilidad)
-    let inicio = horaInicioAusencia
-    let fin = horaFinAusencia
-    if (todoElDiaAusencia) {
-      const sesiones = [horario.manana, horario.tarde].filter((s) => s?.activo && s.inicio && s.fin)
-      if (sesiones.length === 0) { setErrorAusencia("Ese día ya está cerrado — no hace falta registrar una ausencia."); return }
-      inicio = sesiones[0].inicio
-      fin = sesiones[sesiones.length - 1].fin
-    }
-    if (!inicio || !fin || minutosDesde24h(fin) <= minutosDesde24h(inicio)) {
-      setErrorAusencia("Indica una hora de inicio y una de fin válidas.")
-      return
-    }
-    const inicioMin = minutosDesde24h(inicio)
-    const finMin = minutosDesde24h(fin)
-    const esHoyFecha = fechaAusencia === hoy
-    const ahoraMin = esHoyFecha ? ahoraEcuador().getHours() * 60 + ahoraEcuador().getMinutes() : null
-    const afectadas = citas.filter((c) => {
-      if (c.fecha !== fechaAusencia) return false
-      if (["Atendida", "No Asistió", "Cancelada"].includes(c.estado)) return false
-      return haySolapamiento(inicioMin, finMin, minutosDesdeMedianoche(c.hora), finCitaMinutos(c, disponibilidad?.duracionCita || 40, ahoraMin))
-    })
-    const motivo = motivoAusencia.trim()
-    if (afectadas.length > 0) {
-      setAvisoConflicto({ citas: afectadas, aplicar: () => aplicarAusencia(fechaAusencia, inicio, fin, motivo) })
-      return
-    }
-    aplicarAusencia(fechaAusencia, inicio, fin, motivo)
-  }
-
-  // La base quita la ausencia que coincide en fecha y horas (y, si no eres quien edita el horario de la óptica, solo si es tuya); si la excepción solo
-  // existía para cargarla, también la borra entera.
-  const quitarAusencia = async (fecha, a) => {
-    const { data, error } = await supabase.rpc("quitar_ausencia", { p_fecha: fecha, p_inicio: a.inicio, p_fin: a.fin })
-    if (error) {
-      mostrarError(/propias/.test(error.message) ? error.message : "No se pudo quitar la ausencia. Revisa tu conexión e intenta de nuevo.")
-      return
-    }
-    reemplazarExcepcionLocal?.(fecha, data)
-    mostrarGuardado()
-    registrarLog(usuario, "horario", "Canceló una ausencia registrada", fechaFormato(fecha))
-  }
-
   const irMesAnterior = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
   const irMesSiguiente = () => setMesVista((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
 
@@ -428,47 +338,30 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
   return (
     <div className="w-full space-y-6 text-left">
       {/* ─── HEADER ─── */}
-      <div className="flex items-start gap-3.5">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
-          <CalendarClock size={24} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3.5">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
+            <CalendarClock size={24} aria-hidden="true" />
+          </div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>{esAdmin ? "Horario" : "Mi horario"}</h1>
         </div>
-        <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>{tab === "general" ? "Horario de la óptica" : "Mi horario"}</h1>
-          <p className="text-sm text-slate-500">
-            {tab === "general"
-              ? "El horario de atención de la óptica: pacientes y portal solo verán espacios reales, sincronizados con esto."
-              : esAdmin
-                ? "Tu horario personal, separado del horario general de la óptica, y los horarios ocupados y disponibles de todo el equipo."
-                : "Tu horario personal — separado del horario general de la óptica, solo lo ves y lo editas tú."}
-          </p>
-        </div>
+        {esAdmin && pendientes > 0 && (
+          <button type="button" onClick={() => setTab("ausencias")} className="rounded-xl border border-slate-200/70 bg-white px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors hover:bg-slate-50 cursor-pointer" style={{ color: INK }}>Ausencias · {pendientes} por aprobar</button>
+        )}
       </div>
 
-      {/* ─── TABS: general vs. personal ─── */}
-      <div className="flex gap-1 rounded-2xl border border-slate-200/60 bg-white p-1.5 shadow-sm">
-        <button
-          type="button"
-          onClick={() => setTab("general")}
-          className={"flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition cursor-pointer " + (tab === "general" ? "text-white" : "text-slate-500 hover:bg-slate-50")}
-          style={tab === "general" ? { background: GRAD } : undefined}
-        >
-          <Building2 size={16} /> Horario de la óptica
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("personal")}
-          className={"flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition cursor-pointer " + (tab === "personal" ? "text-white" : "text-slate-500 hover:bg-slate-50")}
-          style={tab === "personal" ? { background: GRAD } : undefined}
-        >
-          <UserCog size={16} /> Mi horario
-        </button>
-      </div>
+      {vistas.length > 1 && (
+        <Pestanas etiqueta="Secciones de Horario" idBase="horario" activa={vista} onCambiar={setTab}
+          pestanas={esAdmin
+            ? [{ id: "general", titulo: "Horario de la óptica" }, { id: "equipo", titulo: "Horarios del personal", cuenta: miembros.length }, { id: "ausencias", titulo: "Ausencias", cuenta: pendientes }]
+            : [{ id: "mi", titulo: "Mi horario" }, { id: "general", titulo: "Horario de la óptica" }]} />
+      )}
 
       {/* ─── CONFIRMACIÓN DE GUARDADO (aparece brevemente tras cada cambio) ─── */}
       {guardadoVisible && (
         <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-3.5 text-emerald-900">
           <CheckCircle2 className="shrink-0 text-emerald-600" size={18} />
-          <p className="text-sm font-semibold">Cambios guardados.</p>
+          <p className="text-sm font-semibold">{avisoTexto || "Cambios guardados."}</p>
         </div>
       )}
       {errorAccion && (
@@ -477,19 +370,15 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
           <p className="text-sm font-semibold">{errorAccion}</p>
         </div>
       )}
+      {datos.error && <p role="alert" className="rounded-xl border border-red-200/60 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{datos.error}</p>}
 
-      {tab === "personal" ? (
-        <div className="space-y-6">
-          <HorarioEquipo usuario={usuario} equipo={equipo} citas={citas} duracion={disponibilidad?.duracionCita || 40} horarioPersonal={horarioPersonal} disponibilidad={disponibilidad} />
-          <MiHorarioPersonal
-            horarioPersonal={horarioPersonal}
-            setHorarioPersonal={setHorarioPersonal}
-            ausenciasOrdenadas={ausenciasOrdenadas}
-            quitarAusencia={quitarAusencia}
-            muestraAutor={puedeEditarHorario}
-            abrirModalAusencia={abrirModalAusencia}
-          />
-        </div>
+      <div id="horario-panel" role="tabpanel" aria-labelledby={`horario-tab-${vista}`}>
+      {vista === "mi" ? (
+        <MiHorario usuario={usuario} esProfesional={esProfesional} disponibilidad={disponibilidad} citas={citas} datos={datos} onAviso={avisar} />
+      ) : vista === "equipo" ? (
+        <HorariosPersonal miembros={miembros} disponibilidad={disponibilidad} citas={citas} datos={datos} onAviso={avisar} />
+      ) : vista === "ausencias" ? (
+        <AusenciasAdmin miembros={miembros} rolDe={rolDe} ausencias={datos.ausencias} citas={citas} setCitas={setCitas} disponibilidad={disponibilidad} datos={datos} onReagendarCita={onReagendarCita} onAviso={avisar} />
       ) : !puedeEditarHorario ? (
         <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 text-blue-800">
@@ -757,6 +646,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
         </div>
       </div>
       )}
+      </div>
 
       {/* ─── MODAL EDITAR FECHA (solo tab general, solo admin) ─── */}
       {fechaEditando && (
@@ -802,231 +692,6 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, re
         </Cascaron>
       )}
 
-      {/* ─── MODAL REGISTRAR AUSENCIA (Punto 07) ─── */}
-      {modalAusenciaAbierto && (
-        <Cascaron titulo="No podré asistir" subtitulo="Bloquea ese rango de horas en la agenda pública y en la interna." Icono={CalendarX} ancho="max-w-md" onCerrar={() => setModalAusenciaAbierto(false)} formulario={{ onSubmit: registrarAusencia }}
-          pie={<PieFormulario onCancelar={() => setModalAusenciaAbierto(false)} etiquetaGuardar="Registrar" />}>
-          <div className="space-y-3.5 p-6">
-            {errorAusencia && (
-              <div role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-                <AlertTriangle size={14} /> {errorAusencia}
-              </div>
-            )}
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Fecha</label>
-              <CampoFecha id="ausencia-fecha" etiqueta="Fecha de la ausencia" valor={fechaAusencia} onCambiar={setFechaAusencia} min={hoy} max={sumarDiasISO(hoy, 730)} requerido />
-            </div>
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
-              <input type="checkbox" checked={todoElDiaAusencia} onChange={(e) => setTodoElDiaAusencia(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-red-600 focus-visible:ring-red-500" />
-              Todo el día
-            </label>
-            {!todoElDiaAusencia && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Desde</label>
-                  <input type="time" required={!todoElDiaAusencia} value={horaInicioAusencia} onChange={(e) => setHoraInicioAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Hasta</label>
-                  <input type="time" required={!todoElDiaAusencia} value={horaFinAusencia} onChange={(e) => setHoraFinAusencia(e.target.value)} className="w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
-                </div>
-              </div>
-            )}
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Motivo <span className="normal-case text-slate-500">(opcional)</span></label>
-              <textarea rows={2} value={motivoAusencia} onChange={(e) => setMotivoAusencia(e.target.value)} placeholder="Ej. Cita médica" className="w-full resize-none rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm outline-none focus-visible:border-blue-500 focus-visible:bg-white" />
-            </div>
-          </div>
-        </Cascaron>
-      )}
-    </div>
-  )
-}
-
-// ─── MI HORARIO (personal) ───
-// Caso de la reunión con el ing: horario propio de cada usuario, separado
-// del horario general de la óptica, más la posibilidad de marcar un día que
-// no podrá asistir (hoy eso solo se avisa por WhatsApp, informal).
-function MiHorarioPersonal({ horarioPersonal, setHorarioPersonal, ausenciasOrdenadas, quitarAusencia, abrirModalAusencia, muestraAutor = false }) {
-  const cargando = horarioPersonal === null
-  const semanaGuardada = horarioPersonal?.horarioSemanal || {}
-
-  const [borrador, setBorrador] = useState(SEMANA_PERSONAL_VACIA())
-  useEffect(() => {
-    if (!cargando) setBorrador({ ...SEMANA_PERSONAL_VACIA(), ...semanaGuardada })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cargando])
-
-  const hayCambios = useMemo(() => JSON.stringify(borrador) !== JSON.stringify({ ...SEMANA_PERSONAL_VACIA(), ...semanaGuardada }), [borrador, semanaGuardada])
-  const actualizarBorrador = (dia, sesion, cambios) => {
-    setBorrador((prev) => ({ ...prev, [dia]: { ...prev[dia], [sesion]: { ...prev[dia][sesion], ...cambios } } }))
-  }
-
-  const [diasAbiertos, setDiasAbiertos] = useState(() => new Set([DIAS_SEMANA[ahoraEcuador().getDay()]]))
-  const alternarDiaAbierto = (dia) => setDiasAbiertos((prev) => {
-    const s = new Set(prev)
-    s.has(dia) ? s.delete(dia) : s.add(dia)
-    return s
-  })
-
-  const [guardando, setGuardando] = useState(false)
-  const [error, setError] = useState("")
-  const [guardadoOk, setGuardadoOk] = useState(false)
-
-  const guardarHorario = async () => {
-    setGuardando(true)
-    const { error: err } = await setHorarioPersonal((prev) => ({ ...(prev || { ausencias: {} }), horarioSemanal: borrador }))
-    setGuardando(false)
-    if (err) { setError("No se pudo guardar. Revisa tu conexión e intenta de nuevo."); return }
-    setError("")
-    setGuardadoOk(true)
-    setTimeout(() => setGuardadoOk(false), 2600)
-  }
-  const descartar = () => setBorrador({ ...SEMANA_PERSONAL_VACIA(), ...semanaGuardada })
-
-  if (cargando) {
-    // Mismo lenguaje visual que TablaSkeleton.jsx (animate-pulse +
-    // bg-slate-200/70), con la forma real de esta pantalla — dos tarjetas
-    // lado a lado, cada una con varias filas de día — en vez de su forma
-    // fija de tiles + tabla, que no aplica acá (audit UX, Lote 2, punto 2b).
-    return (
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {[0, 1].map((col) => (
-          <div key={col} className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
-              <div className="h-8 w-8 animate-pulse rounded-lg bg-slate-200/70" />
-              <div className="h-3.5 w-32 animate-pulse rounded bg-slate-200/70" />
-            </div>
-            <div className="space-y-2.5">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-14 animate-pulse rounded-xl bg-slate-100" />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      {/* ─── HORARIO SEMANAL PROPIO ─── */}
-      <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-        <h4 className="mb-1 flex items-center gap-2 border-b border-slate-100 pb-3 text-sm font-bold" style={{ color: INK }}>
-          <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: GRAD }}><UserCog size={16} /></span>
-          Mi horario habitual
-          {hayCambios && <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-700">Sin guardar</span>}
-        </h4>
-        <p className="-mt-1 mb-3 mt-2 text-xs text-slate-500">Es solo tuyo — no afecta el horario general de la óptica ni lo que ve un paciente.</p>
-
-        <div className="space-y-2.5">
-          {ORDEN_LV.map((dia) => {
-            const d = borrador[dia]
-            const abierto = diaAbierto(d)
-            const expandido = diasAbiertos.has(dia)
-            return (
-              <div key={dia} className={"overflow-hidden rounded-xl border transition-colors " + (abierto ? "border-slate-200/60 bg-white" : "border-slate-100 bg-slate-50/60")}>
-                <button type="button" onClick={() => alternarDiaAbierto(dia)} aria-expanded={expandido} className="flex w-full items-center justify-between gap-2 p-3 text-left cursor-pointer">
-                  <div className="min-w-0">
-                    <p className={"text-sm font-semibold " + (abierto ? "text-slate-800" : "text-slate-500")}>{ETIQUETAS_DIA[dia]}</p>
-                    {!expandido && <p className="mt-0.5 truncate text-xs text-slate-500">{resumenHorario(d)}</p>}
-                  </div>
-                  <ChevronDown size={16} className={"shrink-0 text-slate-400 transition-transform " + (expandido ? "rotate-180" : "")} />
-                </button>
-                {expandido && (
-                  <div className="space-y-2 px-3 pb-3">
-                    {[["manana", "Mañana", Sun], ["tarde", "Tarde", Moon]].map(([clave, etiqueta, Icono]) => {
-                      const s = d[clave]
-                      return (
-                        <div key={clave} className="rounded-lg bg-slate-50/70 p-2">
-                          <div className="flex items-center justify-between">
-                            <span className={"flex items-center gap-1.5 text-xs font-semibold " + (s.activo ? "text-slate-700" : "text-slate-400")}><Icono size={12} /> {etiqueta}</span>
-                            <button
-                              type="button" role="switch" aria-checked={s.activo}
-                              onClick={() => actualizarBorrador(dia, clave, { activo: !s.activo })}
-                              className="relative h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors"
-                              style={{ backgroundColor: s.activo ? "#2563EB" : "#e2e8f0" }}
-                              aria-label={s.activo ? `Cerrar la ${etiqueta.toLowerCase()}` : `Abrir la ${etiqueta.toLowerCase()}`}
-                            >
-                              <span className={"absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform " + (s.activo ? "translate-x-[16px]" : "translate-x-0")} />
-                            </button>
-                          </div>
-                          {s.activo && (
-                            <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                              <input type="time" value={s.inicio} onChange={(e) => actualizarBorrador(dia, clave, { inicio: e.target.value })} className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
-                              <input type="time" value={s.fin} onChange={(e) => actualizarBorrador(dia, clave, { fin: e.target.value })} className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {error && (
-          <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-2.5 text-xs font-medium text-red-700">
-            <AlertTriangle size={14} /> {error}
-          </div>
-        )}
-        {guardadoOk && (
-          <div role="status" className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-700">
-            <CheckCircle2 size={14} /> Guardado.
-          </div>
-        )}
-        {hayCambios && (
-          <div className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
-            <button type="button" disabled={guardando} onClick={descartar} className="flex-1 rounded-xl border border-slate-200/60 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer disabled:opacity-50">Descartar</button>
-            <button type="button" disabled={guardando} onClick={guardarHorario} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer disabled:opacity-50" style={{ background: GRAD }}>
-              <CheckCircle2 size={15} /> {guardando ? "Guardando..." : "Guardar cambios"}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ─── AUSENCIAS ─── */}
-      <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-        <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-          <h4 className="flex items-center gap-2 text-sm font-bold" style={{ color: INK }}>
-            <span className="grid h-8 w-8 place-items-center rounded-lg text-white" style={{ background: "linear-gradient(135deg,#f87171,#dc2626)" }}><CalendarX size={16} /></span>
-            No podré asistir
-          </h4>
-          <button type="button" onClick={abrirModalAusencia} className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100 cursor-pointer">
-            <Plus size={13} /> Registrar
-          </button>
-        </div>
-        {/* Punto 07: ahora bloquea de verdad el rango de horas indicado en el
-            calendario público y el interno (antes solo quedaba como
-            constancia, ver disponibilidad.excepciones[fecha].ausencias). */}
-        <p className="-mt-1 mb-3 text-xs text-slate-500">Bloquea ese rango de horas en la agenda — no todo el día, salvo que lo indiques.</p>
-
-        {ausenciasOrdenadas.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-8 text-center">
-            <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-300"><CalendarX size={20} /></div>
-            <p className="text-sm font-medium text-slate-500">No tienes ausencias registradas.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {ausenciasOrdenadas.map((a) => (
-              <div key={`${a.fecha}-${a.idx}`} className="flex items-center justify-between gap-2 py-2.5">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-700">
-                    {fechaFormato(a.fecha)} <span className="font-mono text-xs font-normal text-slate-500">{horaA12(a.inicio)}–{horaA12(a.fin)}</span>
-                  </p>
-                  {muestraAutor && !a.propia && <p className="truncate text-xs text-slate-500">{a.usuarioNombre || "Sin autor"}</p>}
-                  {a.motivo && <p className="truncate text-xs text-slate-500">{a.motivo}</p>}
-                </div>
-                <button type="button" onClick={() => quitarAusencia(a.fecha, a)} title="Quitar" aria-label={`Quitar ausencia del ${a.fecha}`} className={"shrink-0 rounded-lg p-1.5 transition cursor-pointer " + ACCION_ELIMINAR}>
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   )
 }

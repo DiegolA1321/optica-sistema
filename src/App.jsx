@@ -1,6 +1,6 @@
 import { cargarProductos } from './utilidades/cargarProductos'
 import { PARAMS_DE_SECCION, rutaSegura } from './utilidades/urlEstado'
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { puede } from './utilidades/permisosUi';
 import Login from './paginas/Login';
 import ResolutionGuard from './componentes/ResolutionGuard';
@@ -404,10 +404,10 @@ function App() {
   // Pacientes.jsx.
   const [solicitudesEliminacion, setSolicitudesEliminacion] = useState([]);
   const [disponibilidad, setDisponibilidadState] = useState(DISPONIBILIDAD_SEED);
-  // Horario personal por usuario — caso "Mi horario" de la reunión con el
-  // ing: distinto del horario general de arriba (que es el de la óptica,
-  // público). null mientras no se sabe todavía si existe una fila propia.
-  const [horarioPersonal, setHorarioPersonalState] = useState(null);
+  // Quienes atienden pacientes, con su horario (null = el de la óptica) y sus ausencias aprobadas — migración 0146 (agenda_profesionales). Con esto la agenda de cada profesional y las horas que
+  // ofrece la web salen de su horario (utilidades/agendaPersonal.js); sin profesionales marcados, el horario de la óptica de siempre.
+  const [profesionalesAgenda, setProfesionalesAgenda] = useState([]);
+  const disponibilidadAgenda = useMemo(() => ({ ...disponibilidad, profesionales: profesionalesAgenda }), [disponibilidad, profesionalesAgenda]);
   const [asistentes, setAsistentes] = useState([]);
   // Equipo de la óptica (admin y asistentes) para "Asignado a" y para mostrar
   // quién atendió: perfiles solo deja leer el propio, así que viene de la
@@ -601,6 +601,7 @@ function App() {
       try {
         const desde = new Date(Date.now() - 3 * 86400000)
         const iso = fechaAISO(desde)
+        await cargarProfesionales(usuario.opticaId)
         const { data: pasesData } = await supabase.from('pases_a_venta').select('*').eq('optica_id', usuario.opticaId)
         if (pasesData) setPasesVenta(pasesData.map(mapPase))
         const { data: ordenesData } = await supabase.from('ordenes_laboratorio').select('*, ordenes_laboratorio_historial(estado, cambiado_en)').eq('optica_id', usuario.opticaId)
@@ -637,19 +638,16 @@ function App() {
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', alVolver) }
   }, [usuario?.opticaId, usuario?.rol])
 
-  // Horario personal — aparte de la hidratación de arriba a propósito: es
-  // personal de quien esté logueado (admin o asistente por igual), no un
-  // dato público ni un dato exclusivo del admin como pacientes/inventario.
-  useEffect(() => {
-    if (!supabase || !usuario?.id || (usuario.rol !== 'admin' && usuario.rol !== 'asistente')) return
-    supabase.from('horarios_usuario').select('horario_semanal, ausencias').eq('usuario_id', usuario.id).maybeSingle().then(({ data }) => {
-      setHorarioPersonalState(data ? { horarioSemanal: data.horario_semanal || {}, ausencias: data.ausencias || {} } : { horarioSemanal: {}, ausencias: {} })
-    })
-  }, [usuario?.id, usuario?.rol])
-
   // Lo que dependía únicamente del optica_id ya resuelto (admin o público) —
   // separado del efecto de arriba para no repetir esta parte en las dos ramas.
+  // Sin la función (base sin la 0146) o con un error, la agenda sigue con el horario de la óptica.
+  function cargarProfesionales(opticaId) {
+    if (!supabase || !opticaId) return Promise.resolve()
+    return supabase.rpc('agenda_profesionales', { p_optica_id: opticaId }).then(({ data, error }) => { if (!error && Array.isArray(data)) setProfesionalesAgenda((prev) => (JSON.stringify(prev) === JSON.stringify(data) ? prev : data)) })
+  }
+
   function hidratarOpticaId(opticaId, esAdmin) {
+    cargarProfesionales(opticaId)
     supabase.from('disponibilidad').select('*').eq('optica_id', opticaId).maybeSingle().then(({ data }) => {
       if (!data) return
       setDisponibilidadState(migrarDisponibilidad({
@@ -847,36 +845,6 @@ function App() {
         horario_semanal: siguiente.horarioSemanal,
         excepciones: siguiente.excepciones,
         duracion_cita: siguiente.duracionCita,
-      })
-    }
-    return Promise.resolve({ error: null })
-  }
-
-  // Pone en pantalla la excepción de un día tal como la dejó la base (null = el día volvió a su horario normal). No escribe: las funciones
-  // registrar_ausencia / quitar_ausencia ya lo hicieron, solo con lo suyo de quien las llama.
-  const reemplazarExcepcionLocal = (fecha, excepcion) => {
-    setDisponibilidadState((prev) => {
-      const excepciones = { ...(prev.excepciones || {}) }
-      if (excepcion) excepciones[fecha] = excepcion
-      else delete excepciones[fecha]
-      return { ...prev, excepciones }
-    })
-  }
-
-  // Mismo criterio que setDisponibilidad: acepta función o valor, persiste
-  // en segundo plano (upsert porque la fila puede no existir todavía — es la
-  // primera vez que este usuario toca "Mi horario") y devuelve el error si
-  // lo hay, para que Horario.jsx pueda avisar si falló el guardado real.
-  const setHorarioPersonal = (updater) => {
-    const base = horarioPersonal || { horarioSemanal: {}, ausencias: {} }
-    const siguiente = typeof updater === 'function' ? updater(base) : updater
-    setHorarioPersonalState(siguiente)
-    if (supabase && usuario?.id && usuario?.opticaId) {
-      return supabase.from('horarios_usuario').upsert({
-        usuario_id: usuario.id,
-        optica_id: usuario.opticaId,
-        horario_semanal: siguiente.horarioSemanal,
-        ausencias: siguiente.ausencias,
       })
     }
     return Promise.resolve({ error: null })
@@ -1293,11 +1261,9 @@ function App() {
           solicitudesEliminacion={solicitudesEliminacion}
           marcarSolicitudEliminacionAtendida={marcarSolicitudEliminacionAtendida}
           marcarMedidasAtendidas={marcarMedidasAtendidas}
-          disponibilidad={disponibilidad}
+          disponibilidad={disponibilidadAgenda}
           setDisponibilidad={setDisponibilidad}
-          reemplazarExcepcionLocal={reemplazarExcepcionLocal}
-          horarioPersonal={horarioPersonal}
-          setHorarioPersonal={setHorarioPersonal}
+          recargarAgenda={() => cargarProfesionales(usuario?.opticaId)}
           asistentes={asistentes}
           setAsistentes={setAsistentes}
           equipo={equipo}
@@ -1353,7 +1319,7 @@ function App() {
         <AgendarCitaPublica
           citas={citas}
           setCitas={setCitas}
-          disponibilidad={disponibilidad}
+          disponibilidad={disponibilidadAgenda}
           opticaId={opticaPublica?.id}
           opticaPublica={opticaPublica}
           parametrizacion={parametrizacion}
@@ -1369,7 +1335,7 @@ function App() {
           citas={citas}
           setCitas={setCitas}
           consultas={consultas}
-          disponibilidad={disponibilidad}
+          disponibilidad={disponibilidadAgenda}
           opticaId={opticaPublica?.id}
           opticaPublica={opticaPublica}
           parametrizacion={parametrizacion}

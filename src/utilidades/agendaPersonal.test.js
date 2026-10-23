@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   horaOfrecida, disponibleEnMinuto, semanaDeLaOptica, semanaDe, horasPorSemana, resumenDeJornada, turnosFueraDeLaOptica, citasFueraDelHorario, citasEnAusencia,
-  textoCuando, diasDelRango, problemaDeDocumento, estaAusente,
+  textoCuando, diasDelRango, problemaDeDocumento, estaAusente, horaCorta, resumenSemanaPersona,
 } from "./agendaPersonal"
 import { slotsDisponibles, diaTieneCupo } from "./disponibilidad"
 import { citasPorReasignar, ausenteEnHorario } from "./reasignacion"
@@ -153,5 +153,27 @@ describe("ausencias", () => {
     expect(problemaDeDocumento({ type: "image/jpeg", size: 1024 })).toBe("")
     expect(problemaDeDocumento({ type: "application/msword", size: 1024 })).toMatch(/PDF o una foto/)
     expect(problemaDeDocumento({ type: "application/pdf", size: 6 * 1024 * 1024 })).toMatch(/5 MB/)
+  })
+})
+
+describe('lo que se ve en Mi horario', () => {
+  it('la hora sin cero adelante, como en el diseño', () => {
+    expect([horaCorta('09:00'), horaCorta('13:00'), horaCorta('14:30'), horaCorta('00:15'), horaCorta('12:00')]).toEqual(['9:00 AM', '1:00 PM', '2:30 PM', '12:15 AM', '12:00 PM'])
+  })
+  it('esta semana: las citas agendadas (sin canceladas) y las horas libres según su horario y sus ausencias', () => {
+    const lunes = '2099-01-05'
+    const ahora = new Date(2099, 0, 5, 7, 0) // el lunes, antes de abrir
+    const p = { id: 'paula', usaOptica: false, horario: { lunes: { manana: turno('09:00', '13:00'), tarde: turno('14:00', '18:00', false) }, martes: { manana: turno('09:00', '13:00'), tarde: turno('14:00', '18:00', false) } }, ausencias: [] }
+    const citas = [
+      { id: 'a', fecha: lunes, hora: '09:00 AM', estado: 'Pendiente', asignadoA: 'paula' },
+      { id: 'b', fecha: lunes, hora: '10:00 AM', estado: 'Cancelada', asignadoA: 'paula' },
+      { id: 'c', fecha: '2099-01-06', hora: '09:00 AM', estado: 'Atendida', asignadoA: 'paula' },
+      { id: 'd', fecha: lunes, hora: '09:00 AM', estado: 'Pendiente', asignadoA: 'otra' },
+    ]
+    const d = optica()
+    // lunes y martes por la mañana: 4 + 4 horas de 60 min; ocupadas 2 (a y c): quedan 6 horas libres
+    expect(resumenSemanaPersona({ lunes, profesional: p, citas, disponibilidad: d, duracion: 60, ahora })).toEqual({ citas: 2, horasLibres: 6 })
+    const conAusencia = { ...p, ausencias: [{ desde: '2099-01-06', hasta: '2099-01-06', franja: 'todo' }] }
+    expect(resumenSemanaPersona({ lunes, profesional: conAusencia, citas, disponibilidad: d, duracion: 60, ahora }).horasLibres).toBe(3)
   })
 })
