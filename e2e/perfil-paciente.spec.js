@@ -38,11 +38,13 @@ async function abrirPerfil(page, nombre) {
 test.describe('Perfil del paciente: pestaña Citas', () => {
   test.use({ viewport: { width: 1366, height: 768 } })
 
-  test('la atención se abre en una ventana y el historial lleva siempre su buscador', async ({ page }) => {
+  test('la atención se abre en una ventana y el historial lleva sus filtros', async ({ page }) => {
     await abrirPerfil(page, 'Karla Párraga Vera')
     await foto(page, 'perfil-1')
-    // Aunque tenga pocas citas, el historial lleva siempre su buscador y sus filtros
-    await expect(page.getByRole('search', { name: 'Buscar en el historial de citas' })).toBeVisible()
+    // Con pocas citas el historial lleva sus filtros de siempre («Último año» y «Todas»); el buscador por texto y fechas aparece cuando el historial es largo
+    const historial = page.getByRole('region', { name: 'Historial de citas' })
+    await expect(historial.getByRole('button', { name: 'Último año' })).toBeVisible()
+    await expect(historial.getByRole('button', { name: 'Todas' })).toBeVisible()
 
     // Ver atención: ventana encima, la lista no cambia de alto
     await page.getByRole('listitem').filter({ hasText: 'Atendida' }).getByRole('button', { name: /Ver el detalle de la cita del/ }).first().click()
@@ -53,9 +55,9 @@ test.describe('Perfil del paciente: pestaña Citas', () => {
     await expect(ventana).toHaveCount(0)
   })
 
-  // Escribe datos: corre en la óptica de pruebas con un paciente de 6 citas atendidas.
+  // Escribe datos: corre en la óptica de pruebas con un paciente de 9 citas atendidas.
   test('el historial largo trae buscador, con el calendario de fechas de Citas', async ({ page }) => {
-    const nombre = await crearPacienteConHistorial(6)
+    const nombre = await crearPacienteConHistorial(9) // el buscador del historial aparece con más de 8 citas
     await iniciarSesion(page, 'ADMIN', 'E2E')
     await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
     await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
@@ -64,13 +66,15 @@ test.describe('Perfil del paciente: pestaña Citas', () => {
     await expect(buscador).toBeVisible()
     // Búsqueda por texto
     await buscador.getByPlaceholder('Motivo o diagnóstico').fill('zzzz-no-existe')
-    await expect(page.getByText('Ninguna cita coincide con esa búsqueda.')).toBeVisible()
+    await expect(page.getByText('Ninguna cita coincide con ese filtro.')).toBeVisible()
     await buscador.getByRole('button', { name: 'Limpiar' }).click()
-    await expect(page.getByText('Ninguna cita coincide con esa búsqueda.')).toHaveCount(0)
-    // Atajo "Último año": queda el rango y se ve en el botón de fechas
-    await buscador.getByRole('button', { name: 'Último año' }).click()
-    await expect(buscador.getByRole('button', { name: /–/ })).toBeVisible()
-    await buscador.getByRole('button', { name: 'Limpiar' }).click()
+    await expect(page.getByText('Ninguna cita coincide con ese filtro.')).toHaveCount(0)
+    // Atajo "Último año" (en la cabecera del historial): queda marcado y «Todas» lo quita
+    await page.getByRole('region', { name: 'Historial de citas' }).getByRole('button', { name: 'Último año' }).click()
+    const historial = page.getByRole('region', { name: 'Historial de citas' })
+    await expect(historial.getByRole('button', { name: 'Último año' })).toHaveAttribute('aria-pressed', 'true')
+    await historial.getByRole('button', { name: 'Todas' }).click()
+    await expect(historial.getByRole('button', { name: 'Todas' })).toHaveAttribute('aria-pressed', 'true')
     // El calendario de fechas se abre desde "Elegir rango de fechas…"
     await buscador.getByRole('button', { name: /Elegir rango de fechas/ }).click()
     await expect(buscador.getByRole('button', { name: 'Mes siguiente' })).toBeVisible()
@@ -122,15 +126,15 @@ test.describe('Perfil del paciente: atender desde la cabecera', () => {
     await expect(page.getByText(nombre).first()).toBeVisible()
   })
 
-  test('un paciente sin cita de hoy no tiene «Atender» sino «Atender ahora» (y «Agendar cita» sigue en su lugar)', async ({ page }) => {
+  test('un paciente sin cita de hoy también tiene «Atender» (crea la cita presencial) y «Agendar cita» sigue en su lugar', async ({ page }) => {
     test.setTimeout(120_000)
     const nombre = await crearPacienteConHistorial(1)
     await iniciarSesion(page, 'ADMIN', 'E2E')
     await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
     await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
     await abrirDesdeLaLista(page, nombre)
-    await expect(page.getByRole('button', { name: 'Atender', exact: true })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Atender ahora' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Atender', exact: true }).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Atender ahora' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Agendar cita' }).first()).toBeVisible()
   })
 })

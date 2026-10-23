@@ -2,7 +2,7 @@
 // Regla del 21 oct. (Ronda 2, punto 11): «Atender» aparece en TODA cita abierta, también en una futura (el paciente llegó antes), en la Agenda y en el perfil.
 // Las citas de hoy entran directo a la ficha (lo cubre llego-en-espera.spec.js); la de otro día pregunta «Esta cita es del … ¿Atenderla hoy?» y, al confirmar, se mueve a hoy.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, crearCitaDeHoyParaPaula } from './ayudas.js'
+import { iniciarSesion, crearCitaDeHoyParaPaula, liberarHoyDePaula } from './ayudas.js'
 
 test.use({ viewport: { width: 1366, height: 768 } })
 
@@ -64,6 +64,8 @@ test('una cita de un día anterior pregunta "¿Atenderla hoy?" antes de entrar a
 test('al atender una cita pendiente de un día anterior se mueve al día de hoy (con la hora real)', async ({ page }) => {
   const { createClient } = await import('@supabase/supabase-js')
   const { credencial } = await import('./ayudas.js')
+  // La cita pasa a hoy a la hora real: la base no deja cruzar dos citas de Paula, así que se libera su día antes (las de las pruebas anteriores de este archivo).
+  await liberarHoyDePaula()
   const nombre = await crearCitaDeHoyParaPaula('E2E', { diasDespues: -3 })
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await page.getByRole('button', { name: 'Citas médicas', exact: true }).first().click()

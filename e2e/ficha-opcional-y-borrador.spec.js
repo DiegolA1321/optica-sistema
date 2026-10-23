@@ -24,7 +24,7 @@ async function abrirFicha(page, nombre) {
   await page.getByRole('button', { name: 'Pacientes', exact: true }).first().click()
   await page.getByRole('textbox', { name: /buscar paciente/i }).fill(nombre)
   await expect(page.getByText(nombre).first()).toBeVisible({ timeout: 45_000 })
-  await page.getByText(nombre).first().click()
+  await page.getByRole('button', { name: 'Ver perfil 360°' }).first().click()
   await expect(page.getByRole('tab', { name: /Citas/ })).toBeVisible({ timeout: 45_000 })
   await page.getByRole('button', { name: /^(Atender|Seguir atendiendo)/ }).first().click()
   await expect(page.getByText('Paso 1 de 3')).toBeVisible({ timeout: 20_000 })
@@ -153,7 +153,7 @@ test('la cita reagendada hereda el borrador de la que no se efectuó y, al termi
   expect(e1).toBeNull()
   // La cita nueva (otro día) la crea quien reagenda; la base copia el borrador a la cita nueva
   const { data: perfil } = await cliente.from('perfiles').select('optica_id').limit(1).single()
-  const { data: nueva, error: e2 } = await cliente.from('citas').insert({ optica_id: perfil.optica_id, paciente_id: ids.paciente, paciente: 'Heredero', fecha: new Date(Date.now() + 86_400_000 * 3).toISOString().slice(0, 10), hora: '09:15 AM', motivo: 'Consulta General', estado: 'Pendiente' }).select('id').single()
+  const { data: nueva, error: e2 } = await cliente.from('citas').insert({ optica_id: perfil.optica_id, paciente_id: ids.paciente, paciente: 'Heredero', fecha: new Date(Date.now() + 86_400_000 * 3).toISOString().slice(0, 10), hora: '05:30 PM', motivo: 'Consulta General', estado: 'Pendiente' }).select('id').single()
   expect(e2).toBeNull()
   const { data: hereda } = await cliente.rpc('heredar_borrador_ficha', { p_cita_origen: ids.cita, p_cita_nueva: nueva.id })
   expect(hereda).toBe(true)

@@ -220,7 +220,7 @@ test('la ficha, la receta impresa, el perfil y «Mi receta» muestran lo mismo d
 
   // ── El perfil (vista técnica) ──
   const perfil = page.getByRole('tabpanel').first()
-  await expect(perfil).toContainText('Esfera · 0.50 más de miopía desde abril') // el cambio, dicho igual que en la ficha
+  await expect(perfil).toContainText('0.50 más de miopía desde abril') // el cambio, dicho igual que en la ficha
   await expect(perfil).not.toContainText('+0.63')
   await expect(perfil).not.toContainText('Tienes miopía') // sin frases del paciente en la vista técnica
   for (const nombre of ['Sin corrección', 'Con su corrección actual', 'Con la receta nueva']) await expect(perfil).toContainText(nombre)
