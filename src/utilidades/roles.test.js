@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { puedeNivel, normalizarPermisosRol, unirPermisos, alcanceDeRoles, modulosVisibles, permisosCompletos, resumenPermisos, menuDePermisos } from "./roles"
+import { puedeNivel, normalizarPermisosRol, unirPermisos, alcanceDeRoles, alcanceDeRolNuevo, alcanceParaGuardar, partirDeRol, alcanceDe, OPCIONES_ALCANCE, modulosVisibles, permisosCompletos, resumenPermisos, menuDePermisos } from "./roles"
 import { validarClaveNueva, MENSAJE_CLAVE_SEGURA } from "./validaciones"
 
 describe("roles y permisos por nivel", () => {
@@ -25,6 +25,25 @@ describe("roles y permisos por nivel", () => {
     expect(alcanceDeRoles([optometra], "citas")).toBe("propio")
     expect(alcanceDeRoles([optometra, recepcion], "citas")).toBe("todo")
     expect(alcanceDeRoles([optometra], "reportes")).toBe("todo")
+  })
+  it("el alcance «los que atiende» está entre «solo las suyas» y «toda la óptica»", () => {
+    const atiende = { permisos: { consultas: ["ver"] }, alcance: { consultas: "atiende" } }
+    const suyas = { permisos: { consultas: ["ver"] }, alcance: { consultas: "propio" } }
+    const todo = { permisos: { consultas: ["ver"] }, alcance: {} }
+    expect(alcanceDeRoles([suyas, atiende], "consultas")).toBe("atiende")
+    expect(alcanceDeRoles([suyas, atiende, todo], "consultas")).toBe("todo")
+    expect(OPCIONES_ALCANCE.consultas.map((o) => o.id)).toEqual(["propio", "atiende", "todo"])
+    expect(OPCIONES_ALCANCE.citas.map((o) => o.id)).not.toContain("atiende")
+  })
+  it("un rol nuevo parte de lo más restrictivo; lo que se guarda lleva el alcance de cada módulo que el rol tiene", () => {
+    expect(alcanceDeRolNuevo()).toEqual({ citas: "propio", consultas: "propio", reportes: "propio" })
+    expect(alcanceParaGuardar({ citas: "propio", consultas: "atiende" }, { citas: ["ver"], consultas: ["ver"] })).toEqual({ citas: "propio", consultas: "atiende" })
+    expect(alcanceParaGuardar({ citas: "propio" }, { pacientes: ["ver"] })).toEqual({}) // sin citas ni fichas ni reportes no hay alcance que guardar
+    expect(alcanceDe({}, "citas")).toBe("todo") // un valor ausente vale «toda la óptica», como en la base
+  })
+  it("«Partir de» un rol copia sus permisos, su alcance y si atiende pacientes", () => {
+    const optometra = { permisos: { citas: ["ver", "crear"], consultas: ["editar"] }, alcance: { citas: "propio", consultas: "atiende" }, atiende_pacientes: true, inicio: "optometra" }
+    expect(partirDeRol(optometra)).toEqual({ permisos: { citas: ["ver", "crear"], consultas: ["ver", "editar"] }, alcance: { citas: "propio", consultas: "atiende", reportes: "todo" }, atiende: true, inicio: "optometra" })
   })
   it("el menú sale de lo que se puede ver", () => {
     const p = normalizarPermisosRol({ citas: ["ver"], inventario: ["ver", "crear"], mensajes: [] })

@@ -246,6 +246,8 @@ function mapConsulta(c) {
     citaId: c.cita_id,
     // profesional_id (0093): quién registró la consulta; sirve para el alcance "solo lo propio".
     profesionalId: c.profesional_id || null,
+    // cita_resumen (0145): la fecha, la hora y el estado de la cita de la ficha, también cuando la cita no es de la persona (su alcance de citas es «solo las suyas» y el de fichas, más amplio).
+    citaResumen: c.cita_resumen || null,
   }
 }
 function mapVenta(v) {

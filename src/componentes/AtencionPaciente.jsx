@@ -330,7 +330,9 @@ export function DetalleAtencion({ consulta, adjuntos, compacto = false, seccione
 }
 
 // El detalle de una atención: solo «Imprimir diagnóstico» (el diagnóstico de esa consulta, con la receta dentro si hubo refracción).
-export function ModalAtencion({ cita, consulta, paciente, usuario, parametrizacion, adjuntos, onCerrar }) {
+export function ModalAtencion({ cita: citaDeLaLista, consulta, paciente, usuario, parametrizacion, adjuntos, onCerrar }) {
+  // La cita de la ficha: la de la lista o, si esa cita no es de esta persona (alcance de citas más estrecho que el de fichas), su fecha, hora y estado que entrega la base con la ficha.
+  const cita = citaDeLaLista || consulta.citaResumen || null
   // La hoja de la receta es la misma que imprime el optómetra al terminar la consulta (HojaReceta) y la que el paciente guarda como PDF desde su portal.
   const imprimirReceta = () => imprimirHojaReceta({
     optica: datosOpticaReceta(usuario, parametrizacion),

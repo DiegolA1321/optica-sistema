@@ -259,7 +259,7 @@ test('Roles: crear, editar y eliminar un rol (roles: insert, update y delete)', 
   await page.getByRole('button', { name: /Nuevo rol/ }).click()
   const formRol = page.getByRole('dialog').last()
   await formRol.getByPlaceholder('Ej. Optómetra principal').fill(rol)
-  await formRol.getByRole('checkbox', { name: /Pacientes: ver/i }).check()
+  await formRol.getByRole('switch', { name: 'Pacientes: Ver' }).click()
   await conEscritura(page, 'roles', 'crear rol', () => formRol.getByRole('button', { name: 'Crear rol' }).click())
   await expect(page.getByRole('list', { name: 'Roles' }).getByText(rol)).toBeVisible({ timeout: 20_000 })
   try {

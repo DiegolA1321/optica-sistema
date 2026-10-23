@@ -112,6 +112,7 @@ import { Cascaron, ModalAtencion, ModalHistoriaClinica, ModalDatosPaciente } fro
 import { escribirParam, leerParam } from "../utilidades/urlEstado"
 import SelectorBuscable from "../componentes/SelectorBuscable"
 import ElegirVentaOrdenModal from "../componentes/ElegirVentaOrdenModal"
+import { atencionesSinCita } from "../utilidades/atencionesSinCita"
 import { fechaProximoControl, diasVencido, esInactivo, diasDesdeUltimaVisita, contarConsultas, esClienteFrecuente, contarReferidos, listarReferidos, ordenarPorFechaYCreacion, diasParaCumpleanos, puntosFidelidad, ultimaVisita } from "../utilidades/fidelizacion"
 import { crearRegistroPaciente } from "../utilidades/pacientes"
 import { TIPOS_DOCUMENTO, tipoDeDocumento, etiquetaDocumento, filtrarDocumento, errorDeDocumento } from "../utilidades/documento"
@@ -2307,7 +2308,7 @@ function PanelCitasPaciente({ citas, consultas = [], equipo = [], onAgendar, onA
   const consultaDe = (cita) => cita._consulta || consultas.find((k) => k.citaId === cita.id)
   const porFechaHora = (a, b) => (a.fecha !== b.fecha ? (a.fecha < b.fecha ? -1 : 1) : minutosDesdeMedianoche(a.hora) - minutosDesdeMedianoche(b.hora))
   // Una atención sin cita (paciente que llegó sin agendar) también aparece aquí: así este historial es el único lugar donde se ve todo lo que pasó.
-  const sinCita = consultas.filter((k) => !citas.some((c) => c.id === k.citaId)).map((k) => ({ id: "consulta-" + k.id, fecha: k.fecha, hora: "Sin cita", motivo: k.motivo, estado: "Atendida", _consulta: k }))
+  const sinCita = atencionesSinCita(consultas, citas)
   // El historial trae TODAS las citas (pendientes incluidas), de la más reciente a la más antigua: ninguna queda escondida.
   const historialCompleto = [...citas, ...sinCita].sort((a, b) => porFechaHora(b, a))
   // Las dos tarjetas de arriba: la asistencia (con la alerta de dos faltas seguidas) y el ciclo de control (de la última consulta al control recomendado).

@@ -1,17 +1,16 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Pencil, Trash2, RotateCcw, ShieldCheck, ShieldAlert, Lock, Users, Glasses, AlertTriangle, Eye } from "lucide-react"
+import { Pencil, Trash2, RotateCcw, ShieldCheck, ShieldAlert, Lock, Users, Glasses, AlertTriangle } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import { INK } from "@/lib/tema"
 import { Cascaron, PieFormulario } from "./AtencionPaciente"
 import { registrarLog } from "../utilidades/logs"
 import { mensajeDeError } from "../utilidades/permisos"
 import ConfirmarEliminarModal from "./ConfirmarEliminarModal"
-import { EtiquetaDeMuestra } from "./VistaPrevia"
 import {
-  NIVELES, MODULOS_PERMISO, GRUPOS_MODULOS, MODULOS_CON_ALCANCE, INICIOS_ROL,
-  normalizarPermisosRol, resumenPermisos, menuDePermisos,
+  NIVELES, MODULOS_PERMISO, MODULOS_CON_ALCANCE, INICIOS_ROL, OPCIONES_ALCANCE, ALCANCE_MAS_RESTRICTIVO,
+  normalizarPermisosRol, resumenPermisos, alcanceDe, alcanceDeRolNuevo, alcanceParaGuardar, partirDeRol,
 } from "../utilidades/roles"
 
 const CAMPO = "w-full rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:bg-white"
@@ -76,6 +75,7 @@ export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onE
           const usos = enUso(rol.id)
           const resumen = resumenPermisos(rol.permisos)
           const propios = MODULOS_CON_ALCANCE.filter((m) => rol.permisos?.[m.id] && rol.alcance?.[m.id] === "propio")
+          const atiende = MODULOS_CON_ALCANCE.filter((m) => rol.permisos?.[m.id] && rol.alcance?.[m.id] === "atiende")
           return (
             <li key={rol.id} className="flex flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
               <div>
@@ -105,6 +105,7 @@ export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onE
                   ))}
                 </div>
                 {propios.length > 0 && <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-amber-700"><ShieldAlert size={12} aria-hidden="true" /> Solo lo suyo: {propios.map((m) => m.nombre.toLowerCase()).join(", ")}</p>}
+                {atiende.length > 0 && <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-amber-700"><ShieldAlert size={12} aria-hidden="true" /> Solo los pacientes que atiende: {atiende.map((m) => m.nombre.toLowerCase()).join(", ")}</p>}
               </div>
               <p className="mt-4 flex items-center gap-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500"><Users size={12} aria-hidden="true" /> {usos === 0 ? "Nadie tiene este rol" : `${usos} persona${usos === 1 ? "" : "s"} con este rol`}</p>
             </li>
@@ -134,6 +135,20 @@ export default function RolesPanel({ usuario, roles, asignaciones, onCambio, onE
   )
 }
 
+// Crear o editar un rol (diseño de la Ronda 5): el nombre, de qué rol partir, cada módulo con sus interruptores (ver, crear, editar, borrar) y «Qué datos ve». Todo empieza apagado y con el alcance más
+// restrictivo; solo se activa lo que se marca. Lo que no se ve de entrada (descripción, inicio que verá y si atiende pacientes) está en «Más opciones».
+const FILAS_MODULOS = [...MODULOS_PERMISO, { id: "usuarios", nombre: "Usuarios y permisos", breve: "Solo administración", niveles: [], soloAdmin: true }]
+
+function Interruptor({ activo, onCambiar, etiqueta, deshabilitado = false }) {
+  return (
+    <button type="button" role="switch" aria-checked={activo} aria-label={etiqueta} disabled={deshabilitado} onClick={onCambiar}
+      className={"relative h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 " + (deshabilitado ? "cursor-not-allowed opacity-50 " : "cursor-pointer ")}
+      style={{ backgroundColor: activo ? "#2563EB" : "#cbd5e1" }}>
+      <span className={"absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform " + (activo ? "translate-x-5" : "translate-x-0")} />
+    </button>
+  )
+}
+
 function EditorRol({ rol, roles, usuario, onCerrar, onGuardado }) {
   const nuevo = !rol.id
   const [nombre, setNombre] = useState(rol.nombre)
@@ -141,7 +156,9 @@ function EditorRol({ rol, roles, usuario, onCerrar, onGuardado }) {
   const [atiende, setAtiende] = useState(!!rol.atiende_pacientes)
   const [inicio, setInicio] = useState(rol.inicio || "general")
   const [permisos, setPermisos] = useState(() => normalizarPermisosRol(rol.permisos || {}))
-  const [alcance, setAlcance] = useState({ ...(rol.alcance || {}) })
+  // Un rol nuevo parte de lo más restrictivo; uno que ya existe, de lo que tiene guardado (un valor ausente es «toda la óptica», como en la base).
+  const [alcance, setAlcance] = useState(() => (nuevo ? alcanceDeRolNuevo() : Object.fromEntries(MODULOS_CON_ALCANCE.map((m) => [m.id, alcanceDe(rol.alcance, m.id)]))))
+  const [partir, setPartir] = useState("")
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
   const cerrar = () => { if (!guardando) onCerrar() }
@@ -160,13 +177,20 @@ function EditorRol({ rol, roles, usuario, onCerrar, onGuardado }) {
       }
       return normalizarPermisosRol({ ...prev, [modulo]: [...actuales] })
     })
-  }
-  const alternarTodo = (modulo) => {
-    const m = MODULOS_PERMISO.find((x) => x.id === modulo)
-    setPermisos((prev) => normalizarPermisosRol({ ...prev, [modulo]: prev[modulo]?.length === m.niveles.length ? [] : [...m.niveles] }))
+    // Un módulo que se enciende parte de lo más restrictivo.
+    if (!permisos[modulo] && MODULOS_CON_ALCANCE.some((m) => m.id === modulo)) setAlcance((a) => ({ ...a, [modulo]: ALCANCE_MAS_RESTRICTIVO }))
   }
 
-  const vista = useMemo(() => ({ menu: menuDePermisos(permisos), resumen: resumenPermisos(permisos), inicio: INICIOS_ROL.find((i) => i.id === inicio) }), [permisos, inicio])
+  // «Partir de»: copia los permisos y el alcance de otro rol (el nombre y la descripción son del rol nuevo).
+  const elegirPlantilla = (id) => {
+    setPartir(id)
+    const base = id ? roles.find((r) => r.id === id) : null
+    const p = partirDeRol(base)
+    setPermisos(base ? p.permisos : {})
+    setAlcance(base ? p.alcance : alcanceDeRolNuevo())
+    setAtiende(base ? p.atiende : false)
+    setInicio(base ? p.inicio : "general")
+  }
 
   const guardar = async (e) => {
     e.preventDefault()
@@ -174,8 +198,7 @@ function EditorRol({ rol, roles, usuario, onCerrar, onGuardado }) {
     const limpio = nombre.trim()
     if (limpio.length < 2) { setError("Escribe el nombre del rol."); return }
     if (roles.some((r) => r.id !== rol.id && r.nombre.trim().toLowerCase() === limpio.toLowerCase())) { setError("Ya existe un rol con ese nombre."); return }
-    const alcanceLimpio = Object.fromEntries(Object.entries(alcance).filter(([m, v]) => v === "propio" && permisos[m]))
-    const datos = { nombre: limpio, descripcion: descripcion.trim() || null, atiende_pacientes: atiende, inicio, permisos: normalizarPermisosRol(permisos), alcance: alcanceLimpio }
+    const datos = { nombre: limpio, descripcion: descripcion.trim() || null, atiende_pacientes: atiende, inicio, permisos: normalizarPermisosRol(permisos), alcance: alcanceParaGuardar(alcance, permisos) }
     setGuardando(true)
     const { error: errorGuardar } = nuevo
       ? await supabase.from("roles").insert({ ...datos, optica_id: usuario.opticaId })
@@ -186,112 +209,82 @@ function EditorRol({ rol, roles, usuario, onCerrar, onGuardado }) {
   }
 
   return (
-    <Cascaron titulo={nuevo ? "Nuevo rol" : `Editar rol: ${rol.nombre}`} subtitulo={rol.es_predefinido ? "Rol predefinido: puedes editarlo y restaurarlo, pero no eliminarlo." : "Define qué ve y qué puede hacer quien tenga este rol."} Icono={ShieldCheck} ancho="max-w-4xl" onCerrar={cerrar} formulario={{ onSubmit: guardar }}
+    <Cascaron titulo={nuevo ? "Crear rol" : `Editar rol: ${rol.nombre}`} subtitulo={rol.es_predefinido ? "Rol predefinido: puedes editarlo y restaurarlo, pero no eliminarlo." : "Qué puede hacer y qué datos ve quien tenga este rol"} Icono={ShieldCheck} ancho="max-w-4xl" formulario={{ onSubmit: guardar }}
       pie={<PieFormulario onCancelar={cerrar} etiquetaGuardar={nuevo ? "Crear rol" : "Guardar cambios"} guardando={guardando} />}>
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[1fr_17rem] lg:overflow-hidden">
-        <div className="space-y-5 p-5 lg:overflow-y-auto">
-          {error && <p role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertTriangle size={16} aria-hidden="true" /> {error}</p>}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Nombre del rol</span>
-              <input value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={60} placeholder="Ej. Optómetra principal" className={CAMPO} autoFocus />
-            </label>
-            <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Inicio que verá</span>
-              <select value={inicio} onChange={(e) => setInicio(e.target.value)} className={CAMPO}>{INICIOS_ROL.map((i) => <option key={i.id} value={i.id}>{i.etiqueta}</option>)}</select>
-            </label>
-          </div>
-          <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-700">Descripción <span className="font-normal text-slate-500">(opcional)</span></span>
-            <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} maxLength={200} className={CAMPO} />
+      <div className="space-y-5 p-5">
+        {error && <p role="alert" className="flex items-center gap-2 rounded-lg border border-red-200/60 bg-red-50 p-3 text-sm font-medium text-red-700"><AlertTriangle size={16} aria-hidden="true" /> {error}</p>}
+        <div className={"grid grid-cols-1 gap-4 " + (nuevo ? "sm:grid-cols-2" : "")}>
+          <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-600">Nombre del rol</span>
+            <input value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={60} placeholder="Ej. Optómetra principal" className={CAMPO} autoFocus />
           </label>
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 transition-colors hover:border-blue-300">
-            <input type="checkbox" checked={atiende} onChange={(e) => setAtiende(e.target.checked)} className="mt-0.5 h-4 w-4 accent-blue-600" />
-            <span className="text-sm"><span className="flex items-center gap-1.5 font-semibold text-slate-700"><Glasses size={15} className="text-blue-600" aria-hidden="true" /> Atiende pacientes</span>
-              <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">Aparece en "Asignado a" de las citas y puede atender y registrar fichas clínicas.</span></span>
-          </label>
-
-          <div>
-            <p className="mb-2 text-sm font-semibold text-slate-700">Permisos por módulo</p>
-            <div className="overflow-x-auto rounded-xl border border-slate-200/60">
-              <table className="w-full min-w-[30rem] text-sm">
-                <thead>
-                  <tr className="bg-slate-50 text-xs font-semibold text-slate-500">
-                    <th scope="col" className="px-3 py-2 text-left">Módulo</th>
-                    {NIVELES.map((n) => <th key={n.id} scope="col" className="w-20 px-2 py-2 text-center">{n.etiqueta}</th>)}
-                    <th scope="col" className="w-16 px-2 py-2 text-center">Todo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {GRUPOS_MODULOS.map((grupo) => (
-                    <GrupoFilas key={grupo} grupo={grupo} tiene={tiene} alternar={alternar} alternarTodo={alternarTodo} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-2 text-sm font-semibold text-slate-700">Alcance de los datos</p>
-            <div className="space-y-2">
-              {MODULOS_CON_ALCANCE.map((m) => (
-                <label key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/60 bg-slate-50 px-3 py-2.5 text-sm">
-                  <span className="font-semibold text-slate-700">{m.nombre}</span>
-                  <select value={alcance[m.id] === "propio" ? "propio" : "todo"} onChange={(e) => setAlcance((a) => ({ ...a, [m.id]: e.target.value }))} disabled={!permisos[m.id]} className="rounded-lg border border-slate-200/60 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus-visible:border-blue-500 disabled:opacity-50" aria-label={`Alcance de ${m.nombre}`}>
-                    <option value="todo">Todo lo de la óptica</option>
-                    <option value="propio">{m.propio}</option>
-                  </select>
-                </label>
-              ))}
-            </div>
-            <p className="mt-1.5 text-xs text-slate-500">Los pacientes no se acotan: todo el equipo puede buscarlos.</p>
-          </div>
+          {nuevo && (
+            <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-600">Partir de</span>
+              <select value={partir} onChange={(e) => elegirPlantilla(e.target.value)} className={CAMPO}>
+                <option value="">Ningún rol (todo apagado)</option>
+                {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+              </select>
+            </label>
+          )}
         </div>
 
-        <aside className="border-t-2 border-dashed border-slate-300 bg-slate-100/80 p-5 lg:overflow-y-auto lg:border-l-2 lg:border-t-0" aria-label="Vista previa del rol">
-          <p className="flex w-fit items-center gap-1 rounded-md bg-slate-200 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-slate-600"><Eye size={12} aria-hidden="true" /> Vista previa</p>
-          <p className="mt-3 text-xs font-semibold text-slate-600">Menú que verá</p>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            <EtiquetaDeMuestra>Inicio</EtiquetaDeMuestra>
-            {vista.menu.map((m) => <EtiquetaDeMuestra key={m}>{m}</EtiquetaDeMuestra>)}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[40rem] text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-xs font-bold uppercase tracking-wide text-slate-500">
+                <th scope="col" className="py-2 pr-3 text-left">Módulo</th>
+                {NIVELES.map((n) => <th key={n.id} scope="col" className="w-20 px-2 py-2 text-center">{n.id === "eliminar" ? "Borrar" : n.etiqueta}</th>)}
+                <th scope="col" className="w-48 py-2 pl-3 text-left">Qué datos ve</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FILAS_MODULOS.map((m) => {
+                const conAlcance = MODULOS_CON_ALCANCE.some((x) => x.id === m.id)
+                return (
+                  <tr key={m.id} className="border-b border-slate-100 last:border-b-0">
+                    <th scope="row" className="py-3 pr-3 text-left" title={m.ayuda || undefined}>
+                      <span className="block font-bold" style={{ color: INK }}>{m.nombre}</span>
+                      <span className={"block text-xs font-normal " + (m.sensible ? "text-amber-700" : "text-slate-500")}>{m.breve}</span>
+                    </th>
+                    {NIVELES.map((n) => (
+                      <td key={n.id} className="px-2 py-3 text-center">
+                        {m.soloAdmin ? <Interruptor activo={false} deshabilitado etiqueta={`${m.nombre}: ${n.etiqueta} (solo administración)`} />
+                          : m.niveles.includes(n.id) ? <Interruptor activo={tiene(m.id, n.id)} onCambiar={() => alternar(m.id, n.id)} etiqueta={`${m.nombre}: ${n.id === "eliminar" ? "Borrar" : n.etiqueta}`} />
+                          : <span className="text-slate-300" aria-hidden="true">—</span>}
+                      </td>
+                    ))}
+                    <td className="py-3 pl-3">
+                      {conAlcance && permisos[m.id] ? (
+                        <select value={alcanceDe(alcance, m.id)} onChange={(e) => setAlcance((a) => ({ ...a, [m.id]: e.target.value }))} aria-label={`Qué datos ve en ${m.nombre}`} className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-800 outline-none focus-visible:border-blue-500">
+                          {OPCIONES_ALCANCE[m.id].map((o) => <option key={o.id} value={o.id}>{o.etiqueta}</option>)}
+                        </select>
+                      ) : m.id === "pacientes" && permisos.pacientes ? <span className="text-xs text-slate-500">Todos (se comparten)</span> : null}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <p className="rounded-lg bg-slate-50 px-3.5 py-2.5 text-sm text-slate-600">Todo empieza apagado y con el alcance más restrictivo («Solo lo suyo»). Solo se activa lo que se marca.</p>
+
+        <details className="rounded-xl border border-slate-200/60 px-3.5 py-2.5">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-700">Más opciones</summary>
+          <div className="mt-3 space-y-4">
+            <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-600">Descripción <span className="font-normal text-slate-500">(opcional)</span></span>
+              <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} maxLength={200} className={CAMPO} />
+            </label>
+            <label className="block"><span className="mb-1.5 block text-sm font-semibold text-slate-600">Inicio que verá</span>
+              <select value={inicio} onChange={(e) => setInicio(e.target.value)} className={CAMPO}>{INICIOS_ROL.map((i) => <option key={i.id} value={i.id}>{i.etiqueta}</option>)}</select>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50 p-3.5 transition-colors hover:border-blue-300">
+              <input type="checkbox" checked={atiende} onChange={(e) => setAtiende(e.target.checked)} className="mt-0.5 h-4 w-4 accent-blue-600" />
+              <span className="text-sm"><span className="flex items-center gap-1.5 font-semibold text-slate-700"><Glasses size={15} className="text-blue-600" aria-hidden="true" /> Atiende pacientes</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">Aparece en «Asignado a» de las citas y puede atender y registrar fichas clínicas.</span></span>
+            </label>
           </div>
-          <p className="mt-4 text-xs font-semibold text-slate-600">Su Inicio</p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500"><span className="font-semibold text-slate-700">{vista.inicio?.etiqueta}.</span> {vista.inicio?.descripcion}</p>
-          <p className="mt-4 text-xs font-semibold text-slate-600">Podrá</p>
-          {vista.resumen.length === 0 ? <p className="mt-1 text-xs text-slate-400">Todavía nada: marca permisos a la izquierda.</p> : (
-            <ul className="mt-1.5 space-y-1 text-xs text-slate-600">{vista.resumen.map((r) => <li key={r.modulo}><span className="font-semibold">{r.modulo}:</span> {r.texto}</li>)}</ul>
-          )}
-        </aside>
+        </details>
       </div>
     </Cascaron>
-  )
-}
-
-function GrupoFilas({ grupo, tiene, alternar, alternarTodo }) {
-  const modulos = MODULOS_PERMISO.filter((m) => m.grupo === grupo)
-  const sensible = modulos.some((m) => m.sensible)
-  return (
-    <>
-      <tr className={sensible ? "bg-amber-50/70" : "bg-white"}>
-        <th colSpan={6} scope="colgroup" className={"px-3 pb-1 pt-3 text-left text-xs font-bold uppercase tracking-wide " + (sensible ? "text-amber-700" : "text-slate-500")}>
-          {grupo}{sensible && <span className="ml-1.5 font-normal normal-case">· da acceso de administración de la óptica</span>}
-        </th>
-      </tr>
-      {modulos.map((m) => (
-        <tr key={m.id} className={"border-t border-slate-100 " + (sensible ? "bg-amber-50/40" : "")}>
-          <th scope="row" className="px-3 py-2 text-left font-semibold text-slate-700">
-            {m.nombre}
-            {m.ayuda && <span className="block text-xs font-normal text-slate-400">{m.ayuda}</span>}
-          </th>
-          {NIVELES.map((n) => (
-            <td key={n.id} className="px-2 py-2 text-center">
-              {m.niveles.includes(n.id) ? (
-                <input type="checkbox" checked={tiene(m.id, n.id)} onChange={() => alternar(m.id, n.id)} aria-label={`${m.nombre}: ${n.etiqueta}`} className="h-4 w-4 cursor-pointer accent-blue-600" />
-              ) : <span className="text-slate-300" aria-hidden="true">—</span>}
-            </td>
-          ))}
-          <td className="px-2 py-2 text-center">
-            <button type="button" onClick={() => alternarTodo(m.id)} className="rounded-md px-1.5 py-0.5 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer" aria-label={`Alternar todos los permisos de ${m.nombre}`}>Todo</button>
-          </td>
-        </tr>
-      ))}
-    </>
   )
 }

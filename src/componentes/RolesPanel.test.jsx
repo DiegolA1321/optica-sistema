@@ -48,6 +48,6 @@ describe("RolesPanel: el botón 'Nuevo rol' vive en la cabecera de la pantalla",
     expect(screen.queryByRole("button", { name: /Nuevo rol/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     rerender(<RolesPanel {...base} roles={[]} pedidoNuevoRol={1} />)
-    expect(screen.getByRole("dialog", { name: "Nuevo rol" })).toBeInTheDocument()
+    expect(screen.getByRole("dialog", { name: "Crear rol" })).toBeInTheDocument()
   })
 })
