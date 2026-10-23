@@ -52,10 +52,10 @@ test('Inventario: crear, editar y descontinuar un producto (inventario: insert y
   await alta.getByLabel('Existencia inicial').fill('5')
   await alta.getByPlaceholder('45.00').fill('12.50')
   await conEscritura(page, 'inventario', 'crear producto', () => alta.locator('button[type=submit]').click())
-  const fila = page.locator('tr').filter({ hasText: nombre })
+  const fila = page.getByRole('listitem').filter({ hasText: nombre })
   await expect(fila).toHaveCount(1, { timeout: 20_000 })
 
-  await fila.click()
+  await fila.getByRole('button', { name: /^Ver el detalle de / }).click()
   await page.getByRole('dialog').getByRole('button', { name: /^Editar/ }).click()
   const edicion = page.getByRole('dialog').last()
   await edicion.getByPlaceholder('Ej. Montura 1, marco negro, modelo X').fill(nombre2)
@@ -65,13 +65,13 @@ test('Inventario: crear, editar y descontinuar un producto (inventario: insert y
   // Recargar demuestra que quedó en la base y no solo en pantalla.
   await page.reload()
   await irA(page, 'Inventario')
-  const fila2 = page.locator('tr').filter({ hasText: nombre2 })
+  const fila2 = page.getByRole('listitem').filter({ hasText: nombre2 })
   await expect(fila2).toContainText('15', { timeout: 25_000 })
 
-  await fila2.click()
+  await fila2.getByRole('button', { name: /^Ver el detalle de / }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Descontinuar' }).click()
   await conEscritura(page, 'inventario', 'descontinuar producto', () => page.getByRole('dialog', { name: 'Descontinuar producto' }).getByRole('button', { name: 'Descontinuar', exact: true }).click())
-  await expect(page.locator('tr').filter({ hasText: nombre2 })).toHaveCount(0, { timeout: 20_000 })
+  await expect(page.getByRole('listitem').filter({ hasText: nombre2 })).toHaveCount(0, { timeout: 20_000 })
 })
 
 test('CRM: crear una campaña (función crear_campana_crm) y que siga ahí al recargar', async ({ page }) => {
@@ -99,7 +99,7 @@ test('CRM: crear una campaña (función crear_campana_crm) y que siga ahí al re
 
 test('Horario general: cambiar y restaurar la duración de cada cita (disponibilidad: upsert)', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN', 'E2E')
-  await irA(page, 'Mi horario')
+  await irA(page, 'Horario')
   await page.getByRole('tab', { name: 'Horario de la óptica' }).click()
   const campo = () => page.locator('input[type=number][step="5"]').first()
   const guardar = page.getByRole('button', { name: 'Guardar', exact: true })
@@ -109,7 +109,7 @@ test('Horario general: cambiar y restaurar la duración de cada cita (disponibil
     await campo().fill(String(original + 5))
     await conEscritura(page, 'disponibilidad', 'guardar duración', () => guardar.click())
     await page.reload()
-    await irA(page, 'Mi horario')
+    await irA(page, 'Horario')
     await page.getByRole('tab', { name: 'Horario de la óptica' }).click()
     await expect(campo()).toHaveValue(String(original + 5), { timeout: 25_000 })
   } finally {
@@ -120,7 +120,7 @@ test('Horario general: cambiar y restaurar la duración de cada cita (disponibil
     }
   }
   await page.reload()
-  await irA(page, 'Mi horario')
+  await irA(page, 'Horario')
   await page.getByRole('tab', { name: 'Horario de la óptica' }).click()
   await expect(campo()).toHaveValue(String(original), { timeout: 25_000 })
 })
@@ -142,7 +142,7 @@ test('Mi horario: solicitar una ausencia lejana y retirar la solicitud (funcione
 
 test('Horarios del personal: asignar y restaurar el horario de una persona (rpc guardar_horario_persona)', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN', 'E2E')
-  await irA(page, 'Mi horario')
+  await irA(page, 'Horario')
   await page.getByRole('tab', { name: /^Horarios del personal/ }).click()
   await page.getByRole('navigation', { name: 'Personal que atiende o trabaja' }).getByText(/^Vera/).click()
   const interruptor = () => page.getByRole('switch', { name: 'Lunes: tarde' })

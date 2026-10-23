@@ -38,7 +38,7 @@ test('el cambio de precio y cantidad del administrador le llega a Paula sin cerr
   try {
     await iniciarSesion(paula, 'OPTOMETRA')
     await paula.getByRole('button', { name: 'Inventario', exact: true }).first().click()
-    const fila = paula.getByRole('row').filter({ hasText: original.nombre }).first()
+    const fila = paula.getByRole('listitem').filter({ hasText: original.nombre }).first()
     await expect(fila).toContainText(Number(original.precio).toFixed(2), { timeout: 20_000 })
 
     await admin.cambiar(original.id, { precio: precioNuevo, stock: stockNuevo })

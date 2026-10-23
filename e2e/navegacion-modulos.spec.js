@@ -11,7 +11,8 @@ const MODULOS = [
   { menu: 'Ventas', titulo: 'Ventas', pestanas: ['Ventas', 'Pedidos'] },
   { menu: 'Inventario', titulo: 'Inventario', pestanas: ['Activos', 'Descontinuados'] },
   { menu: 'CRM y fidelización', titulo: 'CRM y fidelización' },
-  { menu: 'Mi horario', titulo: null },
+  { menu: 'Horario', titulo: null }, // el administrador (menú «Horario»)
+  { menu: 'Mi horario', titulo: null }, // los demás roles
   { menu: 'Reportes', titulo: null },
   { menu: 'Soporte', titulo: null },
   { menu: 'Usuarios y permisos', titulo: null },
@@ -19,7 +20,7 @@ const MODULOS = [
 ]
 
 // Los errores que no son de la aplicación (extensiones, recursos externos bloqueados) no cuentan.
-const IGNORAR = [/favicon/i, /Failed to load resource/i, /fonts\.g(oogleapis|static)/i, /sentry/i, /ResizeObserver/i, /Download the React DevTools/i]
+const IGNORAR = [/favicon/i, /frame-ancestors.*ignored when delivered via a <meta>/i, /Failed to load resource/i, /fonts\.g(oogleapis|static)/i, /sentry/i, /ResizeObserver/i, /Download the React DevTools/i]
 
 function vigilar(page) {
   const errores = []
@@ -55,7 +56,7 @@ test('administrador: recorre todos los módulos del menú sin errores en la cons
   await iniciarSesion(page, 'ADMIN')
   await expect(page.locator('nav').getByRole('button', { name: 'Inicio', exact: true })).toBeVisible({ timeout: 20_000 })
   const visitados = await recorrer(page, errores, 'administrador')
-  expect(visitados).toEqual(MODULOS.map((m) => m.menu)) // el administrador ve los once
+  expect(visitados).toEqual(MODULOS.map((m) => m.menu).filter((m) => m !== 'Mi horario')) // el administrador ve los once (su «Horario» y no «Mi horario»)
   // Volver al primero: el menú sigue respondiendo después de todo el recorrido.
   await page.locator('nav').getByRole('button', { name: 'Citas médicas', exact: true }).click()
   await expect(page.locator('main').getByRole('heading', { name: 'Citas médicas', level: 1 })).toBeVisible()
@@ -93,12 +94,12 @@ test('administrador: desde el perfil de un paciente el menú sigue cambiando de 
 test('administrador: entrando por «//?optica=…» el menú sigue navegando', async ({ page }) => {
   const errores = vigilar(page)
   await iniciarSesion(page, 'ADMIN')
-  await page.goto(`http://localhost:${process.env.E2E_PUERTO || '5174'}//?optica=qu7u2j&seccion=pacientes`)
+  await page.goto(`http://127.0.0.1:${process.env.E2E_PUERTO || '5180'}//?optica=qu7u2j&seccion=pacientes`)
   await expect(page.locator('nav').getByRole('button', { name: 'Inicio', exact: true })).toBeVisible({ timeout: 25_000 })
   for (const m of MODULOS.filter((x) => x.titulo)) {
     await page.locator('nav').getByRole('button', { name: m.menu, exact: true }).click()
     await expect(page.locator('main').getByRole('heading', { name: m.titulo, level: 1 }).first(), `con «//», «${m.menu}» no abrió`).toBeVisible({ timeout: 20_000 })
   }
-  expect(page.url()).not.toMatch(/localhost:\d+\/\/\?/)
+  expect(page.url()).not.toMatch(/127\.0\.0\.1:\d+\/\/\?/)
   expect(errores).toEqual([])
 })

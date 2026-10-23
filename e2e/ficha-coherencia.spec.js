@@ -54,7 +54,7 @@ test.beforeAll(async () => {
   if (error) throw new Error('No se pudo crear la consulta anterior: ' + error.message)
   // La cita de hoy con Paula (un horario libre cercano).
   let errorCita
-  for (let extra = 30; extra < 90; extra++) {
+  for (let extra = 30; extra < 600; extra += 5) {
     const t = new Date(Date.now() + extra * 60_000)
     const h = t.getHours(), m = String(t.getMinutes()).padStart(2, '0')
     const hora = t.getDate() === new Date().getDate() ? `${String(h % 12 || 12).padStart(2, '0')}:${m} ${h >= 12 ? 'PM' : 'AM'}` : `11:${String(59 - (extra % 60)).padStart(2, '0')} PM`

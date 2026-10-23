@@ -136,10 +136,10 @@ export async function crearCitaDeHoyParaPaula(entorno = 'E2E', { diasDespues = 0
   }).select().single()
   if (errorPaciente) throw new Error(`No se pudo crear el paciente de prueba: ${errorPaciente.message}`)
 
-  // Un horario por (óptica, fecha, hora): si otra cita de prueba ya lo ocupa (23505), se prueba el minuto siguiente.
+  // Un horario por (óptica, fecha, hora): si otra cita de prueba ya lo ocupa (23505), se prueba el siguiente.
   const ahora = new Date()
   let errorCita
-  for (let extra = 30; extra < 90; extra++) {
+  for (let extra = 30; extra < 600; extra += 5) {
     const tarde = new Date(ahora.getTime() + extra * 60_000)
     const hora = diasDespues > 0 ? `09:${String(extra % 60).padStart(2, '0')} AM` : tarde.getDate() === ahora.getDate() ? hora12(tarde) : `11:${String(59 - (extra % 60)).padStart(2, '0')} PM`
     ;({ error: errorCita } = await cliente.from('citas').insert({
@@ -239,12 +239,12 @@ export async function crearPacienteConHistorial(n = 6, entorno = 'E2E') {
   }).select().single()
   if (error) throw new Error(`No se pudo crear el paciente de prueba: ${error.message}`)
   for (let i = 1; i <= n; i++) {
-    // Un horario por (óptica, fecha, hora): si otra corrida ya lo ocupa (23505), se prueba el minuto siguiente.
+    // Un horario por (óptica, fecha, hora): si otra corrida ya lo ocupa (23505), se prueba el siguiente.
     let errorCita
-    for (let minuto = 0; minuto < 60; minuto++) {
+    for (let minuto = 540; minuto < 1020; minuto += 5) { // de 9:00 AM a 5:00 PM: la base no deja cruzar citas (inicio + duración)
       ;({ error: errorCita } = await cliente.from('citas').insert({
         optica_id: perfil.optica_id, paciente_id: paciente.id, paciente: nombre, cedula: paciente.cedula, telefono: paciente.telefono,
-        fecha: hoyLocalISO(-30 * i), hora: `09:${String(minuto).padStart(2, '0')} AM`, duracion_minutos: null, motivo: 'Consulta General', estado: 'Atendida',
+        fecha: hoyLocalISO(-30 * i), hora: `${String(Math.floor(minuto / 60) % 12 || 12).padStart(2, '0')}:${String(minuto % 60).padStart(2, '0')} ${minuto < 720 ? 'AM' : 'PM'}`, duracion_minutos: null, motivo: 'Consulta General', estado: 'Atendida',
       }))
       if (!errorCita || errorCita.code !== '23505') break
     }

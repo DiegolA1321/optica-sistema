@@ -27,7 +27,7 @@ test('barra lateral de 232 px en toda la app, con los nombres del menú en una l
     expect(o.recortado, `«${o.nombre}» se lee completo`).toBe(false)
   }
   // ningún módulo se rompe: se recorren y ninguno desplaza la pantalla a lo ancho
-  for (const m of ['Inicio', 'Citas médicas', 'Pacientes', 'Ventas', 'Inventario', 'CRM y fidelización', 'Mi horario', 'Reportes', 'Usuarios y permisos', 'Configuración']) {
+  for (const m of ['Inicio', 'Citas médicas', 'Pacientes', 'Ventas', 'Inventario', 'CRM y fidelización', 'Horario', 'Reportes', 'Usuarios y permisos', 'Configuración']) {
     await irA(page, m)
     await page.waitForTimeout(500)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${m} sin desplazamiento horizontal`).toBe(true)
