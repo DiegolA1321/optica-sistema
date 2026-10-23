@@ -4,7 +4,7 @@ import EstilosPublica from "./EstilosPublica"
 import OjoOptico from "./OjoOptico"
 import FormularioCodigoMfa from "./FormularioCodigoMfa"
 
-const CAMPO = "min-h-12 w-full rounded-xl border border-white/20 bg-white/[0.07] px-4 py-3 text-base text-white outline-none transition-colors placeholder:text-slate-400 focus:border-cyan-300/70 focus:ring-2 focus:ring-cyan-300/20"
+const CAMPO = "ing-oscuro min-h-12 w-full rounded-xl border border-white/20 bg-white/[0.07] px-4 py-3 text-base text-white outline-none transition-colors placeholder:text-slate-400 focus:border-cyan-300/70 focus:ring-2 focus:ring-cyan-300/20"
 
 // Ingreso del superadmin (?sitio=admin): la única pantalla oscura del sistema. Tarjeta de vidrio centrada, un ojo grande
 // parcialmente visible arriba a la derecha con una luz que se mueve lento (se apaga con prefers-reduced-motion).
@@ -17,6 +17,21 @@ export default function IngresoSuperadmin({
   return (
     <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden p-4 font-sans text-white antialiased" style={{ background: "linear-gradient(160deg,#0E2552 0%,#0A1633 45%,#050B1A 100%)" }}>
       <EstilosPublica />
+      {/* Con el autocompletado del navegador los campos se pintaban de blanco: se fuerza el fondo oscuro y el texto claro también al autocompletarse. */}
+      <style>{`
+        .ing-oscuro { color-scheme: dark; }
+        .ing-oscuro:-webkit-autofill,
+        .ing-oscuro:-webkit-autofill:hover,
+        .ing-oscuro:-webkit-autofill:focus,
+        .ing-oscuro:-webkit-autofill:active {
+          -webkit-text-fill-color: #fff;
+          caret-color: #fff;
+          -webkit-box-shadow: 0 0 0 1000px #17233F inset !important;
+          box-shadow: 0 0 0 1000px #17233F inset !important;
+          transition: background-color 9999s ease-out 0s;
+        }
+        .ing-oscuro:autofill { background-color: #17233F !important; color: #fff !important; }
+      `}</style>
       <div aria-hidden="true" className="lg-glow pointer-events-none absolute -bottom-40 -left-32 h-[28rem] w-[28rem] rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(37,99,235,0.35), transparent 70%)" }} />
       <div aria-hidden="true" className="pointer-events-none absolute -right-28 -top-28 h-72 w-72 overflow-hidden rounded-full opacity-70 sm:-right-40 sm:-top-40 sm:h-[34rem] sm:w-[34rem] sm:opacity-100">
         <OjoOptico className="block h-full w-full" />

@@ -385,4 +385,13 @@ describe("Ingreso del superadmin", () => {
     expect(screen.getByText("¿Problemas? Soporte técnico")).toBeInTheDocument()
     expect(screen.queryByText(/Bienvenido de nuevo/)).toBeNull()
   })
+
+  it("con el autocompletado del navegador los campos siguen oscuros", () => {
+    render(<Login soloModal opticaPublica={null} />)
+    for (const campo of [screen.getByLabelText("Correo"), screen.getByLabelText("Contraseña")]) expect(campo.className).toContain("ing-oscuro")
+    const css = [...document.querySelectorAll("style")].map((s) => s.textContent).join(" ")
+    expect(css).toContain(".ing-oscuro:-webkit-autofill")
+    expect(css).toContain("-webkit-box-shadow: 0 0 0 1000px #17233F inset")
+    expect(css).toContain("-webkit-text-fill-color: #fff")
+  })
 })
