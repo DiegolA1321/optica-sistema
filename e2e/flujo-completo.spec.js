@@ -7,7 +7,7 @@ import { llenarFichaObligatoria, iniciarSesion, PREFIJO, nombrePrueba, cedulaVal
 test.use({ viewport: { width: 1366, height: 768 } })
 test.describe.configure({ mode: 'serial' })
 
-// Fecha ISO dentro de n días (local), para la entrega prometida del laboratorio.
+// Fecha ISO dentro de n días (local), para la fecha aproximada en que estará listo el pedido.
 function fechaEn(dias) {
   const d = new Date()
   d.setDate(d.getDate() + dias)
@@ -94,100 +94,96 @@ test('2 · Paula atiende al paciente: ficha, diagnóstico y control', async ({ p
   await expect(page.getByText(/Listo para venta/).first()).toBeVisible({ timeout: 15_000 })
 })
 
-test('3 · Vera vende con un abono dividido (efectivo y tarjeta) y luna', async ({ page }) => {
+test('3 · Vera vende desde «Nueva venta» con el último diagnóstico como guía, un abono dividido (efectivo y tarjeta) y luna: se crea el pedido', async ({ page }) => {
   await iniciarSesion(page, 'VENTAS', 'E2E')
   await page.getByRole('button', { name: /^Ventas/ }).first().click()
-  await page.getByRole('tab', { name: /Por vender/ }).click()
-  await page.getByLabel(/Buscar paciente/).fill(datos.nombre)
-  const tarjeta = page.getByRole('list', { name: 'Pacientes por vender' }).getByRole('listitem').filter({ hasText: datos.nombre })
-  await expect(tarjeta).toBeVisible({ timeout: 20_000 })
-  await tarjeta.getByRole('button', { name: 'Tomar datos del diagnóstico' }).click()
+  await page.getByRole('button', { name: 'Nueva venta' }).first().click()
   const venta = page.getByRole('dialog').last()
-  // La consulta y la luna recomendada (con el texto de la ficha) llegan precargadas; solo falta el precio de cada una.
-  await expect(venta.getByText(`Luna: ${PREFIJO}Monofocal con antirreflejo`)).toBeVisible()
-  await venta.getByLabel(/^Precio de Consulta/).fill('20')
-  await venta.getByLabel(/^Precio de Luna:/).fill('80')
-  await expect(venta.getByText('$100.00')).toBeVisible()
-  await expect(venta.getByLabel('Esta venta incluye lentes')).toBeChecked()
-  await venta.getByRole('button', { name: 'Abonos', exact: true }).click()
-  await venta.locator('#abono-inicial').fill('30')
-  // El abono inicial se paga con dos métodos a la vez: $20 en efectivo y $10 con tarjeta.
+  await venta.getByLabel('Paciente').fill(datos.nombre)
+  await venta.getByRole('button', { name: new RegExp(datos.nombre) }).click()
+  // Su último diagnóstico se ve en la venta y «Usar como guía» lleva a la luna lo que recomendó el optómetra.
+  await expect(venta.getByText(/Último diagnóstico/)).toBeVisible({ timeout: 20_000 })
+  await venta.getByRole('button', { name: 'Usar como guía' }).click()
+  await expect(venta.getByText('Usado como guía')).toBeVisible()
+  await venta.locator('#luna-precio').fill('80')
+  await venta.getByRole('button', { name: '+ Agregar luna' }).click()
+  // La consulta, como servicio.
+  await venta.getByRole('button', { name: 'Servicio', exact: true }).click()
+  await venta.getByPlaceholder(/Descripción del servicio/).fill(PREFIJO + 'Consulta')
+  await venta.getByPlaceholder('0.00').last().fill('20')
+  await venta.getByRole('button', { name: '+ Agregar línea' }).click()
+  await expect(venta.getByText('$100.00').first()).toBeVisible()
+  // Con lunas se crea el pedido: cómo lo recibe el paciente y la fecha aproximada en que estará listo.
+  await expect(venta.getByText('Incluye lunas: se creará el pedido.')).toBeVisible()
+  await expect(venta.getByRole('button', { name: 'Retira en la óptica' })).toHaveAttribute('aria-pressed', 'true')
+  // El campo de fecha es el calendario del sistema y conserva su etiqueta para lectores de pantalla.
+  await elegirFecha(venta, 'venta-fecha-pedido', fechaEn(7))
+  // Pago de hoy: $30, repartido en $20 en efectivo y $10 con tarjeta; lo demás queda como saldo.
+  await venta.getByLabel('Pago hoy').fill('30')
   await venta.getByRole('button', { name: /Dividir el pago/ }).click()
   await venta.getByLabel('Monto del pago 1').fill('20')
   await venta.getByLabel('Método del pago 2').selectOption('tarjeta')
   await venta.getByLabel('Monto del pago 2').fill('10')
   await expect(venta.getByText('Todo repartido')).toBeVisible()
-  await venta.getByRole('button', { name: 'Registrar venta' }).click()
-  await expect(page.getByText(`Venta registrada: ${datos.nombre} salió de la lista de espera.`)).toBeVisible({ timeout: 20_000 })
-
-  // Se abre sola la orden de laboratorio, con la receta de la consulta.
-  const orden = page.getByRole('dialog', { name: 'Nueva orden de laboratorio' })
-  await expect(orden).toBeVisible()
-  await orden.getByLabel('Laboratorio').fill(PREFIJO + 'Laboratorio')
-  // El campo de fecha es el calendario del sistema y conserva su etiqueta para lectores de pantalla.
-  await expect(orden.getByLabel('Entrega prometida')).toBeVisible()
-  await elegirFecha(orden, 'orden-fecha-prometida', fechaEn(7))
-  await orden.getByLabel('Observaciones').fill(PREFIJO + 'orden de prueba')
-  await orden.getByRole('button', { name: 'Crear orden', exact: true }).click()
-  await expect(orden).toHaveCount(0, { timeout: 20_000 })
+  await venta.getByRole('button', { name: 'Guardar venta' }).click()
+  await expect(venta).toHaveCount(0, { timeout: 20_000 })
 })
 
-test('4 · Vera marca la orden lista, avisa, cobra el saldo y entrega', async ({ page }) => {
+test('4 · Vera sigue el pedido: marcar listo, avisar al paciente, cobrar el saldo y entregar', async ({ page }) => {
   await iniciarSesion(page, 'VENTAS', 'E2E')
   await page.getByRole('button', { name: /^Ventas/ }).first().click()
-  await page.getByRole('tab', { name: /Órdenes de laboratorio/ }).click()
-  await page.getByLabel(/Buscar orden/).fill(datos.nombre)
-  const fila = page.getByRole('listitem').filter({ hasText: datos.nombre })
+  await page.getByRole('tab', { name: /^Pedidos/ }).click()
+  await page.getByLabel('Buscar por paciente o número de pedido').fill(datos.nombre)
+  const lista = page.getByRole('list', { name: 'Pedidos' })
+  const fila = lista.getByRole('listitem').filter({ hasText: datos.nombre })
   await expect(fila).toHaveCount(1, { timeout: 20_000 })
-  await expect(fila).toContainText(`${PREFIJO}Laboratorio`)
-  await expect(fila).toContainText('Saldo $70.00') // $100 - abono inicial de $30
+  await expect(fila).toContainText('En proceso')
+  await expect(fila).toContainText('Retira en la óptica')
 
   // Cada fila lleva UNA acción: la siguiente del proceso.
-  await fila.getByRole('button', { name: 'Marcar lista' }).click()
-  await expect(page.getByText(/lista para entregar. Avísale al paciente./)).toBeVisible({ timeout: 15_000 })
-  await expect(fila).toContainText('Falta avisar')
+  await fila.getByRole('button', { name: 'Marcar listo' }).click()
+  await expect(page.getByText(/OL-\d+ listo para entregar. Contacta al paciente para avisarle./)).toBeVisible({ timeout: 15_000 })
+  // Ya no está «En proceso»: se sigue desde «Listos para entregar».
+  await page.getByRole('group', { name: 'Estado de los pedidos' }).getByRole('button', { name: /^Listos para entregar/ }).click()
+  await expect(fila).toContainText('Listo · sin avisar', { timeout: 15_000 })
 
-  // "Avisar" solo abre WhatsApp en otra pestaña con el mensaje; no envía nada. Se cierra enseguida.
-  const [whatsapp] = await Promise.all([page.waitForEvent('popup'), fila.getByRole('button', { name: 'Avisar por WhatsApp' }).click()])
+  // «Avisar al paciente» abre la ventana única de Contactar con la plantilla «Pedido listo (retira)»; WhatsApp se abre al enviar. Se cierra enseguida.
+  await fila.getByRole('button', { name: 'Avisar al paciente' }).click()
+  const contactar = page.getByRole('dialog', { name: 'Contactar' })
+  await expect(contactar.getByLabel(/Mensaje/)).toHaveValue(/ya está listo\. Te esperamos en la óptica para retirarlo\./)
+  const [whatsapp] = await Promise.all([page.waitForEvent('popup'), contactar.getByRole('button', { name: /Enviar por WhatsApp/ }).click()])
   await whatsapp.close()
-  await expect(fila).not.toContainText('Falta avisar')
+  await expect(fila).toContainText('Listo · avisado', { timeout: 15_000 })
 
   // Con saldo, entregar pide cobrarlo antes.
   await fila.getByRole('button', { name: 'Entregar', exact: true }).click()
   const saldo = page.getByRole('dialog', { name: 'Hay un saldo por cobrar' })
-  await expect(saldo).toContainText('$70.00')
+  await expect(saldo).toContainText('$70.00') // $100 - abono inicial de $30
   await saldo.getByRole('button', { name: 'Cobrar abono' }).click()
   const abono = page.getByRole('dialog', { name: 'Registrar abono' })
   await abono.getByRole('button', { name: /Pagar el saldo completo/ }).click()
   await abono.getByLabel('Nota (opcional)').fill(`${PREFIJO}saldo`)
   await abono.getByRole('button', { name: 'Registrar abono', exact: true }).click()
   await expect(abono).toHaveCount(0, { timeout: 20_000 })
-  await expect(fila).not.toContainText(/Saldo \$/, { timeout: 15_000 })
 
   // Sin saldo, entregar es directo.
   await fila.getByRole('button', { name: 'Entregar', exact: true }).click()
-  await expect(page.getByText(/OL-\d+: entregada\./)).toBeVisible({ timeout: 15_000 })
-  // Sale de las abiertas; aparece con el filtro "Entregadas".
-  await page.getByRole('button', { name: /Filtrar/ }).click()
-  await page.getByRole('dialog', { name: /Filtrar las órdenes/ }).getByRole('button', { name: 'Entregadas' }).click()
-  await expect(fila).toContainText('Entregada', { timeout: 15_000 })
+  await expect(page.getByText(/OL-\d+: entregado\./)).toBeVisible({ timeout: 15_000 })
+  // Sale de los listos; aparece con «Entregados».
+  await page.getByRole('group', { name: 'Estado de los pedidos' }).getByRole('button', { name: /^Entregados/ }).click()
+  await expect(fila).toContainText('Entregado', { timeout: 15_000 })
 })
 
-test('4b · Cobros y saldos: lo cobrado hoy por método y el comprobante con sus abonos', async ({ page }) => {
+test('4b · La venta en la lista de Ventas: su entrega y el comprobante con sus abonos', async ({ page }) => {
   await iniciarSesion(page, 'VENTAS', 'E2E')
   await page.getByRole('button', { name: /^Ventas/ }).first().click()
-  await page.getByRole('tab', { name: /Cobros y saldos/ }).click()
-  const cobros = page.getByRole('list', { name: 'Cobros del día' })
-  const cobrosDelPaciente = cobros.getByRole('listitem').filter({ hasText: datos.nombre })
-  await expect(cobrosDelPaciente).toHaveCount(2, { timeout: 20_000 }) // el abono inicial dividido y el pago del saldo
-  await expect(cobrosDelPaciente.first()).toContainText('Efectivo $20.00 + Tarjeta $10.00')
-  const metodos = page.getByRole('list', { name: 'Cobrado por método de pago' })
-  await expect(metodos).toContainText('Efectivo')
-  await expect(metodos).toContainText('Tarjeta')
-  // El comprobante muestra quién registró cada pago y se puede reimprimir.
-  await page.getByRole('tab', { name: /Comprobantes/ }).click()
-  await page.getByLabel(/Buscar: paciente/).fill(datos.nombre)
-  await page.getByRole('button', { name: /Ver el comprobante/ }).first().click()
+  await page.getByLabel('Buscar paciente o comprobante').fill(datos.nombre)
+  const lista = page.getByRole('list', { name: 'Ventas' })
+  const fila = lista.getByRole('listitem').filter({ hasText: datos.nombre })
+  await expect(fila).toHaveCount(1, { timeout: 20_000 })
+  await expect(fila).toContainText('Pagada') // el saldo se cobró al entregar
+  await expect(fila).toContainText('Entregado') // la columna «Entrega» dice cómo va su pedido
+  await fila.getByRole('button', { name: /^Ver la venta CV-/ }).click()
   const detalle = page.getByRole('dialog', { name: /^Comprobante CV-/ })
   await expect(detalle).toContainText('Pagos')
   await expect(detalle).toContainText('Efectivo $20.00 + Tarjeta $10.00')

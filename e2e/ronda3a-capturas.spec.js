@@ -86,15 +86,15 @@ test('capturas del perfil: Resumen, Citas, Diagnóstico (con y sin refracción, 
   await expect(page.getByRole('region', { name: 'Ojo derecho' })).toContainText('Tienes miopía')
   await foto(page, 'diagnostico-con-refraccion-vista-paciente')
 
-  // Compras: contenedor blanco con «Nueva venta» en su encabezado y el estado de los lentes en la compra
+  // Compras: contenedor blanco con «Nueva venta» en su encabezado y el estado del pedido (En proceso, Listo, Entregado) dentro de la compra
   await page.getByRole('tab', { name: /Compras/ }).click()
   const compras = page.getByRole('region', { name: 'Compras del paciente' })
   await expect(compras).toBeVisible()
   await expect(compras.getByRole('button', { name: '+ Nueva venta' })).toBeVisible()
-  await expect(compras.getByText('En el laboratorio')).toBeVisible()
+  await expect(compras.getByText('En proceso')).toBeVisible()
   const [bc, bn] = [await compras.boundingBox(), await compras.getByRole('button', { name: '+ Nueva venta' }).boundingBox()]
   expect(bn.y).toBeGreaterThanOrEqual(bc.y)
   expect(bn.y + bn.height).toBeLessThanOrEqual(bc.y + 80) // dentro del encabezado del contenedor
-  await expect(page.getByRole('tab', { name: /Órdenes de laboratorio/ })).toHaveCount(0)
+  await expect(page.getByRole('tab', { name: /Órdenes de laboratorio|Pedidos/ })).toHaveCount(0)
   await foto(page, 'perfil-compras')
 })

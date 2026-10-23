@@ -65,8 +65,9 @@ export const AYUDA_POR_MODULO = [
   {
     modulo: "horario", nombre: "Mi horario",
     preguntas: [
-      { p: "¿Cuál es la diferencia entre «Horario de la óptica» y «Mi horario»?", r: "El de la óptica es el horario general (días y horas que se atiende). «Mi horario» es el tuyo: tu agenda, tus horas y tus ausencias. Cada uno se edita aparte." },
-      { p: "¿Cómo registro una ausencia?", r: "En «Mi horario», en el bloque de ausencias, pulsa «Registrar» y elige el día y las horas (o «Todo el día»). En ese rango no se te ofrecen citas." },
+      { p: "¿Cuál es la diferencia entre «Horario de la óptica» y «Mi horario»?", r: "El de la óptica es el horario general (días y horas que se atiende). «Mi horario» es el tuyo: lo asigna la administración (por defecto es el de la óptica), y ahí ves tus ausencias y puedes pedir una. Si necesitas un cambio de horario, escríbele a la administración desde Soporte." },
+      { p: "¿Cómo pido una ausencia?", r: "En «Mi horario», pulsa «Solicitar ausencia»: elige el tipo (cita médica, vacaciones, permiso personal, calamidad u otro), el día o los días, si es todo el día, la mañana o la tarde, y si quieres el motivo y un documento de respaldo (PDF o foto, hasta 5 MB; solo lo ve la administración). La administración la aprueba o la rechaza y te avisa. Al aprobarla, ese tiempo se bloquea en tu agenda y en la web." },
+      { p: "¿Cómo asigno el horario de una persona?", r: "Solo el administrador: en «Horario», pestaña «Horarios del personal», elige a la persona, activa o apaga su mañana y su tarde de cada día (debe quedar dentro del horario de la óptica) y pulsa «Guardar horario». También puedes copiarlo a otras personas o volver al horario de la óptica. Las citas que queden fuera se avisan antes de guardar." },
       { p: "¿Cómo cierro un feriado?", r: "En Citas, abre el día y usa «Cerrar este día» (con nombre opcional). No se puede cerrar un día que tiene citas por atender: primero reagéndalas o cancélalas. Requiere permiso de editar el horario de la óptica." },
     ],
   },

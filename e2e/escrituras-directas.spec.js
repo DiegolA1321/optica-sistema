@@ -100,7 +100,7 @@ test('CRM: crear una campaña (función crear_campana_crm) y que siga ahí al re
 test('Horario general: cambiar y restaurar la duración de cada cita (disponibilidad: upsert)', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Mi horario')
-  await page.getByRole('button', { name: 'Horario de la óptica' }).click()
+  await page.getByRole('tab', { name: 'Horario de la óptica' }).click()
   const campo = () => page.locator('input[type=number][step="5"]').first()
   const guardar = page.getByRole('button', { name: 'Guardar', exact: true })
   await expect(campo()).toBeVisible({ timeout: 20_000 })
@@ -110,7 +110,7 @@ test('Horario general: cambiar y restaurar la duración de cada cita (disponibil
     await conEscritura(page, 'disponibilidad', 'guardar duración', () => guardar.click())
     await page.reload()
     await irA(page, 'Mi horario')
-    await page.getByRole('button', { name: 'Horario de la óptica' }).click()
+    await page.getByRole('tab', { name: 'Horario de la óptica' }).click()
     await expect(campo()).toHaveValue(String(original + 5), { timeout: 25_000 })
   } finally {
     await page.waitForTimeout(500)
@@ -121,56 +121,39 @@ test('Horario general: cambiar y restaurar la duración de cada cita (disponibil
   }
   await page.reload()
   await irA(page, 'Mi horario')
-  await page.getByRole('button', { name: 'Horario de la óptica' }).click()
+  await page.getByRole('tab', { name: 'Horario de la óptica' }).click()
   await expect(campo()).toHaveValue(String(original), { timeout: 25_000 })
 })
 
-test('Mi horario: registrar y quitar una ausencia lejana (funciones registrar_ausencia y quitar_ausencia)', async ({ page }) => {
+test('Mi horario: solicitar una ausencia lejana y retirar la solicitud (funciones solicitar_ausencia y retirar_ausencia)', async ({ page }) => {
   const fecha = diaHabilEn(500)
   await iniciarSesion(page, 'OPTOMETRA', 'E2E')
   await irA(page, 'Mi horario')
-  await page.getByRole('main').getByRole('button', { name: 'Mi horario', exact: true }).click()
-  await page.getByRole('button', { name: 'Registrar' }).click()
-  const modal = page.getByRole('dialog', { name: 'No podré asistir' })
-  await elegirFecha(modal, 'ausencia-fecha', fecha)
-  await modal.getByRole('checkbox').check()
-  await modal.getByPlaceholder('Ej. Cita médica').fill(`${PREFIJO}ausencia de prueba`)
-  await conEscritura(page, 'rpc/registrar_ausencia', 'registrar ausencia', () => modal.getByRole('button', { name: 'Registrar', exact: true }).click())
-  const quitar = page.getByRole('button', { name: `Quitar ausencia del ${fecha}` })
-  await expect(quitar).toBeVisible({ timeout: 20_000 })
-  await conEscritura(page, 'rpc/quitar_ausencia', 'quitar ausencia', () => quitar.click())
-  await expect(quitar).toHaveCount(0, { timeout: 20_000 })
+  await page.getByRole('button', { name: 'Solicitar ausencia' }).click()
+  const modal = page.getByRole('dialog', { name: 'Solicitar ausencia' })
+  await elegirFecha(modal, 'ausencia-desde', fecha)
+  await modal.getByPlaceholder('Ej. Control médico programado').fill(`${PREFIJO}ausencia de prueba`)
+  await conEscritura(page, 'rpc/solicitar_ausencia', 'solicitar ausencia', () => modal.getByRole('button', { name: 'Enviar solicitud' }).click())
+  const retirar = page.getByRole('button', { name: /Retirar la solicitud del/ }).first()
+  await expect(retirar).toBeVisible({ timeout: 20_000 })
+  await conEscritura(page, 'rpc/retirar_ausencia', 'retirar solicitud', () => retirar.click())
+  await expect(page.getByText('Solicitud retirada.')).toBeVisible({ timeout: 20_000 })
 })
 
-// El día de hoy ya viene desplegado: pulsarlo en lunes lo cerraba y la prueba fallaba solo los lunes. Se despliega solo si está cerrado.
-async function abrirLunes(page) {
-  const lunes = page.getByRole('button', { name: /^Lunes/ })
-  if ((await lunes.getAttribute('aria-expanded')) !== 'true') await lunes.click()
-}
-
-test('Mi horario: guardar y restaurar el horario habitual propio (horarios_usuario: upsert)', async ({ page }) => {
-  await iniciarSesion(page, 'VENTAS', 'E2E')
+test('Horarios del personal: asignar y restaurar el horario de una persona (rpc guardar_horario_persona)', async ({ page }) => {
+  await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Mi horario')
-  await page.getByRole('main').getByRole('button', { name: 'Mi horario', exact: true }).click()
-  await abrirLunes(page)
-  const interruptor = () => page.getByRole('switch', { name: /la tarde$/ }).first()
+  await page.getByRole('tab', { name: /^Horarios del personal/ }).click()
+  await page.getByRole('navigation', { name: 'Personal que atiende o trabaja' }).getByText(/^Vera/).click()
+  const interruptor = () => page.getByRole('switch', { name: 'Lunes: tarde' })
   await expect(interruptor()).toBeVisible({ timeout: 20_000 })
-  const original = await interruptor().getAttribute('aria-checked')
-  const alternar = async (que) => {
-    await interruptor().click()
-    await conEscritura(page, 'horarios_usuario', que, () => page.getByRole('button', { name: 'Guardar cambios' }).click())
-    await expect(page.getByText('Guardado.')).toBeVisible({ timeout: 20_000 })
-  }
-  await alternar('guardar horario propio')
-  try {
-    await page.reload()
-    await irA(page, 'Mi horario')
-    await page.getByRole('main').getByRole('button', { name: 'Mi horario', exact: true }).click()
-    await abrirLunes(page)
-    await expect(interruptor()).toHaveAttribute('aria-checked', original === 'true' ? 'false' : 'true', { timeout: 25_000 })
-  } finally {
-    if (await interruptor().count() && (await interruptor().getAttribute('aria-checked')) !== original) await alternar('restaurar horario propio')
-  }
+  await interruptor().click() // medio día los lunes
+  await conEscritura(page, 'rpc/guardar_horario_persona', 'asignar horario', () => page.getByRole('button', { name: 'Guardar horario' }).click())
+  await expect(page.getByText(/^Horario de Vera .* guardado\.$/)).toBeVisible({ timeout: 20_000 })
+  // Se devuelve a la persona al horario de la óptica.
+  await page.getByRole('button', { name: 'Usar el horario de la óptica' }).click()
+  await conEscritura(page, 'rpc/guardar_horario_persona', 'restaurar horario', () => page.getByRole('button', { name: 'Guardar horario' }).click())
+  await expect(interruptor()).toHaveAttribute('aria-checked', 'true')
 })
 
 test('Configuración: catálogos y datos de la proforma (opticas: update)', async ({ page }) => {
