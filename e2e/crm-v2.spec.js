@@ -55,7 +55,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => { window.__abiertos = []; window.open = (url) => { window.__abiertos.push(String(url)); return null } })
 })
 
-test('1 · Contactar abre WhatsApp con el mensaje escrito, queda en Seguimiento y "volver a contactar en 3 días" saca al paciente de la lista', async ({ page }) => {
+test('1 · Contactar abre WhatsApp con el mensaje escrito, queda en el Historial de contactos y "volver a contactar en 3 días" saca al paciente de la lista', async ({ page }) => {
   await crearPacientes([A, B, C])
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await abrirCrm(page)
@@ -77,10 +77,10 @@ test('1 · Contactar abre WhatsApp con el mensaje escrito, queda en Seguimiento 
   await expect(ventana).toHaveCount(0)
   await expect(filaDe(page, A)).toHaveCount(0) // descansa hasta dentro de 3 días
 
-  // Seguimiento: el contacto, con su resultado
-  await page.getByRole('tab', { name: /Seguimiento/ }).click()
-  await page.getByLabel('Buscar un paciente en todo el historial').fill(A)
-  await expect(page.getByRole('button', { name: `Ver el contacto con ${A}` })).toContainText('Volver a contactar')
+  // Historial de contactos: el contacto, con su resultado
+  await page.getByRole('tab', { name: /Historial de contactos/ }).click()
+  await page.getByLabel('Buscar paciente').fill(A)
+  await expect(page.getByRole('list', { name: 'Contactos' }).getByRole('listitem').filter({ hasText: A })).toContainText('Volver a contactar')
 })
 
 test('2 · Llegado el día, el paciente reaparece solo, primero en la lista, y también en "Requieren atención"', async ({ page }) => {
@@ -110,9 +110,9 @@ test('3 · Si el paciente agenda una cita después del contacto, el contacto que
   await page.reload()
   await abrirCrm(page)
   await expect(filaDe(page, B)).toHaveCount(0)
-  await page.getByRole('tab', { name: /Seguimiento/ }).click()
-  await page.getByLabel('Buscar un paciente en todo el historial').fill(B)
-  await expect(page.getByRole('button', { name: `Ver el contacto con ${B}` })).toContainText('Agendó cita (automático)')
+  await page.getByRole('tab', { name: /Historial de contactos/ }).click()
+  await page.getByLabel('Buscar paciente').fill(B)
+  await expect(page.getByRole('list', { name: 'Contactos' }).getByRole('listitem').filter({ hasText: B })).toContainText('Agendó')
 })
 
 test('4 · "No desea recibir mensajes" lo saca de la lista y apaga sus dos permisos', async ({ page }) => {
@@ -150,7 +150,7 @@ test('5 · Campaña: se prepara para un grupo y cada envío queda marcado', asyn
 test('6 · Ninguna pestaña tiene desplazamiento horizontal a 1366×768', async ({ page }) => {
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await abrirCrm(page)
-  for (const pestana of ['Para contactar', 'Seguimiento', 'Campañas', 'Fidelización']) {
+  for (const pestana of ['Para contactar', 'Historial de contactos', 'Campañas', 'Fidelización']) {
     await page.getByRole('tab', { name: new RegExp(pestana) }).click()
     await expect(page.getByRole('tabpanel')).toBeVisible()
     const desborde = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
