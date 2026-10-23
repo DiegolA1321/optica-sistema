@@ -175,12 +175,6 @@ export function problemaDeDocumento(archivo) {
   return ""
 }
 
-// «9:00 AM» (sin cero adelante) a partir de «09:00».
-export function horaCorta(hhmm) {
-  const [h, m] = String(hhmm || "").split(":").map(Number)
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return ""
-  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`
-}
 
 // Esta semana de una persona: cuántas citas tiene agendadas (sin las canceladas) y cuántas horas libres le quedan según su horario y sus ausencias (de hoy en adelante).
 // `lunes` = "AAAA-MM-DD" del lunes de la semana; `ahora` = fecha y hora de Ecuador.

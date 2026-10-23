@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   horaOfrecida, disponibleEnMinuto, semanaDeLaOptica, semanaDe, horasPorSemana, resumenDeJornada, turnosFueraDeLaOptica, citasFueraDelHorario, citasEnAusencia,
-  textoCuando, diasDelRango, problemaDeDocumento, estaAusente, horaCorta, resumenSemanaPersona,
+  textoCuando, diasDelRango, problemaDeDocumento, estaAusente, resumenSemanaPersona,
 } from "./agendaPersonal"
 import { slotsDisponibles, diaTieneCupo } from "./disponibilidad"
 import { citasPorReasignar, ausenteEnHorario } from "./reasignacion"
@@ -157,9 +157,6 @@ describe("ausencias", () => {
 })
 
 describe('lo que se ve en Mi horario', () => {
-  it('la hora sin cero adelante, como en el diseño', () => {
-    expect([horaCorta('09:00'), horaCorta('13:00'), horaCorta('14:30'), horaCorta('00:15'), horaCorta('12:00')]).toEqual(['9:00 AM', '1:00 PM', '2:30 PM', '12:15 AM', '12:00 PM'])
-  })
   it('esta semana: las citas agendadas (sin canceladas) y las horas libres según su horario y sus ausencias', () => {
     const lunes = '2099-01-05'
     const ahora = new Date(2099, 0, 5, 7, 0) // el lunes, antes de abrir

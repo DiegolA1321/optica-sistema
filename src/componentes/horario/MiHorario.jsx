@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { horaSinCero } from "../../utilidades/formatoFecha"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import { Insignia } from "../ventas/Lista"
 import { CLASE_ACCION_PRINCIPAL } from "../ventas/estilos"
@@ -8,9 +9,9 @@ import VentanaSolicitarAusencia from "./VentanaSolicitarAusencia"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
 import { ETIQUETAS_DIA, hoyISO } from "../../utilidades/disponibilidad"
 import { lunesDeSemana } from "../../utilidades/calendarioSemana"
-import { ESTADOS_AUSENCIA, ORDEN_DIAS, etiquetaTipoAusencia, horaCorta, resumenSemanaPersona, semanaDe, textoCuando } from "../../utilidades/agendaPersonal"
+import { ESTADOS_AUSENCIA, ORDEN_DIAS, etiquetaTipoAusencia, resumenSemanaPersona, semanaDe, textoCuando } from "../../utilidades/agendaPersonal"
 
-const TEXTO_TURNO = (t) => (t?.activo ? `${horaCorta(t.inicio)} a ${horaCorta(t.fin)}` : null)
+const TEXTO_TURNO = (t) => (t?.activo ? `${horaSinCero(t.inicio)} a ${horaSinCero(t.fin)}` : null)
 
 // «Mi horario» (todos los roles): su horario de solo lectura (lo asigna la administración), sus ausencias con su estado y «Solicitar ausencia».
 export default function MiHorario({ usuario, esProfesional, disponibilidad, citas = [], datos, onAviso }) {

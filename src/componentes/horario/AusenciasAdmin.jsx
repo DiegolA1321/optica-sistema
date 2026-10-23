@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { horaSinCero } from "../../utilidades/formatoFecha"
 import { AlertTriangle, CalendarX } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import { supabase } from "../../lib/supabaseClient"
@@ -158,7 +159,7 @@ function VentanaAprobar({ ausencia, citas: enTiempo, miembros, citas, setCitas, 
               <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-800">{c.paciente}</p>
-                  <p className="text-xs text-slate-500">{c.fecha} · {c.hora}</p>
+                  <p className="text-xs text-slate-500">{c.fecha} · {horaSinCero(c.hora)}</p>
                 </div>
                 {otros.length > 0 && (
                   <>

@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import CampoHora from "../CampoHora"
+import { horaSinCero } from "../../utilidades/formatoFecha"
 import { AlertTriangle, User } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import { Cascaron } from "../AtencionPaciente"
@@ -122,9 +124,9 @@ export default function HorariosPersonal({ miembros, disponibilidad, citas = [],
                     {t.activo ? (
                       <>
                         <span className="text-sm text-slate-600">{ETIQUETA_TURNO[turno]}:</span>
-                        <input type="time" value={t.inicio} onChange={(e) => cambiar(dia, turno, { inicio: e.target.value })} aria-label={`${ETIQUETAS_DIA[dia]}, ${ETIQUETA_TURNO[turno].toLowerCase()}: desde`} aria-invalid={mal} className={CAMPO_HORA + (mal ? " border-red-400" : "")} />
+                        <CampoHora sinCero value={t.inicio} onChange={(v) => cambiar(dia, turno, { inicio: v })} aria-label={`${ETIQUETAS_DIA[dia]}, ${ETIQUETA_TURNO[turno].toLowerCase()}: desde`} aria-invalid={mal} className={CAMPO_HORA + (mal ? " border-red-400" : "")} />
                         <span className="text-sm text-slate-500">a</span>
-                        <input type="time" value={t.fin} onChange={(e) => cambiar(dia, turno, { fin: e.target.value })} aria-label={`${ETIQUETAS_DIA[dia]}, ${ETIQUETA_TURNO[turno].toLowerCase()}: hasta`} aria-invalid={mal} className={CAMPO_HORA + (mal ? " border-red-400" : "")} />
+                        <CampoHora sinCero value={t.fin} onChange={(v) => cambiar(dia, turno, { fin: v })} aria-label={`${ETIQUETAS_DIA[dia]}, ${ETIQUETA_TURNO[turno].toLowerCase()}: hasta`} aria-invalid={mal} className={CAMPO_HORA + (mal ? " border-red-400" : "")} />
                       </>
                     ) : (
                       <span className="text-sm text-slate-400">{ETIQUETA_TURNO[turno]}: no trabaja</span>
@@ -156,7 +158,7 @@ export default function HorariosPersonal({ miembros, disponibilidad, citas = [],
                 <li key={c.id} className="flex items-center gap-2 px-3 py-2 text-sm">
                   <User size={13} className="shrink-0 text-slate-500" aria-hidden="true" />
                   <span className="truncate font-semibold text-slate-700">{c.paciente}</span>
-                  <span className="ml-auto shrink-0 text-xs text-slate-500">{c.fecha} · {c.hora}</span>
+                  <span className="ml-auto shrink-0 text-xs text-slate-500">{c.fecha} · {horaSinCero(c.hora)}</span>
                 </li>
               ))}
             </ul>

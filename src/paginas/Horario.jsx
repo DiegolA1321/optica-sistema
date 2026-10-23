@@ -1,6 +1,8 @@
 "use client"
 
 import { etiquetaEstadoCita } from "../utilidades/estadosCita"
+import CampoHora from "../componentes/CampoHora"
+import { horaSinCero } from "../utilidades/formatoFecha"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -465,12 +467,12 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ci
                               </div>
                               {s.activo && (
                                 <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                                  <input
-                                    type="time" value={s.inicio} onChange={(e) => actualizarBorrador(dia, clave, { inicio: e.target.value })}
+                                  <CampoHora
+                                    value={s.inicio} onChange={(v) => actualizarBorrador(dia, clave, { inicio: v })}
                                     className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500"
                                   />
-                                  <input
-                                    type="time" value={s.fin} onChange={(e) => actualizarBorrador(dia, clave, { fin: e.target.value })}
+                                  <CampoHora
+                                    value={s.fin} onChange={(v) => actualizarBorrador(dia, clave, { fin: v })}
                                     className="w-full rounded-lg border border-slate-200/60 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus-visible:border-blue-500"
                                   />
                                 </div>
@@ -677,7 +679,7 @@ export default function Horario({ usuario, disponibilidad, setDisponibilidad, ci
                 <div key={c.id} className="flex items-center gap-2 px-3 py-2 text-sm">
                   <User size={13} className="shrink-0 text-slate-500" />
                   <span className="truncate font-semibold text-slate-700">{c.paciente}</span>
-                  <span className="ml-auto shrink-0 font-mono text-xs text-slate-500">{c.fecha} · {c.hora}</span>
+                  <span className="ml-auto shrink-0 font-mono text-xs text-slate-500">{c.fecha} · {horaSinCero(c.hora)}</span>
                 </div>
               ))}
             </div>
@@ -740,7 +742,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
                 <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-slate-700">{c.paciente}</p>
-                    <p className="text-xs text-slate-500">{c.hora}</p>
+                    <p className="text-xs text-slate-500">{horaSinCero(c.hora)}</p>
                   </div>
                   <span className={"shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold " + (ESTADO_BADGE_CLASE[c.estado] || ESTADO_BADGE_CLASE.Pendiente)}>
                     {etiquetaEstadoCita(c.estado)}
@@ -765,7 +767,7 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {slotsLibres.map((s) => (
-                    <span key={s.hora} className="rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{s.hora}</span>
+                    <span key={s.hora} className="rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{horaSinCero(s.hora)}</span>
                   ))}
                 </div>
               )}
@@ -791,9 +793,9 @@ function EditorExcepcion({ fecha, excepcion, horarioBase, disponibilidad, citas,
               </div>
               {valor.activo && (
                 <div className="mt-2.5 grid grid-cols-2 gap-2">
-                  <input type="time" value={valor.inicio || ""} onChange={(e) => setValor((v) => ({ ...v, inicio: e.target.value }))}
+                  <CampoHora sinCero value={valor.inicio || ""} onChange={(h) => setValor((v) => ({ ...v, inicio: h }))}
                     className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
-                  <input type="time" value={valor.fin || ""} onChange={(e) => setValor((v) => ({ ...v, fin: e.target.value }))}
+                  <CampoHora sinCero value={valor.fin || ""} onChange={(h) => setValor((v) => ({ ...v, fin: h }))}
                     className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-2 py-2 text-sm font-semibold text-slate-700 outline-none focus-visible:border-blue-500" />
                 </div>
               )}

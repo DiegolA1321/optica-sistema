@@ -254,7 +254,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
   const [horaPersonalizada, setHoraPersonalizada] = useState(false)
   // Un paciente que llegó (hora real) y la cita es de hoy: al confirmar pasa directo a "En Atención" y abre la ficha clínica
   // (antes era un botón aparte, "Atender ahora"; es lo mismo que "Llegó en un horario diferente").
-  const [horaCustom, setHoraCustom] = useState("") // "HH:MM" 24h, del <input type="time">
+  const [horaCustom, setHoraCustom] = useState("") // "HH:MM" 24h, del campo CampoHora
   const [duracionCustom, setDuracionCustom] = useState(disponibilidad?.duracionCita || 40)
   const [errorHorarioCustom, setErrorHorarioCustom] = useState("")
   // "Atender ahora" — el paciente ya está físicamente en el local (walk-in o

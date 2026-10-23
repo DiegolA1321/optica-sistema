@@ -114,6 +114,9 @@ export function hora(valor) {
   return `${dos(h % 12 === 0 ? 12 : h % 12)}:${dos(m)} ${h < 12 ? "AM" : "PM"}`
 }
 
+// La misma hora sin el cero de adelante ("2:30 PM"): la que se lee en los horarios de trabajo (Horario, Mi horario).
+export const horaSinCero = (valor) => hora(valor).replace(/^0/, "")
+
 // Fecha y hora juntas: "7 oct, 08:19 AM" (o "7 oct 2026, 08:19 AM" con anio: true), para registros.
 export function fechaHoraLegible(valor, { anio = false } = {}) {
   const f = valor instanceof Date ? valor : new Date(valor)

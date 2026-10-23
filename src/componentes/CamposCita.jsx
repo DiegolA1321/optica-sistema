@@ -1,6 +1,7 @@
 "use client"
 
 import { ahoraEcuador } from "../utilidades/horaEcuador"
+import CampoHora from "./CampoHora"
 import { hoyISO } from "../utilidades/disponibilidad"
 import SelectorAsignado from "./SelectorAsignado"
 import SelectorFechaHora from "./SelectorFechaHora"
@@ -66,11 +67,11 @@ export default function CamposCita({ prefijoId, motivosConsulta = [], equipo = [
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <label htmlFor={prefijoId + "-hora-real"} className="mb-1 block text-xs font-semibold text-slate-500">Hora real</label>
-              <input
+              <CampoHora
                 id={prefijoId + "-hora-real"}
-                type="time"
+                paso={5}
                 value={horaCustom}
-                onChange={(e) => { setHoraCustom(e.target.value); limpiarErrorHorario() }}
+                onChange={(v) => { setHoraCustom(v); limpiarErrorHorario() }}
                 className="w-full rounded-lg border border-slate-200/60 bg-white px-2.5 py-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-50"
               />
             </div>
