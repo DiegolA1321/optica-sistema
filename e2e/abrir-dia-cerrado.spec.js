@@ -51,7 +51,7 @@ test('el administrador abre un domingo solo para esa fecha, aparece en Mi horari
 
   // Mi horario lo refleja como cambio puntual y sin reservas web
   await page.keyboard.press('Escape')
-  await page.getByRole('button', { name: 'Mi horario', exact: true }).first().click()
+  await page.getByRole('button', { name: 'Horario', exact: true }).first().click()
   await expect(page.getByText(/Próximos cambios sobre (el|tu) horario habitual/)).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText(/Abierto por/).first()).toBeVisible()
   await expect(page.getByText(/Solo personal|También web/)).toHaveCount(0)
@@ -148,7 +148,7 @@ test('cerrar un día puntual con nombre de feriado: se ve en Citas (Semana, Mes 
   await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/feriado-2-semana.png' })
 
   // Mi horario: la lista muestra el nombre; desde ahí se vuelve al horario habitual
-  await page.getByRole('button', { name: 'Mi horario', exact: true }).first().click()
+  await page.getByRole('button', { name: 'Horario', exact: true }).first().click()
   const fila = page.getByText(/Cerrado · Feriado: Día de los Difuntos/).first().locator('xpath=ancestor::div[contains(@class,"justify-between")][1]')
   await expect(fila).toBeVisible({ timeout: 15_000 })
   await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/feriado-3-mi-horario.png' })

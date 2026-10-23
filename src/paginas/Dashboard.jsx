@@ -211,7 +211,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
       }
       if (esAsistente) return usuario?.permisos?.[o.id] !== false
       return true
-    }),
+    // El administrador tiene el horario de la óptica, el del personal y las ausencias: el módulo se llama «Horario». Los demás roles solo ven el suyo: «Mi horario».
+    }).map((o) => (o.id === "horario" && esAdmin && vista?.tipo !== "rol" ? { ...o, nombre: "Horario" } : o)),
     [esAsistente, esAdmin, usuario, vista], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
