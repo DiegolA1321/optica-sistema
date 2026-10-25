@@ -156,31 +156,32 @@ test('Horarios del personal: asignar y restaurar el horario de una persona (rpc 
   await expect(interruptor()).toHaveAttribute('aria-checked', 'true')
 })
 
-test('Configuración: catálogos y datos de la proforma (opticas: update)', async ({ page }) => {
+test('Configuración: datos de la óptica y catálogos (opticas: update)', async ({ page }) => {
   const marca = sufijo()
   await iniciarSesion(page, 'ADMIN', 'E2E')
   await irA(page, 'Configuración')
 
-  // Datos de la proforma: se cambia la dirección y se restaura la original.
-  await page.getByRole('tab', { name: 'Catálogos' }).click()
+  // Datos de la óptica (Página pública): se cambia la dirección y se restaura la original.
+  await page.getByRole('tab', { name: 'Página pública' }).click()
   const direccion = page.getByLabel('Dirección')
   await expect(direccion).toBeVisible({ timeout: 20_000 })
   const original = await direccion.inputValue()
   try {
     await direccion.fill(`${PREFIJO}dirección ${marca}`)
-    await conEscritura(page, 'opticas', 'guardar datos de la proforma', () => page.getByRole('button', { name: 'Guardar datos' }).click())
+    await conEscritura(page, 'opticas', 'guardar datos de la óptica', () => page.getByRole('button', { name: 'Guardar datos de la óptica' }).click())
     await page.reload()
     await irA(page, 'Configuración')
-    await page.getByRole('tab', { name: 'Catálogos' }).click()
+    await page.getByRole('tab', { name: 'Página pública' }).click()
     await expect(page.getByLabel('Dirección')).toHaveValue(`${PREFIJO}dirección ${marca}`, { timeout: 25_000 })
   } finally {
     const d = page.getByLabel('Dirección')
     if (await d.count() && (await d.inputValue()) !== original) {
       await d.fill(original)
-      await conEscritura(page, 'opticas', 'restaurar datos de la proforma', () => page.getByRole('button', { name: 'Guardar datos' }).click())
+      await conEscritura(page, 'opticas', 'restaurar datos de la óptica', () => page.getByRole('button', { name: 'Guardar datos de la óptica' }).click())
     }
   }
 
+  await page.getByRole('tab', { name: 'Catálogos' }).click()
   for (const [placeholder, nombre] of [
     ['Ej. Revisión de lentes de contacto', `${PREFIJO}Motivo ${marca}`],
     ['Ej. Ambliopía', `${PREFIJO}Diagnóstico ${marca}`],

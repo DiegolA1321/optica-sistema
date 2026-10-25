@@ -5,6 +5,7 @@ import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 import { useParamUrl } from "../utilidades/urlEstado"
 import { Settings, Receipt, ShieldCheck, Eye, EyeOff, Layers, CalendarClock, Stethoscope, Pencil, Trash2, Plus, CalendarX, CalendarCheck, Package, BellRing, BellOff, AlertTriangle, SlidersHorizontal, ListChecks, MonitorSmartphone, CheckCircle2, Gift } from "lucide-react"
 import PaginaPublicaEditor from "../componentes/configuracion/PaginaPublicaEditor"
+import DatosOptica from "../componentes/configuracion/DatosOptica"
 import DatosBancarios from "../componentes/DatosBancarios"
 import PanelFidelidadConfig from "../componentes/PanelFidelidadConfig"
 import AccesoSoporte from "../componentes/soporte/AccesoSoporte"
@@ -202,7 +203,7 @@ function CatalogoEditable({ icon: Icon, titulo, descripcion, items, setItems, pl
   )
 }
 
-// Datos que salen en la proforma impresa: contacto de la óptica y vigencia.
+// Datos propios de la proforma impresa: RUC y vigencia. La dirección y el teléfono salen de «Datos de la óptica» (Página pública).
 function DatosProforma({ parametrizacion, setParametrizacion, onExito, onError }) {
   const g = datosOpticaProforma(parametrizacion)
   const [borrador, setBorrador] = useState({})
@@ -217,8 +218,6 @@ function DatosProforma({ parametrizacion, setParametrizacion, onExito, onError }
     setGuardando(true)
     const { error } = (await setParametrizacion((prev) => ({
       ...prev,
-      opticaDireccion: valor("direccion", g.direccion).trim(),
-      opticaTelefono: valor("telefono", g.telefono).trim(),
       opticaRuc: valor("ruc", g.ruc).trim(),
       vigenciaProformaDias: dias,
     }))) || {}
@@ -239,10 +238,8 @@ function DatosProforma({ parametrizacion, setParametrizacion, onExito, onError }
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><Receipt size={18} /></span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold" style={{ color: INK }}>Datos de la proforma impresa</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">Salen debajo del nombre de la óptica. Los que dejes en blanco no se imprimen. La proforma indica hasta cuándo es válida.</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">Salen debajo del nombre de la óptica junto con la dirección y el teléfono (se editan en Página pública → Datos de la óptica). Si dejas el RUC en blanco no se imprime. La proforma indica hasta cuándo es válida.</p>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {campo("direccion", "Dirección", g.direccion, { maxLength: 160 })}
-            {campo("telefono", "Teléfono", g.telefono, { maxLength: 40, inputMode: "tel" })}
             {campo("ruc", "RUC", g.ruc, { maxLength: 20 })}
             {campo("dias", "Vigencia (días)", String(g.vigenciaDias), { inputMode: "numeric", "aria-invalid": diasInvalido })}
           </div>
@@ -625,6 +622,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, onNavegar,
           <p className="mb-3 text-xs leading-relaxed text-slate-500">
             Es lo primero que ve un paciente antes de agendar una cita: logo, nombre, color, textos, servicios y preguntas. Los cambios se aplican con «Guardar», al final, y antes puedes ver cómo quedan en la vista previa.
           </p>
+          <DatosOptica parametrizacion={parametrizacion} setParametrizacion={setParametrizacion} onExito={mostrarExito} onError={mostrarError} />
           <PaginaPublicaEditor
             opticaId={usuario?.opticaId}
             nombreOptica={usuario?.opticaNombre || "Tu óptica"}
@@ -632,9 +630,7 @@ export default function Configuracion({ usuario, alActualizarUsuario, onNavegar,
             logoUrl={usuario?.opticaLogoUrl}
             motivos={motivosConsulta}
             onGuardado={({ marca, logoUrl }) => alActualizarUsuario?.({ opticaMarca: marca, opticaLogoUrl: logoUrl })}
-            onNavegar={onNavegar}
-            onIrADatos={() => { setTab("catalogos"); window.scrollTo?.({ top: 0 }) }}
-          />
+            onNavegar={onNavegar}          />
         </div>
       )}
 

@@ -1,5 +1,6 @@
 // Lógica pura del portal del paciente (portal v2, 17 oct. 2026): lo que el paciente ve de sus lentes, de su control y de la óptica, con las mismas
 // funciones y los mismos estados que el sistema del personal (regla 2 y 18). El texto está pensado para una persona mayor: frases cortas, sin términos técnicos.
+import { mapaGuardado } from "./enlaceMapa"
 import { ahoraEcuador } from "./horaEcuador"
 import { fechaAISO, resumenHorarioSemanal, minutosDesdeMedianoche } from "./disponibilidad"
 import { estadoDeLaOpticaHoy } from "./portalVistas"
@@ -131,7 +132,8 @@ export function contactoDeLaOptica({ parametrizacion, disponibilidad, nombre = "
     horario: resumenHorarioSemanal(disponibilidad?.horarioSemanal),
     // «Abierto hoy hasta las 6:00 PM» / «Cerrado hoy»: la misma frase que la página pública de la óptica.
     hoy: estadoDeLaOpticaHoy(disponibilidad),
-    comoLlegarUrl: texto(parametrizacion?.opticaDireccion) ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([texto(parametrizacion?.opticaDireccion), nombre].filter(Boolean).join(", "))}` : "",
+    // El enlace de Google Maps que pegó la óptica; sin él, la dirección escrita.
+    comoLlegarUrl: mapaGuardado(parametrizacion)?.url || (texto(parametrizacion?.opticaDireccion) ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([texto(parametrizacion?.opticaDireccion), nombre].filter(Boolean).join(", "))}` : ""),
   }
 }
 export const tieneContacto = (c) => Boolean(c.direccion || c.telefono || c.horario.length)

@@ -117,8 +117,8 @@ function MuestraDeLaPagina({ f, nombreOptica, datos }) {
 
 // Editor de «Página pública»: lo que ve el paciente antes de ingresar o agendar. Un solo editor para la Configuración de cada óptica y para el panel del superadmin.
 //   opticaId, nombreOptica, marca, logoUrl: la óptica que se edita · motivos: los motivos de consulta de esa óptica (para el motivo de cada servicio)
-//   onGuardado({ marca, logoUrl }): quien llama refresca su estado en memoria · onNavegar(seccion) y onIrADatos(): enlaces de la nota «lo que ya existe no se escribe dos veces».
-export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu óptica", marca, logoUrl, motivos = [], onGuardado, onNavegar, onIrADatos }) {
+//   onGuardado({ marca, logoUrl }): quien llama refresca su estado en memoria · onNavegar(seccion): enlace de la nota «lo que ya existe no se escribe dos veces».
+export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu óptica", marca, logoUrl, motivos = [], onGuardado, onNavegar }) {
   const [base, setBase] = useState(() => formularioDesdeMarca(marca, nombreOptica, logoUrl))
   const [form, setForm] = useState(base)
   const [aviso, avisar] = useAvisoTemporal()
@@ -233,8 +233,7 @@ export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu ópti
         <p className="text-sm leading-relaxed">
           El horario sale de{" "}
           <button type="button" onClick={() => salirA(() => onNavegar?.("horario"))} className="font-semibold underline underline-offset-2 cursor-pointer">Horario</button>
-          ; la dirección y el teléfono, de{" "}
-          <button type="button" onClick={() => salirA(() => onIrADatos?.())} className="font-semibold underline underline-offset-2 cursor-pointer">Configuración → Datos de la óptica</button>.
+          ; la dirección, el teléfono y el mapa, de «Datos de la óptica» (la tarjeta de arriba).
           {" "}El nombre, el registro y la foto de cada optómetra salen de Usuarios. Aquí no se escriben dos veces.
         </p>
       </div>

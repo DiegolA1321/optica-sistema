@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Menu, X, LogIn, MapPin, Check, Star, Eye, Glasses, RefreshCcw, Sparkles, Stethoscope } from "lucide-react"
+import { Menu, X, LogIn, MapPin, Check, Star, Eye, Glasses, RefreshCcw, Sparkles, Stethoscope, Clock, Phone, Navigation } from "lucide-react"
 import BotonWhatsAppFlotante from "./BotonWhatsAppFlotante"
 import LogoOptica from "../LogoOptica"
 import OjoOptico from "./OjoOptico"
@@ -9,6 +9,7 @@ import { estadoAtencionHoy, resumenHorarioSemanal } from "../../utilidades/dispo
 import { irALegal } from "../../utilidades/resolverSitio"
 import { formatearTelefonoEC, linkWhatsApp } from "../../utilidades/whatsapp"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
+import { mapaGuardado, urlMapaIncrustado } from "../../utilidades/enlaceMapa"
 
 const NAVY = "#0B1633"
 const FONDO_SUAVE = "#F6F9FE"
@@ -60,6 +61,19 @@ function TarjetaFlotante({ className, estilo, titulo, texto, retraso }) {
   )
 }
 
+// Una fila de contacto: icono en un cuadro del color de la marca, título y su contenido.
+function FilaContacto({ Icono, color, titulo, children }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: color + "1A", color }}><Icono size={18} aria-hidden="true" /></span>
+      <div className="min-w-0">
+        <p className="font-semibold" style={{ color: NAVY }}>{titulo}</p>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export default function PaginaPublica({ opticaPublica, disponibilidad, datos, abrirLogin, alAgendar }) {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const nombre = opticaPublica?.nombre || "Tu óptica"
@@ -68,7 +82,9 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
   const degradado = degradadoMarca(color)
   const logoUrl = opticaPublica?.logo_url || ""
   const settings = opticaPublica?.settings || {}
+  const mapa = mapaGuardado(settings) // el enlace de Google Maps que pegó la óptica (con sus coordenadas)
   const direccion = (settings.opticaDireccion || "").trim()
+  const lugarMapa = direccion || mapa?.nombre || ""
   const telefono = (settings.opticaTelefono || "").trim()
   const telefonoIntl = telefono ? formatearTelefonoEC(telefono) : ""
   const horarioResumen = resumenHorarioSemanal(disponibilidad?.horarioSemanal)
@@ -89,8 +105,9 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
     nOptometras && { valor: nOptometras, etiqueta: nOptometras === 1 ? "optómetra" : "optómetras" },
   ].filter(Boolean)
 
-  const urlMapa = direccion ? `https://www.google.com/maps?q=${encodeURIComponent(direccion)}&output=embed` : ""
-  const urlComoLlegar = direccion ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion)}` : ""
+  // Con enlace de Google Maps: el mapa y «Cómo llegar» salen de ahí; sin él, de la dirección escrita.
+  const urlMapa = mapa ? urlMapaIncrustado(mapa) : direccion ? `https://www.google.com/maps?q=${encodeURIComponent(direccion)}&output=embed` : ""
+  const urlComoLlegar = mapa ? mapa.url : direccion ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion)}` : ""
 
   const botonPrincipal = (
     <button
@@ -357,46 +374,56 @@ export default function PaginaPublica({ opticaPublica, disponibilidad, datos, ab
         </section>
 
         {/* ─── Contacto ─── */}
-        <section id="contacto" aria-labelledby="t-contacto" className="scroll-mt-20 bg-white">
-          <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-12 grid grid-cols-1 gap-8 py-9 md:grid-cols-2 lg:gap-14 lg:py-11">
-            <div className="min-w-0">
-              <Eyebrow color={color}>Contacto</Eyebrow>
-              <Titulo id="t-contacto">Visítanos o escríbenos</Titulo>
-              <div className="mt-5 flex flex-col gap-4 text-sm">
-                <div>
-                  <p className="font-semibold" style={{ color: NAVY }}>Dirección</p>
-                  <p className="text-slate-600">{direccion || "La óptica aún no ha publicado su dirección."}</p>
-                </div>
+        <section id="contacto" aria-labelledby="t-contacto" className="scroll-mt-20" style={{ backgroundColor: FONDO_SUAVE }}>
+          <div className="mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-12 py-9 lg:py-11">
+            <Eyebrow color={color}>Contacto</Eyebrow>
+            <Titulo id="t-contacto">Visítanos o escríbenos</Titulo>
+            <div className="mt-6 grid grid-cols-1 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_48px_-28px_rgba(11,22,51,0.35)] md:grid-cols-5">
+              <div className="flex min-w-0 flex-col gap-5 p-6 text-sm sm:p-8 md:col-span-2">
+                <FilaContacto Icono={MapPin} color={color} titulo="Dirección">
+                  {lugarMapa ? (
+                    <>
+                      <p className="text-slate-600">{lugarMapa}</p>
+                      {direccion && mapa?.nombre && mapa.nombre.toLowerCase() !== direccion.toLowerCase() && <p className="text-xs text-slate-500">{mapa.nombre} en Google Maps</p>}
+                    </>
+                  ) : (
+                    <p className="text-slate-600">La óptica aún no ha publicado su dirección.</p>
+                  )}
+                </FilaContacto>
                 {horarioResumen.length > 0 && (
-                  <div>
-                    <p className="font-semibold" style={{ color: NAVY }}>Horario</p>
+                  <FilaContacto Icono={Clock} color={color} titulo="Horario">
                     {horarioResumen.map((h) => (
                       <p key={h.etiqueta} className="text-slate-600">{h.etiqueta} {h.horario}</p>
                     ))}
-                  </div>
+                  </FilaContacto>
                 )}
-                {(telefonoIntl || direccion) && (
-                  <div className="flex flex-wrap gap-2">
+                {telefono && (
+                  <FilaContacto Icono={Phone} color={color} titulo="Teléfono">
+                    <p className="text-slate-600">{telefono}</p>
+                  </FilaContacto>
+                )}
+                {(telefonoIntl || urlComoLlegar) && (
+                  <div className="mt-auto flex flex-wrap gap-2 pt-1">
+                    {urlComoLlegar && (
+                      <a href={urlComoLlegar} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 font-semibold text-white transition duration-200 hover:brightness-105" style={{ background: degradado }}><Navigation size={16} aria-hidden="true" /> Cómo llegar</a>
+                    )}
                     {telefonoIntl && (
                       <a href={linkWhatsApp(telefono, `Hola, quisiera agendar una cita en ${pp.nombre}.`)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-xl bg-green-700 px-4 font-semibold text-white transition-colors hover:bg-green-800">WhatsApp</a>
                     )}
                     {telefonoIntl && (
                       <a href={"tel:+" + telefonoIntl} className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 bg-white px-4 font-semibold transition-colors hover:bg-slate-50" style={{ color: NAVY }}>Llamar</a>
                     )}
-                    {direccion && (
-                      <a href={urlComoLlegar} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 bg-white px-4 font-semibold transition-colors hover:bg-slate-50" style={{ color: NAVY }}>Cómo llegar</a>
-                    )}
                   </div>
                 )}
               </div>
+              {urlMapa ? (
+                <iframe title={`Mapa de ${pp.nombre}`} src={urlMapa} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-72 w-full border-0 md:col-span-3 md:h-full md:min-h-[22rem]" />
+              ) : (
+                <div className="grid min-h-48 place-items-center p-6 text-center text-sm text-slate-500 md:col-span-3" style={{ backgroundImage: "repeating-linear-gradient(135deg,#EEF3FB 0 14px,#F6F9FE 14px 28px)" }}>
+                  <span className="flex items-center gap-2"><MapPin size={16} aria-hidden="true" /> El mapa aparecerá cuando la óptica configure su dirección.</span>
+                </div>
+              )}
             </div>
-            {urlMapa ? (
-              <iframe title={`Mapa de ${pp.nombre}`} src={urlMapa} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-64 w-full rounded-2xl border border-slate-200 md:h-full md:min-h-64" />
-            ) : (
-              <div className="grid min-h-48 place-items-center rounded-2xl border border-slate-200 p-6 text-center text-sm text-slate-500" style={{ backgroundImage: "repeating-linear-gradient(135deg,#EEF3FB 0 14px,#F6F9FE 14px 28px)" }}>
-                <span className="flex items-center gap-2"><MapPin size={16} aria-hidden="true" /> El mapa aparecerá cuando la óptica configure su dirección.</span>
-              </div>
-            )}
           </div>
         </section>
       </main>

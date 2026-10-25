@@ -8,7 +8,8 @@ dotenv.config({ path: '.env.test', quiet: true })
 dotenv.config({ path: '.env.local', quiet: true })
 
 const PUERTO = process.env.E2E_PUERTO || '5180'
-const BASE = `http://127.0.0.1:${PUERTO}`
+// Con E2E_BASE_URL (p. ej. la dirección publicada en Vercel) las pruebas corren contra ese sitio y no se levanta servidor local.
+const BASE = process.env.E2E_BASE_URL || `http://127.0.0.1:${PUERTO}`
 
 export default defineConfig({
   testDir: './e2e',
@@ -30,7 +31,7 @@ export default defineConfig({
     locale: 'es-EC',
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
-  webServer: {
+  webServer: process.env.E2E_BASE_URL ? undefined : {
     // Con E2E_PREVIEW=1 se prueba la versión de producción (build + preview): sin StrictMode ni el servidor de desarrollo.
     command: process.env.E2E_PREVIEW ? `npm run build && npm run preview -- --host 127.0.0.1 --port ${PUERTO} --strictPort` : `npm run dev -- --host 127.0.0.1 --port ${PUERTO} --strictPort`,
     url: BASE,

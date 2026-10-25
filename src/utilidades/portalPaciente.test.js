@@ -142,6 +142,11 @@ describe("la óptica, hoy", () => {
     expect(decodeURIComponent(c.comoLlegarUrl)).toContain("Av. 9 de Octubre 123, Óptica Solna")
     expect(contactoDeLaOptica({}).comoLlegarUrl).toBe("")
   })
+  it("con el enlace de Google Maps de la óptica, «Cómo llegar» abre ese enlace", () => {
+    const enlace = "https://maps.app.goo.gl/ZMMY8KdKNcP67PAB7"
+    const c = contactoDeLaOptica({ parametrizacion: { opticaDireccion: "Av. 9 de Octubre 123", opticaMapaUrl: enlace, opticaMapaLat: -0.78, opticaMapaLng: -80.23 }, nombre: "Óptica Solna" })
+    expect(c.comoLlegarUrl).toBe(enlace)
+  })
   it("dice si está abierta hoy con la función de la página pública (con el horario cargado)", () => {
     const horarioSemanal = Object.fromEntries(["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"].map((d) => [d, { manana: { activo: true, inicio: "00:00", fin: "23:59" } }]))
     const c = contactoDeLaOptica({ disponibilidad: { horarioSemanal } })
