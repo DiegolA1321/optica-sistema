@@ -41,9 +41,13 @@ function Interruptor({ activo, onClick, etiqueta }) {
 async function subirImagen(opticaId, archivo, prefijo) {
   const extension = (archivo.name.split(".").pop() || "png").toLowerCase()
   const ruta = `${opticaId}/${prefijo}${Date.now()}.${extension}`
-  const { error } = await supabase.storage.from("logos").upload(ruta, archivo, { upsert: true, contentType: archivo.type || undefined })
-  if (error) return { error: "No se pudo subir la imagen. Intenta de nuevo." }
-  return { url: supabase.storage.from("logos").getPublicUrl(ruta).data.publicUrl }
+  try {
+    const { error } = await supabase.storage.from("logos").upload(ruta, archivo, { upsert: true, contentType: archivo.type || undefined })
+    if (error) return { error: "No se pudo subir la imagen. Intenta de nuevo." }
+    return { url: supabase.storage.from("logos").getPublicUrl(ruta).data.publicUrl }
+  } catch {
+    return { error: "No se pudo subir la imagen. Revisa tu conexión e intenta de nuevo." }
+  }
 }
 
 // El número de optómetras es solo un conteo (optometrasTotal); en la página salen con nombre y foto solo quienes lo activaron en Mi cuenta.
@@ -126,6 +130,8 @@ export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu ópti
   const [subiendo, setSubiendo] = useState("") // "logo" | "imagen" | ""
   const [errorLogo, setErrorLogo] = useState("")
   const [errorImagen, setErrorImagen] = useState("")
+  const [okLogo, setOkLogo] = useState("") // «nombre.png cargado con éxito»
+  const [okImagen, setOkImagen] = useState("")
   const [confirmarPerdida, setConfirmarPerdida] = useState(null) // { aMedias: n } mientras se pregunta
   const [datos, setDatos] = useState(null) // pagina_publica_datos: { optometras, pacientesAtendidos }
   const marcaRef = useRef(marca)
@@ -170,14 +176,18 @@ export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu ópti
     if (!archivo) return
     const esLogo = que === "logo"
     const setError = esLogo ? setErrorLogo : setErrorImagen
+    const setOk = esLogo ? setOkLogo : setOkImagen
+    setOk("")
     const problema = errorDeArchivo(archivo, { tipos: esLogo ? TIPOS_LOGO : TIPOS_IMAGEN_PRINCIPAL, nombre: esLogo ? "El logo" : "La imagen" })
     if (problema) { setError(problema); return }
     setError("")
     setSubiendo(que)
-    const r = await subirImagen(opticaId, archivo, esLogo ? "" : "principal-")
-    setSubiendo("")
+    let r
+    try { r = await subirImagen(opticaId, archivo, esLogo ? "" : "principal-") } finally { setSubiendo("") }
     if (r.error) { setError(r.error); return }
     setForm((p) => ({ ...p, [esLogo ? "logoUrl" : "imagenPrincipalUrl"]: r.url }))
+    setOk(`${archivo.name} se cargó con éxito. Pulsa Guardar para aplicarlo.`)
+    avisar(`${esLogo ? "Logo" : "Imagen"} «${archivo.name}» cargado con éxito.`)
   }
 
   const contraste = avisoDeContraste(form.colorAcento)
@@ -241,7 +251,7 @@ export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu ópti
       <Seccion titulo="Logo y nombre" ayuda="Aparecen en la página pública, el ingreso, el agendamiento, el portal del paciente y los documentos que imprimes.">
         <div className="flex flex-wrap items-center gap-3">
           <LogoOptica url={form.logoUrl} nombre={form.nombreMarca || nombreOptica} color={colorLegible(form.colorAcento).color} tamano={56} ancho="ancho" />
-          <label className={"inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus-within:ring-2 focus-within:ring-blue-300 " + (subiendo === "logo" ? "pointer-events-none opacity-60" : "")}>
+          <label className={"relative inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus-within:ring-2 focus-within:ring-blue-300 " + (subiendo === "logo" ? "pointer-events-none opacity-60" : "")}>
             {subiendo === "logo" ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <ImagePlus size={15} aria-hidden="true" />}
             {subiendo === "logo" ? "Subiendo…" : form.logoUrl ? "Cambiar logo" : "Subir logo"}
             <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" aria-label="Subir logo"
@@ -250,6 +260,7 @@ export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu ópti
           {form.logoUrl && <button type="button" onClick={() => setForm((p) => ({ ...p, logoUrl: "" }))} className="text-sm font-semibold text-slate-600 underline underline-offset-2 hover:text-red-700 cursor-pointer">Quitar logo</button>}
         </div>
         {errorLogo && <p role="alert" className="text-sm font-medium text-red-600">{errorLogo}</p>}
+        {okLogo && !errorLogo && <p role="status" className="text-sm font-medium text-emerald-700">{okLogo}</p>}
         <p className="text-xs leading-relaxed text-slate-500">PNG, JPG, WEBP o SVG, hasta 2 MB. Lo mejor es un logo con fondo transparente: se muestra entero, sin deformarse ni cortarse. Sin logo se ve el ojo de marca con tu color.</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -296,7 +307,7 @@ export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu ópti
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {form.imagenPrincipalUrl && <img src={form.imagenPrincipalUrl} alt="Imagen principal actual" className="h-16 w-24 rounded-lg border border-slate-200 object-cover" />}
-          <label className={"inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus-within:ring-2 focus-within:ring-blue-300 " + (subiendo === "imagen" ? "pointer-events-none opacity-60" : "")}>
+          <label className={"relative inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus-within:ring-2 focus-within:ring-blue-300 " + (subiendo === "imagen" ? "pointer-events-none opacity-60" : "")}>
             {subiendo === "imagen" ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <ImagePlus size={15} aria-hidden="true" />}
             {subiendo === "imagen" ? "Subiendo…" : form.imagenPrincipalUrl ? "Cambiar imagen principal" : "Subir imagen principal"}
             <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" aria-label="Subir imagen principal"
@@ -305,6 +316,7 @@ export default function PaginaPublicaEditor({ opticaId, nombreOptica = "Tu ópti
           {form.imagenPrincipalUrl && <button type="button" onClick={() => setForm((p) => ({ ...p, imagenPrincipalUrl: "" }))} className="text-sm font-semibold text-slate-600 underline underline-offset-2 hover:text-red-700 cursor-pointer">Quitar imagen</button>}
         </div>
         {errorImagen && <p role="alert" className="text-sm font-medium text-red-600">{errorImagen}</p>}
+        {okImagen && !errorImagen && <p role="status" className="text-sm font-medium text-emerald-700">{okImagen}</p>}
         <p className="text-xs leading-relaxed text-slate-500">PNG, JPG o WEBP, hasta 2 MB. Si no subes una imagen, se ve el ojo animado con el color de tu óptica.</p>
       </Seccion>
 

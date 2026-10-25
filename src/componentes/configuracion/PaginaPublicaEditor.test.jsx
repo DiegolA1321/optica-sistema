@@ -135,6 +135,40 @@ describe("PaginaPublicaEditor", () => {
     expect(update.mock.calls[0][0].logo_url).toMatch(/^https:\/\/cdn\/o1\//)
   })
 
+  it("cancelar el selector de archivos (sin archivo) no cambia nada ni rompe la pantalla", () => {
+    montar()
+    fireEvent.change(screen.getByLabelText("Subir logo"), { target: { files: [] } })
+    expect(upload).not.toHaveBeenCalled()
+    expect(screen.queryByRole("alert")).toBeNull()
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled()
+    expect(screen.getByLabelText("Título del servicio 1")).toBeInTheDocument()
+  })
+
+  it("el input oculto del logo queda dentro de su etiqueta posicionada (no desplaza la pantalla al enfocarse)", () => {
+    montar()
+    expect(screen.getByLabelText("Subir logo").closest("label")).toHaveClass("relative")
+    expect(screen.getByLabelText("Subir imagen principal").closest("label")).toHaveClass("relative")
+  })
+
+  it("al cargar un logo muestra su nombre y que se cargó con éxito, y deja seguir editando", async () => {
+    montar()
+    fireEvent.change(screen.getByLabelText("Subir logo"), { target: { files: [new File(["x"], "mi-logo.png", { type: "image/png" })] } })
+    expect(await screen.findByText(/mi-logo.png se cargó con éxito. Pulsa Guardar/)).toBeInTheDocument()
+    expect(screen.getByText(/Logo «mi-logo.png» cargado con éxito/)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Quitar logo" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled()
+    expect(screen.getByText("Cambiar logo")).toBeInTheDocument()
+  })
+
+  it("si la subida falla por una excepción, avisa y no deja el botón bloqueado en «Subiendo…»", async () => {
+    upload.mockImplementationOnce(() => { throw new Error("red caída") })
+    montar()
+    fireEvent.change(screen.getByLabelText("Subir logo"), { target: { files: [new File(["x"], "a.png", { type: "image/png" })] } })
+    expect(await screen.findByRole("alert")).toHaveTextContent(/No se pudo subir la imagen/)
+    expect(screen.queryByText("Subiendo…")).toBeNull()
+    expect(screen.getByText("Subir logo")).toBeInTheDocument()
+  })
+
   it("quitar imagen deja la imagen principal vacía (vuelve el ojo animado)", async () => {
     montar({ marca: { ...marcaVieja, imagenPrincipalUrl: "https://x/i.png" } })
     fireEvent.click(screen.getByRole("button", { name: "Quitar imagen" }))
