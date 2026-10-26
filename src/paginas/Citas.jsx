@@ -42,6 +42,12 @@ import ConfirmarCitaModal from "../componentes/ConfirmarCitaModal"
 import DetalleCitaModal from "../componentes/DetalleCitaModal"
 import DiaCitasModal from "../componentes/DiaCitasModal"
 import { BarraBusquedaFiltros, PeriodoLista, NavegadorPeriodo, ConteoCitas, SelectorVistaCitas } from "../componentes/FiltrosCitas"
+import { createPortal } from "react-dom"
+import { useModoCelular } from "../utilidades/modoCelular"
+import { useConsulta } from "../componentes/portal/useAncho"
+import BarraCitasCelular from "../componentes/celular/BarraCitasCelular"
+import TarjetaCitaCelular from "../componentes/celular/TarjetaCitaCelular"
+import BotonFlotanteCelular from "../componentes/celular/BotonFlotanteCelular"
 import { useAtenderCita } from "../componentes/AtenderCitaGuardia"
 import ConfirmarOtraConsulta from "../componentes/ConfirmarOtraConsulta"
 import { atencionDeHoy } from "../utilidades/atencionDeHoy"
@@ -1032,7 +1038,11 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
   }, [])
   // La preferencia guardada se respeta, pero en pantallas angostas la semana
   // se muestra como lista (sin pisar lo que la persona eligió).
-  const vistaActiva = vista === "semana" && !cabeSemana ? "lista" : vista
+  // Celular y tablet (por debajo de 1093 px): en el celular (menos de 768 px) solo se ve la lista del día; en tablet vertical la Semana y el Mes se ven completos.
+  const celular = useModoCelular()
+  const slotSubtitulo = celular && typeof document !== "undefined" ? document.getElementById("subtitulo-celular") : null
+  const tablet = useConsulta("(min-width: 768px)", true)
+  const vistaActiva = celular ? (!tablet ? "lista" : vista) : vista === "semana" && !cabeSemana ? "lista" : vista
   const [mesVista, setMesVista] = useState(() => { const h = ahoraEcuador(); return new Date(h.getFullYear(), h.getMonth(), 1) })
 
   // Semana visible en la vista Semana (lunes, ISO); la usa también el aviso de búsqueda.
@@ -1351,6 +1361,22 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
           )
   }
 
+  // El día de la lista en el celular: sus citas como tarjetas (el mismo detalle de la computadora al tocarlas). Con varios días cada uno lleva su fecha.
+  const renderDiaCelular = ([dia, citasDia]) => (
+    <section key={dia} aria-label={etiquetaFecha(dia)} className="space-y-3">
+      {!unSoloDia && (
+        <h3 className="flex flex-wrap items-center gap-x-2 pt-1 text-lg font-bold" style={{ color: INK }}>
+          {etiquetaFecha(dia)}
+          {esHoy(dia) && <span className="rounded-full px-2.5 py-0.5 text-sm font-bold text-white" style={{ background: GRAD }}>Hoy</span>}
+          <span className="text-base font-normal text-slate-600">· {citasDia.length} {citasDia.length === 1 ? "cita" : "citas"}</span>
+        </h3>
+      )}
+      {citasDia.map((cita) => (
+        <TarjetaCitaCelular key={cita.id} cita={cita} cobroPendiente={pendientesPorCita.has(cita.id)} fechaReal={fechaRealPorCitaId.get(cita.id)?.fecha} onAbrir={abrirDetalle} />
+      ))}
+    </section>
+  )
+
   // Hoy sin citas nunca deja la pantalla en blanco: se avisa y se muestra lo
   // más cercano (criterio 1 del ingeniero).
   const anterioresVisibles = anterioresAbierto || (grupos.length === 0 && totalAnteriores > 0)
@@ -1389,6 +1415,8 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
 
   return (
     <div className={"w-full space-y-6 text-left" + (overlaySolo ? " hidden" : "")} style={{ animation: "rise-in 320ms ease-out both" }}>
+      {!celular && (
+        <>
       {/* ─── HEADER ─── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3.5">
@@ -1416,6 +1444,8 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
           </button>}
         </AccionesDeCabecera>
       </div>
+        </>
+      )}
 
       {/* ─── ÉXITO ─── */}
       {mensajeExito && <AvisoFlotante texto={mensajeExito} tipo="exito" />}
@@ -1428,6 +1458,37 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
         </div>
       )}
 
+      {celular && (
+        <div className="space-y-3">
+          {!overlaySolo && puede(usuario, "citas", "crear") && <BotonFlotanteCelular etiqueta="Agendar cita" onClick={() => abrirModal()} />}
+          {!overlaySolo && slotSubtitulo && createPortal(textoResumen, slotSubtitulo)}
+          <BarraCitasCelular avisos={avisosDelModulo} p={{
+            mostrarDias: vistaActiva === "lista",
+            diaSeleccionado: vistaActiva === "lista" && !hayRango && !buscando && filtro === "hoy" ? refLista : null,
+            hoy: hoyISO(),
+            onElegirDia: (iso) => { setRangoDesde(""); setRangoHasta(""); setBusqueda(""); setFiltro("hoy"); setRefLista(iso) },
+            etiquetas: etiquetasActivas, texto: busqueda, onTexto: setBusqueda, buscando, hayAlgo: hayFiltros, onLimpiar: limpiarFiltrosPanel,
+            textoResumen, cuantas: mostradas, esLista: vistaActiva === "lista",
+            periodos, filtro, hayRango, onPeriodo: elegirPeriodo,
+            textoRango: hayRango && rangoDesde && rangoHasta ? `${formatoFecha(rangoDesde, "medioSinAnio")} – ${formatoFecha(rangoHasta, "medioSinAnio")}` : "Rango",
+            rango: { desde: rangoDesde, hasta: rangoHasta, onDesde: setRangoDesde, onHasta: setRangoHasta },
+            onAnterior: () => moverLista(-1), onSiguiente: () => moverLista(1), tituloPeriodo: tituloLista,
+            vista: vistaActiva, onVista: setVista, mostrarVistas: tablet, secciones: seccionesFiltro,
+          }} />
+          {vistaActiva !== "lista" && (
+            <NavegadorPeriodo
+              titulo={vistaActiva === "semana" ? tituloSemana(diasSemanaVisible[0], diasSemanaVisible[6]) : formatoFecha(mesVista, "mesAnio")}
+              onAnterior={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, -7)) : irMesAnterior())}
+              onSiguiente={() => (vistaActiva === "semana" ? setSemanaLunes((l) => sumarDiasISO(l, 7)) : irMesSiguiente())}
+              etiquetaAnterior={vistaActiva === "semana" ? "Semana anterior" : "Mes anterior"}
+              etiquetaSiguiente={vistaActiva === "semana" ? "Semana siguiente" : "Mes siguiente"}
+              selector={selectorPeriodo}
+            />
+          )}
+        </div>
+      )}
+      {!celular && (
+        <>
       {/* ─── BARRA SUPERIOR ───
           Fila 1 (igual en las tres vistas): el selector de vista y, a su derecha, una sola barra de búsqueda y filtros.
           Fila 2 (misma altura): en la Lista, los atajos por tarea; en Semana y Mes, "‹ Hoy ›" con el rango visible.
@@ -1471,6 +1532,8 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
           )}
         </div>
       </div>
+        </>
+      )}
 
       {/* ─── LISTADO ─── */}
       {cargaInicial && citas.length === 0 ? (
@@ -1546,7 +1609,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
               {avisoSinCitasHoy}
             </p>
           )}
-          {recorteListado.grupos.map(renderDia)}
+          {recorteListado.grupos.map(celular ? renderDiaCelular : renderDia)}
           {faltanListado > 0 && botonVerMas(faltanListado)}
           {totalAnteriores > 0 && (
             <section aria-label="Citas anteriores">
@@ -1562,7 +1625,7 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
               </button>
               {anterioresVisibles && (
                 <div className="mt-6 space-y-8">
-                  {recorteAnteriores.grupos.map(renderDia)}
+                  {recorteAnteriores.grupos.map(celular ? renderDiaCelular : renderDia)}
                   {faltanAnteriores > 0 && botonVerMas(faltanAnteriores)}
                 </div>
               )}
