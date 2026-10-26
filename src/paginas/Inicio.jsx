@@ -55,10 +55,12 @@ import { NOMBRE_MODULO, detalleActividad, moduloDeRegistro } from "../utilidades
 import { puedeNivel } from "../utilidades/roles"
 import { saldoFactura } from "../utilidades/abonos"
 import { saldosPorPaciente, resumenSaldos, textoSaldos, textoSaldosSinNumero } from "../utilidades/saldosVentas"
-import { ordenesAtrasadas, ordenesListasSinAvisar, numeroOrden } from "../utilidades/ordenesLaboratorio"
+import { ordenesAtrasadas, ordenesListasSinAvisar, ordenesEnProceso, numeroOrden } from "../utilidades/ordenesLaboratorio"
 import { textoConteo } from "../utilidades/recordatorioConteo"
 import { etiquetaEntrega } from "../utilidades/ventasModulo"
 import { INK, GRAD_MARCA } from "@/lib/tema"
+import { useModoCelular } from "../utilidades/modoCelular"
+import { TotalesCelular, RequiereAtencionCelular, ProximaCitaCelular } from "../componentes/celular/PiezasInicioCelular"
 
 // ─── Paleta de firma (consistente con login / agenda) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -135,6 +137,8 @@ export default function Inicio({
   // RLS es la red de seguridad real si algún día cambia el gate del lado
   // del cliente.
   const esAdmin = usuario?.rol === "admin"
+  // Por debajo de 1093 px el Inicio se dibuja con la disposición de celular (mismos números, avisos y ventanas); de 1093 px en adelante no cambia nada.
+  const celular = useModoCelular()
   const escribirPorWhatsApp = useEscribirPorWhatsApp()
   const listasSinAvisar = useMemo(() => ordenesListasSinAvisar(ordenesLab), [ordenesLab])
   const atrasadas = useMemo(() => ordenesAtrasadas(ordenesLab), [ordenesLab])
@@ -275,11 +279,12 @@ export default function Inicio({
   const atencionesVista = esVistaOptometra ? atencionesAntiguas.filter(({ cita }) => esCitaPropia(cita, usuario?.id)) : atencionesAntiguas
   // Las tarjetas solo llevan a su lista (un clic en cualquier parte). Las acciones de crear van aparte, como atajos, para
   // que una misma tarjeta no haga dos cosas distintas según dónde se toque.
+  const claseAtajo = celular ? "px-4 py-2 text-base" : "px-2.5 py-1.5 text-[13px]"
   const atajosAdmin = (
-    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Atajos">
-      {puedeV("pacientes", "crear") && <button type="button" onClick={onCrearPacienteRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Registrar paciente</button>}
-      {puedeV("citas", "crear") && <button type="button" onClick={onAgendarRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Agendar cita</button>}
-      {puedeV("inventario", "crear") && <button type="button" onClick={onCrearProductoRapido} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[13px] font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer"><span aria-hidden="true">+</span> Agregar producto</button>}
+    <div className={"flex flex-wrap " + (celular ? "gap-2" : "gap-1.5")} role="group" aria-label="Atajos">
+      {puedeV("pacientes", "crear") && <button type="button" onClick={onCrearPacienteRapido} className={"flex items-center gap-1.5 rounded-full border border-slate-200 bg-white font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer " + claseAtajo}><span aria-hidden="true">+</span> Registrar paciente</button>}
+      {puedeV("citas", "crear") && <button type="button" onClick={onAgendarRapido} className={"flex items-center gap-1.5 rounded-full border border-slate-200 bg-white font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer " + claseAtajo}><span aria-hidden="true">+</span> Agendar cita</button>}
+      {puedeV("inventario", "crear") && <button type="button" onClick={onCrearProductoRapido} className={"flex items-center gap-1.5 rounded-full border border-slate-200 bg-white font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 cursor-pointer " + claseAtajo}><span aria-hidden="true">+</span> Agregar producto</button>}
     </div>
   )
   // Cuánto se dio de alta este mes: cada total lo dice junto al número, con la misma lógica en las tres tarjetas.
@@ -472,7 +477,7 @@ export default function Inicio({
     <FilaTarjetas
       titulo="Para vender"
       descripcion="lo que espera a quien vende"
-      acciones={atajosAdmin}
+      acciones={celular ? undefined : atajosAdmin}
       variante="totales"
       tarjetas={[
         { id: "listos", titulo: "Listos para venta", valor: listos.length, desc: "Esperan que se les atienda", icono: ShoppingBag, color: "green", seleccionada: tarjetaVenta === "listos", onClick: () => setTarjetaVenta("listos") },
@@ -547,7 +552,7 @@ export default function Inicio({
   // Mientras hidrata no se calcula nada: con las consultas todavía vacías, todos los pacientes salían "sin atender"
   // y con el control vencido. Los datos en caché de pacientes/citas no bastan para los números del Inicio.
   if (cargaInicial) {
-    return soloAvisosDe ? null : <InicioSkeleton />
+    return soloAvisosDe ? null : <InicioSkeleton celular={celular} />
   }
 
   const hayInactivos = inactivos.length > 0
@@ -955,6 +960,101 @@ export default function Inicio({
     )
   }
 
+  // ─── Celular y tablet (por debajo de 1093 px): los totales en dos columnas, «Requiere tu atención» en filas que se tocan y la próxima cita; el resto de los bloques
+  // del Inicio de cada rol (avisos, desenlace, agenda, actividad…) son los mismos de la computadora, apilados y en el mismo orden. ───
+  if (celular) {
+    const enProceso = ordenesEnProceso(ordenesLab)
+    const totalesCelular = plantilla === "administrador" ? [
+      veCitas && { id: "citas-hoy", titulo: "Citas hoy", valor: hoyVista.total, desc: `${hoyVista.atendidas} ${hoyVista.atendidas === 1 ? "atendida" : "atendidas"}`, onClick: () => (onVerCitas ? onVerCitas("todas", "hoy") : setVista?.("citas")) },
+      puedeV("pacientes", "ver") && { id: "pacientes", titulo: "Pacientes", valor: pacientes.length, desc: `+${pacientesEsteMes} este mes`, onClick: () => setTotalAbierto("pacientes") },
+      veVentas && { id: "ventas", titulo: "Ventas del mes", valor: dinero(ventasMes.total), desc: `${dinero(Math.max(0, ventasMes.total - ventasMes.cobrado))} por cobrar`, onClick: () => setTotalAbierto("ventas") },
+      veVentas && { id: "pedidos", titulo: "Pedidos", valor: enProceso.length, desc: atrasadas.length > 0 ? `${atrasadas.length} ${atrasadas.length === 1 ? "atrasado" : "atrasados"}` : "Ninguno atrasado", onClick: () => onVerOrdenes?.(atrasadas.length > 0 ? "atrasadas" : undefined) },
+    ].filter(Boolean) : []
+    const bAtajos = (puedeV("pacientes", "crear") || puedeV("citas", "crear") || puedeV("inventario", "crear")) && atajosAdmin
+    const verAgenda = () => (onVerCitas ? onVerCitas("todas", "hoy") : setVista?.("citas"))
+    // El optómetra ya tiene «Siguiente paciente» en su día: la próxima cita es para quien ve la agenda de todos.
+    const bProxima = veCitas && ["administrador", "recepcion", "general"].includes(plantilla) && (
+      <ProximaCitaCelular cita={siguiente} hora={siguiente ? horaSinCero(siguiente.hora) : ""} alVerAgenda={verAgenda} />
+    )
+    return (
+      <div className="w-full space-y-4 text-left">
+        <style>{`
+          @keyframes inRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+          .in-rise { animation: inRise .5s ease-out both; }
+          @media (prefers-reduced-motion: reduce) { .in-rise { animation: none !important; } }
+        `}</style>
+        {bSuspendida}
+        {bDejarCita}
+        {bReasignar}
+        {actividadAbierta && <VentanaActividad opticaId={usuario?.opticaId} onCerrar={() => setActividadAbierta(false)} />}
+        {totalAbierto && totalesVentana[totalAbierto] && <VentanaTotal total={totalesVentana[totalAbierto]} onCerrar={() => setTotalAbierto(null)} />}
+
+        {plantilla === "administrador" && (
+          <>
+            <TotalesCelular tarjetas={totalesCelular} />
+            {bAtajos}
+            {opticaSinDatos && bParaEmpezar}
+            <RequiereAtencionCelular bloques={bloquesAtencion} />
+            {bProxima}
+            {filaDesenlace}
+            {bActividad}
+          </>
+        )}
+
+        {plantilla === "optometra" && (
+          <>
+            {bAtajos}
+            <div className="space-y-3">
+              {filaDesenlace}
+              {(tarjeta || periodo !== "hoy") && bCitasPeriodo}
+            </div>
+            {bDiaOptometra}
+            {bAgendaOptometra}
+            <RequiereAtencionCelular bloques={bloquesAtencion} />
+            {bAvisos}
+          </>
+        )}
+
+        {plantilla === "recepcion" && (
+          <>
+            {bAtajos}
+            <RequiereAtencionCelular bloques={bloquesAtencion} />
+            {bProxima}
+            {bAvisos}
+            {filaDesenlace}
+            {bCitasPeriodo}
+          </>
+        )}
+
+        {plantilla === "ventas" && (
+          <>
+            {bAtajos}
+            {filaVender}
+            <RequiereAtencionCelular bloques={bloquesAtencion} />
+            {bAvisos}
+            {bListaVender}
+          </>
+        )}
+
+        {plantilla === "general" && (
+          <>
+            {bAtajos}
+            {veVentas && filaVender}
+            <RequiereAtencionCelular bloques={bloquesAtencion} />
+            {bProxima}
+            {bAvisos}
+            {veCitas && filaDesenlace}
+            {veCitas && bCitasPeriodo}
+            {veVentas && bListaVender}
+            {!veCitas && !veVentas && !veInventario && !veCrm && (
+              <EstadoVacio icon={Users} texto="Tu rol no tiene un resumen propio: usa el menú para entrar a tus módulos." />
+            )}
+          </>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="w-full space-y-4 text-left">
       <style>{`
@@ -1037,7 +1137,18 @@ export default function Inicio({
 // de un skeleton genérico, para que no haya salto de layout cuando llegan
 // los datos reales — mismo lenguaje visual (animate-pulse + slate-200/70)
 // que TablaSkeleton.jsx.
-function InicioSkeleton() {
+function InicioSkeleton({ celular = false }) {
+  if (celular) {
+    return (
+      <div className="w-full space-y-4 text-left" aria-busy="true" aria-label="Cargando el inicio">
+        <div className="grid grid-cols-2 gap-3">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="h-28 animate-pulse rounded-3xl border border-slate-200/60 bg-slate-100/70" />)}
+        </div>
+        <div className="h-64 animate-pulse rounded-3xl border border-slate-200/60 bg-slate-100/70" />
+        <div className="h-28 animate-pulse rounded-3xl border border-slate-200/60 bg-slate-100/70" />
+      </div>
+    )
+  }
   return (
     <div className="w-full space-y-6 text-left">
       <div className="h-5 w-2/3 animate-pulse rounded bg-slate-200/70" />

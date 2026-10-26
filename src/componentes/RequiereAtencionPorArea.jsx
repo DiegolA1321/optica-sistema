@@ -22,7 +22,7 @@ export const AVISOS_POR_TARJETA = 3
 const INSIGNIA = { urgente: "border-red-200 bg-red-50 text-red-700", neutro: "border-slate-200 bg-slate-50 text-slate-600", aviso: "border-amber-200 bg-amber-50 text-amber-700" }
 const iniciales = (nombre = "") => nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?"
 
-function VentanaAvisos({ bloque: bloqueCompleto, filaId, soloFila = false, onCerrar }) {
+export function VentanaAvisos({ bloque: bloqueCompleto, filaId, soloFila = false, onCerrar }) {
   // Con soloFila la ventana es la lista de ESA tarjetita; sin ella, todas las del área (el botón «Requieren atención» de cada módulo, o «N más»).
   const bloque = soloFila && filaId ? { ...bloqueCompleto, filas: bloqueCompleto.filas.filter((f) => f.id === filaId) } : bloqueCompleto
   const total = bloque.filas.reduce((n, f) => n + (f.cantidad ?? 1), 0)
