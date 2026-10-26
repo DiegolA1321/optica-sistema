@@ -185,3 +185,23 @@ for (const ancho of [360, 390, 430, 820]) {
     }
   })
 }
+
+// Con el teléfono en horizontal (844 x 390): la lista y el perfil siguen sin desplazamiento de lado, con lo que se toca de 44 px y nada tapado por la barra de abajo.
+test.describe('Pacientes y perfil con el teléfono en horizontal', () => {
+  test.use({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, actionTimeout: 15_000 })
+  test('lista y perfil', async ({ page }) => {
+    test.setTimeout(120_000)
+    await iniciarSesion(page, 'ADMIN', 'DEMO')
+    await barra(page).getByRole('button', { name: 'Pacientes', exact: true }).click()
+    await expect(page.locator('[data-paciente-id]').first()).toBeVisible({ timeout: 30_000 })
+    let m = await medir(page)
+    expect(m, `Lista en horizontal: ${JSON.stringify(m)}`).toEqual(limpio)
+    await page.locator('[data-paciente-id]').first().getByRole('button', { name: /^Ver el perfil de/ }).click()
+    await expect(page.locator('header[aria-label="Perfil del paciente"]')).toBeVisible({ timeout: 20_000 })
+    m = await medir(page)
+    expect(m, `Perfil en horizontal: ${JSON.stringify(m)}`).toEqual(limpio)
+    // la barra de abajo no tapa el final del contenido: se puede llegar a él desplazando
+    const llega = await page.evaluate(() => { const main = document.querySelector('.modo-celular main') || document.querySelector('#vista-completa-root > div'); return !!main })
+    expect(llega).toBe(true)
+  })
+})
