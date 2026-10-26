@@ -1,0 +1,39 @@
+/* El panel del personal en celular y tablet (por debajo de 1093 px). Todo lo de aquí cuelga de .modo-celular, que solo existe en esa versión:
+   de 1093 px en adelante ninguna de estas reglas se aplica a nada. */
+
+/* Lo que se toca mide al menos 44 px de alto y de ancho; lo que se escribe, 16 px de letra (así el iPhone no hace zoom al enfocarlo). */
+.modo-celular button,
+.modo-celular [role="button"],
+.modo-celular a[href],
+.modo-celular summary {
+  min-height: 44px;
+  min-width: 44px;
+}
+.modo-celular input:not([type="checkbox"]):not([type="radio"]),
+.modo-celular select,
+.modo-celular textarea {
+  font-size: 16px;
+  min-height: 44px;
+}
+
+/* Las tarjetas que son un solo botón (desenlace de las citas, Para vender): el contenido queda centrado en los 44 px mínimos, no pegado arriba. */
+.modo-celular button.items-start { align-items: center; }
+
+/* Una fila que se toca entera (Requiere tu atención, Más, Notificaciones). */
+.modo-celular .fila-tocable {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.modo-celular .fila-tocable:active { background-color: #f1f5f9; }
+
+/* La barra de abajo: icono sobre su nombre; con el teléfono en horizontal (poco alto) el icono pasa al lado del nombre para dejar sitio al contenido. */
+.modo-celular .barra-inferior button { flex-direction: column; }
+@media (orientation: landscape) and (max-height: 500px) {
+  .modo-celular .barra-inferior button { flex-direction: row; gap: 0.5rem; min-height: 44px; }
+  .modo-celular .cabecera-celular { min-height: 48px; }
+}

@@ -32,6 +32,8 @@ import {
   Loader2,
   ShoppingBag,
   Phone,
+  House,
+  Ellipsis,
 } from "lucide-react"
 import { useAvisosContacto, textoAvisoContacto } from "../utilidades/avisosContacto"
 import { usePagosTransferencia } from "../utilidades/pagosTransferencia"
@@ -86,6 +88,11 @@ import { ProveedorFidelidad, armarFidelidad } from "../componentes/FidelidadCont
 import { ProveedorParametrizacion } from "../componentes/ParametrizacionContexto"
 import { programaDe } from "../utilidades/programaFidelidad"
 import LogoOptica from "../componentes/LogoOptica"
+import { useModoCelular, esSoloComputadora, avisarSoloComputadora } from "../utilidades/modoCelular"
+import ShellCelular from "../componentes/celular/ShellCelular"
+import MasCelular from "../componentes/celular/MasCelular"
+import NotificacionesCelular from "../componentes/celular/NotificacionesCelular"
+import ModuloDeComputadora from "../componentes/celular/ModuloDeComputadora"
 
 
 // ─── Paleta de firma ───
@@ -309,6 +316,11 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   // paciente (accionPacienteInicio) en vez de solo listar a todos de nuevo.
   const [fichaClinicaPacienteOrigenId, setFichaClinicaPacienteOrigenId] = useState(null)
   const [menuAbierto, setMenuAbierto] = useState(false)
+  // Modo celular y tablet (por debajo de 1093 px): barra de abajo en vez del menú lateral. `panelCelular` es la pantalla propia que ocupa el lugar del módulo
+  // («mas» o «notificaciones»); `contactarCelular` marca que el CRM se abrió desde la pestaña «Contactar» (el resto del CRM se usa desde la computadora).
+  const celular = useModoCelular()
+  const [panelCelular, setPanelCelular] = useState(null)
+  const [contactarCelular, setContactarCelular] = useState(false)
   const [colapsado, setColapsado] = useState(false)
   const [notifAbierta, setNotifAbierta] = useState(false)
   const [userMenuAbierto, setUserMenuAbierto] = useState(false)
@@ -380,7 +392,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
   useEffect(() => {
     const alPopState = (e) => {
       const seccion = e.state?.seccion || new URLSearchParams(window.location.search).get("seccion") || "inicio"
-      if (opcionesVisibles.some((o) => o.id === seccion)) setSeccionActiva(seccion)
+      if (opcionesVisibles.some((o) => o.id === seccion)) { setSeccionActiva(seccion); setPanelCelular(null); setContactarCelular(false) }
     }
     window.addEventListener("popstate", alPopState)
     return () => window.removeEventListener("popstate", alPopState)
@@ -400,6 +412,8 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     setSeccionActiva(destino)
     setMenuAbierto(false)
     setNotifAbierta(false)
+    setPanelCelular(null)
+    setContactarCelular(false)
   }
 
   // Navegación unificada (mapea alias de otros módulos)
@@ -834,7 +848,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
             onContactarPaciente={contactarPaciente}
             onReagendarCancelada={(cita) => { setControlParaAgendar({ heredaDeCitaId: cita.id, heredaDeEstado: cita.estado, pacienteId: cita.pacienteId, fecha: cita.fecha, asignadoA: cita.asignadoA || "", motivo: cita.motivo || "" }); setAtajoInicio("citas") }}
             onCrearPacienteRapido={() => setAtajoInicio("pacientes")}
-            onCrearProductoRapido={() => setAtajoInicio("inventario")}
+            onCrearProductoRapido={() => (celular ? avisarSoloComputadora() : setAtajoInicio("inventario"))}
             onReabastecerProducto={(productoId) => {
               setProductoIdParaReabastecer(productoId)
               navegar("inventario")
@@ -853,6 +867,201 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     }
   }
 
+  // ─── Lo que es igual en computadora y en celular ───
+  const ventanasDeArriba = (
+    <>
+      {verAvisosInternos && <VentanaAvisosInternos usuario={usuario} onCerrar={() => setVerAvisosInternos(false)} />}
+      {dialogoAtenderInicio}
+    </>
+  )
+  const contenidoDelEspacio = () => (
+    <>
+          {/* Hallazgo real 2026-09-10: suspender una óptica no cortaba el
+              acceso de una sesión ya abierta, y tampoco avisaba nada — la
+              persona solo veía que las cosas empezaban a fallar sin
+              explicación. Este banner no se puede cerrar (no tiene botón de
+              cerrar a propósito) y se queda mientras opticaActiva sea
+              false — no bloquea la pantalla porque las acciones reales ya
+              fallan limpio por RLS (migración 0073), esto es solo para
+              explicar por qué. */}
+          {!opticaActiva && (
+            <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl border border-red-300 bg-red-100 p-4">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-600" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-red-900">Esta óptica fue suspendida por el administrador del sistema.</p>
+                <p className="text-xs text-red-700">Ya no puedes ver ni modificar pacientes, citas, inventario ni el resto de los datos. Contacta a soporte si esto es un error.</p>
+              </div>
+              <button type="button" onClick={() => alSalir()} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-800 transition hover:bg-red-50 cursor-pointer">
+                <LogOut size={13} /> Cerrar sesión
+              </button>
+            </div>
+          )}
+
+          {/* J7: antes un fallo de red o un RLS que negaba el acceso al cargar
+              pacientes/citas/etc. quedaba en silencio — la pantalla se veía
+              igual que "no hay datos todavía", sin ninguna forma de saber que
+              en realidad falló la carga. */}
+          {erroresCarga.length > 0 && (
+            <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200/60 bg-red-50 p-4">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-500" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-red-800">No se pudo cargar: {erroresCarga.join(", ")}.</p>
+                <p className="text-xs text-red-600">Puede que la información que ves esté vieja o incompleta. Revisa tu conexión e intenta recargar la página.</p>
+              </div>
+              <button type="button" onClick={() => window.location.reload()} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200/60 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 cursor-pointer">
+                <RefreshCw size={13} /> Recargar
+              </button>
+              <button type="button" onClick={onCerrarErroresCarga} aria-label="Cerrar aviso" className="shrink-0 rounded-lg p-1.5 text-red-400 transition hover:bg-red-100 hover:text-red-600 cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 size={28} className="animate-spin text-blue-500" /></div>}>
+            {cuerpoDeLaSeccion}
+          </Suspense>
+          {/* Con su propio Suspense (sin cargador): si el módulo aún se está bajando, el Inicio se queda tal cual en vez de taparse con un spinner. */}
+          <Suspense fallback={null}>
+            {atajoInicio && renderSeccion(atajoInicio, {
+              overlaySolo: true,
+              onOverlayCerrado: () => { setAtajoInicio(null); setControlParaAgendar(null) },
+              ...(atajoInicio === "citas" && controlParaAgendar ? { controlParaAgendar } : {}),
+              ...(atajoInicio === "pacientes" ? { accionInicial: ACCION_CREAR_PACIENTE, onAccionInicialConsumida: () => {} } : { abrirModalAlEntrar: true, onModalAlEntrarConsumido: () => {} }),
+            })}
+          </Suspense>
+          {aviso && <AvisoFlotante texto={aviso.texto ?? aviso} tipo={aviso.tipo} accion={aviso.accion ? { etiqueta: aviso.accion.etiqueta, onClick: () => { const accion = aviso.accion.onClick; setAviso(null); clearTimeout(timeoutAviso.current); accion() } } : null} />}
+    </>
+  )
+  const ventanasDeAbajo = (
+    <>
+      {/* ─── MODAL MI CUENTA ─── */}
+      {modalMiCuentaAbierto && (
+        <Cascaron titulo="Mi cuenta" subtitulo={nombreUsuario + " · " + rolUsuario} Icono={Settings} ancho="max-w-md" onCerrar={() => setModalMiCuentaAbierto(false)}
+          pie={<>
+            <span />
+            <button type="button" onClick={() => setModalMiCuentaAbierto(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
+          </>}
+        >
+          <div className="p-5">
+          {usuario?.esOptometra && <MiPresenciaPublica usuario={usuario} onAviso={(m) => mostrarAviso(m)} />}
+          <div className="mb-5 space-y-2 rounded-xl border border-slate-200/60 p-4">
+            <label htmlFor="registroProfesional" className="block text-sm font-bold" style={{ color: INK }}>
+              Número de registro profesional <span className="font-normal text-slate-400">(opcional)</span>
+            </label>
+            <p className="text-xs text-slate-500">Si atiendes pacientes tú mismo, aparece en el "Reg. Prof." de la receta impresa de las consultas que guardes.</p>
+            <div className="flex items-center gap-2">
+              <input
+                id="registroProfesional"
+                type="text"
+                value={campoRegistroProfesional}
+                onChange={(e) => setCampoRegistroProfesional(e.target.value)}
+                onBlur={guardarRegistroProfesional}
+                placeholder="Ej. SENESCYT-1234567890"
+                className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white"
+              />
+              {guardandoRegistroProfesional && <Loader2 size={16} className="shrink-0 animate-spin text-slate-400" />}
+              {registroProfesionalGuardadoOk && <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />}
+            </div>
+          </div>
+          <SeccionMfa />
+          </div>
+        </Cascaron>
+      )}
+
+      {confirmSalirFicha && (
+        <ConfirmarEliminarModal
+          titulo="¿Salir de la ficha clínica?"
+          mensaje="Tienes cambios sin guardar en la ficha clínica. Si sales ahora, se van a perder."
+          etiquetaConfirmar="Salir de todas formas"
+          onCancelar={() => setConfirmSalirFicha(null)}
+          onConfirmar={() => {
+            const destino = confirmSalirFicha
+            fichaClinicaCambiosSinGuardar.current = false
+            setConfirmSalirFicha(null)
+            irADestino(destino)
+          }}
+        />
+      )}
+      {ventanaContactar}
+    </>
+  )
+
+  // ─── Modo celular y tablet (por debajo de 1093 px): la misma información y las mismas acciones, con otra disposición ───
+  const hayOpcion = (id) => opcionesVisibles.some((o) => o.id === id)
+  const nombreEnCelular = (id) => ({ citas: "Agenda", crm: "CRM y campañas", consultas: "Ficha clínica" })[id] || opcionesVisibles.find((o) => o.id === id)?.nombre || nombreDeSeccion(id)
+  // «Contactar» abre «Para contactar» del CRM; el resto del CRM (campañas, plantillas, fidelización) se usa desde la computadora.
+  const irAContactar = () => { setAccionCrmInicio({ tab: "contactar" }); navegar("crm"); setContactarCelular(true) }
+  const abrirNotificaciones = () => setPanelCelular("notificaciones")
+  const primerNombre = nombreUsuario.split(" ")[0]
+  const pestanasCelular = [
+    { id: "inicio", nombre: "Inicio", icono: House, onClick: () => navegar("inicio") },
+    hayOpcion("citas") && { id: "citas", nombre: "Agenda", icono: Calendar, onClick: () => navegar("citas") },
+    hayOpcion("pacientes") && { id: "pacientes", nombre: "Pacientes", icono: Users, onClick: () => navegar("pacientes") },
+    hayOpcion("crm") && { id: "contactar", nombre: "Contactar", icono: MessageSquare, onClick: irAContactar },
+    { id: "mas", nombre: "Más", icono: Ellipsis, onClick: () => setPanelCelular("mas") },
+  ].filter(Boolean)
+  // La ficha clínica se abre desde una cita (Agenda) o desde un paciente: la pestaña activa es la de donde viene.
+  const seccionDeOrigen = seccionActiva === "consultas" ? fichaClinicaOrigen : seccionActiva
+  const pestanaActivaCelular = panelCelular ? "mas"
+    : seccionDeOrigen === "inicio" || seccionDeOrigen === "citas" || seccionDeOrigen === "pacientes" ? seccionDeOrigen
+    : seccionDeOrigen === "crm" && contactarCelular ? "contactar" : "mas"
+  const tituloCelular = panelCelular === "mas" ? "Más"
+    : panelCelular === "notificaciones" ? "Notificaciones"
+    : seccionActiva === "inicio" ? `${saludo}, ${primerNombre}`
+    : seccionActiva === "crm" && contactarCelular ? "Contactar"
+    : nombreEnCelular(seccionActiva)
+  const botonesDeComputadora = [
+    { id: "inicio", nombre: "Inicio", onClick: () => navegar("inicio") },
+    hayOpcion("citas") && { id: "citas", nombre: "Agenda", onClick: () => navegar("citas") },
+    hayOpcion("pacientes") && { id: "pacientes", nombre: "Pacientes", onClick: () => navegar("pacientes") },
+    hayOpcion("crm") && { id: "contactar", nombre: "Contactar", onClick: irAContactar },
+    { id: "notificaciones", nombre: "Notificaciones", onClick: abrirNotificaciones },
+  ].filter(Boolean)
+  // Ventas, Inventario, Reportes, CRM y campañas, Usuarios y permisos, Configuración y Soporte: cada persona ve solo los que ya puede usar.
+  const filasDeComputadora = ["ventas", "inventario", "reportes", "crm", "usuarios", "configuracion", "mensajes"].filter(hayOpcion).map((id) => ({ id, nombre: nombreEnCelular(id), onClick: () => navegar(id) }))
+  const filasDeMas = [
+    { id: "notificaciones", nombre: "Notificaciones", cuenta: alertas.length, onClick: abrirNotificaciones },
+    hayOpcion("horario") && { id: "horario", nombre: nombreEnCelular("horario"), onClick: () => navegar("horario") },
+    { id: "cuenta", nombre: "Mi cuenta", onClick: () => setModalMiCuentaAbierto(true) },
+  ].filter(Boolean)
+  const cuerpoCelular = () => (panelCelular === "mas" ? (
+    <MasCelular filas={filasDeMas} filasComputadora={filasDeComputadora} vistas={vistas} vista={vista} onCambiarVista={cambiarVista} onCerrarSesion={() => alSalir()} />
+  ) : panelCelular === "notificaciones" ? (
+    <NotificacionesCelular alertas={alertas.map((a) => ({ ...a, onAbrir: () => (a.alAbrir ? a.alAbrir() : navegar(a.destino)) }))} />
+  ) : esSoloComputadora(seccionActiva) && !(seccionActiva === "crm" && contactarCelular) ? (
+    <ModuloDeComputadora nombre={nombreEnCelular(seccionActiva)} botones={botonesDeComputadora} />
+  ) : renderSeccion())
+  const cuerpoDeLaSeccion = celular ? cuerpoCelular() : renderSeccion()
+
+  if (celular) {
+    return (
+      <ProveedorEscribirPorWhatsApp value={escribirPorWhatsApp}>
+      <ProveedorFidelidad value={fidelidad}>
+      <ProveedorParametrizacion value={parametrizacion}>
+        {ventanasDeArriba}
+        <ShellCelular
+          usuario={usuario}
+          titulo={tituloCelular}
+          subtitulo={!panelCelular && seccionActiva === "inicio" ? formatoFecha(ahoraEcuador(), "calendario") : null}
+          avisos={alertas.length}
+          onNotificaciones={abrirNotificaciones}
+          pestanas={pestanasCelular}
+          pestanaActiva={pestanaActivaCelular}
+          franjaSuperior={onSalirImpersonacion && (
+            <div className="relative z-30 flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg,#2563EB,#1D4ED8)" }}>
+              <span className="flex min-w-0 items-center gap-2"><ShieldAlert size={16} className="shrink-0" /> Dentro de {usuario?.opticaNombre} como superadmin</span>
+              <button type="button" onClick={onSalirImpersonacion} className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-white/15 px-3 py-1.5 font-bold"><LogOut size={14} /> Salir</button>
+            </div>
+          )}
+        >
+          {contenidoDelEspacio()}
+        </ShellCelular>
+        {ventanasDeAbajo}
+      </ProveedorParametrizacion>
+      </ProveedorFidelidad>
+      </ProveedorEscribirPorWhatsApp>
+    )
+  }
+
   // Accesibilidad de modales (audit UX, Lote 1, punto 1c)
 
   return (
@@ -860,8 +1069,7 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
     <ProveedorFidelidad value={fidelidad}>
     <ProveedorParametrizacion value={parametrizacion}>
     <div className="flex h-screen bg-slate-50 font-sans">
-      {verAvisosInternos && <VentanaAvisosInternos usuario={usuario} onCerrar={() => setVerAvisosInternos(false)} />}
-      {dialogoAtenderInicio}
+      {ventanasDeArriba}
       {/* Backdrop móvil */}
       {menuAbierto && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMenuAbierto(false)} />}
 
@@ -1115,112 +1323,12 @@ export default function Dashboard({ usuario, opticaActiva = true, cargaInicialSt
         <div className="relative flex min-h-0 flex-1 flex-col">
         <div id="vista-completa-root" />
         <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable] p-4 sm:p-6 lg:p-8 pt-3 sm:pt-3 lg:pt-4">
-          {/* Hallazgo real 2026-09-10: suspender una óptica no cortaba el
-              acceso de una sesión ya abierta, y tampoco avisaba nada — la
-              persona solo veía que las cosas empezaban a fallar sin
-              explicación. Este banner no se puede cerrar (no tiene botón de
-              cerrar a propósito) y se queda mientras opticaActiva sea
-              false — no bloquea la pantalla porque las acciones reales ya
-              fallan limpio por RLS (migración 0073), esto es solo para
-              explicar por qué. */}
-          {!opticaActiva && (
-            <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl border border-red-300 bg-red-100 p-4">
-              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-600" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-red-900">Esta óptica fue suspendida por el administrador del sistema.</p>
-                <p className="text-xs text-red-700">Ya no puedes ver ni modificar pacientes, citas, inventario ni el resto de los datos. Contacta a soporte si esto es un error.</p>
-              </div>
-              <button type="button" onClick={() => alSalir()} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-800 transition hover:bg-red-50 cursor-pointer">
-                <LogOut size={13} /> Cerrar sesión
-              </button>
-            </div>
-          )}
-
-          {/* J7: antes un fallo de red o un RLS que negaba el acceso al cargar
-              pacientes/citas/etc. quedaba en silencio — la pantalla se veía
-              igual que "no hay datos todavía", sin ninguna forma de saber que
-              en realidad falló la carga. */}
-          {erroresCarga.length > 0 && (
-            <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200/60 bg-red-50 p-4">
-              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-500" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-red-800">No se pudo cargar: {erroresCarga.join(", ")}.</p>
-                <p className="text-xs text-red-600">Puede que la información que ves esté vieja o incompleta. Revisa tu conexión e intenta recargar la página.</p>
-              </div>
-              <button type="button" onClick={() => window.location.reload()} className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200/60 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 cursor-pointer">
-                <RefreshCw size={13} /> Recargar
-              </button>
-              <button type="button" onClick={onCerrarErroresCarga} aria-label="Cerrar aviso" className="shrink-0 rounded-lg p-1.5 text-red-400 transition hover:bg-red-100 hover:text-red-600 cursor-pointer">
-                <X size={16} />
-              </button>
-            </div>
-          )}
-          <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 size={28} className="animate-spin text-blue-500" /></div>}>
-            {renderSeccion()}
-          </Suspense>
-          {/* Con su propio Suspense (sin cargador): si el módulo aún se está bajando, el Inicio se queda tal cual en vez de taparse con un spinner. */}
-          <Suspense fallback={null}>
-            {atajoInicio && renderSeccion(atajoInicio, {
-              overlaySolo: true,
-              onOverlayCerrado: () => { setAtajoInicio(null); setControlParaAgendar(null) },
-              ...(atajoInicio === "citas" && controlParaAgendar ? { controlParaAgendar } : {}),
-              ...(atajoInicio === "pacientes" ? { accionInicial: ACCION_CREAR_PACIENTE, onAccionInicialConsumida: () => {} } : { abrirModalAlEntrar: true, onModalAlEntrarConsumido: () => {} }),
-            })}
-          </Suspense>
-          {aviso && <AvisoFlotante texto={aviso.texto ?? aviso} tipo={aviso.tipo} accion={aviso.accion ? { etiqueta: aviso.accion.etiqueta, onClick: () => { const accion = aviso.accion.onClick; setAviso(null); clearTimeout(timeoutAviso.current); accion() } } : null} />}
+          {contenidoDelEspacio()}
         </div>
         </div>
       </main>
 
-      {/* ─── MODAL MI CUENTA ─── */}
-      {modalMiCuentaAbierto && (
-        <Cascaron titulo="Mi cuenta" subtitulo={nombreUsuario + " · " + rolUsuario} Icono={Settings} ancho="max-w-md" onCerrar={() => setModalMiCuentaAbierto(false)}
-          pie={<>
-            <span />
-            <button type="button" onClick={() => setModalMiCuentaAbierto(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
-          </>}
-        >
-          <div className="p-5">
-          {usuario?.esOptometra && <MiPresenciaPublica usuario={usuario} onAviso={(m) => mostrarAviso(m)} />}
-          <div className="mb-5 space-y-2 rounded-xl border border-slate-200/60 p-4">
-            <label htmlFor="registroProfesional" className="block text-sm font-bold" style={{ color: INK }}>
-              Número de registro profesional <span className="font-normal text-slate-400">(opcional)</span>
-            </label>
-            <p className="text-xs text-slate-500">Si atiendes pacientes tú mismo, aparece en el "Reg. Prof." de la receta impresa de las consultas que guardes.</p>
-            <div className="flex items-center gap-2">
-              <input
-                id="registroProfesional"
-                type="text"
-                value={campoRegistroProfesional}
-                onChange={(e) => setCampoRegistroProfesional(e.target.value)}
-                onBlur={guardarRegistroProfesional}
-                placeholder="Ej. SENESCYT-1234567890"
-                className="w-full rounded-lg border border-slate-200/60 bg-slate-50 px-3 py-2 text-sm outline-none transition focus-visible:border-blue-500 focus-visible:bg-white"
-              />
-              {guardandoRegistroProfesional && <Loader2 size={16} className="shrink-0 animate-spin text-slate-400" />}
-              {registroProfesionalGuardadoOk && <CheckCircle2 size={16} className="shrink-0 text-emerald-500" />}
-            </div>
-          </div>
-          <SeccionMfa />
-          </div>
-        </Cascaron>
-      )}
-
-      {confirmSalirFicha && (
-        <ConfirmarEliminarModal
-          titulo="¿Salir de la ficha clínica?"
-          mensaje="Tienes cambios sin guardar en la ficha clínica. Si sales ahora, se van a perder."
-          etiquetaConfirmar="Salir de todas formas"
-          onCancelar={() => setConfirmSalirFicha(null)}
-          onConfirmar={() => {
-            const destino = confirmSalirFicha
-            fichaClinicaCambiosSinGuardar.current = false
-            setConfirmSalirFicha(null)
-            irADestino(destino)
-          }}
-        />
-      )}
-      {ventanaContactar}
+      {ventanasDeAbajo}
     </div>
     </ProveedorParametrizacion>
     </ProveedorFidelidad>

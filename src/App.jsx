@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { puede } from './utilidades/permisosUi';
 import Login from './paginas/Login';
 import ResolutionGuard from './componentes/ResolutionGuard';
+import { ANCHO_ESCRITORIO } from './utilidades/modoCelular';
 import { hoyISO, fechaAISO } from './utilidades/disponibilidad';
 import { supabase, marcarSesionEsperada, habiaSesionGuardada } from './lib/supabaseClient';
 import { MENSAJE_SESION_VENCIDA, MENSAJE_SESION_CERRADA_EN_OTRA_PESTANA, MENSAJE_CIERRE_POR_INACTIVIDAD, EVENTO_GUARDAR_BORRADOR, EVENTO_SESION_PERDIDA, registrarActividad, tiempoSinActividad, segundosParaCerrar, seguirConectado, guardarMotivoCierre, leerMotivoCierre } from './utilidades/sesionPestanas';
@@ -1367,7 +1368,7 @@ function App() {
   // El personal y el superadmin (dashboard y panel) siguen con la guarda de tamaño y zoom; todo lo que ve un paciente o un visitante se adapta (regla 48).
   const pantallaDelPersonal = pantallaActual === 'dashboard' || pantallaActual === 'panel_superadmin';
   return (
-    <ResolutionGuard desactivado={!pantallaDelPersonal}>
+    <ResolutionGuard desactivado={!pantallaDelPersonal} sinBloqueoBajo={pantallaActual === 'dashboard' ? ANCHO_ESCRITORIO : 0}>
       {contenido}
       {segundosInactividad !== null && <Suspense fallback={null}><AvisoInactividad segundos={segundosInactividad} onSeguir={seguirConectadoAhora} /></Suspense>}
     </ResolutionGuard>
