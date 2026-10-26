@@ -1,15 +1,22 @@
 "use client"
 
+import { useEffect } from "react"
 import { Bell } from "lucide-react"
 import { INK } from "@/lib/tema"
 import LogoOptica from "../LogoOptica"
 import "./celular.css"
+import "./ventanas.css"
 
 // El panel del personal en celular y tablet (por debajo de 1093 px): una cabecera compacta arriba (logo de la óptica, nombre de la sección y las notificaciones),
 // el contenido en medio y la barra fija abajo, con el estilo de la del portal del paciente. Nada queda tapado por la muesca ni por la barra del iPhone
 // (env(safe-area-inset-*)) y con el teléfono en horizontal la barra y la cabecera ocupan menos alto.
 // pestanas: [{ id, nombre, icono, onClick }]; pestanaActiva: el id de la que está activa (o null si ninguna).
 export default function ShellCelular({ usuario, titulo, subtitulo, avisos = 0, onNotificaciones, pestanas, pestanaActiva, franjaSuperior = null, children }) {
+  // Las ventanas del sistema (portal de React fuera del panel) se adaptan con esta clase de <html>: solo existe mientras el panel está en modo celular.
+  useEffect(() => {
+    document.documentElement.classList.add("panel-celular")
+    return () => document.documentElement.classList.remove("panel-celular")
+  }, [])
   const lateral = "max(1rem, env(safe-area-inset-left))"
   const derecha = "max(1rem, env(safe-area-inset-right))"
   return (
@@ -22,7 +29,7 @@ export default function ShellCelular({ usuario, titulo, subtitulo, avisos = 0, o
           <div id="encabezado-slot" className="min-w-0 empty:hidden" />
           <div className="min-w-0 flex-1 leading-tight [#encabezado-slot:not(:empty)+&]:hidden">
             <p className="truncate text-lg font-bold tracking-tight" style={{ color: INK }}>{titulo}</p>
-            {subtitulo && <p className="truncate text-sm text-slate-600">{subtitulo}</p>}
+            {subtitulo ? <p className="truncate text-sm text-slate-600">{subtitulo}</p> : <p id="subtitulo-celular" className="truncate text-sm text-slate-600 empty:hidden" />}
           </div>
           <button type="button" onClick={onNotificaciones} aria-label={avisos > 0 ? `Notificaciones: ${avisos}` : "Notificaciones"} className="relative grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-full border border-slate-200 bg-white text-slate-700">
             <Bell size={20} aria-hidden="true" />

@@ -79,7 +79,7 @@ export function VentanaAvisos({ bloque: bloqueCompleto, filaId, soloFila = false
               const abierto = descartando?.filaId === f.id && descartando?.casoId === c.id
               return (
                 <li key={c.id} className="border-t border-slate-100 py-2.5">
-                  <div className="flex items-center gap-3">
+                  <div data-caso className="flex items-center gap-3">
                     {c.icono
                       ? <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600" aria-hidden="true"><c.icono size={17} /></span>
                       : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-xs font-bold text-blue-600" aria-hidden="true">{iniciales(c.nombre)}</span>}
@@ -90,7 +90,7 @@ export function VentanaAvisos({ bloque: bloqueCompleto, filaId, soloFila = false
                         {c.detalle}
                       </p>
                     </div>
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    <div data-caso-acciones className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                       {acciones.map((a) => (
                         <button key={a.etiqueta} type="button" onClick={() => ejecutar(a)} className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer">
                           {a.etiqueta}

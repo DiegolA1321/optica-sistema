@@ -1,0 +1,59 @@
+/* Las ventanas (Cascaron) en el panel del personal por debajo de 1093 px: a pantalla completa, con lo que se toca de 44 px y lo que se escribe de 16 px.
+   Todo cuelga de html.panel-celular, una clase que solo pone el modo celular del panel (ShellCelular): de 1093 px en adelante, en el portal, en la página pública
+   y en el panel del superadmin esta hoja no se aplica a nada. Las ventanas son las mismas: solo cambia cómo ocupan la pantalla. */
+
+html.panel-celular [data-ventana-fondo] {
+  padding: 0 !important;
+  align-items: stretch !important;
+}
+html.panel-celular [data-ventana] {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100dvh !important;
+  max-height: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Lo que se toca mide al menos 44 px; lo que se escribe, 16 px de letra (sin zoom del iPhone). */
+html.panel-celular [data-ventana] button,
+html.panel-celular [data-ventana] [role="button"],
+html.panel-celular [data-ventana] a[href],
+html.panel-celular [data-ventana] summary {
+  min-height: 44px;
+  min-width: 44px;
+}
+html.panel-celular [data-ventana] input:not([type="checkbox"]):not([type="radio"]),
+html.panel-celular [data-ventana] select,
+html.panel-celular [data-ventana] textarea {
+  font-size: 16px;
+  min-height: 44px;
+}
+
+/* Una casilla o un círculo de elegir se toca por toda su línea (su etiqueta), no solo por el cuadrito. */
+html.panel-celular [data-ventana] label:has(input[type="checkbox"]),
+html.panel-celular [data-ventana] label:has(input[type="radio"]) {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Las acciones quedan abajo y, si son muchas, se desplazan sin tapar el contenido. */
+html.panel-celular [data-ventana-pie] {
+  max-height: 45dvh;
+  overflow-y: auto;
+  gap: 0.5rem;
+}
+
+/* Los casos de «Requiere tu atención»: el texto arriba y las acciones apiladas debajo. */
+html.panel-celular [data-caso] { flex-wrap: wrap; }
+html.panel-celular [data-caso-acciones] {
+  flex: 1 0 100%;
+  justify-content: flex-start;
+  padding-left: 3.25rem;
+}

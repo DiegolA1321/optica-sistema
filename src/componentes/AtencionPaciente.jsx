@@ -41,9 +41,9 @@ export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-
   const Raiz = formulario ? "form" : "div"
   const refModal = useModalAccesible(true, onCerrar)
   return createPortal(
-    <div className={"fixed inset-0 flex items-center justify-center backdrop-blur-sm " + (pantallaCompletaEnCelular ? "p-0 sm:p-4 " : "p-4 ") + capa} style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: sinAnimarFondo ? "none" : "overlay-in 150ms ease-out" }} onClick={onCerrar}>
-      <Raiz ref={refModal} role="dialog" aria-modal="true" aria-label={etiqueta || titulo} {...(formulario ? { onSubmit: formulario.onSubmit, ...(formulario.noValidate ? { noValidate: true } : {}), ...(formulario.autoComplete ? { autoComplete: formulario.autoComplete } : {}) } : {})} className={"flex w-full flex-col overflow-hidden border border-slate-200/60 bg-white shadow-2xl " + (pantallaCompletaEnCelular ? "h-[100dvh] max-h-none rounded-none sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl " : "max-h-[calc(100dvh-2rem)] rounded-2xl ") + ancho} style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+    <div data-ventana-fondo className={"fixed inset-0 flex items-center justify-center backdrop-blur-sm " + (pantallaCompletaEnCelular ? "p-0 sm:p-4 " : "p-4 ") + capa} style={{ backgroundColor: "rgba(14,43,51,0.55)", animation: sinAnimarFondo ? "none" : "overlay-in 150ms ease-out" }} onClick={onCerrar}>
+      <Raiz data-ventana ref={refModal} role="dialog" aria-modal="true" aria-label={etiqueta || titulo} {...(formulario ? { onSubmit: formulario.onSubmit, ...(formulario.noValidate ? { noValidate: true } : {}), ...(formulario.autoComplete ? { autoComplete: formulario.autoComplete } : {}) } : {})} className={"flex w-full flex-col overflow-hidden border border-slate-200/60 bg-white shadow-2xl " + (pantallaCompletaEnCelular ? "h-[100dvh] max-h-none rounded-none sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl " : "max-h-[calc(100dvh-2rem)] rounded-2xl ") + ancho} style={{ animation: "modal-in 180ms cubic-bezier(0.16,1,0.3,1)" }} onClick={(e) => e.stopPropagation()}>
+        <div data-ventana-cabecera className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
             {marca || <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: GRAD }}><Icono size={21} aria-hidden="true" /></div>}
             <div className="min-w-0">
@@ -56,8 +56,8 @@ export function Cascaron({ titulo, subtitulo, derecha, onCerrar, ancho = "max-w-
             <button type="button" onClick={onCerrar} aria-label="Cerrar" className={(pantallaCompletaEnCelular ? "grid h-12 w-12 place-items-center rounded-lg " : "rounded-lg p-1.5 ") + "text-slate-500 transition-colors hover:bg-slate-100 cursor-pointer"}><X size={pantallaCompletaEnCelular ? 24 : 20} /></button>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-        {pie && <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-3">{pie}</div>}
+        <div data-ventana-cuerpo className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        {pie && <div data-ventana-pie className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-3">{pie}</div>}
       </Raiz>
     </div>,
     document.body,
