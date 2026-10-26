@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useMemo, useState } from "react"
-import { HeartHandshake, Megaphone, MessageSquareText } from "lucide-react"
+import { ChevronRight, HeartHandshake, Megaphone, MessageSquareText } from "lucide-react"
 import { GRAD_MARCA, INK } from "@/lib/tema"
 import AccionesDeCabecera from "../componentes/AccionesDeCabecera"
 import { BotonRequierenAtencion } from "../componentes/RequiereAtencionPorArea"
@@ -30,6 +30,7 @@ import { fechaLegible } from "../utilidades/formatoFecha"
 import { diaDeRegistro } from "../utilidades/periodoLista"
 import { hoyISO } from "../utilidades/disponibilidad"
 import NotaAlcance from "../componentes/NotaAlcance"
+import { useModoCelular, avisarSoloComputadora } from "../utilidades/modoCelular"
 
 const TABS = ["contactar", "seguimiento", "campanas", "fidelizacion"]
 const uno = (n, singular, plural) => (n === 1 ? singular : plural)
@@ -41,6 +42,7 @@ export default function CRM({
   usuario, crm, alcancePropio = false, pacientes = [], consultas = [], citas = [], ordenesLab = [], pases = [], facturasVenta = [], parametrizacion, setParametrizacion, cargaInicial = false,
   onVerPerfil, onRegistrarPaciente, onAviso, accionInicial, onAccionInicialConsumida,
 }) {
+  const celular = useModoCelular()
   const puedeContactar = puede(usuario, "crm", "crear")
   const puedeEditar = puede(usuario, "crm", "editar")
   const [tab, setTab] = useParamUrl("tab", "contactar", TABS)
@@ -50,6 +52,7 @@ export default function CRM({
   const [vistaFidelizacion, setVistaFidelizacion] = useState("puntaje") // el ranking con el que abre «Fidelización» (las listas de arriba eligen cuál)
   const notificar = useCallback((msg) => onAviso?.(msg), [onAviso])
   const { contactos, campanas, plantillas } = crm
+  const pestanaActiva = celular ? "contactar" : tab
   const opticaNombre = usuario?.opticaNombre || "tu óptica"
   const hoy = hoyISO()
 
@@ -161,9 +164,16 @@ export default function CRM({
   ]
 
   const cargando = cargaInicial || crm.cargando
+  // Lo que en el celular queda como «Solo en computadora»: lo demás del CRM se ve igual, pero al tocarlo solo avisa.
+  const soloEnComputadora = [
+    { id: "seguimiento", titulo: "Historial de contactos", cuenta: contactos.length },
+    { id: "campanas", titulo: "Campañas", cuenta: campanas.length },
+    { id: "fidelizacion", titulo: "Fidelización" },
+    { id: "plantillas", titulo: "Plantillas" },
+  ]
   return (
     <div className="w-full space-y-5 text-left" style={{ animation: "rise-in 320ms ease-out both" }}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {!celular && <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3.5">
           <div className="grid h-12 w-12 place-items-center rounded-2xl text-white" style={{ background: GRAD_MARCA, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}><HeartHandshake size={24} aria-hidden="true" /></div>
           <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>CRM y fidelización</h1>
@@ -178,7 +188,8 @@ export default function CRM({
             </button>
           )}
         </AccionesDeCabecera>
-      </div>
+      </div>}
+      {celular && !cargando && bloque.filas.length > 0 && <div><BotonRequierenAtencion bloque={bloque} /></div>}
       <NotaAlcance alcancePropio={alcancePropio} />
 
       {!cargando && pacientes.length === 0 ? (
@@ -193,23 +204,23 @@ export default function CRM({
               <button type="button" onClick={crm.recargar} className={CLASE_ACCION_SECUNDARIA}>Reintentar</button>
             </div>
           )}
-          <PanelCrm resumen={resumen} onVerCumpleanos={verFidelizacion("puntaje")} onVerFieles={verFidelizacion("puntaje")} onVerReferidores={() => setVentana("referidores")} onVerSeguimiento={() => setTab("seguimiento")} />
-          <Pestanas etiqueta="Secciones del CRM" pestanas={pestanas} activa={tab} onCambiar={setTab} idBase="crm" />
+          {!celular && <PanelCrm resumen={resumen} onVerCumpleanos={verFidelizacion("puntaje")} onVerFieles={verFidelizacion("puntaje")} onVerReferidores={() => setVentana("referidores")} onVerSeguimiento={() => setTab("seguimiento")} />}
+          {!celular && <Pestanas etiqueta="Secciones del CRM" pestanas={pestanas} activa={tab} onCambiar={setTab} idBase="crm" />}
 
-          <div id="crm-panel" role="tabpanel" aria-labelledby={`crm-tab-${tab}`}>
-            {tab === "contactar" && (
+          <div id="crm-panel" role="tabpanel" aria-labelledby={`crm-tab-${pestanaActiva}`}>
+            {pestanaActiva === "contactar" && (
               <PestanaParaContactar
                 filas={filas} sinPermiso={sinPermiso} filtro={filtro} onFiltro={setFiltro}
-                puedeContactar={puedeContactar} puedeCampana={puedeContactar} onContactar={contactar} onResultado={abrirResultado} onVerPerfil={onVerPerfil} onIrACampanas={() => setTab("campanas")}
+                puedeContactar={puedeContactar} puedeCampana={puedeContactar} onContactar={contactar} onResultado={abrirResultado} onVerPerfil={onVerPerfil} onIrACampanas={celular ? avisarSoloComputadora : () => setTab("campanas")}
               />
             )}
-            {tab === "seguimiento" && (
+            {pestanaActiva === "seguimiento" && (
               <PestanaSeguimiento
                 contactos={contactos} citas={citas} pacientes={pacientes} campanas={campanas} puedeContactar={puedeContactar}
                 onResultado={abrirResultadoDeContacto} onVolverAContactar={volverAContactar} onVerPerfil={onVerPerfil} onIrAContactar={() => setTab("contactar")}
               />
             )}
-            {tab === "campanas" && (
+            {pestanaActiva === "campanas" && (
               <div className="space-y-3">
                 <PestanaCampanas
                   campanas={campanas} contactos={contactos} pacientes={pacientes} consultas={consultas} puedeCrear={puedeContactar}
@@ -217,8 +228,26 @@ export default function CRM({
                 />
               </div>
             )}
-            {tab === "fidelizacion" && <PestanaFidelizacion key={vistaFidelizacion} vistaInicial={vistaFidelizacion} pacientes={pacientes} consultas={consultas} contactos={contactos} puedeContactar={puedeContactar} onSaludar={saludar} onVerPerfil={onVerPerfil} />}
+            {pestanaActiva === "fidelizacion" && <PestanaFidelizacion key={vistaFidelizacion} vistaInicial={vistaFidelizacion} pacientes={pacientes} consultas={consultas} contactos={contactos} puedeContactar={puedeContactar} onSaludar={saludar} onVerPerfil={onVerPerfil} />}
           </div>
+          {celular && (
+            <>
+              <PanelCrm resumen={resumen} onVerCumpleanos={avisarSoloComputadora} onVerFieles={avisarSoloComputadora} onVerReferidores={() => setVentana("referidores")} onVerSeguimiento={avisarSoloComputadora} />
+              <section aria-label="Solo en computadora" className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+                <h2 className="px-4 pb-1 pt-4 text-sm font-bold uppercase tracking-wide text-slate-600">Solo en computadora</h2>
+                <ul className="divide-y divide-slate-100">
+                  {soloEnComputadora.map((o) => (
+                    <li key={o.id}>
+                      <button type="button" onClick={avisarSoloComputadora} className="fila-tocable px-4 text-base font-semibold text-slate-800">
+                        <span className="min-w-0 flex-1">{o.titulo}{o.cuenta != null && <span className="ml-2 font-normal text-slate-600">{o.cuenta}</span>}</span>
+                        <ChevronRight size={18} className="shrink-0 text-slate-400" aria-hidden="true" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </>
+          )}
         </>
       )}
 

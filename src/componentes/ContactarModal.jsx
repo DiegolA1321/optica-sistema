@@ -26,6 +26,7 @@ export default function ContactarModal({ paciente, telefono, motivo, mensaje: in
       Icono={MessageCircle}
       ancho="max-w-lg"
       etiqueta="Contactar"
+      hojaEnCelular
       onCerrar={onCerrar}
       formulario={{ onSubmit: alEnviar }}
       pie={<PieFormulario onCancelar={onCerrar} etiquetaGuardar="Enviar por WhatsApp" deshabilitado={vacio} nota="Queda en el Historial de contactos del CRM." />}
