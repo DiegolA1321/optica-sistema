@@ -80,6 +80,7 @@ export default function CalendarioMes({ mes, citasPorFecha, disponibilidad, coin
                   <div className="mb-0.5 flex h-5 items-center justify-between gap-1">
                     <button
                       type="button"
+                      data-cal-numero=""
                       onClick={(e) => { e.stopPropagation(); (onDiaDetalle || onDiaClick)?.(iso) }}
                       title="Ver las citas de este día"
                       aria-label={`Ver las citas del ${formatoFecha(iso, "diaMes")}`}
@@ -101,6 +102,7 @@ export default function CalendarioMes({ mes, citasPorFecha, disponibilidad, coin
                         <button
                           type="button"
                           key={c.id}
+                          data-cal-evento=""
                           onClick={(e) => {
                             // Mismo detalle de la cita que en la lista (todas las acciones viven ahí).
                             e.stopPropagation()

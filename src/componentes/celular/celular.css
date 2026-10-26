@@ -46,3 +46,21 @@
   .modo-celular .barra-inferior button { flex-direction: row; gap: 0.5rem; min-height: 44px; }
   .modo-celular .cabecera-celular { min-height: 48px; }
 }
+
+/* Semana y Mes en tablet vertical (768 a 1092 px): las citas de los calendarios no llevan el mínimo de 44 px (se tocan por toda la tarjeta del día y el calendario es denso);
+   en la Semana el nombre pasa a dos líneas. El número del día de Mes conserva su zona táctil de 44 px sin agrandar el círculo. */
+@media (min-width: 768px) {
+  .modo-celular button[data-cal-evento] { min-height: 0; min-width: 0; }
+  .modo-celular [data-cal-evento] p:first-child,
+  .modo-celular [data-cal-evento] > div p {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    line-height: 1rem;
+  }
+  .modo-celular button[data-cal-numero] { min-height: 0; min-width: 1.25rem; position: relative; }
+  .modo-celular button[data-cal-numero]::after { content: ""; position: absolute; inset: -12px; }
+}

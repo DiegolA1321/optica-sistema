@@ -239,6 +239,7 @@ export default function CalendarioSemanal({ lunes, citas, disponibilidad, cobroP
                     <button
                       type="button"
                       key={b.cita.id}
+                      data-cal-evento=""
                       onClick={(e) => {
                         // Mismo detalle de la cita que en la lista (todas las acciones viven ahí).
                         e.stopPropagation()
