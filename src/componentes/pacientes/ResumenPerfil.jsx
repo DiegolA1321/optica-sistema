@@ -12,6 +12,7 @@ import { textoDiagnostico } from "../../utilidades/pasesVenta"
 import { ahoraEcuador } from "../../utilidades/horaEcuador"
 import { actividadReciente } from "../../utilidades/actividadReciente"
 import { useContactosDelPaciente } from "../../utilidades/contactosPaciente"
+import { useModoCelular } from "../../utilidades/modoCelular"
 
 // El Resumen del perfil, de arriba abajo: los avisos del paciente (etiquetas pequeñas con su acción), la franja con sus datos (paciente desde, total comprado, saldo y cómo llegó),
 // «Última atención» y «Actividad reciente» lado a lado, y la fidelización compacta. La última consulta y el próximo control NO van aquí: están solo en Citas.
@@ -24,7 +25,20 @@ const CARTA = "rounded-2xl border border-slate-200/60 bg-white shadow-sm"
 const ROTULO = "text-[13px] font-medium text-slate-500"
 
 export function AvisosDelPaciente({ avisos = [] }) {
+  const celular = useModoCelular()
   if (avisos.length === 0) return null
+  // En el celular cada aviso es una fila: el texto completo a la izquierda y su acción a la derecha, de 44 px.
+  if (celular) return (
+    <ul aria-label="Avisos del paciente" className="space-y-2">
+      {avisos.map((a) => (
+        <li key={a.id} role="status" className={"flex items-center gap-3 rounded-2xl px-4 py-2.5 text-base font-semibold " + TONO_AVISO[a.tono || "gris"]}>
+          <span aria-hidden="true" className={"h-2 w-2 shrink-0 rounded-full " + PUNTO_AVISO[a.tono || "gris"]} />
+          <span className="min-w-0 flex-1">{a.texto}</span>
+          {a.accion && <button type="button" onClick={a.accion.onClick} className="shrink-0 cursor-pointer rounded-xl px-2 font-bold underline">{a.accion.etiqueta}</button>}
+        </li>
+      ))}
+    </ul>
+  )
   return (
     <ul aria-label="Avisos del paciente" className="flex flex-wrap items-center gap-2.5">
       {avisos.map((a) => (

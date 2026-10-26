@@ -64,3 +64,19 @@
   .modo-celular button[data-cal-numero] { min-height: 0; min-width: 1.25rem; position: relative; }
   .modo-celular button[data-cal-numero]::after { content: ""; position: absolute; inset: -12px; }
 }
+
+/* El perfil del paciente: «Atender» y «Contactar» grandes, uno al lado del otro (con «Seguir atendiendo» y «Dejar de atender» la atención ocupa su propia fila). */
+.modo-celular .perfil-principales { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.modo-celular .perfil-principales > button,
+.modo-celular .perfil-principales > div > button {
+  flex: 1 1 9rem;
+  min-height: 52px;
+  justify-content: center;
+  border-radius: 1rem;
+  font-size: 17px;
+}
+.modo-celular .perfil-principales > div { flex: 2 1 100%; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+/* Una fila que se desliza de lado (las acciones del perfil, las pestañas): sin barra visible, pero se llega a todo tocando y arrastrando. */
+.modo-celular .overflow-x-auto { scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.modo-celular .overflow-x-auto::-webkit-scrollbar { display: none; }

@@ -123,6 +123,9 @@ import { MENSAJE_SIN_PERMISO, esErrorSinPermiso, fueBloqueadoPorPermiso, mensaje
 import { supabase } from "../lib/supabaseClient"
 import { INK, ACCION_VER, ACCION_CONFIRMAR } from "@/lib/tema"
 import NotaAlcance from "../componentes/NotaAlcance"
+import { useModoCelular, avisarSoloComputadora } from "../utilidades/modoCelular"
+import BarraFiltrosCelular from "../componentes/celular/BarraFiltrosCelular"
+import TarjetaPacienteCelular from "../componentes/celular/TarjetaPacienteCelular"
 
 // ─── Paleta de firma (consistente con login / agenda / dashboard) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -194,6 +197,10 @@ function MiniaturaAdjunto({ path }) {
 export default function Pacientes({ seguimientoContacto = new Map(), avisosDelModulo = null, alcancePropio = false, usuario, onAviso, pases = [], setPases, ordenesLab = [], setOrdenesLab, abonos = [], equipo = [], setVista, cargaInicial = false, pacientes = [], setPacientes, consultas = [], setConsultas, citas = [], setCitas, disponibilidad, motivosConsulta = [], parametrizacion, inventario = [], setInventario, categoriasInventario = [], setCategoriasInventario, ventas = [], setVentas, facturasVenta = [], setFacturasVenta, accionInicial, onAccionInicialConsumida, overlaySolo = false, onOverlayCerrado, onIrAFichaClinica, solicitudesEliminacion = [], marcarSolicitudEliminacionAtendida, marcarMedidasAtendidas, onReagendarCita }) {
   const opticaId = usuario?.opticaId
   const escribirPorWhatsApp = useEscribirPorWhatsApp()
+  // Celular y tablet (por debajo de 1093 px): la misma lista y el mismo perfil con otra disposición (tarjetas en vez de tabla, filtros en una ventana). De 1093 px en adelante, nada cambia.
+  const celular = useModoCelular()
+  // Vender, cobrar y abonar son de los módulos de computadora: en el celular se ven igual, pero al tocarlos solo dicen «Esto se hace desde la computadora».
+  const soloComputadora = (accion) => (celular ? () => avisarSoloComputadora() : accion)
   const { de: fidelidadDe, programa: programaFidelidad } = useFidelidad()
   // Estados del formulario (solo datos básicos personales)
   const [nombre, setNombre] = useState("")
@@ -1144,6 +1151,106 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
   // "120 pacientes" sin filtros; "Mostrando 5 de 120 pacientes" cuando la búsqueda o algún filtro dejan menos (igual que Citas).
   const textoConteo = pacientesFiltrados.length === pacientes.length ? `${pacientes.length} ${pacientes.length === 1 ? "paciente" : "pacientes"}` : `Mostrando ${pacientesFiltrados.length} de ${pacientes.length} ${pacientes.length === 1 ? "paciente" : "pacientes"}`
 
+  // Lo que dice la lista cuando no hay nada que mostrar (la tabla y las tarjetas del celular).
+  const vacioPacientes = (
+      <div className="mx-auto max-w-xs space-y-3">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-300">
+          <AlertCircle size={28} />
+        </div>
+        <p className="text-sm font-semibold text-slate-500">
+          {pacientes.length === 0
+            ? "Aún no hay pacientes registrados."
+            : busqueda
+            ? <>Ningún paciente coincide con &ldquo;{busqueda}&rdquo;.</>
+            : "Ningún paciente coincide con los filtros."}
+        </p>
+        {pacientes.length === 0 ? (
+          <button type="button" onClick={abrirCrear} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+            Crear el primero
+          </button>
+        ) : busqueda ? (
+          // Vacío interactivo: en vez de un callejón sin salida,
+          // ofrece registrar directamente a quien se buscó — el
+          // formulario abre con lo ya escrito precargado (cédula
+          // o nombre, según el patrón del texto).
+          <button
+            type="button"
+            onClick={() => abrirCrearConPrellenado(busqueda)}
+            className="mx-auto flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
+            style={{ background: GRAD }}
+          >
+            <UserPlus size={15} /> Registrar &ldquo;{busqueda}&rdquo;
+          </button>
+        ) : null}
+      </div>
+  )
+
+  // Las insignias de un paciente (cita hoy, por vender, control vencido…): las mismas en la fila de la tabla y en la tarjeta del celular.
+  const insigniasDe = (paciente) => {
+    // Badges contextuales de alto valor — lo que recepción
+    // necesita saber de un vistazo sin abrir el perfil: si
+    // tiene cita hoy, si debe dinero, o si su control ya venció.
+    const tieneCitaHoy = citas.some((c) => perteneceAPaciente(c, paciente) && esHoy(c.fecha) && c.estado !== "Cancelada" && c.estado !== "No Asistió")
+    const tienePagoPendiente = idsConDeuda.has(paciente.id)
+    const controlVencido = esInactivo(paciente, consultas)
+    return (
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + claseBadgeEstadoClinico(paciente.estadoClinico)}>
+          {etiquetaEstadoClinico(paciente.estadoClinico)}
+        </span>
+        {/* Metadata de identidad (cuenta/origen) — se
+            distingue de los 3 badges accionables de
+            abajo (cita hoy/pago pendiente/control
+            vencido) con un tratamiento de borde en vez
+            de relleno, para que no compitan por
+            atención en un vistazo rápido de la fila. */}
+        <span className="flex items-center gap-1 rounded-full border border-slate-200/60 px-2 py-0.5 text-xs font-medium text-slate-500">
+          {paciente.tieneCuenta ? "Con cuenta" : "Sin cuenta"}
+        </span>
+        {(paciente.fecha_nacimiento || paciente.fechaNacimiento) && (
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <Cake size={11} />
+            {formatoFecha(paciente.fecha_nacimiento || paciente.fechaNacimiento, "numericoCorto")}
+          </span>
+        )}
+        {tieneCitaHoy && (
+          <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+            <Calendar size={11} /> Cita hoy
+          </span>
+        )}
+        {idsListosParaVenta.has(paciente.id) && (puede(usuario, "crm", "ver") && setVista ? (
+          <button type="button" onClick={(e) => { e.stopPropagation(); setVista("crm") }} title="Recibió su diagnóstico y no ha comprado: verlo en «Para contactar» del CRM" className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 cursor-pointer">
+            <ShoppingCart size={11} /> Por vender
+          </button>
+        ) : (
+          <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+            <ShoppingCart size={11} /> Por vender
+          </span>
+        ))}
+        {sinAgendarPorPaciente.has(paciente.id) && (
+          <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700" title="Su control recomendado todavía no tiene cita">
+            <Calendar size={11} /> Control sin agendar
+          </span>
+        )}
+        {noCompraron.has(paciente.id) && (
+          <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600" title="Consultó y no compró">
+            <UserX size={11} /> No compró: {noCompraron.get(paciente.id).motivo}
+          </span>
+        )}
+        {tienePagoPendiente && (
+          <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+            <CreditCard size={11} /> Pago pendiente
+          </span>
+        )}
+        {controlVencido && (
+          <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
+            <Clock size={11} /> Control vencido
+          </span>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="w-full space-y-5 text-left" style={overlaySolo ? undefined : { animation: "rise-in 320ms ease-out both" }}>
       {notificacion && <AvisoFlotante texto={notificacion} tipo="exito" />}
@@ -1160,8 +1267,9 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
       {!overlaySolo && !abriendoPerfil && (
       <>
       {/* ─── HEADER ─── */}
+      {/* En el celular el nombre de la sección ya está en la cabecera del panel: solo quedan las dos acciones, una al lado de la otra. */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3.5">
+        {!celular && <div className="flex items-center gap-3.5">
           <div className="grid h-12 w-12 place-items-center rounded-2xl text-white" style={{ background: GRAD, boxShadow: "0 12px 24px -10px rgba(37,99,235,0.6)" }}>
             <Users size={24} />
           </div>
@@ -1169,8 +1277,17 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
             <h1 className="font-serif text-2xl font-bold tracking-tight" style={{ color: INK }}>Pacientes</h1>
             <p className="text-sm text-slate-500">Fichas, contacto y seguimiento de quienes se atienden en tu óptica.</p>
           </div>
-        </div>
+        </div>}
 
+        {celular ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {avisosDelModulo}
+            {puedeCrearPaciente && <button type="button" onClick={abrirCrear} className="flex items-center justify-center gap-2 rounded-2xl px-5 text-base font-semibold text-white cursor-pointer" style={{ background: GRAD }}>
+              <UserPlus size={18} />
+              Crear paciente
+            </button>}
+          </div>
+        ) : (
         <AccionesDeCabecera avisos={avisosDelModulo}>
         {puedeCrearPaciente && <button
           type="button"
@@ -1182,6 +1299,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
           Crear paciente
         </button>}
         </AccionesDeCabecera>
+        )}
       </div>
 
       {/* Sin ningún paciente no hay nada que filtrar ni contar: solo el mensaje y "Crear el primero" (R25, R34). */}
@@ -1215,6 +1333,10 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
       </div>
 
       {/* ─── BÚSQUEDA Y FILTROS: la misma barra única de Citas ─── */}
+      {celular ? (
+        <BarraFiltrosCelular texto={busquedaInput} onTexto={setBusquedaInput} secciones={seccionesFiltro} etiquetas={etiquetasFiltro} onLimpiar={limpiarFiltros}
+          placeholder="Buscar paciente: nombre, cédula, teléfono o correo" inputId="buscar-paciente" titulo="Filtrar pacientes" subtitulo="Elige qué pacientes ver." />
+      ) : (
       <BarraBusquedaFiltros
         texto={busquedaInput}
         onTexto={setBusquedaInput}
@@ -1227,13 +1349,50 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
         etiquetaPanel="Filtrar pacientes"
         panelId="pacientes-filtrar-panel"
       />
+      )}
 
+      {celular ? (
+        <div className="-mt-1 flex items-center justify-between gap-3">
+          <p role="status" className="text-sm font-semibold text-slate-600">{textoConteo}</p>
+          <button type="button" onClick={() => cambiarOrden("nombre")} aria-label="Ordenar por nombre" className="flex cursor-pointer items-center gap-1.5 rounded-xl px-3 text-base font-semibold text-slate-700">Nombre <IconoOrden campo="nombre" /></button>
+        </div>
+      ) : (
       <p role="status" className="-mt-2 text-sm font-semibold text-slate-600">{textoConteo}</p>
+      )}
       </>)}
 
       {/* ─── TABLA (o la cola de ventas cuando está activo "Listos para venta" / "No compraron") ─── */}
       {(
-      <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+      <div className={celular ? "space-y-3" : "overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm"}>
+        {celular ? (
+          <ul aria-label="Pacientes" className="space-y-3">
+            {(cargaInicial && pacientes.length === 0) || buscando ? (
+              Array.from({ length: buscando ? Math.min(5, pacientesVisibles.length || 5) : 5 }).map((_, i) => (
+                <li key={"skeleton-" + i} className="flex items-center gap-4 rounded-3xl border border-slate-200/80 bg-white p-4">
+                  <div className="h-11 w-11 shrink-0 animate-pulse rounded-full bg-slate-200/70" />
+                  <div className="flex-1 space-y-2"><div className="h-3.5 w-1/2 animate-pulse rounded bg-slate-200/70" /><div className="h-3 w-1/3 animate-pulse rounded bg-slate-200/60" /></div>
+                </li>
+              ))
+            ) : pacientesFiltrados.length === 0 ? (
+              <li className="rounded-3xl border border-slate-200/80 bg-white py-12 text-center">{vacioPacientes}</li>
+            ) : (
+              pacientesVisibles.map((paciente) => {
+                const visita = puedeVerFichas && contarConsultas(paciente, consultas) > 0 ? ultimaVisita(paciente, consultas) : null
+                return (
+                  <TarjetaPacienteCelular
+                    key={paciente.id} paciente={paciente} color={colorAvatar(paciente.nombre)} insignias={insigniasDe(paciente)}
+                    visita={visita ? fechaLegible(fechaAISO(visita)) : null} sinConsultasTexto={puedeVerFichas ? "Sin consultas" : "—"} siguiente={proximaCita.get(paciente.id)}
+                    onAbrir={(p) => { setPacienteHistorial(p); setTabHistorial("resumen") }}
+                    onAgendar={puedeAgendar ? abrirAgendar : undefined}
+                    onVender={puedeVender ? () => avisarSoloComputadora() : undefined}
+                    onMenu={((puedeAtender && puedeAgendar) || puedeVender || puedeEditarPaciente || puedeEliminar) ? abrirMenuAcciones : undefined}
+                    menuAbierto={menuAccionesId === paciente.id}
+                  />
+                )
+              })
+            )}
+          </ul>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
@@ -1265,36 +1424,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
               ) : pacientesFiltrados.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-16 text-center">
-                    <div className="mx-auto max-w-xs space-y-3">
-                      <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-300">
-                        <AlertCircle size={28} />
-                      </div>
-                      <p className="text-sm font-semibold text-slate-500">
-                        {pacientes.length === 0
-                          ? "Aún no hay pacientes registrados."
-                          : busqueda
-                          ? <>Ningún paciente coincide con &ldquo;{busqueda}&rdquo;.</>
-                          : "Ningún paciente coincide con los filtros."}
-                      </p>
-                      {pacientes.length === 0 ? (
-                        <button type="button" onClick={abrirCrear} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
-                          Crear el primero
-                        </button>
-                      ) : busqueda ? (
-                        // Vacío interactivo: en vez de un callejón sin salida,
-                        // ofrece registrar directamente a quien se buscó — el
-                        // formulario abre con lo ya escrito precargado (cédula
-                        // o nombre, según el patrón del texto).
-                        <button
-                          type="button"
-                          onClick={() => abrirCrearConPrellenado(busqueda)}
-                          className="mx-auto flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 cursor-pointer"
-                          style={{ background: GRAD }}
-                        >
-                          <UserPlus size={15} /> Registrar &ldquo;{busqueda}&rdquo;
-                        </button>
-                      ) : null}
-                    </div>
+                    {vacioPacientes}
                   </td>
                 </tr>
               ) : (
@@ -1303,12 +1433,6 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
                   const visita = puedeVerFichas && contarConsultas(paciente, consultas) > 0 ? ultimaVisita(paciente, consultas) : null
                   const siguiente = proximaCita.get(paciente.id)
                   const activa = indiceFila === filaActiva
-                  // Badges contextuales de alto valor — lo que recepción
-                  // necesita saber de un vistazo sin abrir el perfil: si
-                  // tiene cita hoy, si debe dinero, o si su control ya venció.
-                  const tieneCitaHoy = citas.some((c) => perteneceAPaciente(c, paciente) && esHoy(c.fecha) && c.estado !== "Cancelada" && c.estado !== "No Asistió")
-                  const tienePagoPendiente = idsConDeuda.has(paciente.id)
-                  const controlVencido = esInactivo(paciente, consultas)
                   return (
                     <tr
                       key={paciente.id}
@@ -1326,60 +1450,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
                               {paciente.nombre}
                             </p>
                             <p className="mt-0.5 font-mono text-xs text-slate-500">{tipoDeDocumento(paciente) !== "cedula" && <span className="font-sans font-semibold">{etiquetaDocumento(paciente)} · </span>}{paciente.cedula}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-2">
-                              <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + claseBadgeEstadoClinico(paciente.estadoClinico)}>
-                                {etiquetaEstadoClinico(paciente.estadoClinico)}
-                              </span>
-                              {/* Metadata de identidad (cuenta/origen) — se
-                                  distingue de los 3 badges accionables de
-                                  abajo (cita hoy/pago pendiente/control
-                                  vencido) con un tratamiento de borde en vez
-                                  de relleno, para que no compitan por
-                                  atención en un vistazo rápido de la fila. */}
-                              <span className="flex items-center gap-1 rounded-full border border-slate-200/60 px-2 py-0.5 text-xs font-medium text-slate-500">
-                                {paciente.tieneCuenta ? "Con cuenta" : "Sin cuenta"}
-                              </span>
-                              {(paciente.fecha_nacimiento || paciente.fechaNacimiento) && (
-                                <span className="flex items-center gap-1 text-xs text-slate-500">
-                                  <Cake size={11} />
-                                  {formatoFecha(paciente.fecha_nacimiento || paciente.fechaNacimiento, "numericoCorto")}
-                                </span>
-                              )}
-                              {tieneCitaHoy && (
-                                <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                                  <Calendar size={11} /> Cita hoy
-                                </span>
-                              )}
-                              {idsListosParaVenta.has(paciente.id) && (puede(usuario, "crm", "ver") && setVista ? (
-                                <button type="button" onClick={(e) => { e.stopPropagation(); setVista("crm") }} title="Recibió su diagnóstico y no ha comprado: verlo en «Para contactar» del CRM" className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 cursor-pointer">
-                                  <ShoppingCart size={11} /> Por vender
-                                </button>
-                              ) : (
-                                <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                                  <ShoppingCart size={11} /> Por vender
-                                </span>
-                              ))}
-                              {sinAgendarPorPaciente.has(paciente.id) && (
-                                <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700" title="Su control recomendado todavía no tiene cita">
-                                  <Calendar size={11} /> Control sin agendar
-                                </span>
-                              )}
-                              {noCompraron.has(paciente.id) && (
-                                <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600" title="Consultó y no compró">
-                                  <UserX size={11} /> No compró: {noCompraron.get(paciente.id).motivo}
-                                </span>
-                              )}
-                              {tienePagoPendiente && (
-                                <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                                  <CreditCard size={11} /> Pago pendiente
-                                </span>
-                              )}
-                              {controlVencido && (
-                                <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
-                                  <Clock size={11} /> Control vencido
-                                </span>
-                              )}
-                            </div>
+                            {insigniasDe(paciente)}
                           </div>
                         </div>
                       </td>
@@ -1453,6 +1524,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
             </tbody>
           </table>
         </div>
+        )}
 
         {pacientesFiltrados.length > 0 && (
           <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
@@ -1653,7 +1725,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
         if (!paciente) return null
         return createPortal(
           <div
-            ref={menuAccionesRef}
+            ref={menuAccionesRef} data-menu-acciones
             className="fixed z-50 w-52 overflow-hidden rounded-xl border border-slate-200/60 bg-white py-1.5 text-left shadow-xl"
             style={{ top: menuAccionesPos.top, left: menuAccionesPos.left, animation: "menu-in 160ms ease-out", transformOrigin: "top right" }}
           >
@@ -1666,7 +1738,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
             </button>}
             {puedeVender && <button
               type="button"
-              onClick={() => { setMenuAccionesId(null); abrirVentaRapida(paciente) }}
+              onClick={() => { setMenuAccionesId(null); if (celular) avisarSoloComputadora(); else abrirVentaRapida(paciente) }}
               className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-50 cursor-pointer"
             >
               <ShoppingCart size={15} /> Nueva venta
@@ -1904,7 +1976,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
               const medidasPedidas = pacienteHistorial.medidasSolicitadasEn ? medidasDelPaciente({ consultas: consultasPaciente, ordenes: ordenesPaciente }) : null
               const avisosPerfil = [
                 citaEnAtencion && { id: "atencion", tono: "azul", texto: `Cita en atención · ${fechaReciente(citaEnAtencion.fecha) || "sin fecha"} · ${horaSinCero(citaEnAtencion.hora)}${diasAtencionAbierta(citaEnAtencion) !== null ? " · " + textoAtencionAbierta(diasAtencionAbierta(citaEnAtencion)) : ""}` },
-                paseListo && { id: "pase", tono: "verde", texto: `Recibió su diagnóstico y no ha comprado · desde ${fechaLegible(paseListo.pasadaEn)}`, accion: puedeVender ? { etiqueta: "Vender la receta", onClick: () => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null }) } : null },
+                paseListo && { id: "pase", tono: "verde", texto: `Recibió su diagnóstico y no ha comprado · desde ${fechaLegible(paseListo.pasadaEn)}`, accion: puedeVender ? { etiqueta: "Vender la receta", onClick: soloComputadora(() => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null })) } : null },
                 antecedentesAlerta.length > 0 && { id: "antecedentes", tono: "ambar", texto: `Antecedentes importantes: ${textoAntecedentes(antecedentesAlerta)}`, accion: { etiqueta: "Ver", onClick: () => setVerHistoriaClinica(true) } },
                 alertaControl && {
                   id: "control",
@@ -1916,7 +1988,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
                 citaPorContactar && { id: "contactar", tono: "rojo", texto: `Contactar al paciente · ${motivoDeLaCita(citaPorContactar, seguimientoContacto)} · cita del ${fechaReciente(citaPorContactar.fecha)}`, accion: sePuedeContactar ? { etiqueta: "Contactar", onClick: () => contactarPorCita(citaPorContactar) } : null },
                 ...cobrosDelPaciente.map(({ consulta, cita }) => {
                   const monto = costoBaseMotivo(parametrizacion, consulta.motivo)
-                  return { id: "cobro-" + consulta.id, tono: "rojo", texto: `Cobro pendiente ${monto > 0 ? dinero(monto) + " · " : ""}Consulta del ${fechaReciente(consulta.fecha)}`, accion: puedeVender ? { etiqueta: "Cobrar", onClick: () => setCobrandoPendiente({ consulta, cita }) } : null }
+                  return { id: "cobro-" + consulta.id, tono: "rojo", texto: `Cobro pendiente ${monto > 0 ? dinero(monto) + " · " : ""}Consulta del ${fechaReciente(consulta.fecha)}`, accion: puedeVender ? { etiqueta: "Cobrar", onClick: soloComputadora(() => setCobrandoPendiente({ consulta, cita })) } : null }
                 }),
                 // Lo que el paciente pidió o solicitó desde el portal: va con los demás avisos, nunca arriba del encabezado.
                 solicitudEliminacion && {
@@ -1993,11 +2065,11 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
                         basicas={basicas}
                         cargandoBasicas={comprasBasicas.id !== pacienteHistorial.id}
                         pase={paseListo}
-                        onNuevaVenta={() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) }}
-                        onVenderReceta={() => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null })}
+                        onNuevaVenta={soloComputadora(() => { setFacturaLineaInicial(undefined); setMostrarFactura(true) })}
+                        onVenderReceta={soloComputadora(() => setVentaCola({ pase: paseListo, paciente: pacienteHistorial, consulta: consultas.find((k) => k.id === paseListo.consultaId) || null }))}
                         onAbrir={(fac) => setDetalleFacturaId(fac.id)}
-                        onRegistrarCuota={registrarCuotaPagada}
-                        onMarcarPagada={marcarVentaPagada}
+                        onRegistrarCuota={celular ? soloComputadora() : registrarCuotaPagada}
+                        onMarcarPagada={celular ? soloComputadora() : marcarVentaPagada}
                       />
                     ) : null}
                   </div>
@@ -2074,7 +2146,7 @@ export default function Pacientes({ seguimientoContacto = new Map(), avisosDelMo
       {detalleFacturaId && facturasVenta.find((f) => f.id === detalleFacturaId) && (
         <DetalleComprobante
           factura={facturasVenta.find((f) => f.id === detalleFacturaId)} paciente={pacientes.find((p) => p.id === facturasVenta.find((f) => f.id === detalleFacturaId).pacienteId) || null}
-          abonos={abonos} ordenes={ordenesLab} equipo={equipo} usuario={usuario} parametrizacion={parametrizacion} v={ventasApi}
+          abonos={abonos} ordenes={ordenesLab} equipo={equipo} usuario={usuario} parametrizacion={parametrizacion} v={celular ? { ...ventasApi, setAnularPara: soloComputadora(), setAbonoPara: soloComputadora(), setCorregirAbonoPara: soloComputadora(), setFacturaElectronicaPara: soloComputadora(), setOrdenParaVenta: soloComputadora() } : ventasApi}
           puedeVender={puedeVender} puedeEditar={puedeEditarVentas} puedeAnular={puedeAnular} onAviso={(m, t) => (t === "error" ? mostrarError(m) : mostrarNotif(m))} onCerrar={() => setDetalleFacturaId(null)}
         />
       )}
