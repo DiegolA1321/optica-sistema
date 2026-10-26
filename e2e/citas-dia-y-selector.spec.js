@@ -64,21 +64,28 @@ test('Mes: un clic en un día abre el modal del día', async ({ page }) => {
 })
 
 test('El título del periodo abre un selector de fecha en Semana, Mes y Lista', async ({ page }) => {
+  // Las fechas salen de hoy: la prueba no depende del día en que se corra.
+  const hoy = await page.evaluate(() => {
+    const d = new Date()
+    return { anio: d.getFullYear(), mesLargo: d.toLocaleDateString('es-EC', { month: 'long' }) }
+  })
   await irACitas(page, 'Semana')
-  await page.getByRole('button', { name: /oct 2026/ }).first().click()
+  await page.getByRole('button', { name: /\p{L}{3,4}\.? \d{4}/u }).first().click()
   const selector = page.getByRole('dialog', { name: 'Elegir fecha' })
   await expect(selector).toBeVisible()
   await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/selector-semana.png' })
-  await selector.getByRole('button', { name: /20 de octubre/ }).click()
-  await expect(page.getByRole('button', { name: /19 – 25 oct 2026/ })).toBeVisible()
+  // El 15 nunca cae en una semana que cruce de mes: su semana va del lunes al domingo dentro del mismo mes.
+  const dia15 = await page.evaluate(() => { const d = new Date(new Date().getFullYear(), new Date().getMonth(), 15); const l = 15 - ((d.getDay() + 6) % 7); return { lunes: l, domingo: l + 6 } })
+  await selector.getByRole('button', { name: new RegExp(`\\b15 de ${hoy.mesLargo}`) }).click()
+  await expect(page.getByRole('button', { name: new RegExp(`${dia15.lunes} – ${dia15.domingo} \\p{L}{3,4}\\.? ${hoy.anio}`, 'u') })).toBeVisible()
 
   await elegirVista(page, 'Mes')
-  await page.getByRole('button', { name: /Octubre 2026/ }).first().click()
+  await page.getByRole('button', { name: new RegExp(`${hoy.mesLargo} ${hoy.anio}`, 'i') }).first().click()
   await page.getByRole('dialog', { name: 'Elegir fecha' }).getByRole('button', { name: 'ene', exact: true }).click()
-  await expect(page.getByRole('button', { name: /Enero 2026/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: new RegExp(`Enero ${hoy.anio}`) })).toBeVisible()
 
   await page.getByRole('button', { name: 'Lista', exact: true }).first().click()
-  await page.getByRole('button', { name: /Hoy|Enero 2026/ }).filter({ hasText: /\d{4}/ }).first().click()
+  await page.getByRole('button', { name: /Hoy|Enero \d{4}/ }).filter({ hasText: /\d{4}/ }).first().click()
   await expect(page.getByRole('dialog', { name: 'Elegir fecha' })).toBeVisible()
 })
 
@@ -97,19 +104,28 @@ test('Mes: sin el interruptor Citas/Carga ni el conteo repetido; el modal del d�
   await irACitas(page, 'Mes')
   await expect(page.getByRole('button', { name: 'Carga', exact: true })).toHaveCount(0)
   await expect(page.getByRole('group', { name: 'Qué mostrar en el calendario' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /Octubre 2026/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /\p{Lu}\p{L}+ \d{4}/u }).first()).toBeVisible()
 
-  // Un martes futuro sin citas (21 de octubre es miércoles; 27 de octubre, martes)
-  await numeroDelDia(page).filter({ hasText: /^27$/ }).first().click()
+  // Un día futuro sin citas y abierto: se busca en el mes siguiente (siempre futuro) entre los días 10 a 20, que no se repiten con los vecinos del calendario.
+  await page.getByRole('button', { name: 'Mes siguiente', exact: true }).click()
   const dia = page.getByRole('dialog')
-  await expect(dia.getByText('Un día despejado')).toBeVisible()
+  let hallado = false
+  for (let n = 10; n <= 20 && !hallado; n++) {
+    await numeroDelDia(page).filter({ hasText: new RegExp(`^${n}$`) }).first().click()
+    if (await dia.getByText('Un día despejado').isVisible()) hallado = true
+    else await page.keyboard.press('Escape')
+  }
+  expect(hallado, 'un día futuro abierto y sin citas en el mes siguiente').toBe(true)
   await expect(dia.getByRole('button', { name: /Ver esta semana/ })).toHaveCount(0)
   await expect(dia.getByRole('button', { name: /Agendar en este día/ })).toBeVisible()
   await page.screenshot({ path: 'C:/Users/diego/Downloads/citas-capturas/v4/dia-vacio-centrado.png' })
   await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Mes anterior', exact: true }).click()
 
-  // Un día con citas (martes 6): ofrece ver la semana; es pasado, no ofrece agendar
-  await numeroDelDia(page).filter({ hasText: /^6$/ }).first().click()
+  // Un día pasado (el 1 del mes, que nunca es hoy ni futuro salvo el día 1): no ofrece agendar
+  const diaPasado = (await page.evaluate(() => new Date().getDate())) > 1 ? 1 : null
+  if (diaPasado === null) return
+  await numeroDelDia(page).filter({ hasText: /^1$/ }).first().click()
   await expect(page.getByRole('dialog').getByRole('button', { name: /Ver esta semana/ })).toHaveCount(0)
   await expect(page.getByRole('dialog').getByRole('button', { name: /Agendar/ })).toHaveCount(0)
 })
