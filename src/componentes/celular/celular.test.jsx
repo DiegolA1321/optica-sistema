@@ -55,7 +55,7 @@ describe("ShellCelular", () => {
         <p>cuerpo</p>
       </ShellCelular>,
     )
-    expect(screen.getByRole("heading", { name: "Agenda" })).toBeInTheDocument()
+    expect(screen.getByRole("banner")).toHaveTextContent("Agenda")
     expect(screen.getByText("Hoy · 8 citas")).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: "Notificaciones: 12" }))
     expect(alNotificaciones).toHaveBeenCalled()

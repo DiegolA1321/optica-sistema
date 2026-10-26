@@ -21,7 +21,7 @@ export default function ShellCelular({ usuario, titulo, subtitulo, avisos = 0, o
           {/* Una pantalla a pantalla completa (el perfil del paciente) pone aquí su botón de volver; mientras lo haga, el título se oculta. */}
           <div id="encabezado-slot" className="min-w-0 empty:hidden" />
           <div className="min-w-0 flex-1 leading-tight [#encabezado-slot:not(:empty)+&]:hidden">
-            <h1 className="truncate text-lg font-bold tracking-tight" style={{ color: INK }}>{titulo}</h1>
+            <p className="truncate text-lg font-bold tracking-tight" style={{ color: INK }}>{titulo}</p>
             {subtitulo && <p className="truncate text-sm text-slate-600">{subtitulo}</p>}
           </div>
           <button type="button" onClick={onNotificaciones} aria-label={avisos > 0 ? `Notificaciones: ${avisos}` : "Notificaciones"} className="relative grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-full border border-slate-200 bg-white text-slate-700">
