@@ -37,8 +37,8 @@ export default function PasoAgudeza({ parte, f, set, setVarios, ultimaConsulta, 
     return (
       <CuadroOjo lado={lado}>
         <div className="flex gap-1.5">
-          <Numero id={`act${P}Esfera`} etiqueta="Esf." valor={f[`act${P}Esfera`]} onCambiar={(v) => set(`act${P}Esfera`, v)} ancho="w-[3.75rem]" />
-          <Numero id={`act${P}Cilindro`} etiqueta="Cil." valor={f[`act${P}Cilindro`]} onCambiar={(v) => set(`act${P}Cilindro`, v)} placeholder="0.00" ancho="w-[3.75rem]" />
+          <Numero id={`act${P}Esfera`} etiqueta="Esf." valor={f[`act${P}Esfera`]} onCambiar={(v) => set(`act${P}Esfera`, v)} ancho="w-[3.75rem]" signo />
+          <Numero id={`act${P}Cilindro`} etiqueta="Cil." valor={f[`act${P}Cilindro`]} onCambiar={(v) => set(`act${P}Cilindro`, v)} placeholder="0.00" ancho="w-[3.75rem]" signo />
           <Numero id={`act${P}Eje`} etiqueta="Eje" valor={f[`act${P}Eje`]} onCambiar={(v) => set(`act${P}Eje`, v)} tipo="entero" maxLength={3} placeholder="0" ancho="w-[3.25rem]" />
         </div>
       </CuadroOjo>
@@ -59,7 +59,7 @@ export default function PasoAgudeza({ parte, f, set, setVarios, ultimaConsulta, 
     <div className="space-y-3">
       {parte === "agudeza" && <Tarjeta titulo="Agudeza visual" icono={Eye} ayuda="Prueba de las letras. Elige la línea leída y, si falló letras, cuántas («20/25 −2»).">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[26rem] border-collapse text-xs">
+          <table data-tabla-agudeza className="w-full min-w-[26rem] border-collapse text-xs">
             <thead>
               <tr className="text-slate-500">
                 <th className="border border-slate-200 bg-slate-50 p-1.5 text-left font-semibold" />
@@ -72,9 +72,9 @@ export default function PasoAgudeza({ parte, f, set, setVarios, ultimaConsulta, 
               {filas.map(([P, nombre]) => (
                 <tr key={P}>
                   <th scope="row" className="whitespace-nowrap border border-slate-200 bg-slate-50 p-1.5 text-left font-semibold text-slate-700">{nombre}</th>
-                  <td className="border border-slate-200 p-1.5"><CeldaAv id={`av${P}Sc`} etiqueta={`${nombre}, sin corrección`} valor={f[`av${P}Sc`]} falladas={f[`av${P}ScF`]} onValor={(v) => set(`av${P}Sc`, v)} onFalladas={(v) => set(`av${P}ScF`, v)} /></td>
-                  <td className="border border-slate-200 p-1.5"><CeldaAv id={`av${P}Cc`} etiqueta={`${nombre}, con su corrección actual`} valor={f[`av${P}Cc`]} falladas={f[`av${P}CcF`]} onValor={(v) => set(`av${P}Cc`, v)} onFalladas={(v) => set(`av${P}CcF`, v)} /></td>
-                  <td className="border border-slate-200 p-1.5 text-center" data-av-rx={P}>
+                  <td data-etiqueta="Sin corrección" className="border border-slate-200 p-1.5"><CeldaAv id={`av${P}Sc`} etiqueta={`${nombre}, sin corrección`} valor={f[`av${P}Sc`]} falladas={f[`av${P}ScF`]} onValor={(v) => set(`av${P}Sc`, v)} onFalladas={(v) => set(`av${P}ScF`, v)} /></td>
+                  <td data-etiqueta="Con su corrección actual" className="border border-slate-200 p-1.5"><CeldaAv id={`av${P}Cc`} etiqueta={`${nombre}, con su corrección actual`} valor={f[`av${P}Cc`]} falladas={f[`av${P}CcF`]} onValor={(v) => set(`av${P}Cc`, v)} onFalladas={(v) => set(`av${P}CcF`, v)} /></td>
+                  <td data-etiqueta="Con la receta nueva" className="border border-slate-200 p-1.5 text-center" data-av-rx={P}>
                     {f[`av${P}Rx`] ? <span className="font-mono font-semibold text-slate-800">{textoAgudeza(f[`av${P}Rx`], f[`av${P}RxF`])}</span> : <span className="text-slate-400">—</span>}
                   </td>
                 </tr>
@@ -82,13 +82,13 @@ export default function PasoAgudeza({ parte, f, set, setVarios, ultimaConsulta, 
               <tr>
                 <th scope="row" className="whitespace-nowrap border border-slate-200 bg-slate-50 p-1.5 text-left font-semibold text-slate-700">De cerca (Jaeger)</th>
                 {["Sc", "Cc"].map((c) => (
-                  <td key={c} className="border border-slate-200 p-1.5">
+                  <td key={c} data-etiqueta={c === "Sc" ? "Sin corrección" : "Con su corrección actual"} className="border border-slate-200 p-1.5">
                     <select aria-label={`De cerca, ${c === "Sc" ? "sin corrección" : "con su corrección actual"}`} value={f[`cerca${c}`]} onChange={(e) => set(`cerca${c}`, e.target.value)} className={CLASE_INPUT + "mx-auto block w-full max-w-[9rem] border-slate-300 px-1.5 text-xs font-semibold"}>
                       <option value="">—</option>{LISTA_JAEGER.map((v) => <option key={v} value={v}>{v}</option>)}
                     </select>
                   </td>
                 ))}
-                <td className="border border-slate-200 p-1.5 text-center" data-av-rx="Cerca">{f.cercaRx ? <span className="font-mono font-semibold text-slate-800">{f.cercaRx}</span> : <span className="text-slate-400">—</span>}</td>
+                <td data-etiqueta="Con la receta nueva" className="border border-slate-200 p-1.5 text-center" data-av-rx="Cerca">{f.cercaRx ? <span className="font-mono font-semibold text-slate-800">{f.cercaRx}</span> : <span className="text-slate-400">—</span>}</td>
               </tr>
             </tbody>
           </table>
@@ -98,7 +98,7 @@ export default function PasoAgudeza({ parte, f, set, setVarios, ultimaConsulta, 
 
       {parte === "lentes" && <Tarjeta titulo="Lentes actuales" icono={Glasses} derecha={hayUltima ? <BotonTexto onClick={copiarUltima}>Copiar de la última receta</BotonTexto> : null} ayuda="Lo que el paciente usa hoy (de su lensómetro o de su receta anterior).">
         <OjosLadoALado izquierdo={ojoActual("oi")} derecho={ojoActual("od")} />
-        <div className="mt-3"><Numero id="actAdicion" etiqueta="Adición actual" valor={f.actAdicion} onCambiar={(v) => set("actAdicion", v)} placeholder="+0.00" ancho="w-20" /></div>
+        <div className="mt-3"><Numero id="actAdicion" etiqueta="Adición actual" valor={f.actAdicion} onCambiar={(v) => set("actAdicion", v)} placeholder="+0.00" ancho="w-20" signo /></div>
       </Tarjeta>}
 
       {parte === "lentes" && <Tarjeta titulo="Distancia pupilar" icono={Ruler}>

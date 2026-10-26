@@ -80,3 +80,59 @@
 /* Una fila que se desliza de lado (las acciones del perfil, las pestañas): sin barra visible, pero se llega a todo tocando y arrastrando. */
 .modo-celular .overflow-x-auto { scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .modo-celular .overflow-x-auto::-webkit-scrollbar { display: none; }
+
+/* ───────── La ficha clínica (celular y tablet) ─────────
+   ConsultaMedica la dibuja pegada al <body>, fuera de .modo-celular, así que cuelga de html.panel-celular (la clase que pone ShellCelular) y de .ficha-celular:
+   solo existe por debajo de 1093 px. Misma ficha, mismos campos: aquí solo cambian los tamaños y cómo se acomodan. */
+html.panel-celular .ficha-celular button,
+html.panel-celular .ficha-celular [role="button"],
+html.panel-celular .ficha-celular summary { min-height: 44px; min-width: 44px; }
+html.panel-celular .ficha-celular input:not([type="checkbox"]):not([type="radio"]),
+html.panel-celular .ficha-celular select,
+html.panel-celular .ficha-celular textarea { font-size: 16px; min-height: 44px; min-width: 44px; }
+html.panel-celular .ficha-celular input[type="checkbox"],
+html.panel-celular .ficha-celular input[type="radio"] { width: 22px; height: 22px; flex: none; }
+html.panel-celular .ficha-celular label:has(input[type="checkbox"]),
+html.panel-celular .ficha-celular label:has(input[type="radio"]) { min-height: 44px; display: flex; align-items: center; gap: 0.5rem; }
+html.panel-celular .ficha-celular [role="group"] button { font-size: 14px; }
+
+/* El contexto del paciente va debajo del formulario (no queda pegado a un lado), y la vista previa en miniatura sobra: «Ver documento» abre la hoja a pantalla completa.
+   «Imprimir diagnóstico» tampoco: es lo mismo que «Ver documento» (un solo camino). */
+html.panel-celular .ficha-celular aside { position: static !important; top: auto !important; }
+html.panel-celular .ficha-celular aside section:has([data-vista-previa-documento]) { display: none; }
+html.panel-celular .ficha-celular [data-imprimir-diagnostico] { display: none; }
+
+/* Los bloques del examen: el título grande a la izquierda y su estado a la derecha. */
+html.panel-celular .ficha-celular button[id^="bloque-"] { min-height: 60px; }
+html.panel-celular .ficha-celular [data-bloque-cabecera] { flex-wrap: nowrap; justify-content: space-between; gap: 0.75rem; }
+html.panel-celular .ficha-celular [data-bloque-titulo] { flex: 1 1 0; min-width: 0; font-size: 17px; line-height: 1.25; }
+html.panel-celular .ficha-celular [data-bloque-estado] { flex: none; font-size: 13px; }
+
+/* Los dos ojos: en el celular uno debajo del otro (el derecho primero, como en la receta); en tablet vertical, lado a lado con el derecho a la izquierda (diseño aprobado). */
+html.panel-celular .ficha-celular [data-ojos] { display: flex; flex-direction: column-reverse; gap: 0.75rem; }
+html.panel-celular .ficha-celular [data-ojos] > * { flex: 1 1 0; min-width: 0; }
+@media (min-width: 768px) {
+  html.panel-celular .ficha-celular [data-ojos] { flex-direction: row-reverse; }
+}
+
+/* Los campos numéricos: grandes y repartidos a lo ancho de su fila (esfera, cilindro y eje en tres columnas iguales). */
+html.panel-celular .ficha-celular input[data-numero] { width: 100%; font-size: 18px; min-height: 48px; }
+html.panel-celular .ficha-celular div:has(> input[data-numero]) { flex: 1 1 5rem; min-width: 0; }
+
+/* La tabla de agudeza: cada ojo es una tarjeta con sus tres pruebas una debajo de otra (en tablet vertical cabe como tabla). */
+@media (max-width: 767.98px) {
+  html.panel-celular .ficha-celular table[data-tabla-agudeza] { display: block; min-width: 0 !important; }
+  html.panel-celular .ficha-celular table[data-tabla-agudeza] thead { display: none; }
+  html.panel-celular .ficha-celular table[data-tabla-agudeza] tbody { display: block; }
+  html.panel-celular .ficha-celular table[data-tabla-agudeza] tr { display: block; margin-bottom: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; overflow: hidden; background: #fff; }
+  html.panel-celular .ficha-celular table[data-tabla-agudeza] th[scope="row"] { display: block; border: 0; padding: 0.625rem 0.75rem; font-size: 15px; }
+  html.panel-celular .ficha-celular table[data-tabla-agudeza] td { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; border: 0; border-top: 1px solid #f1f5f9; padding: 0.5rem 0.75rem; text-align: right; font-size: 15px; }
+  html.panel-celular .ficha-celular table[data-tabla-agudeza] td::before { content: attr(data-etiqueta); flex: 1 1 0; min-width: 0; text-align: left; font-weight: 600; color: #475569; font-size: 14px; }
+  html.panel-celular .ficha-celular table[data-tabla-agudeza] td > * { flex: 0 0 11rem; max-width: 11rem; margin: 0; }
+}
+
+/* Con el teléfono en horizontal (poco alto) la cabecera y el pie ocupan menos para dejar sitio a la ficha. */
+@media (orientation: landscape) and (max-height: 500px) {
+  html.panel-celular .ficha-celular [data-ficha-cabecera] > div:first-child { min-height: 48px; }
+  html.panel-celular .ficha-celular [data-ficha-pie] { padding-top: 0.25rem !important; padding-bottom: max(0.25rem, env(safe-area-inset-bottom)) !important; }
+}

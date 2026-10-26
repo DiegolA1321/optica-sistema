@@ -8,8 +8,8 @@ import { Tarjeta, Etiqueta, Numero, Lista, Texto, OjosLadoALado, CuadroOjo, Boto
 
 const Trio = ({ pre, f, set, errs = {}, ancho }) => (
   <div className="flex gap-1.5">
-    <Numero id={`${pre}Esfera`} etiqueta="Esf." valor={f[`${pre}Esfera`]} onCambiar={(v) => set(`${pre}Esfera`, v)} placeholder="0.00" error={errs.esfera} ancho={ancho || "w-[3.75rem]"} />
-    <Numero id={`${pre}Cilindro`} etiqueta="Cil." valor={f[`${pre}Cilindro`]} onCambiar={(v) => set(`${pre}Cilindro`, v)} placeholder="0.00" error={errs.cilindro} ancho={ancho || "w-[3.75rem]"} />
+    <Numero id={`${pre}Esfera`} etiqueta="Esf." valor={f[`${pre}Esfera`]} onCambiar={(v) => set(`${pre}Esfera`, v)} placeholder="0.00" error={errs.esfera} ancho={ancho || "w-[3.75rem]"} signo />
+    <Numero id={`${pre}Cilindro`} etiqueta="Cil." valor={f[`${pre}Cilindro`]} onCambiar={(v) => set(`${pre}Cilindro`, v)} placeholder="0.00" error={errs.cilindro} ancho={ancho || "w-[3.75rem]"} signo />
     <Numero id={`${pre}Eje`} etiqueta="Eje" valor={f[`${pre}Eje`]} onCambiar={(v) => set(`${pre}Eje`, v)} tipo="entero" maxLength={3} placeholder="0" error={errs.eje} ancho="w-[3.25rem]" />
   </div>
 )
@@ -98,7 +98,7 @@ export default function PasoRefraccion({ f, set, setVarios, errores, edad, manej
     return (
       <CuadroOjo lado={lado}>
         <div className="space-y-2">
-          <Numero id={`prisma${P}Cant`} etiqueta="Cantidad (Δ)" valor={f[`prisma${P}Cant`]} onCambiar={(v) => set(`prisma${P}Cant`, v)} ancho="w-[4.5rem]" />
+          <Numero id={`prisma${P}Cant`} etiqueta="Cantidad (Δ)" valor={f[`prisma${P}Cant`]} onCambiar={(v) => set(`prisma${P}Cant`, v)} ancho="w-[4.5rem]" signo />
           <Lista id={`prisma${P}Base`} etiqueta="Base" valor={f[`prisma${P}Base`]} onCambiar={(v) => set(`prisma${P}Base`, v)} opciones={BASES_PRISMA} vacio="—" ancho="w-full" />
         </div>
       </CuadroOjo>
@@ -131,11 +131,11 @@ export default function PasoRefraccion({ f, set, setVarios, errores, edad, manej
             <input type="checkbox" checked={f.adicionIgual} onChange={(e) => set("adicionIgual", e.target.checked)} className="h-4 w-4 accent-blue-600" /> Igual en ambos ojos
           </label>
           {f.adicionIgual ? (
-            <Numero id="adicionOd" etiqueta="Adición" valor={f.adicionOd} onCambiar={(v) => set("adicionOd", v)} placeholder="+0.00" error={validarAdicion(f.adicionOd) || errores.adicionOd} ancho="w-20" />
+            <Numero id="adicionOd" etiqueta="Adición" valor={f.adicionOd} onCambiar={(v) => set("adicionOd", v)} placeholder="+0.00" error={validarAdicion(f.adicionOd) || errores.adicionOd} ancho="w-20" signo />
           ) : (
             <OjosLadoALado
-              izquierdo={<CuadroOjo lado="oi"><Numero id="adicionOi" etiqueta="Adición" valor={f.adicionOi} onCambiar={(v) => set("adicionOi", v)} placeholder="+0.00" error={validarAdicion(f.adicionOi) || errores.adicionOi} ancho="w-20" /></CuadroOjo>}
-              derecho={<CuadroOjo lado="od"><Numero id="adicionOd" etiqueta="Adición" valor={f.adicionOd} onCambiar={(v) => set("adicionOd", v)} placeholder="+0.00" error={validarAdicion(f.adicionOd) || errores.adicionOd} ancho="w-20" /></CuadroOjo>} />
+              izquierdo={<CuadroOjo lado="oi"><Numero id="adicionOi" etiqueta="Adición" valor={f.adicionOi} onCambiar={(v) => set("adicionOi", v)} placeholder="+0.00" error={validarAdicion(f.adicionOi) || errores.adicionOi} ancho="w-20" signo /></CuadroOjo>}
+              derecho={<CuadroOjo lado="od"><Numero id="adicionOd" etiqueta="Adición" valor={f.adicionOd} onCambiar={(v) => set("adicionOd", v)} placeholder="+0.00" error={validarAdicion(f.adicionOd) || errores.adicionOd} ancho="w-20" signo /></CuadroOjo>} />
           )}
         </Tarjeta>
       )}

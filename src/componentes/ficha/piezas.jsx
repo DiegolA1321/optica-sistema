@@ -4,6 +4,7 @@ import { useState } from "react"
 import { AlertCircle } from "lucide-react"
 import { INK } from "@/lib/tema"
 import { filtrarNumeroDecimalConSigno, filtrarSoloNumeros } from "../../utilidades/validaciones"
+import { useModoCelular } from "../../utilidades/modoCelular"
 
 // Piezas pequeñas de la ficha clínica. Cada campo tiene el tamaño de lo que se escribe: un número cabe en 4–5 rem, una lista en lo que ocupa su texto más largo y solo los textos largos usan el ancho del formulario.
 export const CLASE_INPUT = "rounded-lg border bg-white px-2.5 py-2 text-sm text-slate-800 outline-none transition-colors focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 "
@@ -42,11 +43,15 @@ export function Campo({ id, etiqueta, error, children, className = "" }) {
 
 // Un número corto (esfera, cilindro, eje, mm…): ancho fijo, centrado.
 // Un campo vacío muestra «—», nunca un número de ejemplo que parezca un dato.
-export function Numero({ id, etiqueta, valor, onCambiar, error, tipo = "decimal", maxLength, ancho = "w-[4.5rem]", "aria-label": ariaLabel }) {
+// `signo`: el campo admite el signo menos (esfera, cilindro, adición, prisma). El teclado de números del iPhone («decimal») NO trae el signo menos, y el de Android tampoco siempre: en el celular y la tablet
+// (por debajo de 1093 px) esos campos piden el teclado de texto, que en los dos tiene el «−» y el «.»; de 1093 px en adelante nada cambia (teclado numérico, como siempre).
+export function Numero({ id, etiqueta, valor, onCambiar, error, tipo = "decimal", maxLength, ancho = "w-[4.5rem]", signo = false, "aria-label": ariaLabel }) {
+  const celular = useModoCelular()
+  const conSigno = celular && signo && tipo === "decimal"
   const cambiar = (e) => onCambiar(tipo === "entero" ? filtrarSoloNumeros(e.target.value, maxLength) : tipo === "libre" ? e.target.value : filtrarNumeroDecimalConSigno(e.target.value))
   return (
     <Campo id={id} etiqueta={etiqueta} error={error} className="shrink-0">
-      <input id={id} type="text" inputMode={tipo === "entero" ? "numeric" : "decimal"} value={valor} onChange={cambiar} placeholder="—" aria-label={ariaLabel} aria-invalid={Boolean(error)}
+      <input id={id} type="text" inputMode={tipo === "entero" ? "numeric" : conSigno ? "text" : "decimal"} {...(conSigno ? { autoCapitalize: "off", autoCorrect: "off", spellCheck: false } : {})} data-numero value={valor} onChange={cambiar} placeholder="—" aria-label={ariaLabel} aria-invalid={Boolean(error)}
         className={CLASE_INPUT + ancho + " px-1.5 text-center font-mono font-semibold placeholder:font-normal placeholder:text-slate-300 " + borde(error)} />
     </Campo>
   )
@@ -105,7 +110,7 @@ export function Chips({ opciones, valor, onCambiar, ninguno, etiqueta }) {
 
 // Dos ojos lado a lado: el ojo izquierdo a la IZQUIERDA y el derecho a la DERECHA (como se sientan frente al paciente), en todas las tarjetas.
 export function OjosLadoALado({ izquierdo, derecho, className = "" }) {
-  return <div className={"grid grid-cols-2 gap-3 " + className}>{izquierdo}{derecho}</div>
+  return <div data-ojos className={"grid grid-cols-2 gap-3 " + className}>{izquierdo}{derecho}</div>
 }
 
 export function CuadroOjo({ lado, children, noEvaluado }) {

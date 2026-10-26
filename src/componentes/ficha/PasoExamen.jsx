@@ -15,9 +15,9 @@ function Bloque({ id, titulo, registrado, resumen, abierto, onAlternar, error, c
       <button type="button" id={`bloque-${id}`} aria-expanded={abierto} aria-controls={`bloque-${id}-contenido`} onClick={onAlternar}
         className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition-colors hover:bg-slate-50 cursor-pointer">
         <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            <span className="text-sm font-bold" style={{ color: INK }}>{titulo}</span>
-            <span className={"inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold " + (registrado ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-500")}>
+          <span data-bloque-cabecera className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <span data-bloque-titulo className="text-sm font-bold" style={{ color: INK }}>{titulo}</span>
+            <span data-bloque-estado className={"inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold " + (registrado ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-500")}>
               {registrado && <Check size={11} aria-hidden="true" />}{registrado ? "Registrado" : "Sin registrar"}
             </span>
             {error && <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">Falta completar</span>}

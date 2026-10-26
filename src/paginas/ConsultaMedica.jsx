@@ -5,6 +5,7 @@ import AvisoFlotante, { DURACION_AVISO_MS } from "../componentes/AvisoFlotante"
 import { ahoraEcuador } from "../utilidades/horaEcuador"
 
 import { useState, useEffect, useMemo, useRef } from "react"
+import { createPortal } from "react-dom"
 import { supabase } from "../lib/supabaseClient"
 import {
   CheckCircle, ArrowLeft, ArrowRight, Save, Stethoscope, AlertCircle, User, Sparkles, Printer, Calendar, Search,
@@ -44,6 +45,9 @@ import PasoExamen from "../componentes/ficha/PasoExamen"
 import { CLASE_INPUT } from "../componentes/ficha/piezas"
 import { datosOpticaReceta } from "../utilidades/datosReceta"
 import { sugerirDiagnostico } from "../utilidades/diagnosticoSugerido"
+import { useModoCelular } from "../utilidades/modoCelular"
+import { useConsulta } from "../componentes/portal/useAncho"
+import { BarraPasosCelular, CabeceraFichaCelular, PieFichaCelular } from "../componentes/celular/FichaCelular"
 
 // ─── Paleta de firma (consistente con el resto del sistema) ───
 const GRAD = "linear-gradient(135deg,#22D3EE,#2563EB)" // cian → azul
@@ -59,6 +63,9 @@ const SIN_ERRORES = { anamnesis: {}, examen: {}, diagnostico: {} }
 const CLAVES_FORM = Object.keys(crearForm(""))
 
 export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pacientesLista = [], setPacientes, consultas: historialConsultas = [], setConsultas: setHistorialConsultas, inventario = [], setInventario, setFacturasVenta, parametrizacion, diagnosticosRapidos = [], motivosConsulta = [], pacienteInicial, citaIdInicial, motivoInicial, citas = [], setCitas, onPacienteInicialConsumido, onVolver, onCerrar, origenNombre = "Pacientes", onCambiosSinGuardarChange, onAviso, pases = [], setPases }) {
+  // Celular y tablet (por debajo de 1093 px): la misma ficha con otra disposición (pantalla completa, cabecera y pie fijos). De 1093 px en adelante nada de esto se dibuja.
+  const celular = useModoCelular()
+  const tablet = useConsulta("(min-width: 768px)", true)
   // El paso en pantalla (Anamnesis, Examen o Diagnóstico y receta).
   const [paso, setPaso] = useState("anamnesis")
   // Cita de origen cuando esta ficha se abrió desde "Atender" en Citas médicas.
@@ -645,8 +652,27 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const bannerPaso = intento && pasoPendiente && pasoPendiente === paso ? mensajeFaltante(paso) : ""
   const otrosPasosPendientes = intento ? PASOS.filter((p) => p.id !== paso && Object.keys(todosLosErrores[p.id] || {}).length > 0) : []
 
-  return (
-    <div className="w-full space-y-4 text-left">
+  // El aviso «Hay una ficha a medias»: arriba en la computadora; dentro de lo que se desplaza en el celular.
+  const bannerBorrador = (
+    <>
+      {borradorPendiente && !fichaGuardada && (
+        <div role="status" className="no-print flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-slate-800">
+          <History size={18} className="shrink-0 text-blue-600" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-sm"><span className="font-semibold">Hay una ficha a medias de este paciente</span> · {textoGuardado(borradorPendiente.guardadoEn).replace("Guardado", "guardada")}. ¿La recuperas?</p>
+          <div className="flex shrink-0 gap-2">
+            <button type="button" onClick={recuperarBorrador} className="rounded-lg px-4 py-2 text-sm font-semibold text-white cursor-pointer" style={{ background: GRAD }}>Recuperar</button>
+            <button type="button" onClick={descartarBorrador} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Empezar de cero</button>
+          </div>
+        </div>
+      )}
+
+    </>
+  )
+  const motivoDeLaVisita = citaDeLaVisita?.motivo || f.motivo
+  const descripcionDeLaCita = citaDeLaVisita ? `Cita ${horaSinCero(citaDeLaVisita.hora)} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? "Hoy" : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}` : "Sin cita · consulta directa"
+
+  const raiz = (
+    <div className={celular ? "ficha-celular fixed inset-0 z-[45] flex flex-col text-left" : "w-full space-y-4 text-left"} style={celular ? { backgroundColor: "#F4F6FA" } : undefined}>
       {/* Estilos para impresión limpia de la receta */}
       <style>{`
         @page { margin: 1.4cm; }
@@ -661,7 +687,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       `}</style>
 
       {/* ─── VOLVER / CERRAR ─── "Volver" reabre lo que había antes (el perfil del paciente, si se entró desde ahí); "Cerrar" siempre sale a la lista de origen. */}
-      {(onVolver || onCerrar) && (
+      {!celular && (onVolver || onCerrar) && (
         <div className="no-print -mt-2 flex items-center justify-between">
           <button type="button" onClick={onVolver || onCerrar} className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer">
             <ArrowLeft size={18} /> {origenNombre}
@@ -680,22 +706,38 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       {/* Sin encabezado grande: la fila del paciente y la barra de pasos bastan. El título queda solo para lectores de pantalla. */}
       <h1 className="sr-only">Ficha clínica</h1>
 
-      {borradorPendiente && !fichaGuardada && (
-        <div role="status" className="no-print flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-slate-800">
-          <History size={18} className="shrink-0 text-blue-600" aria-hidden="true" />
-          <p className="min-w-0 flex-1 text-sm"><span className="font-semibold">Hay una ficha a medias de este paciente</span> · {textoGuardado(borradorPendiente.guardadoEn).replace("Guardado", "guardada")}. ¿La recuperas?</p>
-          <div className="flex shrink-0 gap-2">
-            <button type="button" onClick={recuperarBorrador} className="rounded-lg px-4 py-2 text-sm font-semibold text-white cursor-pointer" style={{ background: GRAD }}>Recuperar</button>
-            <button type="button" onClick={descartarBorrador} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Empezar de cero</button>
-          </div>
-        </div>
-      )}
-
+      {!celular && bannerBorrador}
       {notificacion && <AvisoFlotante texto="Ficha clínica guardada con éxito." tipo="exito" />}
 
-      <div className="w-full">
+      {celular && (
+        <CabeceraFichaCelular nombre={pacienteSeleccionado} motivo={motivoDeLaVisita} guardado={!fichaGuardada && guardadoEn != null ? textoGuardado(guardadoEn, ahoraTexto) : null}
+          onVolver={onVolver || onCerrar} etiquetaVolver={`Volver a ${origenNombre}`}>
+          {tablet ? <div className="pb-2"><BarraPasos paso={paso} estados={estados} onIr={irA} /></div> : <BarraPasosCelular paso={paso} estados={estados} onIr={irA} />}
+        </CabeceraFichaCelular>
+      )}
+
+      <div className={celular ? "ficha-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain py-3" : "w-full"} style={celular ? { paddingLeft: "max(1rem, env(safe-area-inset-left))", paddingRight: "max(1rem, env(safe-area-inset-right))" } : undefined}>
+        {celular && (
+          <div className="mb-3 space-y-2">
+            {bannerBorrador}
+            {pacienteId && pacienteSeleccionado && <p className="text-sm text-slate-600">{edadPaciente != null ? `${edadPaciente} años · ` : ""}{descripcionDeLaCita}</p>}
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              {pacienteId && pacienteSeleccionado && (
+                <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                  <Calendar size={14} aria-hidden="true" /> Fecha de la consulta
+                  <span className="w-44"><CampoFecha id="consulta-fecha" etiqueta="Fecha de la consulta" valor={f.fechaConsulta} onCambiar={(v) => set("fechaConsulta", v)} min={sumarDiasISO(hoyISO(), -365 * 3)} max={hoyISO()} /></span>
+                </label>
+              )}
+              {citaEnAtencionId && !fichaGuardada && (
+                <button type="button" onClick={() => setMostrarDejarDeAtender(true)} className="flex items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-slate-600 cursor-pointer">
+                  <LogOut size={15} aria-hidden="true" /> Dejar de atender
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         {/* ─── BARRA DE LA VISITA ─── paciente, cita de origen y fecha de la consulta (editable). Opaca, fija al hacer scroll. */}
-        {pacienteId && pacienteSeleccionado && (
+        {!celular && pacienteId && pacienteSeleccionado && (
           <div className="no-print sticky top-0 z-10 mb-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -719,11 +761,11 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
           </div>
         )}
 
-        <div className="no-print mb-3"><BarraPasos paso={paso} estados={estados} onIr={irA} /></div>
+        {!celular && <div className="no-print mb-3"><BarraPasos paso={paso} estados={estados} onIr={irA} /></div>}
 
-        <div className={"grid gap-4 " + (pacienteId ? (paso === "diagnostico" ? "lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_23rem]" : "lg:grid-cols-[minmax(0,1fr)_16rem]") : "")}>
-          <form onSubmit={intentarGuardar} onKeyDown={(e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") e.preventDefault() }} className="no-print min-w-0 space-y-3">
-            <div ref={inicioFormRef} style={{ scrollMarginTop: 140 }} />
+        <div className={celular ? "grid gap-4" : "grid gap-4 " + (pacienteId ? (paso === "diagnostico" ? "lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_23rem]" : "lg:grid-cols-[minmax(0,1fr)_16rem]") : "")}>
+          <form id="ficha-form" onSubmit={intentarGuardar} onKeyDown={(e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") e.preventDefault() }} className="no-print min-w-0 space-y-3">
+            <div ref={inicioFormRef} style={{ scrollMarginTop: celular ? 0 : 140 }} />
             {bannerPaso && (
               <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-red-200/60 bg-red-50 p-3.5 text-red-700">
                 <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-500" />
@@ -787,7 +829,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                       ? <p className="flex items-center gap-1 text-xs font-medium text-emerald-600"><CheckCircle size={12} /> Ficha guardada · lista para imprimir</p>
                       : <p className="text-xs text-slate-500">Guarda la ficha clínica para habilitar la impresión.</p>}
                   </div>
-                  <button type="button" onClick={() => setMostrarHoja(true)} disabled={!fichaGuardada} title={fichaGuardada ? "Descargar el PDF o imprimir el diagnóstico" : "Primero termina la atención"}
+                  <button type="button" data-imprimir-diagnostico onClick={() => setMostrarHoja(true)} disabled={!fichaGuardada} title={fichaGuardada ? "Descargar el PDF o imprimir el diagnóstico" : "Primero termina la atención"}
                     className={"flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-colors " + (fichaGuardada ? "text-white cursor-pointer" : "cursor-not-allowed text-slate-400")}
                     style={fichaGuardada ? { background: GRAD, boxShadow: "0 12px 24px -12px rgba(37,99,235,0.6)" } : { backgroundColor: "#e2e8f0" }}>
                     <Printer size={15} /> Imprimir diagnóstico
@@ -960,7 +1002,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
             )}
 
             {/* Navegación: «Siguiente» solo sugiere el orden; la barra de arriba deja ir a cualquier paso. */}
-            <div className="no-print mt-2 flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white px-4 py-3 shadow-sm">
+            {!celular && <div className="no-print mt-2 flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white px-4 py-3 shadow-sm">
               <span className="text-sm font-medium text-slate-500">Paso {indicePaso + 1} de {PASOS.length}</span>
               <div className="flex gap-2">
                 {indicePaso > 0 && (
@@ -975,7 +1017,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
                   <button key="btn-nueva-consulta" type="button" onClick={resetForm} className="flex items-center gap-1.5 rounded-lg px-5 py-2 text-sm font-semibold text-white transition-colors hover:brightness-125 cursor-pointer" style={{ backgroundColor: INK }}><ClipboardList size={15} /> Nueva consulta</button>
                 )}
               </div>
-            </div>
+            </div>}
           </form>
 
           {pacienteId && (
@@ -989,6 +1031,11 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
           )}
         </div>
       </div>
+
+      {celular && (
+        <PieFichaCelular indice={indicePaso} total={PASOS.length} fichaGuardada={fichaGuardada} formId="ficha-form"
+          onVerDocumento={() => setMostrarHoja(true)} onAnterior={() => irA(PASOS[indicePaso - 1].id)} onSiguiente={() => irA(PASOS[indicePaso + 1].id)} onNueva={resetForm} />
+      )}
 
       {mostrarDejarDeAtender && (
         <ConfirmarDejarDeAtender cita={citaDeLaVisita || { id: citaEnAtencionId, paciente: pacienteSeleccionado || "este paciente", fecha: hoyISO(), hora: "" }} setCitas={setCitas} onCancelar={() => setMostrarDejarDeAtender(false)} onHecho={alDejarDeAtender} />
@@ -1030,7 +1077,7 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
             {fichaGuardada && <button type="button" onClick={imprimirReceta} className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"><Printer size={15} aria-hidden="true" /> Imprimir</button>}
             <button type="button" onClick={() => setMostrarHoja(false)} className="rounded-lg border border-slate-200/60 px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer">Cerrar</button>
           </div></>}>
-          <div className="overflow-x-auto bg-slate-100/70 p-4"><div className="rounded-xl border border-slate-200/60 bg-white shadow-sm"><HojaReceta {...datosDeLaHoja()} /></div></div>
+          <div className={"overflow-x-auto bg-slate-100/70 " + (celular ? "p-2" : "p-4")}><div className="rounded-xl border border-slate-200/60 bg-white shadow-sm" style={celular ? { width: 780, zoom: Math.min(1, (window.innerWidth - 16) / 780) } : undefined}><HojaReceta {...datosDeLaHoja()} /></div></div>
         </Cascaron>
       )}
 
@@ -1050,6 +1097,8 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
       )}
     </div>
   )
+  // En el celular la ficha ocupa toda la pantalla, por encima de la barra de abajo del sistema: se dibuja pegada al <body>.
+  return celular ? createPortal(raiz, document.body) : raiz
 }
 
 /* ---------- Subcomponentes ---------- */
