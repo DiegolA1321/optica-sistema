@@ -488,6 +488,19 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
     setError("")
   }
 
+  // «Añadir nuevo paciente» desde la lista vacía: lo escrito pasa al formulario, como cédula si son solo dígitos y como nombre si no.
+  const crearPacienteDesdeBusqueda = () => {
+    const q = busquedaPaciente.trim()
+    const esCedula = /^[\d\s-]+$/.test(q)
+    setNpNombre(esCedula ? "" : filtrarSoloLetras(q))
+    setNpCedula(esCedula ? filtrarSoloNumeros(q, 10) : "")
+    setNpTipoDoc("cedula")
+    setPacienteId(null)
+    setBusquedaPaciente("")
+    setMostrarDropdown(false)
+    setMostrarNuevoPaciente(true)
+  }
+
   const pacienteSeleccionado = pacientes.find((p) => p.id === pacienteId)
 
   const validarYPedirConfirmacion = (e) => {
@@ -1790,6 +1803,14 @@ export default function Citas({ descartes = new Map(), avisosDelModulo = null, u
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {mostrarDropdown && pacientesFiltrados.length === 0 && (
+                    <div role="status" className="absolute z-50 mt-1 w-full rounded-xl border border-slate-200/60 bg-white p-3.5 text-center shadow-lg">
+                      <p className="text-sm font-semibold text-slate-700">{pacientes.length === 0 ? "Aún no hay pacientes registrados" : "No se encontró ningún paciente"}</p>
+                      <button type="button" onClick={crearPacienteDesdeBusqueda} className="mt-2 inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50">
+                        <UserPlus size={15} /> Añadir nuevo paciente
+                      </button>
+                    </div>
                   )}
                 </>
               )}

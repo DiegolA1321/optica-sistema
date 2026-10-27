@@ -8,7 +8,8 @@ import { protegerDemo } from './guardia-demo.js'
 
 export const SLUG_DEMO = 'qu7u2j'
 export const SLUG_PRUEBAS = 'v8twzq'
-export const slugDe = (entorno) => (entorno === 'E2E' ? SLUG_PRUEBAS : SLUG_DEMO)
+export const SLUG_VACIA = '3pldf1' // Óptica Vacía (pruebas): sin pacientes, solo lecturas
+export const slugDe = (entorno) => (entorno === 'E2E' ? SLUG_PRUEBAS : entorno === 'VACIA' ? SLUG_VACIA : SLUG_DEMO)
 
 export function credencial(prefijo, entorno = 'DEMO') {
   const correo = process.env[`${entorno}_${prefijo}_EMAIL`]
