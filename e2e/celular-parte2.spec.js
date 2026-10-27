@@ -3,7 +3,7 @@
 //     completa con sus acciones abajo, el «+» que abre «Gestionar cita» a pantalla completa, sin desplazamiento horizontal, 44 px y 16 px; y en tablet la Semana y el Mes completos.
 //   * Óptica de pruebas (escribe): quien llega segundo a una hora ve «Esa hora acaba de ocuparse. Elige otra.» dentro de la ventana, sin perder lo escrito.
 import { test, expect } from '@playwright/test'
-import { iniciarSesion, nombrePrueba, cedulaValida, telefonoPrueba, seleccionarPorTexto } from './ayudas.js'
+import { iniciarSesion, nombrePrueba, cedulaValida, telefonoPrueba, seleccionarPorTexto, crearPacienteConHistorial } from './ayudas.js'
 
 const barra = (page) => page.locator('nav[aria-label="Menú del panel"]')
 
@@ -163,5 +163,42 @@ test.describe('Agenda en celular: la hora que acaba de ocuparse', () => {
     await expect(page.getByText('Esa hora acaba de ocuparse. Elige otra.').first()).toBeVisible({ timeout: 15_000 })
     await expect(form).toBeVisible() // la ventana sigue abierta y el paciente elegido, intacto
     await expect(form.getByPlaceholder(/Escriba para buscar/)).toHaveValue(nombre)
+  })
+})
+
+// Buscar al paciente en «Gestionar cita» con el teclado del teléfono abierto (alto de pantalla reducido): la lista se ve encima de todo,
+// sus resultados se tocan con el dedo (44 px o más), y al elegir uno se completa el campo y se cierra la lista.
+test.describe('Agenda en celular: elegir al paciente de la lista', () => {
+  test.use({ viewport: { width: 390, height: 430 }, isMobile: true, hasTouch: true, actionTimeout: 15_000 })
+  test('la lista aparece, se toca y completa el campo; la cita se crea', async ({ page }) => {
+    test.setTimeout(150_000)
+    const nombre = await crearPacienteConHistorial(0)
+    await iniciarSesion(page, 'RECEPCION', 'E2E')
+    await barra(page).getByRole('button', { name: 'Agenda', exact: true }).click()
+    await page.getByRole('button', { name: 'Agendar cita', exact: true }).click()
+    const form = page.getByRole('dialog', { name: 'Gestionar cita' })
+    const buscador = form.getByPlaceholder(/Escriba para buscar/)
+    await buscador.tap()
+    await page.keyboard.type(nombre, { delay: 20 })
+    const lista = form.locator('ul').first()
+    const opcion = lista.getByRole('button', { name: new RegExp(nombre) })
+    await expect(opcion).toBeVisible()
+    // Visible de verdad: el centro de la opción es lo que se toca (no hay nada encima) y mide 44 px o más.
+    const caja = await opcion.boundingBox()
+    expect(caja.height).toBeGreaterThanOrEqual(43.5)
+    const encima = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('li') != null, [caja.x + caja.width / 2, caja.y + caja.height / 2])
+    expect(encima, 'la opción queda por encima de todo').toBe(true)
+    await opcion.tap()
+    await expect(buscador).toHaveValue(nombre)
+    await expect(form.locator('ul')).toHaveCount(0) // la lista se cierra
+    await form.locator('select').first().selectOption({ index: 1 })
+    await seleccionarPorTexto(form.locator('#citas-asignado'), /Paula/)
+    const dias = form.locator('button[title="Disponible"]')
+    if (!(await dias.count())) await form.getByRole('button', { name: 'Mes siguiente' }).click()
+    await dias.first().click()
+    await form.locator('button:enabled').filter({ hasText: /^\d{1,2}:\d{2} (AM|PM)$/ }).first().click()
+    await form.getByRole('button', { name: 'Confirmar cita' }).click()
+    await page.getByRole('dialog').last().getByRole('button', { name: 'Confirmar', exact: true }).click()
+    await expect(page.getByText('Cita registrada y guardada correctamente.')).toBeVisible({ timeout: 15_000 })
   })
 })
