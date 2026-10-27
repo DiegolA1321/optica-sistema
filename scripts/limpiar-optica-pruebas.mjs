@@ -8,7 +8,10 @@
 // Conserva: la óptica, sus perfiles (administrador y cuentas), sus roles y asignaciones, el registro de auditoría del superadmin
 // y su configuración (horario y duración de citas se ajustan con scripts/configurar-optica-pruebas.mjs).
 //
-// Aborta y revierte si: el id no es "QA Test Claude", o cambia el conteo de filas de CUALQUIER otra óptica.
+// Aborta y revierte si: el id no es "QA Test Claude", o si LA LIMPIEZA cambia el conteo de filas de CUALQUIER otra óptica (se mide dentro de una
+// transacción REPEATABLE READ: solo ve lo que borra esta misma limpieza, no lo que otras pruebas escriban a la vez, por ejemplo las visitas de la Demo);
+// o si, mientras corre, cambia cualquier tabla (salvo `visitas`, el contador de la página pública) de una óptica REAL: todas menos la de pruebas, la Demo,
+// la Vacía y la Ficticia, que las pruebas escriben a propósito (Solna Vision, Karla V y cualquier óptica nueva quedan protegidas).
 import pg from "pg"
 
 const OPTICA_ID = "dc6956ab-a507-4905-a122-47680c6d3b6d"
@@ -23,7 +26,20 @@ const ORDEN = ["movimientos_inventario", "ordenes_laboratorio", "pases_a_venta",
 
 const c = new pg.Client()
 await c.connect()
+const v = new pg.Client() // segunda conexión, sin transacción: ve en vivo lo que otros escriben mientras la limpieza corre
+await v.connect()
 const q = async (sql, p) => (await c.query(sql, p)).rows
+// Ópticas que son de pruebas o que las pruebas escriben a propósito; cualquier otra se considera REAL y está protegida.
+const NO_REALES = new Set([OPTICA_ID, "852d07ea-fafc-44a2-9566-5d28688da663" /* Demo */, "d4c574b1-378b-4dd9-929b-8ffcc65c2f22" /* Vacía */, "e712b468-654b-4306-942f-a71615bae4ed" /* Ficticia */])
+
+// Conteos en vivo (sin transacción) de las ópticas reales, sin `visitas`.
+async function conteosReales() {
+  const tablas = (await v.query(`select c.table_name from information_schema.columns c join information_schema.tables t using (table_schema, table_name)
+    where c.table_schema='public' and c.column_name='optica_id' and t.table_type='BASE TABLE' and c.table_name <> 'visitas' order by 1`)).rows.map((r) => r.table_name)
+  const m = {}
+  for (const t of tablas) for (const r of (await v.query(`select optica_id::text id, count(*)::int n from public.${t} group by 1`)).rows) if (!NO_REALES.has(r.id)) m[`${t}|${r.id}`] = r.n
+  return m
+}
 
 async function conteos() {
   const tablas = (await q(`select c.table_name from information_schema.columns c join information_schema.tables t using (table_schema, table_name)
@@ -36,8 +52,9 @@ async function conteos() {
 try {
   const o = (await q("select nombre from opticas where id = $1", [OPTICA_ID]))[0]
   if (!o || o.nombre !== NOMBRE) throw new Error(`El id no corresponde a "${NOMBRE}": se aborta.`)
-  const { tablas, m: antes } = await conteos()
-  await c.query("begin")
+  const realesAntes = await conteosReales()
+  await c.query("begin isolation level repeatable read")
+  const { tablas, m: antes } = await conteos() // la foto de la transacción: después solo se compara lo que cambie esta limpieza
   // El kárdex (migración 0111) no se puede borrar ni editar: para limpiar la óptica de PRUEBAS se desactiva su protección solo dentro de esta transacción.
   const hayKardex = tablas.includes("movimientos_inventario")
   const hayActas = tablas.includes("conteos_inventario")
@@ -114,6 +131,11 @@ try {
     if (d !== 0 && id !== OPTICA_ID) { ok = false; console.log(`✘ CAMBIÓ otra óptica: ${t} (${id}) ${d}`) }
     if (d > 0) { ok = false; console.log(`✘ ${t} aumentó`) }
   }
+  const realesDespues = await conteosReales()
+  for (const k of new Set([...Object.keys(realesAntes), ...Object.keys(realesDespues)])) {
+    const d = (realesDespues[k] || 0) - (realesAntes[k] || 0)
+    if (d !== 0) { ok = false; const [t, id] = k.split("|"); console.log(`✘ CAMBIÓ una óptica real mientras corría la limpieza: ${t} (${id}) ${d}`) }
+  }
   const quedan = Object.entries(despues).filter(([k, n]) => k.endsWith(OPTICA_ID) && n > 0).map(([k, n]) => `${k.split("|")[0]}: ${n}`)
   const adminSigue = (await q("select count(*)::int n from perfiles where optica_id = $1 and rol = 'admin' and activo", [OPTICA_ID]))[0].n
   if (adminSigue < 1) { ok = false; console.log("✘ el administrador ya no existe") }
@@ -131,4 +153,5 @@ try {
   process.exitCode = 1
 } finally {
   await c.end()
+  await v.end()
 }
