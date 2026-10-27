@@ -671,8 +671,9 @@ export default function ConsultaMedica({ usuario, disponibilidad, pacientes: pac
   const motivoDeLaVisita = citaDeLaVisita?.motivo || f.motivo
   const descripcionDeLaCita = citaDeLaVisita ? `Cita ${horaSinCero(citaDeLaVisita.hora)} · ${citaDeLaVisita.motivo || "Consulta"} · ${citaDeLaVisita.fecha === hoyISO() ? "Hoy" : `agendada ${fechaCorta(citaDeLaVisita.fecha)} · atención hoy`}` : "Sin cita · consulta directa"
 
+  // En el celular la ficha es una PÁGINA a pantalla completa (fondo propio, sin desvanecer nada detrás), no una ventana: por eso no usa la capa de las ventanas (inset-0 con backdrop-blur).
   const raiz = (
-    <div className={celular ? "ficha-celular fixed inset-0 z-[45] flex flex-col text-left" : "w-full space-y-4 text-left"} style={celular ? { backgroundColor: "#F4F6FA" } : undefined}>
+    <div className={celular ? "ficha-celular fixed left-0 top-0 z-[45] flex h-[100dvh] w-full flex-col text-left" : "w-full space-y-4 text-left"} style={celular ? { backgroundColor: "#F4F6FA" } : undefined}>
       {/* Estilos para impresión limpia de la receta */}
       <style>{`
         @page { margin: 1.4cm; }
