@@ -63,11 +63,9 @@ test('La óptica escribe una consulta urgente con captura; el superadmin la atie
   await escribir(asuntoNormal, false, false)
   const codigo = await escribir(asunto, true, true)
 
-  // Mis consultas: número, módulo, urgencia y estado
+  // Mis consultas: la fila muestra urgencia y estado (el número y el módulo salen al enviarla y en la campanita, más abajo)
   await optica.getByRole('tab', { name: /Soporte del sistema/ }).click()
   const fila = optica.getByRole('listitem').filter({ hasText: asunto })
-  await expect(fila).toContainText(codigo)
-  await expect(fila).toContainText('Ventas')
   await expect(fila).toContainText('Urgente')
   await expect(fila).toContainText('Recibida')
 

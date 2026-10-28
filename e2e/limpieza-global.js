@@ -17,12 +17,13 @@ export default async function limpiarOpticaDePruebas() {
     return
   }
   // La limpieza corre en una transacción que ve una foto fija; si otra escritura (el cron de citas, otra prueba) toca a la vez una fila de la óptica de pruebas, la base responde
-  // «could not serialize access» y no cambia nada: se repite. Cualquier otro motivo de cancelación (por ejemplo cambios en una óptica real) NO se reintenta.
+  // «could not serialize access» (o espera de más, o un bloqueo cruzado) y no cambia nada: se repite. Cualquier otro motivo de cancelación (por ejemplo cambios en una óptica real) NO se reintenta.
   let r, salida
   for (let intento = 1; intento <= 5; intento++) {
     r = spawnSync(process.execPath, ['--env-file=.env.local', 'scripts/limpiar-optica-pruebas.mjs', '--ejecutar'], { encoding: 'utf8' })
     salida = `${r.stdout || ''}${r.stderr || ''}`
-    if (r.status === 0 || !salida.includes('could not serialize access')) break
+    if (r.status === 0 || !/could not serialize access|deadlock detected|canceling statement due to (statement|lock) timeout/.test(salida)) break
+    console.log(`[limpieza] la base pidió repetir (escritura simultánea); intento ${intento + 1}`)
     await new Promise((res) => setTimeout(res, 3000))
   }
   if (r.status !== 0 || !salida.includes('LIMPIADA (commit)')) {
