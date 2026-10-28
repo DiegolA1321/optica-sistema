@@ -3,8 +3,7 @@
 // se comprueba del lado del servidor: no se repite la oferta hasta 30 días después, y con «No usamos este módulo» ya no se le ofrece.
 //
 // Qué escribe y dónde: todo en la óptica de pruebas (E2E, QA Test Claude) y se limpia antes y después. La ventana «Ofrecer ayuda» del Inicio del superadmin es de
-// la óptica real (Solna): se abre y se ve su mensaje, su vista previa y su botón, pero NO se envía, para no escribirle una consulta a una óptica real; el
-// envío a la óptica de pruebas lo hace el superadmin por la API, con su sesión real (la misma función del servidor que usa el botón).
+// la óptica real y NO se abre aquí (ver el paso 1); el envío a la óptica de pruebas lo hace el superadmin por la API, con su sesión real (la misma función del servidor que usa el botón).
 // Necesita la migración 0122 aplicada y SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD en el entorno (o en .env.test); sin ellas, se omite.
 import { test, expect } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
@@ -45,32 +44,11 @@ test('El soporte ofrece ayuda; el administrador la ve, abre la guía y responde 
   const optica = await idOpticaDePruebas()
   const api = await sesionSuperadmin()
 
-  // ── 1. La ventana del Inicio del superadmin: mensaje propuesto, vista previa y botón (se abre y se cierra sin enviar)
+  // ── 1. Entra el superadmin (solo su sesión). La ventana «Ofrecer ayuda» del Inicio NO se abre aquí: ese Inicio muestra siempre la primera óptica que no es de prueba (la real),
+  // y esta prueba nunca debe llegar a ella. Esa ventana está cubierta por las pruebas unitarias (ModoTesis.test.jsx y VistaPrevia.test.jsx).
   const contextoSuper = await browser.newContext({ viewport: { width: 1366, height: 768 } })
   const superadmin = await contextoSuper.newPage()
   await entrarComoSuperadmin(superadmin)
-  const modulos = superadmin.getByRole('list', { name: 'Módulos' })
-  await expect(modulos).toBeVisible({ timeout: 60_000 })
-  const sinUso = modulos.getByRole('button', { name: /Sin uso en 30 días/ }).first()
-  if (await sinUso.count()) {
-    await sinUso.click()
-    const detalle = superadmin.getByRole('dialog').first()
-    const ofrecer = detalle.getByRole('button', { name: 'Ofrecer ayuda' })
-    if (await ofrecer.count()) {
-      await ofrecer.click()
-      const ventana = superadmin.getByRole('dialog', { name: /^Ofrecer ayuda con / })
-      await expect(ventana.getByLabel('Mensaje para el administrador')).toHaveValue(/^Vimos que en los últimos 30 días no usaron .+\. Te dejamos una guía paso a paso, y si tienes dudas, respóndenos aquí\.$/)
-      await expect(ventana.getByText(/de 2000/)).toHaveCount(0) // el contador solo aparece cerca del límite
-      const vista = ventana.getByRole('region', { name: 'Vista previa' })
-      await expect(vista).toContainText('El soporte te ofrece ayuda con')
-      await expect(vista).toContainText('No usamos este módulo')
-      await expect(vista.getByRole('button')).toHaveCount(0) // los botones de la muestra no se pulsan
-      expect(await ventana.textContent()).not.toMatch(/https?:|localhost|vercel/i)
-      await expect(ventana.getByRole('button', { name: 'Enviar a la óptica' })).toBeEnabled()
-      await ventana.getByRole('button', { name: 'Cancelar' }).click() // NO se envía: es la óptica real
-      await expect(ventana).toHaveCount(0)
-    }
-  }
 
   // ── 2. El soporte ofrece ayuda con Ventas y con Inventario a la óptica de pruebas (la misma función del servidor que usa el botón)
   const MENSAJE = 'Vimos que en los últimos 30 días no usaron Ventas. Te dejamos una guía paso a paso, y si tienes dudas, respóndenos aquí.'
